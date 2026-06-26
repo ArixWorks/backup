@@ -45,6 +45,23 @@ enum WalletTxType {
   ADMIN_ADJUSTMENT
   CASHBACK
   REFERRAL_BONUS
+  // Moving funds between two of a user's own currency wallets.
+  CONVERSION
+}
+
+// Chart of accounts for the double-entry ledger. USER_* accounts are per-user
+// and per-currency; SYS_* accounts are global per-currency system accounts.
+// Every posted entry's legs must sum to zero within a single currency.
+enum LedgerAccountKind {
+  USER_AVAILABLE // a user's spendable balance
+  USER_FROZEN // a user's escrowed/locked balance (bids, reservations)
+  SYS_CASH // real money received via deposits (card-to-card)
+  SYS_REVENUE // platform revenue from purchases / refunds
+  SYS_WITHDRAWALS_PAYABLE // amounts owed to users for approved withdrawals
+  SYS_PROMO_EXPENSE // cashback, referral bonuses and other promotions
+  SYS_ADJUSTMENTS // manual admin credits/debits
+  SYS_FX_CLEARING // counterparty for currency conversions
+  SYS_OPENING_BALANCE // counterparty for the go-live opening-balance backfill
 }
 
 enum CouponType {
@@ -181,7 +198,9 @@ model User {
   // guard so the join reward and the first-purchase reward each pay exactly once.
   referralJoinRewarded Boolean @default(false)
 
-  wallet      Wallet?
+  wallets     Wallet[]
+  ledgerAccounts LedgerAccount[]
+  conversions CurrencyConversion[]
   bids        Bid[]
   orders      Order[]
   watchlist   WatchlistEntry[]
@@ -224,8 +243,10 @@ model AuthToken {
 
 model Wallet {
   id            String   @id @default(cuid())
-  userId        String   @unique
+  userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ISO-ish currency code (e.g. "IRT", "USD", "USDT"). One wallet per user per currency.
+  currency      String   @default("IRT")
   totalBalance  BigInt   @default(0)
   frozenBalance BigInt   @default(0)
   // Optimistic-locking guard against concurrent balance mutations.
@@ -234,6 +255,8 @@ model Wallet {
   updatedAt     DateTime @updatedAt
 
   transactions WalletTransaction[]
+
+  @@unique([userId, currency])
 }
 
 // Immutable ledger. Records are never updated or deleted.
@@ -242,6 +265,8 @@ model WalletTransaction {
   walletId    String
   wallet      Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
   type        WalletTxType
+  // Denormalised currency of the wallet, copied for convenient querying.
+  currency    String       @default("IRT")
   amount      BigInt // signed delta applied by this entry
   balanceAfter BigInt
   frozenAfter BigInt
@@ -252,6 +277,111 @@ model WalletTransaction {
 
   @@index([walletId, createdAt])
   @@index([refType, refId])
+}
+
+// ---------------------------------------------------------------------------
+// Currencies, exchange rates & conversions (multi-currency support)
+// ---------------------------------------------------------------------------
+
+model Currency {
+  code         String   @id // "IRT", "USD", "USDT"
+  name         String
+  symbol       String
+  // Minor-unit precision used for display (IRT=0, USD=2, USDT=2).
+  decimals     Int      @default(0)
+  isBase       Boolean  @default(false) // exactly one base currency (IRT)
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Exchange rate history. rate is scaled by 1e8 and expresses how many units of
+// quoteCode equal one unit of baseCode. Latest row per pair wins.
+model ExchangeRate {
+  id          String   @id @default(cuid())
+  baseCode    String
+  quoteCode   String
+  rate        BigInt // scaled ×1e8
+  updatedById String?
+  createdAt   DateTime @default(now())
+
+  @@index([baseCode, quoteCode, createdAt])
+}
+
+// Audit record of a user converting between two of their currency wallets.
+model CurrencyConversion {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromCode   String
+  toCode     String
+  fromAmount BigInt
+  toAmount   BigInt
+  rateUsed   BigInt // scaled ×1e8
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Double-entry ledger (authoritative accounting record)
+// ---------------------------------------------------------------------------
+
+model LedgerAccount {
+  id          String            @id @default(cuid())
+  kind        LedgerAccountKind
+  // Set for USER_* accounts; null for SYS_* accounts.
+  ownerUserId String?
+  owner       User?             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  currency    String            @default("IRT")
+  balance     BigInt            @default(0)
+  // Optimistic-locking guard for concurrent leg postings.
+  version     Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  legs LedgerLeg[]
+
+  @@unique([kind, ownerUserId, currency])
+  @@index([currency])
+}
+
+// A balanced accounting entry. Its legs always sum to zero within one currency.
+model LedgerEntry {
+  id          String       @id @default(cuid())
+  publicId    String       @unique
+  kind        WalletTxType
+  currency    String       @default("IRT")
+  refType     String?
+  refId       String?
+  memo        String?
+  createdById String?
+  // Correlates this entry with the legacy WalletTransaction record, if any.
+  walletTxId  String?
+  createdAt   DateTime     @default(now())
+
+  legs LedgerLeg[]
+
+  @@index([kind, createdAt])
+  @@index([refType, refId])
+  @@index([walletTxId])
+}
+
+// One side of a ledger entry. amount is signed; balanceAfter snapshots the
+// account balance immediately after this leg was applied.
+model LedgerLeg {
+  id          String        @id @default(cuid())
+  entryId     String
+  entry       LedgerEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount      BigInt // signed; sum across an entry's legs == 0
+  balanceAfter BigInt
+  createdAt   DateTime      @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([entryId])
 }
 
 // ---------------------------------------------------------------------------

@@ -57,7 +57,7 @@ export async function resolveTelegramUser(tg: TgIdentity) {
       displayName: displayNameOf(tg),
       alias,
       username: tg.username ? `tg_${tg.username}`.toLowerCase().slice(0, 32) : undefined,
-      wallet: { create: { totalBalance: 0n } },
+      wallets: { create: { currency: "IRT", totalBalance: 0n } },
     },
   })
 }

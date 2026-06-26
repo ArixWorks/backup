@@ -11,6 +11,7 @@ import {
   spendAvailable,
   unfreeze,
 } from "./wallet"
+import { BASE_CURRENCY } from "./ledger"
 import { createManualDelivery, NoInventoryError, reserveAndDeliverAuto } from "./delivery"
 import { notifyAuctionWon } from "@/lib/telegram/notify"
 
@@ -26,7 +27,9 @@ async function currentAuctionFrozen(
   auctionId: string,
   tx: Tx,
 ): Promise<bigint> {
-  const wallet = await tx.wallet.findUnique({ where: { userId } })
+  const wallet = await tx.wallet.findUnique({
+    where: { userId_currency: { userId, currency: BASE_CURRENCY } },
+  })
   if (!wallet) return 0n
   const [frozen, unfrozen, captured] = await Promise.all([
     tx.walletTransaction.aggregate({

@@ -8,6 +8,8 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ ok: true, data: null })
+  // Base-currency wallet (eager-loaded in getCurrentUser); may be absent for new users.
+  const baseWallet = user.wallets?.[0] ?? null
   return NextResponse.json({
     ok: true,
     data: serialize({
@@ -24,11 +26,11 @@ export async function GET() {
       telegramUsername: user.telegramUsername,
       photoUrl: user.photoUrl,
       isPremium: user.isPremium,
-      balances: user.wallet
+      balances: baseWallet
         ? {
-            totalBalance: user.wallet.totalBalance,
-            frozenBalance: user.wallet.frozenBalance,
-            availableBalance: user.wallet.totalBalance - user.wallet.frozenBalance,
+            totalBalance: baseWallet.totalBalance,
+            frozenBalance: baseWallet.frozenBalance,
+            availableBalance: baseWallet.totalBalance - baseWallet.frozenBalance,
           }
         : null,
     }),
