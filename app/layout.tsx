@@ -51,6 +51,10 @@ export default async function RootLayout({
       dir="rtl"
       data-theme={theme}
       className={`dark bg-background ${vazirmatn.variable} ${geistMono.variable}`}
+      // i18n-provider and telegram-provider intentionally mutate <html>
+      // lang/dir/data-* on the client after hydration based on stored locale
+      // and the Telegram environment, so attribute drift here is expected.
+      suppressHydrationWarning
     >
       <head>
         <script src="https://telegram.org/js/telegram-web-app.js?57" async />
