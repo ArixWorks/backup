@@ -8,6 +8,7 @@ import { fetcher, apiPatch, ApiError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { AppearancePicker } from "@/components/admin/appearance-picker"
 
 // Mirror of SETTING_KEYS on the server (lib/core/settings.ts).
 const KEYS = {
@@ -67,7 +68,14 @@ export default function AdminSettingsPage() {
     <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Settings2 className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-extrabold">تنظیمات پاداش‌ها</h1>
+        <h1 className="text-2xl font-extrabold">تنظیمات</h1>
+      </div>
+
+      <AppearancePicker />
+
+      <div className="flex items-center gap-2 pt-1">
+        <Settings2 className="h-5 w-5 text-primary" />
+        <h2 className="text-xl font-extrabold">تنظیمات پاداش‌ها</h2>
       </div>
 
       {isLoading ? (
