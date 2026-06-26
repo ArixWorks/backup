@@ -198,6 +198,24 @@ model User {
   // guard so the join reward and the first-purchase reward each pay exactly once.
   referralJoinRewarded Boolean @default(false)
 
+  // Gamification & loyalty -------------------------------------------------
+  // loyaltyPoints is the current spendable balance; lifetimePoints is the
+  // monotonic total ever earned and is one of the two VIP-tier drivers.
+  loyaltyPoints    Int       @default(0)
+  lifetimePoints   Int       @default(0)
+  // totalSpent is lifetime spend in IRT minor units, the other VIP driver.
+  totalSpent       BigInt    @default(0)
+  vipTier          VipTier   @default(STANDARD)
+  vipSince         DateTime?
+  // Daily-login streak tracking for the "daily login" mission.
+  lastLoginDay     String?   // "YYYY-MM-DD" of the last counted login
+  loginStreak      Int       @default(0)
+  profileCompleted Boolean   @default(false)
+
+  pointEntries PointLedger[]
+  userBadges   UserBadge[]
+  userMissions UserMission[]
+
   wallets     Wallet[]
   ledgerAccounts LedgerAccount[]
   conversions CurrencyConversion[]
@@ -507,6 +525,22 @@ enum NotificationType {
   WITHDRAW_APPROVED
   CASHBACK
   REFERRAL_BONUS
+  // Smart / engagement notifications
+  AUCTION_ENDING
+  AUCTION_OUTBID
+  AUCTION_LOST
+  GIVEAWAY_STARTED
+  GIVEAWAY_WON
+  PRICE_DROP
+  COUPON_ACTIVE
+  COUPON_EXPIRING
+  REFUND_RECEIVED
+  VIP_EXPIRING
+  VIP_UPGRADED
+  LOW_BALANCE
+  POINTS_EARNED
+  BADGE_AWARDED
+  MISSION_COMPLETE
 }
 
 model Notification {
@@ -520,9 +554,12 @@ model Notification {
   href      String?
   image     String?
   read      Boolean          @default(false)
+  // Archived notifications are hidden from the default inbox view but retained.
+  archived  Boolean          @default(false)
   createdAt DateTime         @default(now())
 
   @@index([userId, read])
+  @@index([userId, archived])
   @@index([userId, createdAt])
 }
 
@@ -969,4 +1006,127 @@ model GiveawayWinner {
 
   @@unique([giveawayId, userId])
   @@index([giveawayId, position])
+}
+
+// ===========================================================================
+// Gamification: loyalty points, VIP tiers, achievements/badges & missions
+// ===========================================================================
+
+enum VipTier {
+  STANDARD
+  SILVER
+  GOLD
+  PLATINUM
+  VIP
+}
+
+enum PointReason {
+  PURCHASE
+  REFERRAL
+  GIVEAWAY_ENTRY
+  DAILY_LOGIN
+  PROFILE_COMPLETE
+  MISSION_REWARD
+  ACHIEVEMENT
+  ADMIN_ADJUSTMENT
+  REDEEM
+}
+
+enum MissionKind {
+  DAILY
+  WEEKLY
+}
+
+// Concrete, trackable user activities a mission can be bound to.
+enum MissionType {
+  DAILY_LOGIN
+  VIEW_FLASH_SALE
+  INVITE_FRIEND
+  PLACE_BID
+  COMPLETE_PROFILE
+  ENTER_GIVEAWAY
+  MAKE_PURCHASE
+}
+
+// Immutable, append-only points ledger. balanceAfter snapshots loyaltyPoints
+// immediately after the entry, mirroring the wallet ledger design.
+model PointLedger {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delta        Int // signed change in spendable points
+  balanceAfter Int
+  reason       PointReason
+  refType      String?
+  refId        String?
+  note         String?
+  createdAt    DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@index([reason, createdAt])
+}
+
+// Catalog of achievement badges. Code is a stable identifier used in code.
+model Badge {
+  code         String   @id // e.g. "FIRST_PURCHASE"
+  name         String
+  description  String
+  icon         String // lucide icon name rendered in the UI
+  points       Int      @default(0) // bonus points granted when awarded
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userBadges UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeCode String
+  badge     Badge    @relation(fields: [badgeCode], references: [code], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeCode])
+  @@index([userId])
+}
+
+// Admin-configurable daily/weekly missions.
+model Mission {
+  id           String      @id @default(cuid())
+  key          String      @unique // stable identifier, e.g. "daily_login"
+  kind         MissionKind
+  type         MissionType
+  title        String
+  description  String
+  target       Int         @default(1) // progress required to complete
+  rewardPoints Int         @default(0)
+  href         String? // optional deep link to perform the mission
+  icon         String      @default("Target")
+  isActive     Boolean     @default(true)
+  displayOrder Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  userMissions UserMission[]
+}
+
+// Per-user progress on a mission for a given period (day or ISO week).
+model UserMission {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionId   String
+  mission     Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  // periodKey isolates progress per period, e.g. "2026-06-26" or "2026-W26".
+  periodKey   String
+  progress    Int       @default(0)
+  completedAt DateTime?
+  claimedAt   DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, missionId, periodKey])
+  @@index([userId, periodKey])
 }

@@ -6,6 +6,8 @@ import { withLock } from "@/lib/redis"
 import { secureSlug } from "@/lib/id"
 import { audit } from "./audit"
 import { ensureWallet, deposit } from "./wallet"
+import { earnPoints, progressMission, awardBadge } from "./gamification"
+import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { getChatMember } from "@/lib/telegram/api"
 
@@ -559,6 +561,16 @@ export async function enterGiveaway(opts: {
           eligible: true,
         },
       })
+      // Loyalty: points + mission progress for entering a giveaway (best-effort).
+      try {
+        if (toBool(await getSetting(SETTING_KEYS.loyaltyEnabled))) {
+          const pts = toNumber(await getSetting(SETTING_KEYS.pointsPerGiveawayEntry))
+          if (pts > 0) await earnPoints(user.id, pts, "GIVEAWAY_ENTRY", { type: "giveaway", id: g.id })
+          await progressMission(user.id, "ENTER_GIVEAWAY", 1)
+        }
+      } catch (e) {
+        console.log("[v0] giveaway gamification error:", (e as Error).message)
+      }
       return { entry, created: true }
     } catch (e) {
       // Unique constraint => entered concurrently; treat as success.
@@ -676,6 +688,8 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
             },
           })
           winners.push(settled)
+          // Achievement: giveaway winner (idempotent, in-transaction).
+          await awardBadge(s.userId, "GIVEAWAY_WINNER", tx)
         }
 
         await tx.giveaway.update({

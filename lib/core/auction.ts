@@ -12,6 +12,7 @@ import {
   unfreeze,
 } from "./wallet"
 import { BASE_CURRENCY } from "./ledger"
+import { progressMission } from "./gamification"
 import { createManualDelivery, NoInventoryError, reserveAndDeliverAuto } from "./delivery"
 import { notifyAuctionWon } from "@/lib/telegram/notify"
 
@@ -143,6 +144,9 @@ export async function placeBid(opts: {
             maxAmount: opts.maxAmount ?? null,
           },
         })
+
+        // Loyalty: progress the "place a bid" mission (best-effort, in-tx).
+        await progressMission(opts.userId, "PLACE_BID", 1, tx).catch(() => {})
 
         // Update auction price with optimistic version guard.
         const priceUpdate = await tx.auction.updateMany({

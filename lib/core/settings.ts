@@ -13,6 +13,25 @@ export const SETTING_KEYS = {
   referralJoinBonus: "referral.joinBonus", // stage A: inviter, friend joined + passed gate (Toman)
   referralCommissionPercent: "referral.commissionPercent", // stage C: inviter, % of every friend purchase
   referralEnabled: "referral.enabled", // "true" | "false"
+
+  // --- Gamification ---
+  loyaltyEnabled: "loyalty.enabled", // "true" | "false"
+  // Points earned per 1000 Toman spent on a purchase.
+  pointsPerThousand: "loyalty.pointsPerThousand",
+  pointsPerReferral: "loyalty.pointsPerReferral", // points to inviter per successful referral
+  pointsPerGiveawayEntry: "loyalty.pointsPerGiveawayEntry",
+  pointsDailyLogin: "loyalty.pointsDailyLogin",
+  pointsProfileComplete: "loyalty.pointsProfileComplete",
+  // Lifetime-points thresholds for each VIP tier (combined with spend thresholds).
+  vipSilverPoints: "vip.silver.points",
+  vipGoldPoints: "vip.gold.points",
+  vipPlatinumPoints: "vip.platinum.points",
+  vipVipPoints: "vip.vip.points",
+  // Lifetime-spend thresholds (Toman) for each VIP tier.
+  vipSilverSpend: "vip.silver.spend",
+  vipGoldSpend: "vip.gold.spend",
+  vipPlatinumSpend: "vip.platinum.spend",
+  vipVipSpend: "vip.vip.spend",
 } as const
 
 const DEFAULTS: Record<string, string> = {
@@ -23,6 +42,22 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.referralJoinBonus]: "10000",
   [SETTING_KEYS.referralCommissionPercent]: "1",
   [SETTING_KEYS.referralEnabled]: "true",
+
+  // Gamification defaults (Toman amounts; tiers combine points AND spend).
+  [SETTING_KEYS.loyaltyEnabled]: "true",
+  [SETTING_KEYS.pointsPerThousand]: "1", // 1 point per 1,000 Toman spent
+  [SETTING_KEYS.pointsPerReferral]: "100",
+  [SETTING_KEYS.pointsPerGiveawayEntry]: "5",
+  [SETTING_KEYS.pointsDailyLogin]: "10",
+  [SETTING_KEYS.pointsProfileComplete]: "50",
+  [SETTING_KEYS.vipSilverPoints]: "500",
+  [SETTING_KEYS.vipGoldPoints]: "2000",
+  [SETTING_KEYS.vipPlatinumPoints]: "5000",
+  [SETTING_KEYS.vipVipPoints]: "15000",
+  [SETTING_KEYS.vipSilverSpend]: "1000000", // 1M Toman
+  [SETTING_KEYS.vipGoldSpend]: "5000000",
+  [SETTING_KEYS.vipPlatinumSpend]: "20000000",
+  [SETTING_KEYS.vipVipSpend]: "50000000",
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]

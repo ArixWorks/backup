@@ -2,6 +2,7 @@ import { randomBytes } from "crypto"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { creditCashback, creditReferralBonus, ensureWallet } from "./wallet"
+import { earnPoints, addSpend, progressMission, awardBadge } from "./gamification"
 import {
   SETTING_KEYS,
   getSetting,
@@ -176,6 +177,21 @@ export async function applyPurchaseRewards(
     }
   }
 
+  // --- Loyalty points & VIP spend (always runs, independent of referral) ---
+  const loyaltyEnabled = toBool(await getSetting(SETTING_KEYS.loyaltyEnabled, tx))
+  if (loyaltyEnabled) {
+    // Award points proportional to spend, then track lifetime spend for VIP.
+    const perThousand = toNumber(await getSetting(SETTING_KEYS.pointsPerThousand, tx))
+    if (perThousand > 0) {
+      const pts = Math.floor((Number(chargedAmount) / 1000) * perThousand)
+      if (pts > 0) await earnPoints(userId, pts, "PURCHASE", { type: "order", id: orderId }, tx)
+    }
+    await addSpend(userId, chargedAmount, tx)
+    await progressMission(userId, "MAKE_PURCHASE", 1, tx)
+    // First-purchase achievement (idempotent).
+    await awardBadge(userId, "FIRST_PURCHASE", tx)
+  }
+
   // --- Referral rewards ---
   const referralEnabled = toBool(await getSetting(SETTING_KEYS.referralEnabled, tx))
   if (!referralEnabled) return summary
@@ -214,6 +230,16 @@ export async function applyPurchaseRewards(
       await ensureWallet(referrerId, tx)
       await creditReferralBonus(referrerId, referrerBonus, tx, { type: "referral", id: userId })
       summary.firstPurchase = { referrerId, bonus: referrerBonus, friendName: buyer.displayName }
+    }
+
+    // Loyalty rewards for the inviter on a successful (converted) referral.
+    if (loyaltyEnabled) {
+      const refPoints = toNumber(await getSetting(SETTING_KEYS.pointsPerReferral, tx))
+      if (refPoints > 0) {
+        await earnPoints(referrerId, refPoints, "REFERRAL", { type: "referral", id: userId }, tx)
+      }
+      await progressMission(referrerId, "INVITE_FRIEND", 1, tx)
+      await awardBadge(referrerId, "FIRST_REFERRAL", tx)
     }
     if (refereeBonus > 0n) {
       await ensureWallet(userId, tx)
