@@ -93,8 +93,13 @@ export async function recommendForUser(
 
   const hasSignal = affinity.categoryScore.size > 0 || affinity.tagScore.size > 0
 
-  const scored = candidates
-    .filter((p) => !purchasedIds.has(p.id))
+  // Prefer products the user hasn't bought, but if excluding them would leave
+  // too few picks (small catalogs, re-buyable digital goods), keep them so the
+  // rail stays useful.
+  const unbought = candidates.filter((p) => !purchasedIds.has(p.id))
+  const pool = unbought.length >= limit ? unbought : candidates
+
+  const scored = pool
     .map((p) => {
       const fs = p.fixedSale!
       const popularity = (fs.soldCount + fs.soldBaseline) * POPULARITY_WEIGHT

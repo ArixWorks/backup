@@ -19,6 +19,7 @@ import {
   Ticket,
   Gift,
   Share2,
+  TrendingUp,
   Settings2,
   Undo2,
   Landmark,
@@ -49,6 +50,7 @@ type NavItem = {
 
 const items: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, exact: true },
+  { href: "/admin/growth", label: "تحلیل رشد", icon: TrendingUp },
   { href: "/admin/deposits", label: "تأیید واریز", icon: Banknote, badge: "deposits" },
   { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
   { href: "/admin/refunds", label: "بازگشت وجه", icon: Undo2, badge: "refunds" },
