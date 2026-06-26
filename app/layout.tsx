@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Vazirmatn, Geist_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import { AppShell } from '@/components/app-shell'
+import { getActiveTheme, THEMES, DEFAULT_THEME } from '@/lib/core/settings'
 import './globals.css'
 
 // Vazirmatn: the complete, professional open Persian/Arabic UI typeface
@@ -28,20 +29,27 @@ export const metadata: Metadata = {
   generator: 'v0.app',
 }
 
-export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#1a1d24',
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await getActiveTheme().catch(() => DEFAULT_THEME)
+  const headerColor =
+    THEMES.find((t) => t.id === theme)?.headerColor ?? '#1a1d24'
+  return {
+    colorScheme: 'dark',
+    themeColor: headerColor,
+  }
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const theme = await getActiveTheme().catch(() => DEFAULT_THEME)
   return (
     <html
       lang="fa"
       dir="rtl"
+      data-theme={theme}
       className={`dark bg-background ${vazirmatn.variable} ${geistMono.variable}`}
     >
       <head>

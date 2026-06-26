@@ -36,7 +36,36 @@ export const SETTING_KEYS = {
   vipGoldSpend: "vip.gold.spend",
   vipPlatinumSpend: "vip.platinum.spend",
   vipVipSpend: "vip.vip.spend",
+
+  // --- Appearance ---
+  themeActive: "theme.active", // one of THEME_IDS, applied to <html data-theme>
 } as const
+
+/** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
+export const THEMES = [
+  {
+    id: "gold",
+    label: "طلایی سینمایی",
+    description: "سرمه‌ای عمیق با لهجه طلایی لوکس",
+    swatch: ["#caa23f", "#f0d878", "#1a1d24"],
+    headerColor: "#1a1d24",
+  },
+  {
+    id: "aurora",
+    label: "آرورا",
+    description: "مشکی نیلی با لهجه بنفش الکتریک تا فیروزه‌ای",
+    swatch: ["#8b5cf6", "#22d3ee", "#16131f"],
+    headerColor: "#16131f",
+  },
+] as const
+
+export type ThemeId = (typeof THEMES)[number]["id"]
+export const THEME_IDS = THEMES.map((t) => t.id) as ThemeId[]
+export const DEFAULT_THEME: ThemeId = "gold"
+
+export function isThemeId(value: string): value is ThemeId {
+  return (THEME_IDS as string[]).includes(value)
+}
 
 const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.cashbackPercent]: "2",
@@ -64,6 +93,8 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.vipGoldSpend]: "5000000",
   [SETTING_KEYS.vipPlatinumSpend]: "20000000",
   [SETTING_KEYS.vipVipSpend]: "50000000",
+
+  [SETTING_KEYS.themeActive]: DEFAULT_THEME,
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
@@ -103,4 +134,10 @@ export function toNumber(value: string, fallback = 0): number {
 
 export function toBool(value: string): boolean {
   return value === "true" || value === "1"
+}
+
+/** Returns the active theme id, falling back to the default when unset/invalid. */
+export async function getActiveTheme(db: Db = prisma): Promise<ThemeId> {
+  const value = await getSetting(SETTING_KEYS.themeActive, db)
+  return isThemeId(value) ? value : DEFAULT_THEME
 }
