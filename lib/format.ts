@@ -13,6 +13,22 @@ export function formatNumber(n: number | string | bigint): string {
   return faNumber.format(typeof n === 'number' ? n : Number(n))
 }
 
+/**
+ * Format a money amount stored as integer minor units for its currency.
+ * IRT has 0 decimals (whole Toman); USD/USDT have 2 (minor units = cents).
+ */
+export function formatMoney(
+  amount: number | string | bigint,
+  decimals = 0,
+): string {
+  const value = typeof amount === 'number' ? amount : Number(amount)
+  const major = decimals > 0 ? value / 10 ** decimals : value
+  return new Intl.NumberFormat('fa-IR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  }).format(major)
+}
+
 const rtf = new Intl.RelativeTimeFormat('fa', { numeric: 'auto' })
 
 export function formatRelative(date: string | Date): string {

@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       lastLoginMethod: "password",
       displayName: body.displayName?.trim() || email.split("@")[0],
       alias: `Bidder#${randomBytes(2).toString("hex")}`,
-      wallet: { create: { totalBalance: 0n } },
+      wallets: { create: { currency: "IRT", totalBalance: 0n } },
     },
   })
 

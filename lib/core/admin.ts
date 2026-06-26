@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { ConflictError, NotFoundError, ValidationError } from "./errors"
 import { mutateWallet, ensureWallet } from "./wallet"
+import { BASE_CURRENCY } from "./ledger"
 import { audit } from "./audit"
 import { notifyOrderDelivered } from "@/lib/telegram/notify"
 
@@ -65,7 +66,7 @@ export async function dashboardStats() {
 // --- Users -------------------------------------------------------------------
 
 export async function listUsers(query?: string) {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: query
       ? {
           OR: [
@@ -78,8 +79,13 @@ export async function listUsers(query?: string) {
       : undefined,
     orderBy: { createdAt: "desc" },
     take: 200,
-    include: { wallet: true, _count: { select: { orders: true, bids: true } } },
+    include: {
+      wallets: { where: { currency: BASE_CURRENCY }, take: 1 },
+      _count: { select: { orders: true, bids: true } },
+    },
   })
+  // Flatten the base-currency wallet to a single `wallet` field for the UI.
+  return users.map(({ wallets, ...u }) => ({ ...u, wallet: wallets[0] ?? null }))
 }
 
 export async function setUserStatus(userId: string, status: "ACTIVE" | "BANNED", adminId: string) {

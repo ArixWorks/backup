@@ -2,6 +2,7 @@ import "server-only"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/db"
 import { ForbiddenError, UnauthorizedError } from "@/lib/core/errors"
+import { BASE_CURRENCY } from "@/lib/core/ledger"
 import { signSession, verifySession, SESSION_TTL_SECONDS } from "./token"
 
 /**
@@ -29,7 +30,7 @@ export async function getCurrentUser() {
   if (!payload) return null
   const user = await prisma.user.findUnique({
     where: { id: payload.uid },
-    include: { wallet: true },
+    include: { wallets: { where: { currency: BASE_CURRENCY }, take: 1 } },
   })
   if (!user) return null
   // Enforce "log out from all sessions": a bumped tokenVersion invalidates every
