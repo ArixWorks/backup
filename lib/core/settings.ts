@@ -13,6 +13,10 @@ export const SETTING_KEYS = {
   referralJoinBonus: "referral.joinBonus", // stage A: inviter, friend joined + passed gate (Toman)
   referralCommissionPercent: "referral.commissionPercent", // stage C: inviter, % of every friend purchase
   referralEnabled: "referral.enabled", // "true" | "false"
+  // Anti-fraud: max successful referrals counted per inviter (0 = unlimited).
+  referralMaxPerUser: "referral.maxPerUser",
+  // Anti-fraud: minimum account age (minutes) before a user may attach a code.
+  referralMinAccountAgeMin: "referral.minAccountAgeMin",
 
   // --- Gamification ---
   loyaltyEnabled: "loyalty.enabled", // "true" | "false"
@@ -42,6 +46,8 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.referralJoinBonus]: "10000",
   [SETTING_KEYS.referralCommissionPercent]: "1",
   [SETTING_KEYS.referralEnabled]: "true",
+  [SETTING_KEYS.referralMaxPerUser]: "0", // unlimited by default
+  [SETTING_KEYS.referralMinAccountAgeMin]: "0", // no delay by default
 
   // Gamification defaults (Toman amounts; tiers combine points AND spend).
   [SETTING_KEYS.loyaltyEnabled]: "true",

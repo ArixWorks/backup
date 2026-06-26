@@ -20,6 +20,6 @@ const schema = z.object({ code: z.string().trim().min(1).max(40) })
 export const POST = route(async (req: Request) => {
   const user = await requireUser()
   const { code } = schema.parse(await req.json())
-  const attached = await attachReferral(user.id, code)
-  return { attached }
+  const result = await attachReferral(user.id, code)
+  return result
 })

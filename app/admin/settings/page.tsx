@@ -18,6 +18,8 @@ const KEYS = {
   referralRefereeBonus: "referral.refereeBonus",
   referralJoinBonus: "referral.joinBonus",
   referralCommissionPercent: "referral.commissionPercent",
+  referralMaxPerUser: "referral.maxPerUser",
+  referralMinAccountAgeMin: "referral.minAccountAgeMin",
 } as const
 
 type Settings = Record<string, string>
@@ -49,6 +51,8 @@ export default function AdminSettingsPage() {
         [KEYS.referralRefereeBonus]: form[KEYS.referralRefereeBonus],
         [KEYS.referralJoinBonus]: form[KEYS.referralJoinBonus],
         [KEYS.referralCommissionPercent]: form[KEYS.referralCommissionPercent],
+        [KEYS.referralMaxPerUser]: form[KEYS.referralMaxPerUser],
+        [KEYS.referralMinAccountAgeMin]: form[KEYS.referralMinAccountAgeMin],
       })
       toast.success("تنظیمات ذخیره شد")
       await mutate()
@@ -154,6 +158,37 @@ export default function AdminSettingsPage() {
               value={form[KEYS.referralCommissionPercent] ?? ""}
               onChange={(e) => set(KEYS.referralCommissionPercent, e.target.value)}
               placeholder="1"
+            />
+          </Field>
+
+          <div className="space-y-1 border-t border-border pt-4">
+            <div className="text-sm font-bold text-foreground">ضدتقلب دعوت</div>
+            <div className="text-xs text-muted-foreground">
+              محدودیت‌های امنیتی برای جلوگیری از سوءاستفاده از سیستم دعوت
+            </div>
+          </div>
+
+          <Field
+            label="حداکثر دعوت موفق هر کاربر"
+            hint="بیشترین تعداد دعوت‌شده که برای هر دعوت‌کننده شمارش می‌شود (۰ = نامحدود)"
+          >
+            <Input
+              type="number"
+              value={form[KEYS.referralMaxPerUser] ?? ""}
+              onChange={(e) => set(KEYS.referralMaxPerUser, e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+
+          <Field
+            label="حداقل سن حساب برای ثبت کد (دقیقه)"
+            hint="کاربر باید این مدت از ثبت‌نامش گذشته باشد تا بتواند کد دعوت ثبت کند (۰ = بدون محدودیت)"
+          >
+            <Input
+              type="number"
+              value={form[KEYS.referralMinAccountAgeMin] ?? ""}
+              onChange={(e) => set(KEYS.referralMinAccountAgeMin, e.target.value)}
+              placeholder="0"
             />
           </Field>
 
