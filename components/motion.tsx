@@ -1,6 +1,14 @@
 "use client"
 
-import { motion, useInView, useMotionValue, useSpring, useReducedMotion } from "motion/react"
+import {
+  motion,
+  useInView,
+  useMotionValue,
+  useSpring,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "motion/react"
 import { useEffect, useRef, type ReactNode } from "react"
 
 /**
@@ -150,4 +158,110 @@ export function CountUp({ value, className }: { value: number; className?: strin
 
 function format(n: number) {
   return new Intl.NumberFormat("fa-IR").format(n)
+}
+
+/**
+ * Scroll-into-view reveal. Fades + rises (or scales) as the element enters the
+ * viewport, giving sections a cinematic "settle" without overdoing it. Respects
+ * reduced motion (renders statically) and only animates once by default.
+ */
+export function Reveal({
+  children,
+  className,
+  delay = 0,
+  y = 24,
+  once = true,
+  as = "div",
+}: {
+  children: ReactNode
+  className?: string
+  delay?: number
+  y?: number
+  once?: boolean
+  as?: "div" | "section" | "li" | "article"
+}) {
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once, margin: "-12% 0px -12% 0px" })
+  const MotionTag = motion[as] as typeof motion.div
+
+  if (reduce) {
+    const Tag = as
+    return (
+      <Tag ref={ref as never} className={className}>
+        {children}
+      </Tag>
+    )
+  }
+
+  return (
+    <MotionTag
+      ref={ref}
+      className={className}
+      initial={{ opacity: 0, y }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y }}
+      transition={{ type: "spring", stiffness: 220, damping: 30, delay }}
+    >
+      {children}
+    </MotionTag>
+  )
+}
+
+/**
+ * Scroll-linked parallax. Translates its children on the Y axis as the page
+ * scrolls past, for layered depth on hero art and feature imagery. `speed`
+ * controls intensity (positive = moves slower than scroll). Disabled under
+ * reduced motion.
+ */
+export function Parallax({
+  children,
+  className,
+  speed = 40,
+}: {
+  children: ReactNode
+  className?: string
+  speed?: number
+}) {
+  const reduce = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  })
+  const y = useTransform(scrollYProgress, [0, 1], [speed, -speed])
+
+  if (reduce) return <div className={className}>{children}</div>
+
+  return (
+    <div ref={ref} className={className}>
+      <motion.div style={{ y }}>{children}</motion.div>
+    </div>
+  )
+}
+
+/**
+ * Thin gradient progress bar pinned to the top of the viewport that tracks
+ * page scroll. Tinted with the active theme accent. Hidden for reduced motion.
+ */
+export function ScrollProgress({ className }: { className?: string }) {
+  const reduce = useReducedMotion()
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 30,
+    restDelta: 0.001,
+  })
+
+  if (reduce) return null
+
+  return (
+    <motion.div
+      aria-hidden
+      style={{ scaleX }}
+      className={
+        "fixed inset-x-0 top-0 z-[60] h-0.5 origin-[100%_50%] bg-gold " +
+        (className ?? "")
+      }
+    />
+  )
 }

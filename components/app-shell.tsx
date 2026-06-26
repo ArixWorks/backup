@@ -9,6 +9,7 @@ import { NotificationWatcher } from "@/components/notification-watcher"
 import { AuthGate } from "@/components/auth/auth-gate"
 import { ForcePasswordChange } from "@/components/auth/force-password-change"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
+import { ScrollProgress } from "@/components/motion"
 
 /**
  * Renders the storefront chrome (compact header + bottom tab bar) for the
@@ -27,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGate>
+      <ScrollProgress />
       <NotificationWatcher />
       <ForcePasswordChange />
       <OnboardingFlow />
