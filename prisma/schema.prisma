@@ -641,6 +641,8 @@ model Auction {
   status            AuctionStatus @default(SCHEDULED)
   // Optimistic-locking guard for bid races.
   version           Int           @default(0)
+  // Idempotency flag: set true once the "ending soon" alert has been sent.
+  endingSoonNotified Boolean      @default(false)
   finalizedAt       DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
