@@ -66,7 +66,7 @@ export async function listFlashCategories() {
     .map((g) => ({ category: g.category as string, count: g._count._all }))
 }
 
-type FlashProductRow = {
+export type FlashProductRow = {
   id: string
   slug: string
   title: string
@@ -104,7 +104,7 @@ function parseLinks(value: unknown): ProductLink[] {
     .map((l) => ({ label: l.label, url: l.url }))
 }
 
-function summarizeFlash(p: FlashProductRow) {
+export function summarizeFlash(p: FlashProductRow) {
   const fs = p.fixedSale
   return {
     id: p.id,

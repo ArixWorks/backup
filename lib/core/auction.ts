@@ -12,6 +12,7 @@ import {
   unfreeze,
 } from "./wallet"
 import { BASE_CURRENCY } from "./ledger"
+import { progressMission } from "./gamification"
 import { createManualDelivery, NoInventoryError, reserveAndDeliverAuto } from "./delivery"
 import { notifyAuctionWon } from "@/lib/telegram/notify"
 
@@ -67,7 +68,7 @@ async function setAuctionFrozen(
 }
 
 /** Top-N (userId, maxAmount) standings for an auction, highest first. */
-async function standings(auctionId: string, take: number, tx: Tx) {
+async function standings(auctionId: string, take: number, tx: Tx | typeof prisma) {
   const grouped = await tx.bid.groupBy({
     by: ["userId"],
     where: { auctionId },
@@ -144,6 +145,9 @@ export async function placeBid(opts: {
           },
         })
 
+        // Loyalty: progress the "place a bid" mission (best-effort, in-tx).
+        await progressMission(opts.userId, "PLACE_BID", 1, tx).catch(() => {})
+
         // Update auction price with optimistic version guard.
         const priceUpdate = await tx.auction.updateMany({
           where: { id: auction.id, version: auction.version },
@@ -161,8 +165,11 @@ export async function placeBid(opts: {
         const winnerIds = new Set(winners.map((w) => w.userId))
         const boundary = await standings(auction.id, auction.quantity + 1, tx)
         const displaced = boundary[auction.quantity]
+        let displacedUserId: string | null = null
         if (displaced && !winnerIds.has(displaced.userId)) {
           await setAuctionFrozen(displaced.userId, auction.id, 0n, tx)
+          // Don't notify the bidder about outbidding themselves.
+          if (displaced.userId !== opts.userId) displacedUserId = displaced.userId
         }
 
         // Anti-sniping: extend the auction if the bid lands in the final window.
@@ -176,8 +183,19 @@ export async function placeBid(opts: {
         }
 
         const bidderAlias = (await tx.user.findUnique({ where: { id: opts.userId } }))!.alias
+        const product = await tx.product.findUnique({
+          where: { id: auction.productId },
+          select: { title: true },
+        })
 
-        return { auctionId: auction.id, amount: opts.amount, endTime, bidderAlias }
+        return {
+          auctionId: auction.id,
+          amount: opts.amount,
+          endTime,
+          bidderAlias,
+          displacedUserId,
+          productTitle: product?.title ?? "محصول",
+        }
       },
       { isolationLevel: "Serializable" },
     )
@@ -189,6 +207,17 @@ export async function placeBid(opts: {
       bidderAlias: result.bidderAlias,
       endTime: result.endTime.toISOString(),
     })
+    // Notify the displaced bidder that they've been outbid (best-effort).
+    if (result.displacedUserId) {
+      const { createNotification } = await import("./notifications")
+      await createNotification({
+        userId: result.displacedUserId,
+        type: "AUCTION_OUTBID",
+        title: "پیشنهاد شما رد شد",
+        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به جمع برندگان پیشنهاد جدید بدهید.`,
+        href: `/auctions/${result.auctionId}`,
+      }).catch(() => {})
+    }
     return result
   })
 }
@@ -343,12 +372,23 @@ export async function finalizeAuction(auctionId: string) {
           data: { status: "FINALIZED", finalizedAt: new Date() },
         })
 
+        // Distinct bidders who participated but did not win (for "lost" notices).
+        const allBidders = await tx.bid.findMany({
+          where: { auctionId: auction.id },
+          select: { userId: true },
+          distinct: ["userId"],
+        })
+        const loserIds = allBidders
+          .map((b) => b.userId)
+          .filter((id) => !winnerIds.has(id))
+
         return {
           finalized: true,
           winners: eligible.length,
           title: auction.product.title,
           coverImage: auction.product.coverImage,
           winnerList: eligible.map((e) => ({ userId: e.userId, amount: e.amount })),
+          loserIds,
         }
       },
       { isolationLevel: "Serializable" },
@@ -368,6 +408,19 @@ export async function finalizeAuction(auctionId: string) {
           href: "/orders",
           image: res.coverImage,
         }).catch(() => {})
+      }
+      // Notify participants who did not win (funds already released above).
+      if ("loserIds" in res && res.loserIds) {
+        for (const loserId of res.loserIds) {
+          await createNotification({
+            userId: loserId,
+            type: "AUCTION_LOST",
+            title: "مزایده به پایان رسید",
+            body: `متأسفانه در مزایده «${res.title}» برنده نشدید و مبلغ بلوکه‌شده به کیف پول شما بازگشت. مزایده‌های دیگر را از دست ندهید!`,
+            href: "/auctions",
+            image: res.coverImage,
+          }).catch(() => {})
+        }
       }
     }
     return res
@@ -450,4 +503,50 @@ export async function activateDueAuctions(): Promise<{ activated: number; activa
     data: { status: "ACTIVE" },
   })
   return { activated: res.count, activatedIds: ids }
+}
+
+/**
+ * Alert the current leading bidders of auctions ending within `windowMinutes`.
+ * Fires once per auction (guarded by endingSoonNotified) so it's safe to call
+ * on every cron tick. Returns the number of notifications dispatched.
+ */
+export async function notifyEndingSoonAuctions(windowMinutes = 10): Promise<{ notified: number }> {
+  const now = new Date()
+  const threshold = new Date(now.getTime() + windowMinutes * 60_000)
+  const soon = await prisma.auction.findMany({
+    where: {
+      status: "ACTIVE",
+      endingSoonNotified: false,
+      endTime: { gt: now, lte: threshold },
+    },
+    include: { product: { select: { title: true, coverImage: true } } },
+    take: 50,
+  })
+  if (soon.length === 0) return { notified: 0 }
+
+  const { createNotification } = await import("./notifications")
+  let notified = 0
+  for (const auction of soon) {
+    // Claim the auction first to avoid duplicate alerts across concurrent ticks.
+    const claim = await prisma.auction.updateMany({
+      where: { id: auction.id, endingSoonNotified: false },
+      data: { endingSoonNotified: true },
+    })
+    if (claim.count !== 1) continue
+
+    // Notify the users currently in the winning set (they should defend their bid).
+    const leaders = await standings(auction.id, auction.quantity, prisma)
+    for (const leader of leaders) {
+      await createNotification({
+        userId: leader.userId,
+        type: "AUCTION_ENDING",
+        title: "مزایده رو به پایان است",
+        body: `مزایده «${auction.product.title}» تا کمتر از ${windowMinutes} دقیقه دیگر به پایان می‌رسد. شما اکنون در جمع برندگان هستید!`,
+        href: `/auctions/${auction.id}`,
+        image: auction.product.coverImage,
+      }).catch(() => {})
+      notified++
+    }
+  }
+  return { notified }
 }

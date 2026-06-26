@@ -9,6 +9,7 @@ import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
+import { RecommendedRail } from "@/components/recommended-rail"
 import { Stagger, FadeItem, Pressable } from "@/components/motion"
 
 const quickActions: { href: string; label: MessageKey; icon: typeof Gavel }[] = [
@@ -106,6 +107,11 @@ export default function HomePage() {
             </Pressable>
           ))}
         </section>
+      </FadeItem>
+
+      {/* Personalized recommendations (hidden when there's nothing to show) */}
+      <FadeItem>
+        <RecommendedRail limit={4} />
       </FadeItem>
 
       {/* Live auctions */}

@@ -13,7 +13,59 @@ export const SETTING_KEYS = {
   referralJoinBonus: "referral.joinBonus", // stage A: inviter, friend joined + passed gate (Toman)
   referralCommissionPercent: "referral.commissionPercent", // stage C: inviter, % of every friend purchase
   referralEnabled: "referral.enabled", // "true" | "false"
+  // Anti-fraud: max successful referrals counted per inviter (0 = unlimited).
+  referralMaxPerUser: "referral.maxPerUser",
+  // Anti-fraud: minimum account age (minutes) before a user may attach a code.
+  referralMinAccountAgeMin: "referral.minAccountAgeMin",
+
+  // --- Gamification ---
+  loyaltyEnabled: "loyalty.enabled", // "true" | "false"
+  // Points earned per 1000 Toman spent on a purchase.
+  pointsPerThousand: "loyalty.pointsPerThousand",
+  pointsPerReferral: "loyalty.pointsPerReferral", // points to inviter per successful referral
+  pointsPerGiveawayEntry: "loyalty.pointsPerGiveawayEntry",
+  pointsDailyLogin: "loyalty.pointsDailyLogin",
+  pointsProfileComplete: "loyalty.pointsProfileComplete",
+  // Lifetime-points thresholds for each VIP tier (combined with spend thresholds).
+  vipSilverPoints: "vip.silver.points",
+  vipGoldPoints: "vip.gold.points",
+  vipPlatinumPoints: "vip.platinum.points",
+  vipVipPoints: "vip.vip.points",
+  // Lifetime-spend thresholds (Toman) for each VIP tier.
+  vipSilverSpend: "vip.silver.spend",
+  vipGoldSpend: "vip.gold.spend",
+  vipPlatinumSpend: "vip.platinum.spend",
+  vipVipSpend: "vip.vip.spend",
+
+  // --- Appearance ---
+  themeActive: "theme.active", // one of THEME_IDS, applied to <html data-theme>
 } as const
+
+/** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
+export const THEMES = [
+  {
+    id: "gold",
+    label: "طلایی سینمایی",
+    description: "سرمه‌ای عمیق با لهجه طلایی لوکس",
+    swatch: ["#caa23f", "#f0d878", "#1a1d24"],
+    headerColor: "#1a1d24",
+  },
+  {
+    id: "aurora",
+    label: "آرورا",
+    description: "مشکی نیلی با لهجه بنفش الکتریک تا فیروزه‌ای",
+    swatch: ["#8b5cf6", "#22d3ee", "#16131f"],
+    headerColor: "#16131f",
+  },
+] as const
+
+export type ThemeId = (typeof THEMES)[number]["id"]
+export const THEME_IDS = THEMES.map((t) => t.id) as ThemeId[]
+export const DEFAULT_THEME: ThemeId = "gold"
+
+export function isThemeId(value: string): value is ThemeId {
+  return (THEME_IDS as string[]).includes(value)
+}
 
 const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.cashbackPercent]: "2",
@@ -23,6 +75,26 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.referralJoinBonus]: "10000",
   [SETTING_KEYS.referralCommissionPercent]: "1",
   [SETTING_KEYS.referralEnabled]: "true",
+  [SETTING_KEYS.referralMaxPerUser]: "0", // unlimited by default
+  [SETTING_KEYS.referralMinAccountAgeMin]: "0", // no delay by default
+
+  // Gamification defaults (Toman amounts; tiers combine points AND spend).
+  [SETTING_KEYS.loyaltyEnabled]: "true",
+  [SETTING_KEYS.pointsPerThousand]: "1", // 1 point per 1,000 Toman spent
+  [SETTING_KEYS.pointsPerReferral]: "100",
+  [SETTING_KEYS.pointsPerGiveawayEntry]: "5",
+  [SETTING_KEYS.pointsDailyLogin]: "10",
+  [SETTING_KEYS.pointsProfileComplete]: "50",
+  [SETTING_KEYS.vipSilverPoints]: "500",
+  [SETTING_KEYS.vipGoldPoints]: "2000",
+  [SETTING_KEYS.vipPlatinumPoints]: "5000",
+  [SETTING_KEYS.vipVipPoints]: "15000",
+  [SETTING_KEYS.vipSilverSpend]: "1000000", // 1M Toman
+  [SETTING_KEYS.vipGoldSpend]: "5000000",
+  [SETTING_KEYS.vipPlatinumSpend]: "20000000",
+  [SETTING_KEYS.vipVipSpend]: "50000000",
+
+  [SETTING_KEYS.themeActive]: DEFAULT_THEME,
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
@@ -62,4 +134,10 @@ export function toNumber(value: string, fallback = 0): number {
 
 export function toBool(value: string): boolean {
   return value === "true" || value === "1"
+}
+
+/** Returns the active theme id, falling back to the default when unset/invalid. */
+export async function getActiveTheme(db: Db = prisma): Promise<ThemeId> {
+  const value = await getSetting(SETTING_KEYS.themeActive, db)
+  return isThemeId(value) ? value : DEFAULT_THEME
 }

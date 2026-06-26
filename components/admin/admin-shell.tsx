@@ -18,6 +18,8 @@ import {
   Megaphone,
   Ticket,
   Gift,
+  Share2,
+  TrendingUp,
   Settings2,
   Undo2,
   Landmark,
@@ -48,6 +50,7 @@ type NavItem = {
 
 const items: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, exact: true },
+  { href: "/admin/growth", label: "تحلیل رشد", icon: TrendingUp },
   { href: "/admin/deposits", label: "تأیید واریز", icon: Banknote, badge: "deposits" },
   { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
   { href: "/admin/refunds", label: "بازگشت وجه", icon: Undo2, badge: "refunds" },
@@ -57,6 +60,7 @@ const items: NavItem[] = [
   { href: "/admin/products", label: "محصولات", icon: Boxes },
   { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
   { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
+  { href: "/admin/referrals", label: "سیستم دعوت", icon: Share2 },
   { href: "/admin/coupons", label: "کدهای تخفیف", icon: Ticket },
   { href: "/admin/users", label: "کاربران", icon: Users },
   { href: "/admin/channel", label: "پست کانال", icon: Megaphone },

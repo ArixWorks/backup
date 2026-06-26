@@ -1,5 +1,5 @@
 import { route } from "@/lib/api/handler"
-import { activateDueAuctions, tickDueAuctions } from "@/lib/core/auction"
+import { activateDueAuctions, tickDueAuctions, notifyEndingSoonAuctions } from "@/lib/core/auction"
 import { tickGiveaways } from "@/lib/core/giveaway"
 import { collectStartNotifications } from "@/lib/core/watchlist"
 import { emit, Channels } from "@/lib/core/events"
@@ -58,13 +58,22 @@ export const POST = route(async (req: Request) => {
     }
   }
 
+  // Alert leading bidders of auctions about to end (once per auction).
+  const endingSoon = await notifyEndingSoonAuctions()
+
   const ticked = await tickDueAuctions()
 
   // Giveaway lifecycle: open scheduled, close to LOCKED at draw time, send the
   // pre-draw admin alert, and auto-draw any campaign flagged autoDraw.
   const giveaways = await tickGiveaways()
 
-  return { activated: activated.activated, notified, ...ticked, giveaways }
+  return {
+    activated: activated.activated,
+    notified,
+    endingSoon: endingSoon.notified,
+    ...ticked,
+    giveaways,
+  }
 })
 
 export const GET = POST

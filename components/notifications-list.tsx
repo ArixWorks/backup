@@ -13,9 +13,21 @@ import {
   Gift,
   CheckCheck,
   Loader2,
+  Search,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  TrendingDown,
+  Ticket,
+  Crown,
+  Award,
+  Target,
+  Coins,
+  AlertTriangle,
+  X,
 } from "lucide-react"
 import { useState } from "react"
-import { fetcher, apiPost } from "@/lib/api-client"
+import { fetcher, apiPost, apiDelete } from "@/lib/api-client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatRelative } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -31,31 +43,66 @@ interface NotificationItem {
   createdAt: string
 }
 
+// Icon per notification type. Falls back to a bell for anything unmapped.
 const ICONS: Record<string, typeof Bell> = {
   GENERAL: Bell,
   BACK_IN_STOCK: PackageCheck,
+  NEW_PRODUCT: Gift,
   ORDER_DELIVERED: PackageCheck,
   AUCTION_STARTED: Gavel,
+  AUCTION_ENDING: Gavel,
+  AUCTION_OUTBID: Gavel,
+  AUCTION_LOST: Gavel,
   AUCTION_WON: Trophy,
+  GIVEAWAY_STARTED: Gift,
+  GIVEAWAY_WON: Trophy,
   DEPOSIT_APPROVED: Wallet,
   WITHDRAW_APPROVED: Wallet,
+  REFUND_RECEIVED: Wallet,
+  LOW_BALANCE: AlertTriangle,
   CASHBACK: BadgePercent,
+  PRICE_DROP: TrendingDown,
+  COUPON_ACTIVE: Ticket,
+  COUPON_EXPIRING: Ticket,
   REFERRAL_BONUS: Gift,
+  VIP_EXPIRING: Crown,
+  VIP_UPGRADED: Crown,
+  POINTS_EARNED: Coins,
+  BADGE_AWARDED: Award,
+  MISSION_COMPLETE: Target,
 }
+
+type Tab = "all" | "unread" | "archived"
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "all", label: "همه" },
+  { key: "unread", label: "خوانده‌نشده" },
+  { key: "archived", label: "بایگانی" },
+]
 
 export function NotificationsList() {
   const router = useRouter()
   const [marking, setMarking] = useState(false)
+  const [tab, setTab] = useState<Tab>("all")
+  const [search, setSearch] = useState("")
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  // Build the query string from the active tab + search term.
+  const params = new URLSearchParams()
+  if (tab === "unread") params.set("unread", "1")
+  if (tab === "archived") params.set("archived", "1")
+  if (search.trim()) params.set("q", search.trim())
+  const key = `/api/v1/notifications?${params.toString()}`
+
   const { data, isLoading, mutate } = useSWR<{
     data: { items: NotificationItem[]; unread: number }
-  }>("/api/v1/notifications", fetcher, { refreshInterval: 20000 })
+  }>(key, fetcher, { refreshInterval: 20000 })
 
   const items = data?.data?.items ?? []
   const unread = data?.data?.unread ?? 0
 
   async function open(n: NotificationItem) {
     if (!n.read) {
-      // Optimistically mark read, then persist.
       mutate(
         (cur) =>
           cur && {
@@ -83,79 +130,196 @@ export function NotificationsList() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-20 w-full rounded-2xl" />
-        ))}
-      </div>
-    )
+  async function archive(id: string) {
+    setBusyId(id)
+    try {
+      await apiPost(`/api/v1/notifications/${id}/archive`).catch(() => {})
+      await mutate()
+    } finally {
+      setBusyId(null)
+    }
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        هنوز اعلانی ندارید. وقتی خبری باشد اینجا نمایش داده می‌شود.
-      </div>
-    )
+  async function unarchive(id: string) {
+    setBusyId(id)
+    try {
+      await apiDelete(`/api/v1/notifications/${id}/archive`).catch(() => {})
+      await mutate()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function remove(id: string) {
+    setBusyId(id)
+    try {
+      await apiDelete(`/api/v1/notifications/${id}`).catch(() => {})
+      await mutate()
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
-    <div className="space-y-3">
-      {unread > 0 && (
-        <button
-          type="button"
-          onClick={markAll}
-          disabled={marking}
-          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-        >
-          {marking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
-          خواندن همه ({unread})
-        </button>
-      )}
+    <div className="space-y-4">
+      {/* Tabs */}
+      <div className="flex items-center gap-1 rounded-xl bg-secondary/50 p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={cn(
+              "flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
+              tab === t.key
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+            {t.key === "unread" && unread > 0 && (
+              <span className="ms-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                {unread}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
-      <ul className="space-y-2">
-        {items.map((n) => {
-          const Icon = ICONS[n.type] ?? Bell
-          return (
-            <li key={n.id}>
-              <button
-                type="button"
-                onClick={() => open(n)}
+      {/* Search + mark-all */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجو در اعلان‌ها…"
+            className="w-full rounded-xl border border-border bg-card py-2 pe-3 ps-9 text-sm outline-none focus:border-primary"
+          />
+        </div>
+        {unread > 0 && tab !== "archived" && (
+          <button
+            type="button"
+            onClick={markAll}
+            disabled={marking}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-primary hover:bg-secondary/40 disabled:opacity-50"
+          >
+            {marking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
+            خواندن همه
+          </button>
+        )}
+      </div>
+
+      {/* List */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          {search.trim()
+            ? "اعلانی با این جستجو پیدا نشد."
+            : tab === "archived"
+              ? "بایگانی شما خالی است."
+              : tab === "unread"
+                ? "اعلان خوانده‌نشده‌ای ندارید."
+                : "هنوز اعلانی ندارید. وقتی خبری باشد اینجا نمایش داده می‌شود."}
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((n) => {
+            const Icon = ICONS[n.type] ?? Bell
+            const isArchived = tab === "archived"
+            return (
+              <li
+                key={n.id}
                 className={cn(
-                  "active:scale-press flex w-full items-start gap-3 rounded-2xl border p-3 text-right transition-colors",
+                  "group relative flex items-stretch gap-3 rounded-2xl border p-3 transition-colors",
                   n.read
-                    ? "border-border bg-card hover:bg-secondary/40"
-                    : "border-primary/30 bg-primary/5 hover:bg-primary/10",
+                    ? "border-border bg-card"
+                    : "border-primary/30 bg-primary/5",
                 )}
               >
-                {n.image ? (
-                  <Image
-                    src={n.image || "/placeholder.svg"}
-                    alt=""
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 shrink-0 rounded-xl object-cover"
-                  />
-                ) : (
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                )}
-                <div className="min-w-0 flex-1 space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-bold">{n.title}</span>
-                    {!n.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                <button
+                  type="button"
+                  onClick={() => open(n)}
+                  className="active:scale-press flex min-w-0 flex-1 items-start gap-3 text-right"
+                >
+                  {n.image ? (
+                    <Image
+                      src={n.image || "/placeholder.svg"}
+                      alt=""
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-bold">{n.title}</span>
+                      {!n.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                    </div>
+                    <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{n.body}</p>
+                    <span className="text-[11px] text-muted-foreground/70">{formatRelative(n.createdAt)}</span>
                   </div>
-                  <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{n.body}</p>
-                  <span className="text-[11px] text-muted-foreground/70">{formatRelative(n.createdAt)}</span>
+                </button>
+
+                {/* Per-item actions */}
+                <div className="flex flex-col items-center justify-center gap-1">
+                  {busyId === n.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : isArchived ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => unarchive(n.id)}
+                        aria-label="بازگردانی به صندوق"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
+                        <ArchiveRestore className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(n.id)}
+                        aria-label="حذف"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => archive(n.id)}
+                        aria-label="بایگانی"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(n.id)}
+                        aria-label="حذف"
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

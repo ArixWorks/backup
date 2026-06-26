@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser, destroySession } from "@/lib/auth/session"
+import { recordDailyLogin } from "@/lib/core/gamification"
 import { serialize } from "@/lib/serialize"
 
 export const dynamic = "force-dynamic"
@@ -8,6 +9,9 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ ok: true, data: null })
+  // Count one daily login per day (idempotent, best-effort — never blocks the
+  // response or throws). Captures web, web-app and Telegram entry uniformly.
+  recordDailyLogin(user.id).catch(() => {})
   // Base-currency wallet (eager-loaded in getCurrentUser); may be absent for new users.
   const baseWallet = user.wallets?.[0] ?? null
   return NextResponse.json({

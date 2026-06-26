@@ -41,16 +41,38 @@ export async function createNotifications(inputs: CreateNotificationInput[], db:
   })
 }
 
+export interface ListNotificationsOpts {
+  limit?: number
+  unreadOnly?: boolean
+  /** Filter by a specific notification type. */
+  type?: NotificationType
+  /** Full-text search across title and body. */
+  search?: string
+  /** Include archived notifications (default: only non-archived). */
+  archived?: boolean
+}
+
 /** List a user's notifications (newest first), with an unread count. */
-export async function listNotifications(userId: string, opts?: { limit?: number; unreadOnly?: boolean }) {
+export async function listNotifications(userId: string, opts?: ListNotificationsOpts) {
   const limit = Math.min(opts?.limit ?? 30, 100)
+  const where: Prisma.NotificationWhereInput = {
+    userId,
+    archived: opts?.archived ?? false,
+    ...(opts?.unreadOnly ? { read: false } : {}),
+    ...(opts?.type ? { type: opts.type } : {}),
+    ...(opts?.search
+      ? {
+          OR: [
+            { title: { contains: opts.search, mode: "insensitive" } },
+            { body: { contains: opts.search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  }
   const [items, unread] = await Promise.all([
-    prisma.notification.findMany({
-      where: { userId, ...(opts?.unreadOnly ? { read: false } : {}) },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    }),
-    prisma.notification.count({ where: { userId, read: false } }),
+    prisma.notification.findMany({ where, orderBy: { createdAt: "desc" }, take: limit }),
+    // Unread count is always over the live (non-archived) inbox, ignoring filters.
+    prisma.notification.count({ where: { userId, read: false, archived: false } }),
   ])
   return { items, unread }
 }
@@ -70,4 +92,28 @@ export async function markRead(userId: string, id: string) {
 export async function markAllRead(userId: string) {
   await prisma.notification.updateMany({ where: { userId, read: false }, data: { read: true } })
   return { ok: true }
+}
+
+/** Archive a single notification (hide from inbox, keep the record). */
+export async function archiveNotification(userId: string, id: string) {
+  await prisma.notification.updateMany({ where: { id, userId }, data: { archived: true, read: true } })
+  return { ok: true }
+}
+
+/** Restore an archived notification back into the inbox. */
+export async function unarchiveNotification(userId: string, id: string) {
+  await prisma.notification.updateMany({ where: { id, userId }, data: { archived: false } })
+  return { ok: true }
+}
+
+/** Permanently delete a single notification (scoped to the owner). */
+export async function deleteNotification(userId: string, id: string) {
+  await prisma.notification.deleteMany({ where: { id, userId } })
+  return { ok: true }
+}
+
+/** Clear (delete) all of a user's archived notifications. */
+export async function clearArchived(userId: string) {
+  const { count } = await prisma.notification.deleteMany({ where: { userId, archived: true } })
+  return { ok: true, count }
 }

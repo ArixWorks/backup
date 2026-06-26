@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Crown, ChevronLeft } from "lucide-react"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { Button } from "@/components/ui/button"
@@ -81,7 +82,7 @@ export default function WalletPage() {
       />
 
       {selected === "IRT" && (
-        <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="card-premium rounded-2xl border border-border p-5">
           <h2 className="mb-3 flex items-center gap-2 font-bold">
             <Plus className="h-4 w-4 text-primary" />
             شارژ کیف پول (دمو)
@@ -104,6 +105,20 @@ export default function WalletPage() {
           </p>
         </div>
       )}
+
+      <Link
+        href="/rewards"
+        className="card-premium active:scale-press flex items-center gap-3 rounded-2xl border border-primary/30 p-4 transition-colors"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/25">
+          <Crown className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-foreground">باشگاه مشتریان و امتیازها</p>
+          <p className="text-xs text-muted-foreground">سطح عضویت، مأموریت‌ها و دستاوردهای خود را ببینید</p>
+        </div>
+        <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" />
+      </Link>
 
       <ReferralCard />
 
