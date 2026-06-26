@@ -417,3 +417,74 @@ export async function getGamificationSummary(userId: string) {
     thresholds,
   }
 }
+
+/**
+ * All active badges merged with the user's earned state, ordered for display.
+ * Locked badges are shown too (greyed in the UI) to advertise what's available.
+ */
+export async function listBadgesForUser(userId: string) {
+  const [badges, earned] = await Promise.all([
+    prisma.badge.findMany({ where: { isActive: true }, orderBy: { displayOrder: "asc" } }),
+    prisma.userBadge.findMany({ where: { userId } }),
+  ])
+  const earnedMap = new Map(earned.map((e) => [e.badgeCode, e.awardedAt]))
+  return badges.map((b) => ({
+    code: b.code,
+    name: b.name,
+    description: b.description,
+    icon: b.icon,
+    points: b.points,
+    earned: earnedMap.has(b.code),
+    awardedAt: earnedMap.get(b.code) ?? null,
+  }))
+}
+
+/**
+ * Active missions for the current period with the user's progress/claim state.
+ */
+export async function listMissionsForUser(userId: string) {
+  const missions = await prisma.mission.findMany({
+    where: { isActive: true },
+    orderBy: [{ kind: "asc" }, { displayOrder: "asc" }],
+  })
+  const periodKeys = Array.from(new Set(missions.map((m) => periodKeyFor(m.kind))))
+  const progress = await prisma.userMission.findMany({
+    where: { userId, periodKey: { in: periodKeys } },
+  })
+  const byMission = new Map(progress.map((p) => [`${p.missionId}:${p.periodKey}`, p]))
+
+  return missions.map((m) => {
+    const periodKey = periodKeyFor(m.kind)
+    const um = byMission.get(`${m.id}:${periodKey}`)
+    return {
+      id: m.id,
+      kind: m.kind,
+      title: m.title,
+      description: m.description,
+      icon: m.icon,
+      href: m.href,
+      target: m.target,
+      rewardPoints: m.rewardPoints,
+      progress: Math.min(um?.progress ?? 0, m.target),
+      completed: Boolean(um?.completedAt),
+      claimed: Boolean(um?.claimedAt),
+    }
+  })
+}
+
+/** Recent points-ledger entries for the rewards activity feed. */
+export async function listPointHistory(userId: string, limit = 30) {
+  const rows = await prisma.pointLedger.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    delta: r.delta,
+    balanceAfter: r.balanceAfter,
+    reason: r.reason,
+    note: r.note,
+    createdAt: r.createdAt,
+  }))
+}
