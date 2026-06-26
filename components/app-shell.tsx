@@ -8,6 +8,7 @@ import { SupportFab } from "@/components/support-fab"
 import { NotificationWatcher } from "@/components/notification-watcher"
 import { AuthGate } from "@/components/auth/auth-gate"
 import { ForcePasswordChange } from "@/components/auth/force-password-change"
+import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 
 /**
  * Renders the storefront chrome (compact header + bottom tab bar) for the
@@ -28,6 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AuthGate>
       <NotificationWatcher />
       <ForcePasswordChange />
+      <OnboardingFlow />
       <SiteHeader />
       <main className="mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-xl px-4 pb-28 pt-4">
         <AnimatePresence mode="wait">
