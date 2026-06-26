@@ -1,0 +1,250 @@
+import { Prisma } from "@prisma/client"
+import { prisma } from "@/lib/db"
+import { secureSlug } from "@/lib/id"
+import { NotFoundError, ValidationError } from "./errors"
+import { audit } from "./audit"
+import { cancelAuctionAndRelease } from "./auction"
+
+// --- Listing -----------------------------------------------------------------
+
+export async function listProductsAdmin() {
+  return prisma.product.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      fixedSale: true,
+      auction: { include: { _count: { select: { bids: true } } } },
+      _count: { select: { inventoryItems: true, orders: true } },
+    },
+  })
+}
+
+export async function getProductAdmin(id: string) {
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { fixedSale: true, auction: true },
+  })
+  if (!product) throw new NotFoundError("محصول یافت نشد")
+  return product
+}
+
+// --- Flash-sale (fixed price) product ---------------------------------------
+
+export interface ProductLinkInput {
+  label: string
+  url: string
+}
+
+export interface FlashProductInput {
+  title: string
+  description?: string
+  category?: string
+  coverImage?: string
+  deliveryType: "MANUAL" | "AUTOMATIC"
+  price: bigint
+  stock: number
+  purchaseLimit?: number | null
+  links?: ProductLinkInput[]
+  soldBaseline?: number
+  bulkMinQty?: number | null
+  bulkDiscountPercent?: number | null
+  hidden?: boolean
+}
+
+/** Sanitize labeled links: keep only entries with both a label and a URL. */
+function cleanLinks(links?: ProductLinkInput[]): Prisma.InputJsonValue {
+  if (!Array.isArray(links)) return []
+  return links
+    .map((l) => ({ label: (l.label ?? "").trim(), url: (l.url ?? "").trim() }))
+    .filter((l) => l.label && l.url)
+    .slice(0, 8)
+}
+
+export async function createFlashProduct(input: FlashProductInput, adminId: string) {
+  if (!input.title.trim()) throw new ValidationError("عنوان الزامی است")
+  if (input.price <= 0n) throw new ValidationError("قیمت باید بزرگ‌تر از صفر باشد")
+  const product = await prisma.product.create({
+    data: {
+      slug: secureSlug("p"),
+      title: input.title.trim(),
+      description: input.description,
+      category: input.category,
+      coverImage: input.coverImage,
+      links: cleanLinks(input.links),
+      saleMode: "FIXED_PRICE",
+      deliveryType: input.deliveryType,
+      hidden: input.hidden ?? false,
+      fixedSale: {
+        create: {
+          price: input.price,
+          stock: input.stock,
+          purchaseLimit: input.purchaseLimit ?? null,
+          soldBaseline: Math.max(0, input.soldBaseline ?? 0),
+          bulkMinQty: input.bulkMinQty ?? null,
+          bulkDiscountPercent: input.bulkDiscountPercent ?? null,
+        },
+      },
+    },
+    include: { fixedSale: true },
+  })
+  await audit({ actorId: adminId, action: "product.create", entity: "product", entityId: product.id, meta: { mode: "FIXED_PRICE" } })
+  // Notify followers of this category about the new product (visible only).
+  if (!product.hidden && product.category) {
+    try {
+      const { notifyNewProduct } = await import("./category-follows")
+      await notifyNewProduct({
+        productId: product.id,
+        title: product.title,
+        category: product.category,
+        coverImage: product.coverImage,
+      })
+    } catch (e) {
+      console.log("[v0] notifyNewProduct (flash) error:", (e as Error).message)
+    }
+  }
+  return product
+}
+
+export interface FlashUpdateInput {
+  title?: string
+  description?: string
+  coverImage?: string
+  price?: bigint
+  stock?: number
+  purchaseLimit?: number | null
+  links?: ProductLinkInput[]
+  soldBaseline?: number
+  bulkMinQty?: number | null
+  bulkDiscountPercent?: number | null
+  hidden?: boolean
+  active?: boolean
+}
+
+export async function updateFlashProduct(productId: string, input: FlashUpdateInput, adminId: string) {
+  const product = await prisma.product.findUnique({ where: { id: productId }, include: { fixedSale: true } })
+  if (!product || !product.fixedSale) throw new NotFoundError("محصول فروش فوری یافت نشد")
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      title: input.title?.trim() ?? undefined,
+      description: input.description,
+      coverImage: input.coverImage,
+      links: input.links !== undefined ? cleanLinks(input.links) : undefined,
+      hidden: input.hidden,
+      active: input.active,
+      fixedSale: {
+        update: {
+          price: input.price,
+          stock: input.stock,
+          purchaseLimit: input.purchaseLimit,
+          soldBaseline: input.soldBaseline !== undefined ? Math.max(0, input.soldBaseline) : undefined,
+          bulkMinQty: input.bulkMinQty,
+          bulkDiscountPercent: input.bulkDiscountPercent,
+        },
+      },
+    },
+    include: { fixedSale: true },
+  })
+  await audit({ actorId: adminId, action: "product.update", entity: "product", entityId: productId })
+  // Fire back-in-stock alerts if this update made the product available again.
+  try {
+    const { reconcileStockAlerts } = await import("./stock-alerts")
+    await reconcileStockAlerts(productId)
+  } catch (e) {
+    console.log("[v0] reconcileStockAlerts (update) error:", (e as Error).message)
+  }
+  return updated
+}
+
+// --- Auction product ---------------------------------------------------------
+
+export interface AuctionProductInput {
+  title: string
+  description?: string
+  category?: string
+  coverImage?: string
+  deliveryType: "MANUAL" | "AUTOMATIC"
+  startPrice: bigint
+  minimumIncrement: bigint
+  reservePrice?: bigint | null
+  buyNowPrice?: bigint | null
+  quantity: number
+  startTime: Date
+  endTime: Date
+  antiSnipingEnabled?: boolean
+  hidden?: boolean
+}
+
+export async function createAuctionProduct(input: AuctionProductInput, adminId: string) {
+  if (!input.title.trim()) throw new ValidationError("عنوان الزامی است")
+  if (input.startPrice <= 0n) throw new ValidationError("قیمت پایه باید بزرگ‌تر از صفر باشد")
+  if (input.endTime <= input.startTime) throw new ValidationError("زمان پایان باید بعد از شروع باشد")
+  if (input.quantity < 1) throw new ValidationError("تعداد برنده باید حداقل ۱ باشد")
+
+  const now = new Date()
+  const status = input.startTime <= now ? "ACTIVE" : "SCHEDULED"
+
+  const product = await prisma.product.create({
+    data: {
+      slug: secureSlug("p"),
+      title: input.title.trim(),
+      description: input.description,
+      category: input.category,
+      coverImage: input.coverImage,
+      saleMode: "AUCTION",
+      deliveryType: input.deliveryType,
+      hidden: input.hidden ?? false,
+      auction: {
+        create: {
+          startPrice: input.startPrice,
+          minimumIncrement: input.minimumIncrement,
+          reservePrice: input.reservePrice ?? null,
+          buyNowPrice: input.buyNowPrice ?? null,
+          quantity: input.quantity,
+          startTime: input.startTime,
+          endTime: input.endTime,
+          antiSnipingEnabled: input.antiSnipingEnabled ?? true,
+          status,
+        },
+      },
+    },
+    include: { auction: true },
+  })
+  await audit({ actorId: adminId, action: "product.create", entity: "product", entityId: product.id, meta: { mode: "AUCTION" } })
+  // Notify category followers about the new auction (visible only).
+  if (!product.hidden && product.category) {
+    try {
+      const { notifyNewProduct } = await import("./category-follows")
+      await notifyNewProduct({
+        productId: product.id,
+        title: product.title,
+        category: product.category,
+        coverImage: product.coverImage,
+        href: `/auctions/${product.auction!.id}`,
+      })
+    } catch (e) {
+      console.log("[v0] notifyNewProduct (auction) error:", (e as Error).message)
+    }
+  }
+  return product
+}
+
+/** Cancel an auction that has not been finalized, releasing all frozen holds. */
+export async function cancelAuction(auctionId: string, adminId: string) {
+  const res = await cancelAuctionAndRelease(auctionId)
+  await audit({
+    actorId: adminId,
+    action: "auction.cancel",
+    entity: "auction",
+    entityId: auctionId,
+    meta: { released: res.released },
+  })
+  return res
+}
+
+export async function setProductVisibility(productId: string, hidden: boolean, adminId: string) {
+  const product = await prisma.product.findUnique({ where: { id: productId } })
+  if (!product) throw new NotFoundError("محصول یافت نشد")
+  await prisma.product.update({ where: { id: productId }, data: { hidden } })
+  await audit({ actorId: adminId, action: "product.visibility", entity: "product", entityId: productId, meta: { hidden } })
+}

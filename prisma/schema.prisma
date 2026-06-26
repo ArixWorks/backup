@@ -1,0 +1,842 @@
+// Bot Subio - Telegram Auction & Flash Sale Platform
+// Core data model. Money is stored as BigInt in Toman (no decimal places).
+// This schema is portable: it runs unchanged against self-hosted PostgreSQL 16.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection for the app runtime (PgBouncer / Neon pooler).
+  url       = env("POSTGRES_PRISMA_URL")
+  // Direct connection for migrations / db push.
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+enum WalletTxType {
+  DEPOSIT
+  WITHDRAWAL
+  FREEZE
+  UNFREEZE
+  PURCHASE
+  REFUND
+  BID_LOCK
+  BID_RELEASE
+  ADMIN_ADJUSTMENT
+  CASHBACK
+  REFERRAL_BONUS
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+enum SaleMode {
+  FIXED_PRICE
+  AUCTION
+}
+
+enum DeliveryType {
+  MANUAL
+  AUTOMATIC
+}
+
+enum AuctionStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+  FINALIZED
+  CANCELLED
+}
+
+enum OrderType {
+  FIXED_PURCHASE
+  BUY_NOW
+  AUCTION_WIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  DELIVERED
+  REFUNDED
+  CANCELLED
+}
+
+enum InventoryStatus {
+  AVAILABLE
+  RESERVED
+  DELIVERED
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+enum DepositStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+// User-facing support ticket lifecycle.
+enum SupportStatus {
+  OPEN // newly created / awaiting first staff reply
+  ANSWERED // staff has replied, awaiting user
+  PENDING // user replied, awaiting staff
+  CLOSED // resolved / archived
+}
+
+enum SupportCategory {
+  GENERAL
+  PAYMENT
+  ORDER
+  REFUND
+  TECHNICAL
+}
+
+// ---------------------------------------------------------------------------
+// Users & Wallet
+// ---------------------------------------------------------------------------
+
+model User {
+  id          String     @id @default(cuid())
+  email       String?    @unique
+  // Argon2id password hash for email/password login (null = Telegram-only account).
+  // Legacy scrypt hashes are still accepted and transparently rehashed on next login.
+  passwordHash String?
+  // True once the email address has been confirmed via a verification token.
+  // A verified email is locked and can no longer be changed from the UI.
+  emailVerified Boolean   @default(false)
+  // Forces a password change on next login (used for the seeded admin account).
+  mustChangePassword Boolean @default(false)
+  // "telegram" | "password" — the method used for the most recent successful login.
+  lastLoginMethod String?
+  // Bumped to invalidate every existing signed session (logout from all devices).
+  tokenVersion Int        @default(0)
+  telegramId  String?    @unique
+  // Telegram chat id used for push notifications (usually equals telegramId for private chats).
+  telegramChatId String?
+  telegramUsername String?
+  photoUrl    String?
+  languageCode String?
+  // True once the user manually picks a language, so Telegram's language_code stops overriding it.
+  localeManual Boolean   @default(false)
+  isPremium   Boolean    @default(false)
+  username    String?    @unique
+  displayName String
+  alias       String     @unique // public pseudonym shown in bid history
+  role        UserRole   @default(USER)
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Referral program: each user has a shareable code; referredById points to
+  // the inviter. referralRewarded flips true once the first-purchase bonus is paid.
+  referralCode     String?  @unique
+  referredById     String?
+  referredBy       User?    @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals        User[]   @relation("UserReferrals")
+  // referralRewarded flips true once the one-time first-purchase bonus is paid.
+  referralRewarded Boolean  @default(false)
+  // referralJoinRewarded flips true once the inviter's "joined" bonus (stage A:
+  // friend started the bot and passed the forced-join gate) is paid. Separate
+  // guard so the join reward and the first-purchase reward each pay exactly once.
+  referralJoinRewarded Boolean @default(false)
+
+  wallet      Wallet?
+  bids        Bid[]
+  orders      Order[]
+  watchlist   WatchlistEntry[]
+  auditLogs   AuditLog[]
+  deposits    DepositRequest[]
+  withdrawals WithdrawalRequest[]
+  refunds     RefundRequest[]
+  tickets     SupportTicket[]
+  reviews     Review[]
+  redemptions CouponRedemption[]
+  notifications Notification[]
+  stockAlerts StockAlert[]
+  categoryFollows CategoryFollow[]
+  authTokens  AuthToken[]
+  giveawayEntries  GiveawayEntry[]
+  giveawayWins     GiveawayWinner[]
+
+  @@index([status])
+  @@index([referredById])
+}
+
+// Single-use tokens for email verification and password reset. Only the SHA-256
+// hash of the token is stored, so a database leak cannot reveal usable links.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AuthTokenType
+  // SHA-256 hex of the raw token sent to the user.
+  tokenHash String        @unique
+  // For EMAIL_VERIFY: the pending email address awaiting confirmation.
+  email     String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
+  @@index([expiresAt])
+}
+
+model Wallet {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalBalance  BigInt   @default(0)
+  frozenBalance BigInt   @default(0)
+  // Optimistic-locking guard against concurrent balance mutations.
+  version       Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions WalletTransaction[]
+}
+
+// Immutable ledger. Records are never updated or deleted.
+model WalletTransaction {
+  id          String       @id @default(cuid())
+  walletId    String
+  wallet      Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type        WalletTxType
+  amount      BigInt // signed delta applied by this entry
+  balanceAfter BigInt
+  frozenAfter BigInt
+  refType     String? // e.g. "auction", "order", "deposit"
+  refId       String?
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  @@index([walletId, createdAt])
+  @@index([refType, refId])
+}
+
+// ---------------------------------------------------------------------------
+// Products
+// ---------------------------------------------------------------------------
+
+model Product {
+  id           String       @id @default(cuid())
+  slug         String       @unique // unguessable secure random id
+  title        String
+  description  String?
+  category     String?
+  tags         String[]     @default([])
+  coverImage   String?
+  gallery      String[]     @default([])
+  // Extra labeled links shown on the product card (e.g. Activation Link, Warranty).
+  // Array of { label, url }.
+  links        Json?
+  saleMode     SaleMode
+  deliveryType DeliveryType @default(MANUAL)
+  hidden       Boolean      @default(false)
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  fixedSale      FixedSale?
+  auction        Auction?
+  inventoryItems InventoryItem[]
+  orders         Order[]
+  reviews        Review[]
+  stockAlerts    StockAlert[]
+  giveaways      Giveaway[]
+
+  @@index([saleMode, active, hidden])
+}
+
+// ---------------------------------------------------------------------------
+// Reviews & ratings (one per user per product, gated by a delivered order)
+// ---------------------------------------------------------------------------
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int // 1..5
+  comment   String?
+  // Hidden by an admin (kept for audit, excluded from public aggregates).
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+  @@index([productId, hidden])
+}
+
+// ---------------------------------------------------------------------------
+// Coupons / discount codes
+// ---------------------------------------------------------------------------
+
+model Coupon {
+  id           String     @id @default(cuid())
+  code         String     @unique // stored uppercase
+  type         CouponType
+  // For PERCENT: 1..100. For FIXED: discount amount in minor units (Toman).
+  value        BigInt
+  // Optional cap on the discount when type is PERCENT (minor units).
+  maxDiscount  BigInt?
+  // Minimum order total required to use the coupon (minor units).
+  minOrder     BigInt     @default(0)
+  // Max redemptions per user (null = unlimited).
+  perUserLimit Int?
+  // Max total redemptions across all users (null = unlimited).
+  totalLimit   Int?
+  usedCount    Int        @default(0)
+  active       Boolean    @default(true)
+  startsAt     DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  redemptions CouponRedemption[]
+
+  @@index([active])
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String   @unique
+  amount    BigInt // discount applied (minor units)
+  createdAt DateTime @default(now())
+
+  @@index([couponId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Key-value app settings (cashback %, referral rewards, feature toggles)
+// ---------------------------------------------------------------------------
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// In-app notification center + back-in-stock / product watch alerts
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  GENERAL
+  BACK_IN_STOCK
+  NEW_PRODUCT
+  ORDER_DELIVERED
+  AUCTION_STARTED
+  AUCTION_WON
+  DEPOSIT_APPROVED
+  WITHDRAW_APPROVED
+  CASHBACK
+  REFERRAL_BONUS
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(GENERAL)
+  title     String
+  body      String
+  // Optional deep link target (e.g. /flash/<id>) and thumbnail.
+  href      String?
+  image     String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+// A user's request to be alerted when a specific product is back in stock.
+// Doubles as the "product watchlist" (flash sales), parallel to WatchlistEntry
+// which covers auctions. notified flips true once a restock alert is sent and
+// resets when the product sells out again, enabling repeat alerts.
+model StockAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  notified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([productId, notified])
+}
+
+// A user's subscription to a product category. When a new (visible) product is
+// added in that category, every follower receives a NEW_PRODUCT notification.
+model CategoryFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, category])
+  @@index([category])
+}
+
+// ---------------------------------------------------------------------------
+// Fixed-price (Flash Sale)
+// ---------------------------------------------------------------------------
+
+model FixedSale {
+  id            String    @id @default(cuid())
+  productId     String    @unique
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price         BigInt
+  stock         Int       @default(0)
+  reservedStock Int       @default(0) // temporary reservations for in-flight checkouts
+  purchaseLimit Int? // max units per user
+  // Real number of units sold through the bot/app (incremented per purchase).
+  soldCount     Int       @default(0)
+  // Vanity baseline added to soldCount for public display (editable in admin).
+  soldBaseline  Int       @default(0)
+  // Bulk discount: when quantity >= bulkMinQty, apply bulkDiscountPercent off.
+  bulkMinQty          Int?
+  bulkDiscountPercent Int?
+  startTime     DateTime?
+  endTime       DateTime?
+  version       Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Auctions
+// ---------------------------------------------------------------------------
+
+model Auction {
+  id                String        @id @default(cuid())
+  productId         String        @unique
+  product           Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  startPrice        BigInt
+  currentPrice      BigInt        @default(0)
+  minimumIncrement  BigInt        @default(1000)
+  reservePrice      BigInt?
+  buyNowPrice       BigInt?
+  startTime         DateTime
+  endTime           DateTime
+  antiSnipingEnabled Boolean      @default(true)
+  antiSnipingSeconds Int          @default(120)
+  autoExtend        Boolean       @default(true)
+  quantity          Int           @default(1) // multi-winner support
+  status            AuctionStatus @default(SCHEDULED)
+  // Optimistic-locking guard for bid races.
+  version           Int           @default(0)
+  finalizedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  bids      Bid[]
+  orders    Order[]
+  watchers  WatchlistEntry[]
+
+  @@index([status, endTime])
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  auctionId String
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    BigInt
+  isAuto    Boolean  @default(false) // generated by auto-bid engine
+  maxAmount BigInt? // ceiling for auto-bid
+  createdAt DateTime @default(now())
+
+  @@index([auctionId, amount])
+  @@index([auctionId, userId])
+}
+
+model WatchlistEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auctionId String
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  notified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, auctionId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders & Delivery
+// ---------------------------------------------------------------------------
+
+model Order {
+  id          String      @id @default(cuid())
+  publicId    String      @unique // unguessable reference
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id])
+  auctionId   String?
+  auction     Auction?    @relation(fields: [auctionId], references: [id])
+  type        OrderType
+  status      OrderStatus @default(PENDING)
+  amount      BigInt
+  quantity    Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  delivery Delivery?
+
+  @@index([userId, createdAt])
+}
+
+model Delivery {
+  id              String         @id @default(cuid())
+  orderId         String         @unique
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method          DeliveryType
+  status          DeliveryStatus @default(PENDING)
+  inventoryItemId String?        @unique
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  payload         Json? // delivered credentials / manual message
+  error           String?
+  deliveredAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+// Inventory pool for automatic delivery. Each item is single-use.
+model InventoryItem {
+  id          String          @id @default(cuid())
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  username    String?
+  password    String?
+  licenseKey  String?
+  note        String?
+  status      InventoryStatus @default(AVAILABLE)
+  reservedAt  DateTime?
+  createdAt   DateTime        @default(now())
+
+  delivery Delivery?
+
+  @@index([productId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Bot settings (editable texts, names, emoji and feature toggles)
+// ---------------------------------------------------------------------------
+
+model BotSetting {
+  key       String   @id
+  value     String // JSON-encoded value (string / boolean / object)
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Deposits & Withdrawals (card-to-card approval workflow)
+// ---------------------------------------------------------------------------
+
+model DepositRequest {
+  id           String        @id @default(cuid())
+  publicId     String        @unique
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       BigInt
+  status       DepositStatus @default(PENDING)
+  // User-supplied proof of a card-to-card transfer.
+  cardLast4    String?
+  reference    String? // tracking / receipt number
+  receiptUrl   String?
+  note         String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model WithdrawalRequest {
+  id           String           @id @default(cuid())
+  publicId     String           @unique
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       BigInt
+  status       WithdrawalStatus @default(PENDING)
+  iban         String? // destination sheba/card
+  cardNumber   String?
+  note         String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Refunds (return wallet balance to the customer's bank — KYC verified)
+// ---------------------------------------------------------------------------
+
+// A request to return funds to the customer's bank account. To prevent fraud
+// the destination card must match a card the user actually deposited from, and
+// the request carries identity proof (national id + uploaded national card).
+model RefundRequest {
+  id       String       @id @default(cuid())
+  publicId String       @unique
+  userId   String
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount   BigInt
+  status   RefundStatus @default(PENDING)
+
+  // KYC / identity
+  fullName        String // full legal name as printed on the national card
+  nationalId      String // 10-digit national id (کد ملی)
+  nationalCardUrl String // uploaded image of the national id card (Blob)
+
+  // Destination bank card (must match the card used for an approved deposit)
+  cardNumber String // full destination card number entered by the user
+  cardLast4  String // last 4 digits, matched against approved deposits
+  iban       String? // optional sheba for payout
+  reason     String? // why the user wants a refund
+
+  // The approved deposit whose card matched — proof the destination is theirs.
+  matchedDepositId String?
+
+  reviewedById String?
+  reviewedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Support tickets (threaded conversation between user and staff)
+// ---------------------------------------------------------------------------
+
+model SupportTicket {
+  id          String          @id @default(cuid())
+  publicId    String          @unique
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     String
+  category    SupportCategory @default(GENERAL)
+  status      SupportStatus   @default(OPEN)
+  // Timestamp of the most recent message, for inbox-style ordering.
+  lastReplyAt DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  messages TicketMessage[]
+
+  @@index([userId, lastReplyAt])
+  @@index([status, lastReplyAt])
+}
+
+model TicketMessage {
+  id            String        @id @default(cuid())
+  ticketId      String
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Null author = system message. fromStaff distinguishes user vs support.
+  authorId      String?
+  fromStaff     Boolean       @default(false)
+  body          String
+  attachmentUrl String?
+  createdAt     DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Audit log (append-only)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Giveaways / Campaigns
+// ---------------------------------------------------------------------------
+
+enum GiveawayStatus {
+  DRAFT // created, not published
+  SCHEDULED // published, before startAt
+  ACTIVE // accepting entries
+  PAUSED // entries temporarily closed
+  LOCKED // entries closed, awaiting admin draw approval
+  DRAWING // draw in progress
+  FINISHED // winners drawn
+  CANCELLED
+}
+
+enum GiveawayPrizeKind {
+  WALLET // auto-credit a Toman amount to the winner's wallet
+  COUPON // auto-generate a unique discount coupon per winner
+  INVENTORY // claim a single-use inventory item from a linked product
+  CUSTOM // free-form prize delivered manually by an admin
+}
+
+enum GiveawayVisibility {
+  PUBLIC // listed on the public giveaways page
+  UNLISTED // reachable by direct link / deep link only
+}
+
+enum GiveawayEntrySource {
+  WEB
+  BOT
+}
+
+model Giveaway {
+  id            String             @id @default(cuid())
+  slug          String             @unique // unguessable public reference
+  title         String
+  subtitle      String?
+  description   String? // rich text / markdown-ish
+  coverImage    String?
+  prizeImage    String?
+  // Display label for the prize (e.g. "اشتراک یک‌ماهه VPN", "۵۰۰ هزار تومان اعتبار").
+  prizeLabel    String
+  prizeKind     GiveawayPrizeKind  @default(CUSTOM)
+  // WALLET: amount in minor units (Toman). Other kinds: null.
+  prizeAmount   BigInt?
+  // INVENTORY: the product whose inventory pool prizes are claimed from.
+  prizeProductId String?
+  prizeProduct  Product?           @relation(fields: [prizeProductId], references: [id], onDelete: SetNull)
+  // COUPON: template used to mint a per-winner coupon (type/value/expiry days).
+  couponType    CouponType?
+  couponValue   BigInt?
+  couponExpiresInDays Int?
+  winnersCount  Int                @default(1)
+  // Required Telegram channels to be eligible. Array of { id, title, url }.
+  requiredChannels Json?
+  startAt       DateTime
+  endAt         DateTime
+  drawAt        DateTime
+  // IANA timezone label for admin display (storage is always UTC).
+  timezone      String             @default("Asia/Tehran")
+  status        GiveawayStatus     @default(DRAFT)
+  visibility    GiveawayVisibility @default(PUBLIC)
+  autoDraw      Boolean            @default(false) // draw automatically at drawAt without admin approval
+  internalNotes String?
+  // True once admins have been alerted ~5 min before drawAt (avoids duplicate alerts).
+  preDrawNotified Boolean          @default(false)
+  // Cryptographic seed recorded at draw time so the selection is auditable/reproducible.
+  drawSeed      String?
+  drawnAt       DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  entries GiveawayEntry[]
+  winners GiveawayWinner[]
+
+  @@index([status, drawAt])
+  @@index([visibility, status])
+}
+
+model GiveawayEntry {
+  id         String              @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway            @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Snapshot of the Telegram id at entry time (anti-fraud / audit).
+  telegramId String?
+  source     GiveawayEntrySource @default(WEB)
+  // Eligibility recomputed at entry and re-validated before the draw. A user who
+  // leaves a required channel before the draw is flipped ineligible.
+  eligible   Boolean             @default(true)
+  createdAt  DateTime            @default(now())
+
+  winner GiveawayWinner?
+
+  // One entry per user per giveaway (hard anti-duplicate guard).
+  @@unique([giveawayId, userId])
+  @@index([giveawayId, eligible])
+}
+
+model GiveawayWinner {
+  id         String         @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway       @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  entryId    String         @unique
+  entry      GiveawayEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position   Int // 1-based winner index
+  // Prize delivery lifecycle.
+  delivered  Boolean        @default(false)
+  deliveredAt DateTime?
+  // Delivered payload (coupon code, credentials, claim note) — never shown publicly.
+  claimData  Json?
+  deliveryError String?
+  createdAt  DateTime       @default(now())
+
+  @@unique([giveawayId, userId])
+  @@index([giveawayId, position])
+}

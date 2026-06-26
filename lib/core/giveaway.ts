@@ -1,0 +1,895 @@
+import "server-only"
+import { randomInt, randomBytes } from "crypto"
+import type { Prisma, Giveaway, GiveawayEntry } from "@prisma/client"
+import { prisma } from "@/lib/db"
+import { withLock } from "@/lib/redis"
+import { secureSlug } from "@/lib/id"
+import { audit } from "./audit"
+import { ensureWallet, deposit } from "./wallet"
+import { NotFoundError, ValidationError, ConflictError } from "./errors"
+import { getChatMember } from "@/lib/telegram/api"
+
+type Tx = Prisma.TransactionClient
+
+export type GiveawayChannel = { id: string; title: string; url: string }
+
+// Telegram member statuses that count as "joined".
+const JOINED = new Set(["creator", "administrator", "member"])
+
+function lockKey(id: string) {
+  return `lock:giveaway:${id}`
+}
+
+// ---------------------------------------------------------------------------
+// Privacy: never expose full identities publicly.
+// ---------------------------------------------------------------------------
+
+/** "Ali Rezaei" -> "Ali•••" — keep only the first name's leading chars. */
+export function maskName(displayName: string | null | undefined): string {
+  const first = (displayName ?? "").trim().split(/\s+/)[0] ?? ""
+  if (!first) return "کاربر•••"
+  const head = [...first].slice(0, 3).join("")
+  return `${head}•••`
+}
+
+/** "behnam_dev" -> "be••••ev". Mask the middle, keep a hint of the edges. */
+export function maskUsername(username: string | null | undefined): string | null {
+  if (!username) return null
+  const u = username.replace(/^@/, "")
+  if (u.length <= 3) return `${u[0] ?? ""}••`
+  return `${u.slice(0, 2)}••••${u.slice(-2)}`
+}
+
+/** Mask an internal/telegram identifier: "User ****4821". */
+export function maskIdentifier(id: string | null | undefined): string {
+  if (!id) return "User ••••"
+  return `User ••••${id.slice(-4)}`
+}
+
+// ---------------------------------------------------------------------------
+// Membership (per-giveaway required channels — independent of the bot's
+// global forced-join). Used both at entry time and re-validated before a draw.
+// ---------------------------------------------------------------------------
+
+export function giveawayChannels(g: { requiredChannels: Prisma.JsonValue | null }): GiveawayChannel[] {
+  const raw = g.requiredChannels
+  if (!Array.isArray(raw)) return []
+  return (raw as unknown[])
+    .map((c) => c as GiveawayChannel)
+    .filter((c) => c && typeof c.id === "string" && c.id.trim().length > 0)
+}
+
+/**
+ * Check a Telegram user's membership across a giveaway's required channels.
+ * Channels the bot cannot read (not admin / invalid id) are treated as
+ * non-blocking so a misconfiguration never makes everyone ineligible.
+ * Returns the channels the user is NOT a member of.
+ */
+export async function checkGiveawayMembership(
+  channels: GiveawayChannel[],
+  telegramId: string | number,
+): Promise<{ ok: boolean; missing: GiveawayChannel[] }> {
+  if (channels.length === 0) return { ok: true, missing: [] }
+  const missing: GiveawayChannel[] = []
+  for (const ch of channels) {
+    try {
+      const res = await getChatMember(ch.id.trim(), telegramId)
+      const status = res?.status ?? "left"
+      const isMember = JOINED.has(status) || (status === "restricted" && res.is_member === true)
+      if (!isMember) missing.push(ch)
+    } catch (e) {
+      console.log("[v0] giveaway membership check failed for", ch.id, (e as Error).message)
+    }
+  }
+  return { ok: missing.length === 0, missing }
+}
+
+// ---------------------------------------------------------------------------
+// Admin CRUD
+// ---------------------------------------------------------------------------
+
+export interface GiveawayInput {
+  title: string
+  subtitle?: string | null
+  description?: string | null
+  coverImage?: string | null
+  prizeImage?: string | null
+  prizeLabel: string
+  prizeKind: "WALLET" | "COUPON" | "INVENTORY" | "CUSTOM"
+  prizeAmount?: number | null
+  prizeProductId?: string | null
+  couponType?: "PERCENT" | "FIXED" | null
+  couponValue?: number | null
+  couponExpiresInDays?: number | null
+  winnersCount: number
+  requiredChannels?: GiveawayChannel[]
+  startAt: string
+  endAt: string
+  drawAt: string
+  timezone?: string
+  visibility?: "PUBLIC" | "UNLISTED"
+  autoDraw?: boolean
+  internalNotes?: string | null
+  status?: "DRAFT" | "SCHEDULED"
+}
+
+function validateWindow(startAt: Date, endAt: Date, drawAt: Date) {
+  if (endAt <= startAt) throw new ValidationError("زمان پایان باید بعد از شروع باشد")
+  if (drawAt < endAt) throw new ValidationError("زمان قرعه‌کشی باید بعد از پایان ثبت‌نام باشد")
+}
+
+function validateCommon(input: Pick<GiveawayInput, "winnersCount" | "prizeKind" | "prizeAmount" | "couponValue" | "prizeProductId">) {
+  if (input.winnersCount < 1) throw new ValidationError("تعداد برندگان باید حداقل ۱ باشد")
+  if (input.prizeKind === "WALLET" && (!input.prizeAmount || input.prizeAmount <= 0)) {
+    throw new ValidationError("برای جایزه‌ی کیف پول، مبلغ معتبر لازم است")
+  }
+  if (input.prizeKind === "COUPON" && (!input.couponValue || input.couponValue <= 0)) {
+    throw new ValidationError("برای جایزه‌ی کوپن، مقدار معتبر لازم است")
+  }
+  if (input.prizeKind === "INVENTORY" && !input.prizeProductId) {
+    throw new ValidationError("برای جایزه‌ی موجودی، انتخاب محصول لازم است")
+  }
+}
+
+export async function createGiveaway(input: GiveawayInput, actorId: string) {
+  const startAt = new Date(input.startAt)
+  const endAt = new Date(input.endAt)
+  const drawAt = new Date(input.drawAt)
+  validateWindow(startAt, endAt, drawAt)
+  validateCommon(input)
+
+  const created = await prisma.giveaway.create({
+    data: {
+      slug: secureSlug("gv"),
+      title: input.title.trim(),
+      subtitle: input.subtitle?.trim() || null,
+      description: input.description?.trim() || null,
+      coverImage: input.coverImage || null,
+      prizeImage: input.prizeImage || null,
+      prizeLabel: input.prizeLabel.trim(),
+      prizeKind: input.prizeKind,
+      prizeAmount: input.prizeAmount ? BigInt(Math.round(input.prizeAmount)) : null,
+      prizeProductId: input.prizeProductId || null,
+      couponType: input.couponType ?? null,
+      couponValue: input.couponValue ? BigInt(Math.round(input.couponValue)) : null,
+      couponExpiresInDays: input.couponExpiresInDays ?? null,
+      winnersCount: Math.round(input.winnersCount),
+      requiredChannels: (input.requiredChannels ?? []) as unknown as Prisma.InputJsonValue,
+      startAt,
+      endAt,
+      drawAt,
+      timezone: input.timezone || "Asia/Tehran",
+      visibility: input.visibility ?? "PUBLIC",
+      autoDraw: input.autoDraw ?? false,
+      internalNotes: input.internalNotes?.trim() || null,
+      status: input.status === "SCHEDULED" ? "SCHEDULED" : "DRAFT",
+    },
+  })
+  await audit({ actorId, action: "giveaway.create", entity: "giveaway", entityId: created.id, meta: { title: created.title } })
+  return created
+}
+
+export async function updateGiveaway(id: string, input: Partial<GiveawayInput>, actorId: string) {
+  const existing = await prisma.giveaway.findUnique({ where: { id } })
+  if (!existing) throw new NotFoundError("قرعه‌کشی یافت نشد")
+  if (existing.status === "FINISHED" || existing.status === "DRAWING") {
+    throw new ValidationError("قرعه‌کشی پایان‌یافته یا در حال قرعه‌کشی قابل ویرایش نیست")
+  }
+
+  const data: Prisma.GiveawayUpdateInput = {}
+  if (input.title !== undefined) data.title = input.title.trim()
+  if (input.subtitle !== undefined) data.subtitle = input.subtitle?.trim() || null
+  if (input.description !== undefined) data.description = input.description?.trim() || null
+  if (input.coverImage !== undefined) data.coverImage = input.coverImage || null
+  if (input.prizeImage !== undefined) data.prizeImage = input.prizeImage || null
+  if (input.prizeLabel !== undefined) data.prizeLabel = input.prizeLabel.trim()
+  if (input.prizeKind !== undefined) data.prizeKind = input.prizeKind
+  if (input.prizeAmount !== undefined)
+    data.prizeAmount = input.prizeAmount ? BigInt(Math.round(input.prizeAmount)) : null
+  if (input.prizeProductId !== undefined)
+    data.prizeProduct = input.prizeProductId
+      ? { connect: { id: input.prizeProductId } }
+      : { disconnect: true }
+  if (input.couponType !== undefined) data.couponType = input.couponType ?? null
+  if (input.couponValue !== undefined)
+    data.couponValue = input.couponValue ? BigInt(Math.round(input.couponValue)) : null
+  if (input.couponExpiresInDays !== undefined) data.couponExpiresInDays = input.couponExpiresInDays ?? null
+  if (input.winnersCount !== undefined) data.winnersCount = Math.round(input.winnersCount)
+  if (input.requiredChannels !== undefined)
+    data.requiredChannels = (input.requiredChannels ?? []) as unknown as Prisma.InputJsonValue
+  if (input.startAt !== undefined) data.startAt = new Date(input.startAt)
+  if (input.endAt !== undefined) data.endAt = new Date(input.endAt)
+  if (input.drawAt !== undefined) data.drawAt = new Date(input.drawAt)
+  if (input.timezone !== undefined) data.timezone = input.timezone || "Asia/Tehran"
+  if (input.visibility !== undefined) data.visibility = input.visibility
+  if (input.autoDraw !== undefined) data.autoDraw = input.autoDraw
+  if (input.internalNotes !== undefined) data.internalNotes = input.internalNotes?.trim() || null
+  if (input.status !== undefined) data.status = input.status
+
+  // Re-validate the time window against the resulting values.
+  const startAt = (data.startAt as Date) ?? existing.startAt
+  const endAt = (data.endAt as Date) ?? existing.endAt
+  const drawAt = (data.drawAt as Date) ?? existing.drawAt
+  validateWindow(startAt, endAt, drawAt)
+
+  const updated = await prisma.giveaway.update({ where: { id }, data })
+  await audit({ actorId, action: "giveaway.update", entity: "giveaway", entityId: id })
+  return updated
+}
+
+/** Move between ACTIVE and PAUSED, or publish a DRAFT (SCHEDULED). */
+export async function setGiveawayStatus(
+  id: string,
+  status: "DRAFT" | "SCHEDULED" | "ACTIVE" | "PAUSED" | "CANCELLED",
+  actorId: string,
+) {
+  const g = await prisma.giveaway.findUnique({ where: { id } })
+  if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+  if (g.status === "FINISHED" || g.status === "DRAWING") {
+    throw new ValidationError("وضعیت این قرعه‌کشی قابل تغییر نیست")
+  }
+  const updated = await prisma.giveaway.update({ where: { id }, data: { status } })
+  await audit({ actorId, action: "giveaway.status", entity: "giveaway", entityId: id, meta: { status } })
+  return updated
+}
+
+export async function deleteGiveaway(id: string, actorId: string) {
+  await prisma.giveaway.delete({ where: { id } })
+  await audit({ actorId, action: "giveaway.delete", entity: "giveaway", entityId: id })
+}
+
+/**
+ * High-level lifecycle transitions used by the admin UI / bot:
+ * - publish: DRAFT -> SCHEDULED (or ACTIVE if already within the window)
+ * - pause:   ACTIVE -> PAUSED
+ * - resume:  PAUSED -> ACTIVE
+ * - cancel:  any non-finished -> CANCELLED
+ * - delay:   push drawAt back by `minutes` (default 30) and reopen if it was LOCKED
+ */
+export async function setGiveawayLifecycle(
+  id: string,
+  action: "publish" | "pause" | "resume" | "cancel" | "delay",
+  opts: { actorId?: string; minutes?: number } = {},
+) {
+  const g = await prisma.giveaway.findUnique({ where: { id } })
+  if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+  if (g.status === "FINISHED" || g.status === "DRAWING") {
+    throw new ValidationError("وضعیت این قرعه‌کشی قابل تغییر نیست")
+  }
+
+  const now = new Date()
+  const data: Prisma.GiveawayUpdateInput = {}
+
+  switch (action) {
+    case "publish": {
+      if (g.status !== "DRAFT" && g.status !== "SCHEDULED") {
+        throw new ValidationError("این قرعه‌کشی قبلاً منتشر شده است")
+      }
+      data.status = now >= g.startAt && now < g.endAt ? "ACTIVE" : "SCHEDULED"
+      break
+    }
+    case "pause":
+      if (g.status !== "ACTIVE") throw new ValidationError("فقط قرعه‌کشی فعال قابل توقف است")
+      data.status = "PAUSED"
+      break
+    case "resume":
+      if (g.status !== "PAUSED") throw new ValidationError("این قرعه‌کشی متوقف نیست")
+      data.status = "ACTIVE"
+      break
+    case "cancel":
+      data.status = "CANCELLED"
+      break
+    case "delay": {
+      const minutes = opts.minutes ?? 30
+      const base = g.drawAt > now ? g.drawAt : now
+      const nextDraw = new Date(base.getTime() + minutes * 60_000)
+      data.drawAt = nextDraw
+      if (nextDraw > g.endAt) data.endAt = nextDraw
+      // A locked-but-not-drawn giveaway reopens for entries until the new draw time.
+      if (g.status === "LOCKED") data.status = "ACTIVE"
+      data.preDrawNotified = false
+      break
+    }
+  }
+
+  const updated = await prisma.giveaway.update({ where: { id }, data })
+  await audit({
+    actorId: opts.actorId,
+    action: `giveaway.${action}`,
+    entity: "giveaway",
+    entityId: id,
+    meta: { minutes: opts.minutes },
+  })
+  return updated
+}
+
+export async function listGiveaways() {
+  const rows = await prisma.giveaway.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { entries: true, winners: true } } },
+  })
+  return rows
+}
+
+export async function getGiveawayById(id: string) {
+  const g = await prisma.giveaway.findUnique({
+    where: { id },
+    include: {
+      _count: { select: { entries: true, winners: true } },
+      prizeProduct: { select: { id: true, title: true } },
+    },
+  })
+  if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+  return g
+}
+
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
+
+export async function getGiveawayStats(giveawayId: string) {
+  const [total, eligible, winners] = await Promise.all([
+    prisma.giveawayEntry.count({ where: { giveawayId } }),
+    prisma.giveawayEntry.count({ where: { giveawayId, eligible: true } }),
+    prisma.giveawayWinner.count({ where: { giveawayId } }),
+  ])
+  return { total, eligible, ineligible: total - eligible, winners }
+}
+
+export type ExportRow = Record<string, string | number>
+
+/**
+ * Build export rows (participants or winners) for an admin CSV download.
+ * Includes contact/identity columns so admins can reach winners off-platform.
+ */
+export async function getGiveawayExport(
+  giveawayId: string,
+  kind: "participants" | "winners",
+): Promise<{ title: string; rows: ExportRow[] }> {
+  const g = await prisma.giveaway.findUnique({ where: { id: giveawayId }, select: { title: true } })
+  if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+
+  if (kind === "winners") {
+    const winners = await prisma.giveawayWinner.findMany({
+      where: { giveawayId },
+      orderBy: { position: "asc" },
+      include: {
+        user: { select: { displayName: true, telegramId: true, telegramUsername: true, email: true } },
+      },
+    })
+    const rows = winners.map((w) => ({
+      position: w.position,
+      name: w.user.displayName,
+      telegram_id: w.user.telegramId ?? "",
+      telegram_username: w.user.telegramUsername ?? "",
+      email: w.user.email ?? "",
+      delivered: w.delivered ? "yes" : "no",
+      delivered_at: w.deliveredAt ? w.deliveredAt.toISOString() : "",
+      delivery_error: w.deliveryError ?? "",
+      won_at: w.createdAt.toISOString(),
+    }))
+    return { title: g.title, rows }
+  }
+
+  const entries = await prisma.giveawayEntry.findMany({
+    where: { giveawayId },
+    orderBy: { createdAt: "asc" },
+    include: {
+      user: { select: { displayName: true, telegramId: true, telegramUsername: true, email: true } },
+    },
+  })
+  const rows = entries.map((e, i) => ({
+    row: i + 1,
+    name: e.user.displayName,
+    telegram_id: e.user.telegramId ?? e.telegramId ?? "",
+    telegram_username: e.user.telegramUsername ?? "",
+    email: e.user.email ?? "",
+    source: e.source,
+    eligible: e.eligible ? "yes" : "no",
+    entered_at: e.createdAt.toISOString(),
+  }))
+  return { title: g.title, rows }
+}
+
+// ---------------------------------------------------------------------------
+// Public reads
+// ---------------------------------------------------------------------------
+
+export async function listPublicGiveaways() {
+  const rows = await prisma.giveaway.findMany({
+    where: {
+      visibility: "PUBLIC",
+      status: { in: ["SCHEDULED", "ACTIVE", "PAUSED", "LOCKED", "DRAWING", "FINISHED"] },
+    },
+    orderBy: [{ status: "asc" }, { endAt: "asc" }],
+    include: { _count: { select: { entries: true } } },
+  })
+  return rows
+}
+
+/** Public detail by slug, with masked winners and live counts. */
+export async function getPublicGiveaway(slug: string, userId?: string) {
+  const g = await prisma.giveaway.findUnique({
+    where: { slug },
+    include: {
+      _count: { select: { entries: true } },
+      winners: {
+        orderBy: { position: "asc" },
+        include: { user: { select: { displayName: true, telegramUsername: true } } },
+      },
+    },
+  })
+  if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+
+  let entered = false
+  if (userId) {
+    const e = await prisma.giveawayEntry.findUnique({
+      where: { giveawayId_userId: { giveawayId: g.id, userId } },
+      select: { id: true },
+    })
+    entered = !!e
+  }
+
+  return {
+    id: g.id,
+    slug: g.slug,
+    title: g.title,
+    subtitle: g.subtitle,
+    description: g.description,
+    coverImage: g.coverImage,
+    prizeImage: g.prizeImage,
+    prizeLabel: g.prizeLabel,
+    winnersCount: g.winnersCount,
+    requiredChannels: giveawayChannels(g),
+    startAt: g.startAt.toISOString(),
+    endAt: g.endAt.toISOString(),
+    drawAt: g.drawAt.toISOString(),
+    status: g.status,
+    participants: g._count.entries,
+    entered,
+    winners: g.winners.map((w) => ({
+      position: w.position,
+      name: maskName(w.user.displayName),
+      username: maskUsername(w.user.telegramUsername),
+    })),
+  }
+}
+
+/**
+ * List the current user's giveaway wins for the "My Prizes" page. Returns the
+ * winner's own claim data (coupon code / credentials / wallet credit) — this is
+ * private to the winner and never exposed on the public giveaway page.
+ */
+export async function listUserWins(userId: string) {
+  const wins = await prisma.giveawayWinner.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      giveaway: {
+        select: { slug: true, title: true, prizeLabel: true, prizeKind: true, prizeImage: true, coverImage: true },
+      },
+    },
+  })
+  return wins.map((w) => ({
+    id: w.id,
+    position: w.position,
+    delivered: w.delivered,
+    deliveredAt: w.deliveredAt ? w.deliveredAt.toISOString() : null,
+    deliveryError: w.deliveryError,
+    claimData: (w.claimData as Record<string, unknown> | null) ?? null,
+    createdAt: w.createdAt.toISOString(),
+    giveaway: {
+      slug: w.giveaway.slug,
+      title: w.giveaway.title,
+      prizeLabel: w.giveaway.prizeLabel,
+      prizeKind: w.giveaway.prizeKind,
+      image: w.giveaway.prizeImage || w.giveaway.coverImage || null,
+    },
+  }))
+}
+
+// ---------------------------------------------------------------------------
+// Entry (anti-fraud: one per user, locked, membership-gated, status/time-gated)
+// ---------------------------------------------------------------------------
+
+export class AlreadyEnteredError extends ConflictError {
+  constructor() {
+    super("شما قبلاً در این قرعه‌کشی شرکت کرده‌اید")
+  }
+}
+
+export class MembershipRequiredError extends ValidationError {
+  missing: GiveawayChannel[]
+  constructor(missing: GiveawayChannel[]) {
+    super("برای شرکت باید عضو کانال‌های الزامی شوید")
+    this.missing = missing
+  }
+}
+
+/**
+ * Register a user's entry. Idempotent-safe: the unique (giveawayId,userId)
+ * constraint plus a per-giveaway lock prevents duplicates and race conditions.
+ * Membership in all required channels is verified server-side before insert.
+ */
+export async function enterGiveaway(opts: {
+  giveawayId: string
+  userId: string
+  source?: "WEB" | "BOT"
+}): Promise<{ entry: GiveawayEntry; created: boolean }> {
+  const g = await prisma.giveaway.findUnique({ where: { id: opts.giveawayId } })
+  if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+
+  const now = new Date()
+  if (g.status === "PAUSED") throw new ValidationError("ثبت‌نام موقتاً متوقف شده است")
+  if (!["SCHEDULED", "ACTIVE"].includes(g.status)) throw new ValidationError("ثبت‌نام این قرعه‌کشی باز نیست")
+  if (now < g.startAt) throw new ValidationError("ثبت‌نام هنوز شروع نشده است")
+  if (now > g.endAt) throw new ValidationError("مهلت ثبت‌نام به پایان رسیده است")
+
+  const user = await prisma.user.findUnique({
+    where: { id: opts.userId },
+    select: { id: true, telegramId: true, status: true },
+  })
+  if (!user) throw new NotFoundError("کاربر یافت نشد")
+  if (user.status === "BANNED") throw new ValidationError("حساب شما مسدود است")
+
+  // Verify required-channel membership (Telegram). Web users without a linked
+  // Telegram account cannot satisfy channel requirements.
+  const channels = giveawayChannels(g)
+  if (channels.length > 0) {
+    if (!user.telegramId) {
+      throw new MembershipRequiredError(channels)
+    }
+    const membership = await checkGiveawayMembership(channels, user.telegramId)
+    if (!membership.ok) throw new MembershipRequiredError(membership.missing)
+  }
+
+  return withLock(lockKey(g.id), async () => {
+    const existing = await prisma.giveawayEntry.findUnique({
+      where: { giveawayId_userId: { giveawayId: g.id, userId: user.id } },
+    })
+    if (existing) return { entry: existing, created: false }
+
+    try {
+      const entry = await prisma.giveawayEntry.create({
+        data: {
+          giveawayId: g.id,
+          userId: user.id,
+          telegramId: user.telegramId,
+          source: opts.source ?? "WEB",
+          eligible: true,
+        },
+      })
+      return { entry, created: true }
+    } catch (e) {
+      // Unique constraint => entered concurrently; treat as success.
+      if ((e as { code?: string }).code === "P2002") {
+        const entry = await prisma.giveawayEntry.findUnique({
+          where: { giveawayId_userId: { giveawayId: g.id, userId: user.id } },
+        })
+        if (entry) return { entry, created: false }
+      }
+      throw e
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Draw (cryptographically secure, auditable, idempotent)
+// ---------------------------------------------------------------------------
+
+/** Unbiased partial Fisher-Yates using crypto.randomInt to pick `count`. */
+function pickWinners<T>(items: T[], count: number): T[] {
+  const arr = [...items]
+  const n = Math.min(count, arr.length)
+  for (let i = 0; i < n; i++) {
+    const j = i + randomInt(arr.length - i) // uniform in [i, arr.length)
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr.slice(0, n)
+}
+
+/**
+ * Re-validate channel membership for every entry that has a Telegram id and
+ * flip those who left a required channel to ineligible. Runs OUTSIDE the draw
+ * transaction (external Telegram calls). No-op when the giveaway has no
+ * required channels.
+ */
+async function revalidateEligibility(giveawayId: string, channels: GiveawayChannel[]) {
+  if (channels.length === 0) return
+  const entries = await prisma.giveawayEntry.findMany({
+    where: { giveawayId, eligible: true, telegramId: { not: null } },
+    select: { id: true, telegramId: true },
+  })
+  for (const e of entries) {
+    const res = await checkGiveawayMembership(channels, e.telegramId!)
+    if (!res.ok) {
+      await prisma.giveawayEntry.update({ where: { id: e.id }, data: { eligible: false } })
+    }
+  }
+}
+
+/**
+ * Execute the draw: re-validate eligibility, securely select winners, deliver
+ * prizes, and record an auditable seed. Serialized per-giveaway and idempotent
+ * (a FINISHED giveaway returns its existing winners without re-drawing).
+ */
+export async function drawGiveaway(giveawayId: string, opts: { actorId?: string } = {}) {
+  const pre = await prisma.giveaway.findUnique({ where: { id: giveawayId } })
+  if (!pre) throw new NotFoundError("قرعه‌کشی یافت نشد")
+  if (pre.status === "FINISHED") {
+    const winners = await prisma.giveawayWinner.findMany({
+      where: { giveawayId },
+      orderBy: { position: "asc" },
+    })
+    return { drawn: false, winners }
+  }
+  if (pre.status === "CANCELLED") throw new ValidationError("قرعه‌کشی لغو شده است")
+
+  // Mark DRAWING so the UI can show the cinematic sequence and concurrent ticks
+  // skip it. Best-effort; the lock below is the real guard.
+  await prisma.giveaway.update({ where: { id: giveawayId }, data: { status: "DRAWING" } })
+
+  const channels = giveawayChannels(pre)
+  await revalidateEligibility(giveawayId, channels)
+
+  return withLock(lockKey(giveawayId), async () => {
+    const seed = randomBytes(16).toString("hex")
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const g = await tx.giveaway.findUnique({ where: { id: giveawayId } })
+        if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
+        const existingWinners = await tx.giveawayWinner.count({ where: { giveawayId } })
+        if (existingWinners > 0) {
+          const winners = await tx.giveawayWinner.findMany({
+            where: { giveawayId },
+            orderBy: { position: "asc" },
+          })
+          return { drawn: false, winners }
+        }
+
+        const eligible = await tx.giveawayEntry.findMany({
+          where: { giveawayId, eligible: true },
+          select: { id: true, userId: true },
+        })
+        const selected = pickWinners(eligible, g.winnersCount)
+
+        const winners = []
+        for (let i = 0; i < selected.length; i++) {
+          const s = selected[i]
+          const winner = await tx.giveawayWinner.create({
+            data: {
+              giveawayId,
+              entryId: s.id,
+              userId: s.userId,
+              position: i + 1,
+            },
+          })
+          // Deliver the prize in-transaction so a failure rolls the winner back.
+          const delivery = await deliverGiveawayPrize(g, s.userId, tx)
+          const settled = await tx.giveawayWinner.update({
+            where: { id: winner.id },
+            data: {
+              delivered: delivery.delivered,
+              deliveredAt: delivery.delivered ? new Date() : null,
+              claimData: (delivery.claimData ?? undefined) as Prisma.InputJsonValue | undefined,
+              deliveryError: delivery.error ?? null,
+            },
+          })
+          winners.push(settled)
+        }
+
+        await tx.giveaway.update({
+          where: { id: giveawayId },
+          data: { status: "FINISHED", drawSeed: seed, drawnAt: new Date() },
+        })
+
+        await audit(
+          {
+            actorId: opts.actorId ?? null,
+            action: "giveaway.draw",
+            entity: "giveaway",
+            entityId: giveawayId,
+            meta: { seed, eligible: eligible.length, winners: winners.length },
+          },
+          tx,
+        )
+
+        return { drawn: true, winners }
+      },
+      { isolationLevel: "Serializable" },
+    )
+    return result
+  }).then(async (res) => {
+    // Best-effort winner notifications (never block settlement).
+    if (res.drawn && res.winners.length > 0) {
+      try {
+        const { notifyGiveawayWon } = await import("@/lib/telegram/notify")
+        const { createNotification } = await import("./notifications")
+        const g = await prisma.giveaway.findUnique({ where: { id: giveawayId } })
+        for (const w of res.winners) {
+          await notifyGiveawayWon(w.userId, g?.title ?? "", g?.prizeLabel ?? "", g?.slug ?? "")
+          await createNotification({
+            userId: w.userId,
+            type: "GENERAL",
+            title: "برنده قرعه‌کشی شدید!",
+            body: `تبریک! شما در «${g?.title ?? "قرعه‌کشی"}» برنده‌ی ${g?.prizeLabel ?? "جایزه"} شدید.`,
+            href: `/giveaways/${g?.slug ?? ""}`,
+            image: g?.prizeImage ?? g?.coverImage ?? null,
+          }).catch(() => {})
+        }
+      } catch (e) {
+        console.log("[v0] giveaway winner notify error:", (e as Error).message)
+      }
+    }
+    return res
+  })
+}
+
+/**
+ * Deliver a giveaway prize to a winner. Runs inside the draw transaction.
+ * - WALLET: credit the Toman amount to the winner's wallet.
+ * - COUPON: mint a unique single-use coupon for the winner.
+ * - INVENTORY: atomically claim an available inventory item from the product.
+ * - CUSTOM: mark undelivered for manual admin handling.
+ * Returns the delivery outcome; never throws for "out of stock" (records an
+ * error on the winner so an admin can resolve it) — only unexpected errors bubble.
+ */
+async function deliverGiveawayPrize(
+  g: Giveaway,
+  userId: string,
+  tx: Tx,
+): Promise<{ delivered: boolean; claimData?: Record<string, unknown> | null; error?: string | null }> {
+  if (g.prizeKind === "WALLET" && g.prizeAmount && g.prizeAmount > 0n) {
+    await ensureWallet(userId, tx)
+    await deposit(userId, g.prizeAmount, tx, { type: "giveaway", id: g.id })
+    return { delivered: true, claimData: { kind: "WALLET", amount: g.prizeAmount.toString() } }
+  }
+
+  if (g.prizeKind === "COUPON" && g.couponType && g.couponValue && g.couponValue > 0n) {
+    const code = `GW-${secureSlug().slice(0, 8).toUpperCase()}`
+    const expiresAt = g.couponExpiresInDays
+      ? new Date(Date.now() + g.couponExpiresInDays * 86400_000)
+      : null
+    await tx.coupon.create({
+      data: {
+        code,
+        type: g.couponType,
+        value: g.couponValue,
+        perUserLimit: 1,
+        totalLimit: 1,
+        active: true,
+        expiresAt,
+      },
+    })
+    return { delivered: true, claimData: { kind: "COUPON", code } }
+  }
+
+  if (g.prizeKind === "INVENTORY" && g.prizeProductId) {
+    const item = await tx.inventoryItem.findFirst({
+      where: { productId: g.prizeProductId, status: "AVAILABLE" },
+      orderBy: { createdAt: "asc" },
+    })
+    if (!item) {
+      return { delivered: false, error: "موجودی جایزه تمام شده است؛ نیازمند تحویل دستی" }
+    }
+    const claimed = await tx.inventoryItem.updateMany({
+      where: { id: item.id, status: "AVAILABLE" },
+      data: { status: "DELIVERED", reservedAt: new Date() },
+    })
+    if (claimed.count !== 1) {
+      return { delivered: false, error: "آیتم موجودی هم‌زمان رزرو شد؛ نیازمند تحویل دستی" }
+    }
+    return {
+      delivered: true,
+      claimData: {
+        kind: "INVENTORY",
+        username: item.username,
+        password: item.password,
+        licenseKey: item.licenseKey,
+        note: item.note,
+      },
+    }
+  }
+
+  // CUSTOM (or misconfigured auto prize) — admin delivers manually.
+  return { delivered: false, error: null }
+}
+
+/** Admin marks a manual prize as delivered with a claim note/payload. */
+export async function markWinnerDelivered(
+  winnerId: string,
+  payload: Record<string, unknown>,
+  actorId: string,
+) {
+  const winner = await prisma.giveawayWinner.update({
+    where: { id: winnerId },
+    data: { delivered: true, deliveredAt: new Date(), claimData: payload as Prisma.InputJsonValue, deliveryError: null },
+  })
+  await audit({ actorId, action: "giveaway.deliver", entity: "giveawayWinner", entityId: winnerId })
+  return winner
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle tick (cron): activate, lock at end, pre-draw alert, auto-draw.
+// ---------------------------------------------------------------------------
+
+export async function tickGiveaways(): Promise<{
+  activated: number
+  locked: number
+  preAlerted: number
+  drawn: number
+}> {
+  const now = new Date()
+  let activated = 0
+  let locked = 0
+  let preAlerted = 0
+  let drawn = 0
+
+  // SCHEDULED -> ACTIVE once startAt passes (and still before endAt).
+  const toActivate = await prisma.giveaway.findMany({
+    where: { status: "SCHEDULED", startAt: { lte: now }, endAt: { gt: now } },
+    select: { id: true },
+    take: 100,
+  })
+  for (const g of toActivate) {
+    const res = await prisma.giveaway.updateMany({
+      where: { id: g.id, status: "SCHEDULED" },
+      data: { status: "ACTIVE" },
+    })
+    activated += res.count
+  }
+
+  // ACTIVE/SCHEDULED/PAUSED -> LOCKED once endAt passes (entries closed).
+  const toLock = await prisma.giveaway.findMany({
+    where: { status: { in: ["ACTIVE", "SCHEDULED", "PAUSED"] }, endAt: { lte: now } },
+    select: { id: true },
+    take: 100,
+  })
+  for (const g of toLock) {
+    const res = await prisma.giveaway.updateMany({
+      where: { id: g.id, status: { in: ["ACTIVE", "SCHEDULED", "PAUSED"] } },
+      data: { status: "LOCKED" },
+    })
+    locked += res.count
+  }
+
+  // Pre-draw admin alert ~5 minutes before drawAt (once).
+  const alertWindow = new Date(now.getTime() + 5 * 60_000)
+  const toAlert = await prisma.giveaway.findMany({
+    where: { status: "LOCKED", preDrawNotified: false, drawAt: { lte: alertWindow } },
+    select: { id: true },
+    take: 50,
+  })
+  for (const g of toAlert) {
+    const res = await prisma.giveaway.updateMany({
+      where: { id: g.id, preDrawNotified: false },
+      data: { preDrawNotified: true },
+    })
+    if (res.count === 1) {
+      preAlerted++
+      try {
+        const { notifyAdminsPreDraw } = await import("@/lib/telegram/notify")
+        await notifyAdminsPreDraw(g.id)
+      } catch (e) {
+        console.log("[v0] pre-draw alert error:", (e as Error).message)
+      }
+    }
+  }
+
+  // Auto-draw enabled giveaways whose drawAt has passed.
+  const toDraw = await prisma.giveaway.findMany({
+    where: { status: "LOCKED", autoDraw: true, drawAt: { lte: now } },
+    select: { id: true },
+    take: 20,
+  })
+  for (const g of toDraw) {
+    try {
+      const res = await drawGiveaway(g.id, {})
+      if (res.drawn) drawn++
+    } catch {
+      // Leave for the next tick / manual admin draw.
+    }
+  }
+
+  return { activated, locked, preAlerted, drawn }
+}

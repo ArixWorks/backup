@@ -1,0 +1,46 @@
+"use client"
+
+import { use } from "react"
+import useSWR from "swr"
+import { ArrowRight } from "lucide-react"
+import Link from "next/link"
+import { fetcher } from "@/lib/api-client"
+import { GiveawayDetail, type GiveawayDetailData } from "@/components/giveaway-detail"
+import { Stagger, FadeItem } from "@/components/motion"
+
+export default function GiveawayLandingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params)
+  const { data, isLoading, mutate } = useSWR<{ data: GiveawayDetailData }>(
+    `/api/v1/giveaways/${slug}`,
+    fetcher,
+    { refreshInterval: 8000 },
+  )
+
+  const giveaway = data?.data
+
+  return (
+    <Stagger className="space-y-5">
+      <FadeItem>
+        <Link
+          href="/giveaways"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowRight className="h-4 w-4" />
+          همه قرعه‌کشی‌ها
+        </Link>
+      </FadeItem>
+
+      {isLoading ? (
+        <div className="shimmer card-premium h-96 w-full rounded-2xl border border-border" />
+      ) : !giveaway ? (
+        <FadeItem>
+          <div className="card-premium rounded-2xl border border-dashed border-border/80 p-10 text-center text-sm text-muted-foreground">
+            قرعه‌کشی یافت نشد.
+          </div>
+        </FadeItem>
+      ) : (
+        <GiveawayDetail giveaway={giveaway} onChange={() => mutate()} />
+      )}
+    </Stagger>
+  )
+}

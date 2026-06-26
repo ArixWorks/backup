@@ -1,0 +1,242 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import useSWR from "swr"
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
+import {
+  User,
+  LogOut,
+  ShieldCheck,
+  Wallet,
+  LifeBuoy,
+  ReceiptText,
+  Undo2,
+  Bell,
+  Volume2,
+  VolumeX,
+  ChevronLeft,
+} from "lucide-react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { LanguageSwitcher } from "@/components/language-switcher"
+import { useSession } from "@/hooks/use-session"
+import { useI18n } from "@/components/i18n-provider"
+import { fetcher } from "@/lib/api-client"
+import { isNotifMuted, setNotifMuted, playNotificationChime, primeAudio } from "@/lib/notification-sound"
+import { cn } from "@/lib/utils"
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase()
+}
+
+type Item = {
+  href: string
+  label: string
+  icon: typeof User
+  desc?: string
+  tone?: "default" | "primary"
+  badge?: number
+}
+
+interface NotifResponse {
+  ok: boolean
+  data: { unread: number }
+}
+
+/**
+ * Header account control. The avatar opens a bottom-sheet quick-access menu
+ * with every important destination (notifications, wallet, deposit reports,
+ * support, refunds, account, admin) plus a sound toggle and logout. Built on
+ * the Dialog primitive (modal sheet) which is far more reliable inside the
+ * Telegram Mini App webview than a popover.
+ */
+export function ProfileMenu() {
+  const { user, logout } = useSession()
+  const { t } = useI18n()
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [muted, setMuted] = useState(false)
+
+  useEffect(() => {
+    setMuted(isNotifMuted())
+  }, [])
+
+  // Live unread count for the notifications badge (only while signed in).
+  const { data: notif } = useSWR<NotifResponse>(
+    user ? "/api/v1/notifications?limit=1" : null,
+    fetcher,
+    { refreshInterval: 20000, revalidateOnFocus: true },
+  )
+  const unread = notif?.data?.unread ?? 0
+
+  if (!user) return null
+
+  const isStaff = user.role === "ADMIN"
+
+  const items: Item[] = [
+    { href: "/notifications", label: "اعلان‌ها", desc: "آخرین رویدادها", icon: Bell, badge: unread },
+    { href: "/wallet", label: "کیف پول", desc: "موجودی و شارژ", icon: Wallet, tone: "primary" },
+    { href: "/reports", label: "گزارش واریزها", desc: "تاریخچه و وضعیت", icon: ReceiptText },
+    { href: "/support", label: "تیکت و پشتیبانی", desc: "ثبت و پیگیری درخواست", icon: LifeBuoy },
+    { href: "/refunds", label: "درخواست بازگشت وجه", desc: "عودت به کارت بانکی", icon: Undo2 },
+    { href: "/profile", label: "حساب کاربری", desc: "اطلاعات و تنظیمات", icon: User },
+    { href: "/account", label: "امنیت و ورود", desc: "ایمیل، رمز عبور، تلگرام", icon: ShieldCheck },
+  ]
+
+  function go(href: string) {
+    setOpen(false)
+    router.push(href)
+  }
+
+  function toggleMute() {
+    primeAudio()
+    const next = !muted
+    setMuted(next)
+    setNotifMuted(next)
+    if (!next) playNotificationChime() // preview when unmuting
+  }
+
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+      <DialogPrimitive.Trigger
+        aria-label="حساب کاربری"
+        className="active:scale-press relative rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <Avatar size="default" className="ring-1 ring-primary/30">
+          {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
+          <AvatarFallback className="bg-primary/15 text-primary">{initials(user.displayName)}</AvatarFallback>
+        </Avatar>
+        {unread > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-background">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </DialogPrimitive.Trigger>
+
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
+        <DialogPrimitive.Popup
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-xl rounded-t-3xl border-t border-primary/15 bg-card p-4 pb-safe outline-none",
+            "max-h-[85dvh] overflow-y-auto",
+            "data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom",
+          )}
+        >
+          <DialogPrimitive.Title className="sr-only">منوی حساب کاربری</DialogPrimitive.Title>
+
+          {/* grab handle */}
+          <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+
+          {/* identity */}
+          <div className="mb-4 flex items-center gap-3">
+            <Avatar className="h-12 w-12 border border-primary/30">
+              {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
+              <AvatarFallback className="bg-primary/15 font-bold text-primary">
+                {initials(user.displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-bold text-foreground">{user.displayName}</div>
+              {user.telegramUsername ? (
+                <div className="truncate text-xs text-muted-foreground" dir="ltr">
+                  @{user.telegramUsername}
+                </div>
+              ) : user.email ? (
+                <div className="truncate text-xs text-muted-foreground" dir="ltr">
+                  {user.email}
+                </div>
+              ) : null}
+            </div>
+            {/* preferences: sound toggle + language */}
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-label={muted ? "روشن کردن صدای اعلان" : "خاموش کردن صدای اعلان"}
+                title={muted ? "صدای اعلان خاموش است" : "صدای اعلان روشن است"}
+                className="active:scale-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+              <LanguageSwitcher />
+            </div>
+          </div>
+
+          {/* quick links */}
+          <nav className="flex flex-col gap-1.5">
+            {items.map((item) => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => go(item.href)}
+                  className={cn(
+                    "active:scale-press flex items-center gap-3 rounded-2xl border px-3 py-3 text-right transition-colors",
+                    item.tone === "primary"
+                      ? "border-primary/30 bg-primary/5 hover:border-primary/50"
+                      : "border-border bg-background hover:border-primary/30",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                      item.tone === "primary" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.badge && item.badge > 0 ? (
+                      <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+                        {item.badge > 9 ? "9+" : item.badge}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{item.label}</span>
+                    {item.desc && (
+                      <span className="block truncate text-xs text-muted-foreground">{item.desc}</span>
+                    )}
+                  </span>
+                  <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              )
+            })}
+
+            {isStaff && (
+              <button
+                type="button"
+                onClick={() => go("/admin")}
+                className="active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-background px-3 py-3 text-right transition-colors hover:border-primary/30"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-foreground">پنل مدیریت</span>
+                  <span className="block truncate text-xs text-muted-foreground">مدیریت فروشگاه</span>
+                </span>
+                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            )}
+          </nav>
+
+          {/* logout */}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              logout()
+            }}
+            className="active:scale-press mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm font-bold text-destructive transition-colors hover:bg-destructive/15"
+          >
+            <LogOut className="h-4 w-4" />
+            {t("auth.logout")}
+          </button>
+        </DialogPrimitive.Popup>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  )
+}

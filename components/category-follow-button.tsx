@@ -1,0 +1,68 @@
+"use client"
+
+import { useState } from "react"
+import useSWR from "swr"
+import { toast } from "sonner"
+import { Bell, BellRing, Loader2 } from "lucide-react"
+import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
+import { useSession } from "@/hooks/use-session"
+import { cn } from "@/lib/utils"
+
+/**
+ * Follow a product category to receive a (sound) notification whenever a new
+ * product is added to it. Compact pill styled to sit beside the active
+ * category filter.
+ */
+export function CategoryFollowButton({ category }: { category: string }) {
+  const { user } = useSession()
+  const [loading, setLoading] = useState(false)
+  const enc = encodeURIComponent(category)
+  const key = user && category ? `/api/v1/category-follow/${enc}` : null
+  const { data, mutate } = useSWR<{ ok: boolean; data: { following: boolean } }>(key, fetcher)
+  const following = data?.data?.following ?? false
+
+  async function toggle() {
+    if (!user) return toast.error("ابتدا یک حساب کاربری انتخاب کنید")
+    setLoading(true)
+    try {
+      if (following) {
+        await apiDelete(`/api/v1/category-follow/${enc}`)
+        toast.success(`دنبال‌کردن دسته «${category}» لغو شد`)
+      } else {
+        await apiPost(`/api/v1/category-follow/${enc}`)
+        toast.success(`از این پس محصولات جدید دسته «${category}» را اطلاع می‌دهیم`)
+      }
+      await mutate()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در به‌روزرسانی")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!user) return null
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={loading}
+      aria-pressed={following}
+      className={cn(
+        "active:scale-press inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors",
+        following
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-secondary/50 text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : following ? (
+        <BellRing className="h-3.5 w-3.5" />
+      ) : (
+        <Bell className="h-3.5 w-3.5" />
+      )}
+      {following ? "دنبال می‌کنید" : "دنبال‌کردن دسته"}
+    </button>
+  )
+}
