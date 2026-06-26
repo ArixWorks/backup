@@ -54,6 +54,7 @@ export type MessageKey =
   | "detail.shareCopied"
   | "detail.notFound"
   | "detail.eachFrom"
+  | "detail.restockNotice"
   | "search.placeholder"
   | "search.all"
   | "search.noResults"
@@ -191,6 +192,7 @@ const fa: Catalog = {
   "detail.shareCopied": "لینک کپی شد",
   "detail.notFound": "این محصول یافت نشد یا دیگر در دسترس نیست.",
   "detail.eachFrom": "هر واحد از",
+  "detail.restockNotice": "این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.",
   "search.placeholder": "جستجوی محصول…",
   "search.all": "همه",
   "search.noResults": "نتیجه‌ای برای جستجوی شما یافت نشد.",
@@ -327,6 +329,7 @@ const en: Catalog = {
   "detail.shareCopied": "Link copied",
   "detail.notFound": "This product was not found or is no longer available.",
   "detail.eachFrom": "Each from",
+  "detail.restockNotice": "This product is out of stock. Turn on alerts to be notified when it is back.",
   "search.placeholder": "Search products…",
   "search.all": "All",
   "search.noResults": "No results found for your search.",
@@ -463,6 +466,7 @@ const ru: Catalog = {
   "detail.shareCopied": "Ссылка скопирована",
   "detail.notFound": "Товар не найден или больше недоступен.",
   "detail.eachFrom": "За единицу от",
+  "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступлении.",
   "search.placeholder": "Поиск товаров…",
   "search.all": "Все",
   "search.noResults": "По вашему запросу ничего не найдено.",
@@ -599,6 +603,7 @@ const hi: Catalog = {
   "detail.shareCopied": "लिंक कॉपी हुआ",
   "detail.notFound": "यह उत्पाद नहीं मिला या अब उपलब्ध नहीं है।",
   "detail.eachFrom": "प्रति इकाई से",
+  "detail.restockNotice": "यह उत्पाद स्टॉक में नहीं है। वापस आने पर सूचना पाने के लिए अलर्ट चालू करें।",
   "search.placeholder": "उत्पाद खोजें…",
   "search.all": "सभी",
   "search.noResults": "आपकी खोज के लिए कोई परिणाम नहीं मिला।",

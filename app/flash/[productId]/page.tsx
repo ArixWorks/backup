@@ -15,6 +15,7 @@ import { StarRating } from "@/components/star-rating"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/i18n-provider"
+import { Reveal } from "@/components/motion"
 import type { FlashSale } from "@/components/flash-card"
 
 type FlashDetail = FlashSale & {
@@ -142,7 +143,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
         {/* Right: purchase panel */}
         <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
+          <div className="gold-border surface-glow space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5">
             <div className="flex items-start justify-between gap-2">
               <h1 className="text-xl font-extrabold leading-tight text-balance">{p.title}</h1>
               <Button
@@ -205,9 +206,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
             {soldOut && (
               <div className="space-y-2 border-t border-border pt-3">
-                <p className="text-xs text-muted-foreground">
-                  این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.
-                </p>
+                <p className="text-xs text-muted-foreground">{t("detail.restockNotice")}</p>
                 <ProductWatchButton productId={productId} />
               </div>
             )}
@@ -215,7 +214,9 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
         </div>
       </div>
 
-      <ReviewsSection productId={productId} />
+      <Reveal>
+        <ReviewsSection productId={productId} />
+      </Reveal>
     </div>
   )
 }

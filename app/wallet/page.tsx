@@ -82,7 +82,7 @@ export default function WalletPage() {
       />
 
       {selected === "IRT" && (
-        <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="card-premium rounded-2xl border border-border p-5">
           <h2 className="mb-3 flex items-center gap-2 font-bold">
             <Plus className="h-4 w-4 text-primary" />
             شارژ کیف پول (دمو)
