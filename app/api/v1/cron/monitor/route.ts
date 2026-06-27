@@ -24,8 +24,20 @@ export const POST = route(async (req: Request) => {
       throw new ForbiddenError("Invalid cron secret")
     }
   }
-  void touchHeartbeat("monitor")
-  return withCron("monitor", () => runCollection())
+  // Run the collection, then record a heartbeat whose meta carries the real
+  // cron duration / failure count. The collector reads this meta to emit the
+  // `app.cron.duration` and `app.cron.failures` metrics, and the health probe
+  // reads the freshness under the "cron" key.
+  const startedAt = Date.now()
+  let failed = 0
+  try {
+    return await withCron("monitor", () => runCollection())
+  } catch (err) {
+    failed = 1
+    throw err
+  } finally {
+    void touchHeartbeat("cron", { durationMs: Date.now() - startedAt, failures: failed })
+  }
 })
 
 export const GET = POST

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Activity,
   Server,
@@ -50,8 +50,35 @@ const RANGES = [
 const EXPORT_METRICS =
   "system.cpu.usage,system.mem.usage,app.rps,app.error_rate,app.latency.p95,biz.revenue_window"
 
+const TABS = ["overview", "infra", "app", "business", "errors", "alerts"]
+const RANGE_VALUES = RANGES.map((r) => r.value)
+
+/** Read initial tab/range from the URL so a refresh keeps the operator's place. */
+function readInitialState(): { tab: string; range: string } {
+  if (typeof window === "undefined") return { tab: "overview", range: "24h" }
+  const params = new URLSearchParams(window.location.search)
+  const tab = params.get("tab")
+  const range = params.get("range")
+  return {
+    tab: tab && TABS.includes(tab) ? tab : "overview",
+    range: range && RANGE_VALUES.includes(range) ? range : "24h",
+  }
+}
+
 export function OpsDashboard() {
-  const [range, setRange] = useState("24h")
+  const initial = readInitialState()
+  const [tab, setTab] = useState(initial.tab)
+  const [range, setRange] = useState(initial.range)
+
+  // Keep the URL query string in sync (replaceState — no history spam, survives
+  // reloads, and makes the current view shareable/bookmarkable).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.set("tab", tab)
+    params.set("range", range)
+    const next = `${window.location.pathname}?${params.toString()}`
+    window.history.replaceState(null, "", next)
+  }, [tab, range])
 
   function exportData(format: "csv" | "xlsx" | "pdf") {
     const url = `/api/v1/admin/ops/export?format=${format}&metrics=${encodeURIComponent(
@@ -124,7 +151,7 @@ export function OpsDashboard() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="gap-6">
+        <Tabs value={tab} onValueChange={setTab} className="gap-6">
           <div className="-mx-1 overflow-x-auto px-1">
             <TabsList className="w-max">
               <TabsTrigger value="overview">

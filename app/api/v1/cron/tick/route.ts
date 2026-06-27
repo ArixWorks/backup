@@ -20,10 +20,13 @@ export const POST = route(async (req: Request) => {
     }
   }
   // Record a liveness heartbeat so the Operations Center can detect a stalled
-  // scheduler (no tick within the expected interval => cron service DOWN).
-  void touchHeartbeat("cron")
-
-  return withCron("tick", async () => {
+  // scheduler (no tick within the expected interval => cron service DOWN). The
+  // meta carries the real run duration so `app.cron.duration` stays populated
+  // regardless of which cron job ran most recently.
+  const startedAt = Date.now()
+  let failed = 0
+  try {
+    return await withCron("tick", async () => {
   const activated = await activateDueAuctions()
 
   // Notify watchers of auctions that just went live (Watchlist alerts).
@@ -81,7 +84,13 @@ export const POST = route(async (req: Request) => {
     ...ticked,
     giveaways,
   }
-  })
+    })
+  } catch (err) {
+    failed = 1
+    throw err
+  } finally {
+    void touchHeartbeat("cron", { durationMs: Date.now() - startedAt, failures: failed })
+  }
 })
 
 export const GET = POST
