@@ -1,7 +1,6 @@
 import type { Prisma, WalletTxType, LedgerAccountKind } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { secureSlug } from "@/lib/id"
-import { withLock } from "@/lib/redis"
 import { ConflictError, ValidationError } from "./errors"
 
 type Tx = Prisma.TransactionClient
@@ -97,22 +96,27 @@ export function systemAccountForType(type: WalletTxType): LedgerAccountKind | nu
 
 /**
  * Fetch (or lazily create) a ledger account. USER_* accounts are scoped by
- * ownerUserId; SYS_* accounts are global (ownerUserId = null).
+ * ownerUserId; SYS_* accounts are global (ownerUserId = null). SYS_* accounts
+ * are seeded up front, so in practice the create path is only hit the first
+ * time a given user transacts in a currency.
  *
- * CRITICAL: account creation must NEVER run on the caller's transaction `db`.
- * In Postgres, once any statement in a transaction errors (a unique-constraint
- * race on `create`, or a SERIALIZABLE serialization failure), the whole
- * transaction enters the *aborted* state and every subsequent statement fails
- * with `25P02 current transaction is aborted`. The previous implementation
- * caught the failed `create` and then issued another query on the same aborted
- * tx — which corrupted concurrent money operations and could also leak duplicate
- * system accounts (NULL ownerUserId rows are "distinct" to the unique index).
+ * Concurrency correctness — this MUST stay on the caller's transaction `db`
+ * (single connection). Two earlier approaches were wrong:
+ *   1. Original: `create` then, on failure, `findFirst` again on the SAME tx.
+ *      In Postgres a failed statement aborts the whole transaction, so the
+ *      recovery query fails with `25P02 current transaction is aborted` and
+ *      corrupted concurrent money operations.
+ *   2. Out-of-band create on the top-level `prisma` (separate connection) while
+ *      the caller still holds its tx connection — under a concurrent burst this
+ *      exhausts the connection pool and deadlocks ("Unable to start a
+ *      transaction in the given time").
  *
- * Instead we create on a separate autocommit connection (top-level `prisma`),
- * serialized by a distributed lock so concurrent callers can't create
- * duplicates. The committed row is then visible to the caller's subsequent
- * write (UPDATE/INSERT operate on the latest committed row version; if SSI flags
- * a conflict the caller's `serializableTx` simply retries).
+ * Correct approach: attempt the create on the caller's own connection; if a
+ * concurrent creator wins the unique-constraint race (P2002), translate it into
+ * a *retryable* conflict. `postEntry`/`mutateWallet` run inside `serializableTx`,
+ * which rolls back and retries the whole transaction — on the retry the row is
+ * committed and visible, so this becomes a pure read. No second connection is
+ * ever acquired, so the pool can't deadlock.
  */
 export async function getOrCreateAccount(
   db: Tx,
@@ -124,16 +128,17 @@ export async function getOrCreateAccount(
   // compound unique lookup, which Prisma types as non-nullable.
   const existing = await db.ledgerAccount.findFirst({ where: { kind, ownerUserId, currency } })
   if (existing) return existing
-
-  // Account missing from this tx's snapshot — create it out-of-band so a race
-  // here cannot abort the caller's transaction.
-  return withLock(`ledger:acct:${kind}:${ownerUserId ?? "sys"}:${currency}`, async () => {
-    // Re-check on the autocommit connection inside the lock (another caller may
-    // have created it between our snapshot read and acquiring the lock).
-    const found = await prisma.ledgerAccount.findFirst({ where: { kind, ownerUserId, currency } })
-    if (found) return found
-    return prisma.ledgerAccount.create({ data: { kind, ownerUserId, currency } })
-  })
+  try {
+    return await db.ledgerAccount.create({ data: { kind, ownerUserId, currency } })
+  } catch (err) {
+    // Unique-constraint race: another tx created the same account concurrently.
+    // Do NOT re-query this (now-aborted) transaction — surface a retryable
+    // conflict so the enclosing serializableTx restarts cleanly.
+    if ((err as { code?: string })?.code === "P2002") {
+      throw new ConflictError("Ledger account modified concurrently")
+    }
+    throw err
+  }
 }
 
 export interface LegInput {
@@ -172,16 +177,48 @@ export async function postEntry(db: Tx, args: PostEntryArgs) {
 
   for (const leg of legs) {
     if (leg.amount === 0n) continue // skip no-op legs
-    const account = await getOrCreateAccount(db, leg.kind, currency, leg.ownerUserId ?? null)
-    const nextBalance = account.balance + leg.amount
-    // Optimistic lock on the account version to serialise concurrent legs.
-    const updated = await db.ledgerAccount.updateMany({
-      where: { id: account.id, version: account.version },
-      data: { balance: nextBalance, version: { increment: 1 } },
+    const ownerUserId = leg.ownerUserId ?? null
+
+    // Apply the balance change as a BLIND ATOMIC INCREMENT *first*, before any
+    // read of this row in the transaction. This is the critical concurrency
+    // property: hot shared system accounts (e.g. SYS_REVENUE on every purchase)
+    // would otherwise be read-then-written by every concurrent transaction,
+    // creating SERIALIZABLE rw-antidependency cycles that abort under load
+    // (P2034 thundering herd). A blind increment takes a row-level write lock
+    // instead, so concurrent writers *wait* for each other and apply
+    // sequentially rather than aborting. The increment is also relative, so the
+    // result is correct regardless of interleaving.
+    const inc = await db.ledgerAccount.updateMany({
+      where: { kind: leg.kind, ownerUserId, currency },
+      data: { balance: { increment: leg.amount }, version: { increment: 1 } },
     })
-    if (updated.count !== 1) throw new ConflictError("Ledger account modified concurrently")
+    if (inc.count === 0) {
+      // First-ever use of this (account, currency): create it with the opening
+      // balance. A concurrent creator that wins the unique race surfaces P2002,
+      // which we translate into a retryable conflict (serializableTx restarts).
+      try {
+        await db.ledgerAccount.create({
+          data: { kind: leg.kind, ownerUserId, currency, balance: leg.amount, version: 1 },
+        })
+      } catch (err) {
+        if ((err as { code?: string })?.code === "P2002") {
+          throw new ConflictError("Ledger account modified concurrently")
+        }
+        throw err
+      }
+    }
+
+    // Read back the post-balance for the immutable leg snapshot. This read
+    // happens AFTER our write, so we already hold the row lock — no read-write
+    // race with other transactions.
+    const account = await db.ledgerAccount.findFirst({
+      where: { kind: leg.kind, ownerUserId, currency },
+      select: { id: true, balance: true },
+    })
+    if (!account) throw new ConflictError("Ledger account modified concurrently")
+
     await db.ledgerLeg.create({
-      data: { entryId: entry.id, accountId: account.id, amount: leg.amount, balanceAfter: nextBalance },
+      data: { entryId: entry.id, accountId: account.id, amount: leg.amount, balanceAfter: account.balance },
     })
   }
 
