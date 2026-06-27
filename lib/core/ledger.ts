@@ -43,7 +43,13 @@ export async function serializableTx<T>(
   fn: (tx: Tx) => Promise<T>,
   opts: { attempts?: number; label?: string } = {},
 ): Promise<T> {
-  const attempts = opts.attempts ?? 5
+  // PostgreSQL SERIALIZABLE *requires* callers to retry serialization failures.
+  // Hot shared accounts (SYS_CASH on every deposit, SYS_REVENUE on every
+  // purchase) can have many transactions contending at once, so the budget must
+  // be generous: 12 attempts with FULL-JITTER exponential backoff. Full jitter
+  // (delay = random[0, cap]) de-synchronizes a thundering herd far better than a
+  // fixed delay, so contenders stop colliding on the same retry boundary.
+  const attempts = opts.attempts ?? 12
   let lastErr: unknown
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
@@ -51,8 +57,9 @@ export async function serializableTx<T>(
     } catch (err) {
       lastErr = err
       if (!isRetryableTxConflict(err) || attempt === attempts) throw err
-      // Exponential backoff with jitter to spread out contending writers.
-      const delay = Math.min(200, 10 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 15)
+      // Full jitter: exponentially growing cap (20ms → ~640ms), random within it.
+      const cap = Math.min(640, 20 * 2 ** (attempt - 1))
+      const delay = Math.floor(Math.random() * cap) + 5
       if (opts.label) {
         console.log(`[v0] tx conflict on ${opts.label}, retry ${attempt}/${attempts} in ${delay}ms`)
       }

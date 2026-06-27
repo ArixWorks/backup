@@ -158,6 +158,16 @@ export async function purchaseFixed(opts: {
 
   let rewardSummary: Awaited<ReturnType<typeof applyPurchaseRewards>> | undefined
 
+  // Concurrent purchases are handled with optimistic concurrency + retry rather
+  // than a coarse per-product lock. The in-tx stock guard (`updateMany` with
+  // `stock >= qty`) makes overselling impossible — losers simply match 0 rows
+  // and get a non-retryable "Out of stock". Genuine SERIALIZABLE serialization
+  // failures (hot stock row + shared SYS_REVENUE ledger account) are absorbed
+  // by serializableTx's full-jitter retry. A lock was tried here but amplified
+  // hold time (a holder's own retries could exceed the lock TTL), which starved
+  // and failed legitimate buyers while stock remained — retry-only is both
+  // simpler and correct, and matches the deposit path which sustains the same
+  // 12-way contention.
   const order = await serializableTx(
     async (tx) => {
       // Decrement real stock atomically and bump the sold counter. When a
