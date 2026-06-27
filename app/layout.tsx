@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 export async function generateViewport(): Promise<Viewport> {
   const theme = await getActiveTheme().catch(() => DEFAULT_THEME)
   const headerColor =
-    THEMES.find((t) => t.id === theme)?.headerColor ?? '#1a1d24'
+    THEMES.find((t) => t.id === theme)?.headerColor ?? '#080d12'
   return {
     colorScheme: 'dark',
     themeColor: headerColor,
