@@ -8,6 +8,7 @@ import { createManualDelivery, reserveAndDeliverAuto } from "./delivery"
 import { evaluateCoupon, redeemCoupon } from "./coupons"
 import { applyPurchaseRewards } from "./rewards"
 import { getEffectiveTier, tierDiscountPercent } from "./gamification"
+import { serializableTx } from "./ledger"
 
 const RESERVATION_TTL_SECONDS = 600 // 10 minutes
 
@@ -157,7 +158,7 @@ export async function purchaseFixed(opts: {
 
   let rewardSummary: Awaited<ReturnType<typeof applyPurchaseRewards>> | undefined
 
-  const order = await prisma.$transaction(
+  const order = await serializableTx(
     async (tx) => {
       // Decrement real stock atomically and bump the sold counter. When a
       // reservation backs this purchase we also release the reserved hold.
@@ -245,7 +246,7 @@ export async function purchaseFixed(opts: {
 
       return created
     },
-    { isolationLevel: "Serializable" },
+    { label: "purchaseFixed" },
   )
 
   if (reservation) await cache.del(reservationKey(reservation.token))

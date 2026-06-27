@@ -9,6 +9,60 @@ type Tx = Prisma.TransactionClient
 export const BASE_CURRENCY = "IRT"
 
 /**
+ * True when an error is a *transient write conflict* that is safe to retry by
+ * re-running the whole transaction:
+ *  - our optimistic ledger-account version guard (`postEntry`),
+ *  - Prisma's serialization/write-conflict error (P2034),
+ *  - Postgres serialization_failure (40001) / deadlock_detected (40P01).
+ *
+ * Concurrent money operations contend on shared SYSTEM accounts (SYS_REVENUE on
+ * every purchase, SYS_CASH on every deposit, …). Without a retry, one of two
+ * simultaneous-but-otherwise-valid operations fails with a confusing domain
+ * error. These conflicts are genuinely transient, so retrying resolves them.
+ */
+function isRetryableTxConflict(err: unknown): boolean {
+  if (err instanceof ConflictError && /modified concurrently/i.test(err.message)) return true
+  const code = (err as { code?: string })?.code
+  if (code === "P2034") return true // Prisma: write conflict / deadlock, retry
+  const pg = (err as { meta?: { code?: string } })?.meta?.code
+  if (pg === "40001" || pg === "40P01") return true
+  if (typeof (err as { message?: string })?.message === "string") {
+    return /could not serialize access|deadlock detected|write conflict/i.test((err as Error).message)
+  }
+  return false
+}
+
+/**
+ * Run a money-mutating transaction at SERIALIZABLE isolation with bounded retry
+ * on transient write conflicts. Because every read inside `fn` (including the
+ * ledger-account version reads in `postEntry`) re-executes on each attempt,
+ * re-running the whole transaction is correct: the conflicting operation simply
+ * recomputes against fresh state. Non-conflict errors propagate immediately.
+ */
+export async function serializableTx<T>(
+  fn: (tx: Tx) => Promise<T>,
+  opts: { attempts?: number; label?: string } = {},
+): Promise<T> {
+  const attempts = opts.attempts ?? 5
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await prisma.$transaction(fn, { isolationLevel: "Serializable" })
+    } catch (err) {
+      lastErr = err
+      if (!isRetryableTxConflict(err) || attempt === attempts) throw err
+      // Exponential backoff with jitter to spread out contending writers.
+      const delay = Math.min(200, 10 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 15)
+      if (opts.label) {
+        console.log(`[v0] tx conflict on ${opts.label}, retry ${attempt}/${attempts} in ${delay}ms`)
+      }
+      await new Promise((r) => setTimeout(r, delay))
+    }
+  }
+  throw lastErr
+}
+
+/**
  * Maps a wallet transaction type to the system account that sits on the other
  * side of the entry. FREEZE/UNFREEZE/CONVERSION return null because they have a
  * dedicated handling path (internal transfer / FX clearing) rather than a

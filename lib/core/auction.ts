@@ -11,7 +11,7 @@ import {
   spendAvailable,
   unfreeze,
 } from "./wallet"
-import { BASE_CURRENCY } from "./ledger"
+import { BASE_CURRENCY, serializableTx } from "./ledger"
 import { progressMission } from "./gamification"
 import { createManualDelivery, NoInventoryError, reserveAndDeliverAuto } from "./delivery"
 import { notifyAuctionWon } from "@/lib/telegram/notify"
@@ -118,7 +118,7 @@ export async function placeBid(opts: {
   isAuto?: boolean
 }) {
   return withLock(lockKey(opts.auctionId), async () => {
-    return prisma.$transaction(
+    return serializableTx(
       async (tx) => {
         const auction = await loadLiveAuction(opts.auctionId, tx)
         ensureActive(auction)
@@ -197,7 +197,7 @@ export async function placeBid(opts: {
           productTitle: product?.title ?? "محصول",
         }
       },
-      { isolationLevel: "Serializable" },
+      { label: "auctionTx" },
     )
   }).then(async (result) => {
     await emit(Channels.auction(result.auctionId), {
@@ -225,7 +225,7 @@ export async function placeBid(opts: {
 /** Immediate purchase at the buy-now price; ends the auction. */
 export async function buyNow(opts: { userId: string; auctionId: string }) {
   return withLock(lockKey(opts.auctionId), async () => {
-    const order = await prisma.$transaction(
+    const order = await serializableTx(
       async (tx) => {
         const auction = await loadLiveAuction(opts.auctionId, tx)
         ensureActive(auction)
@@ -265,7 +265,7 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
 
         return created
       },
-      { isolationLevel: "Serializable" },
+      { label: "auctionTx" },
     )
     await emit(Channels.auction(opts.auctionId), { type: "BUY_NOW", auctionId: opts.auctionId })
     return order
@@ -317,7 +317,7 @@ async function deliverForOrder(
  */
 export async function finalizeAuction(auctionId: string) {
   return withLock(lockKey(auctionId), async () => {
-    return prisma.$transaction(
+    return serializableTx(
       async (tx) => {
         const auction = await loadLiveAuction(auctionId, tx)
         if (auction.status === "FINALIZED" || auction.status === "CANCELLED") {
@@ -391,7 +391,7 @@ export async function finalizeAuction(auctionId: string) {
           loserIds,
         }
       },
-      { isolationLevel: "Serializable" },
+      { label: "auctionTx" },
     )
   }).then(async (res) => {
     await emit(Channels.auction(auctionId), { type: "AUCTION_FINALIZED", auctionId })
@@ -433,7 +433,7 @@ export async function finalizeAuction(auctionId: string) {
  */
 export async function cancelAuctionAndRelease(auctionId: string) {
   return withLock(lockKey(auctionId), async () => {
-    return prisma.$transaction(
+    return serializableTx(
       async (tx) => {
         const auction = await tx.auction.findUnique({ where: { id: auctionId } })
         if (!auction) throw new NotFoundError("مزایده یافت نشد")
@@ -462,7 +462,7 @@ export async function cancelAuctionAndRelease(auctionId: string) {
 
         return { cancelled: true, released }
       },
-      { isolationLevel: "Serializable" },
+      { label: "auctionTx" },
     )
   }).then(async (res) => {
     await emit(Channels.auction(auctionId), { type: "AUCTION_FINALIZED", auctionId })
