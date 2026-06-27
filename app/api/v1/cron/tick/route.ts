@@ -5,6 +5,8 @@ import { collectStartNotifications } from "@/lib/core/watchlist"
 import { emit, Channels } from "@/lib/core/events"
 import { prisma } from "@/lib/db"
 import { notifyAuctionStarted } from "@/lib/telegram/notify"
+import { withCron } from "@/lib/monitoring/instrument"
+import { touchHeartbeat } from "@/lib/monitoring/heartbeat"
 
 // Scheduled worker entry point: activate scheduled auctions and finalize ended
 // ones. Wire this to a cron (Vercel Cron, or a BullMQ/Redis worker self-hosted).
@@ -17,6 +19,14 @@ export const POST = route(async (req: Request) => {
       throw new ForbiddenError("Invalid cron secret")
     }
   }
+  // Record a liveness heartbeat so the Operations Center can detect a stalled
+  // scheduler (no tick within the expected interval => cron service DOWN). The
+  // meta carries the real run duration so `app.cron.duration` stays populated
+  // regardless of which cron job ran most recently.
+  const startedAt = Date.now()
+  let failed = 0
+  try {
+    return await withCron("tick", async () => {
   const activated = await activateDueAuctions()
 
   // Notify watchers of auctions that just went live (Watchlist alerts).
@@ -73,6 +83,13 @@ export const POST = route(async (req: Request) => {
     endingSoon: endingSoon.notified,
     ...ticked,
     giveaways,
+  }
+    })
+  } catch (err) {
+    failed = 1
+    throw err
+  } finally {
+    void touchHeartbeat("cron", { durationMs: Date.now() - startedAt, failures: failed })
   }
 })
 

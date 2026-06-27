@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { secureSlug } from "@/lib/id"
 import { ConflictError, NotFoundError, ValidationError } from "./errors"
 import { deposit, freeze, getBalances, mutateWallet, unfreeze, ensureWallet } from "./wallet"
+import { serializableTx } from "./ledger"
 import { audit } from "./audit"
 import { notifyDepositApproved, notifyWithdrawApproved } from "@/lib/telegram/notify"
 import { createNotification } from "./notifications"
@@ -36,7 +37,7 @@ export async function createDepositRequest(input: CreateDepositInput) {
 
 /** Admin approves a deposit: credit wallet atomically and mark approved. */
 export async function approveDeposit(depositId: string, adminId: string) {
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await serializableTx(async (tx) => {
     const req = await tx.depositRequest.findUnique({ where: { id: depositId } })
     if (!req) throw new NotFoundError("درخواست واریز یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")
@@ -113,7 +114,7 @@ export async function createWithdrawalRequest(input: CreateWithdrawalInput) {
 
 /** Admin approves & pays out: deduct total and release the frozen hold. */
 export async function approveWithdrawal(withdrawalId: string, adminId: string) {
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await serializableTx(async (tx) => {
     const req = await tx.withdrawalRequest.findUnique({ where: { id: withdrawalId } })
     if (!req) throw new NotFoundError("درخواست برداشت یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")

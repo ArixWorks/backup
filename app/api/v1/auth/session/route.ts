@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser, destroySession } from "@/lib/auth/session"
-import { recordDailyLogin } from "@/lib/core/gamification"
+import { recordDailyLogin, tierDiscountPercent } from "@/lib/core/gamification"
+import { effectiveTier, isVipActive, normalizeEarnedTier } from "@/lib/tiers"
 import { serialize } from "@/lib/serialize"
 
 export const dynamic = "force-dynamic"
@@ -14,6 +15,16 @@ export async function GET() {
   recordDailyLogin(user.id).catch(() => {})
   // Base-currency wallet (eager-loaded in getCurrentUser); may be absent for new users.
   const baseWallet = user.wallets?.[0] ?? null
+  // Effective membership tier (VIP when an active manual grant exists) so the
+  // whole client app renders a consistent tier badge + perks.
+  const tier = effectiveTier(user)
+  const membership = {
+    tier,
+    earnedTier: normalizeEarnedTier(user.vipTier),
+    vipActive: isVipActive(user),
+    vipManualExpiresAt: user.vipManualExpiresAt,
+    discountPercent: await tierDiscountPercent(tier),
+  }
   return NextResponse.json({
     ok: true,
     data: serialize({
@@ -30,6 +41,7 @@ export async function GET() {
       telegramUsername: user.telegramUsername,
       photoUrl: user.photoUrl,
       isPremium: user.isPremium,
+      membership,
       balances: baseWallet
         ? {
             totalBalance: baseWallet.totalBalance,

@@ -1,5 +1,6 @@
 import "server-only"
 import { Resend } from "resend"
+import { withRetry, withTimeout, TimeoutError } from "@/lib/core/resilience"
 
 /**
  * Transactional email via Resend. If RESEND_API_KEY is not configured we log
@@ -29,16 +30,42 @@ export async function sendEmail(opts: {
     })
     return { sent: false }
   }
-  const { error } = await resend.emails.send({
-    from: FROM,
-    to: opts.to,
-    subject: opts.subject,
-    html: opts.html,
-  })
-  if (error) {
-    console.log("[v0] Resend send error:", error)
+  // Resilient send: bound each attempt to 10s (so an unreachable Resend can't
+  // hang the request) and retry transient failures with exponential backoff.
+  // A 4xx (e.g. invalid recipient) is not retried.
+  await withRetry(
+    async () => {
+      const { error } = await withTimeout(
+        10_000,
+        () =>
+          resend.emails.send({
+            from: FROM,
+            to: opts.to,
+            subject: opts.subject,
+            html: opts.html,
+          }),
+        "resend.send",
+      )
+      if (error) {
+        const status = (error as { statusCode?: number }).statusCode ?? 0
+        const e = new Error(error.message || "Resend error") as Error & { status?: number }
+        e.status = status
+        throw e
+      }
+    },
+    {
+      attempts: 3,
+      baseDelayMs: 400,
+      maxDelayMs: 4_000,
+      retryable: (err) =>
+        err instanceof TimeoutError || ((err as { status?: number })?.status ?? 500) >= 500,
+      onRetry: (err, attempt, delay) =>
+        console.log(`[v0] Resend retry ${attempt} in ${delay}ms:`, (err as Error).message),
+    },
+  ).catch((err) => {
+    console.log("[v0] Resend send error (after retries):", (err as Error).message)
     throw new Error("ارسال ایمیل ناموفق بود")
-  }
+  })
   return { sent: true }
 }
 

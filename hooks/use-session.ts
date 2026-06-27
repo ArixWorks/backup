@@ -2,6 +2,20 @@
 
 import useSWR from "swr"
 import { fetcher, apiDelete } from "@/lib/api-client"
+import type { Tier } from "@/lib/tiers"
+
+export type SessionMembership = {
+  /** Effective tier shown across the app (VIP when an active grant exists). */
+  tier: Tier
+  /** Auto-earned tier (STANDARD..DIAMOND), independent of VIP. */
+  earnedTier: Tier
+  /** Whether an exclusive VIP membership is currently active. */
+  vipActive: boolean
+  /** ISO date when the manual VIP expires, or null for no expiry. */
+  vipManualExpiresAt: string | null
+  /** Product discount percent unlocked by the effective tier. */
+  discountPercent: number
+}
 
 export type SessionUser = {
   id: string
@@ -17,6 +31,7 @@ export type SessionUser = {
   telegramUsername: string | null
   photoUrl: string | null
   isPremium: boolean
+  membership: SessionMembership
   balances: {
     totalBalance: number
     frozenBalance: number

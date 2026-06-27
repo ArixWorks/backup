@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db"
 import { ConflictError, NotFoundError, ValidationError } from "./errors"
 import { mutateWallet, ensureWallet } from "./wallet"
-import { BASE_CURRENCY } from "./ledger"
+import { BASE_CURRENCY, serializableTx } from "./ledger"
 import { audit } from "./audit"
 import { notifyOrderDelivered } from "@/lib/telegram/notify"
 
@@ -102,7 +102,7 @@ export async function setUserStatus(userId: string, status: "ACTIVE" | "BANNED",
 /** Manual balance adjustment (credit or debit) with an immutable ledger entry. */
 export async function adjustBalance(userId: string, delta: bigint, reason: string, adminId: string) {
   if (delta === 0n) throw new ValidationError("مبلغ نمی‌تواند صفر باشد")
-  return prisma.$transaction(async (tx) => {
+  return serializableTx(async (tx) => {
     await ensureWallet(userId, tx)
     const balances = await mutateWallet(
       {

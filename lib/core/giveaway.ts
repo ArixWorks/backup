@@ -6,6 +6,7 @@ import { withLock } from "@/lib/redis"
 import { secureSlug } from "@/lib/id"
 import { audit } from "./audit"
 import { ensureWallet, deposit } from "./wallet"
+import { serializableTx } from "./ledger"
 import { earnPoints, progressMission, awardBadge } from "./gamification"
 import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
@@ -646,7 +647,7 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
 
   return withLock(lockKey(giveawayId), async () => {
     const seed = randomBytes(16).toString("hex")
-    const result = await prisma.$transaction(
+    const result = await serializableTx(
       async (tx) => {
         const g = await tx.giveaway.findUnique({ where: { id: giveawayId } })
         if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
@@ -710,7 +711,7 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
 
         return { drawn: true, winners }
       },
-      { isolationLevel: "Serializable" },
+      { label: "giveawayDraw" },
     )
     return result
   }).then(async (res) => {

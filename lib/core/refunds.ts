@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { secureSlug } from "@/lib/id"
 import { ConflictError, NotFoundError, ValidationError } from "./errors"
 import { freeze, getBalances, mutateWallet, unfreeze } from "./wallet"
+import { serializableTx } from "./ledger"
 import { audit } from "./audit"
 import { createNotification } from "./notifications"
 import { formatToman } from "@/lib/format"
@@ -55,7 +56,7 @@ export async function createRefundRequest(input: CreateRefundInput) {
     )
   }
 
-  return prisma.$transaction(async (tx) => {
+  return serializableTx(async (tx) => {
     const balances = await getBalances(input.userId, tx)
     if (balances.availableBalance < input.amount) {
       throw new ValidationError("موجودی قابل بازگشت کافی نیست")
@@ -105,7 +106,7 @@ export async function listRefundsAdmin(status?: "PENDING" | "APPROVED" | "REJECT
 
 /** Admin approves & pays out a refund: capture the held funds out of the wallet. */
 export async function approveRefund(refundId: string, adminId: string) {
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await serializableTx(async (tx) => {
     const req = await tx.refundRequest.findUnique({ where: { id: refundId } })
     if (!req) throw new NotFoundError("درخواست بازگشت وجه یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")
@@ -144,7 +145,7 @@ export async function approveRefund(refundId: string, adminId: string) {
 
 /** Admin rejects a refund: release the frozen hold back to available balance. */
 export async function rejectRefund(refundId: string, adminId: string, reason?: string) {
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await serializableTx(async (tx) => {
     const req = await tx.refundRequest.findUnique({ where: { id: refundId } })
     if (!req) throw new NotFoundError("درخواست بازگشت وجه یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")

@@ -26,6 +26,7 @@ import {
   LifeBuoy,
   Loader2,
   ChevronDown,
+  Activity,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -45,11 +46,12 @@ type NavItem = {
   label: string
   icon: typeof LayoutDashboard
   exact?: boolean
-  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets"
+  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops"
 }
 
 const items: NavItem[] = [
   { href: "/admin", label: "داشبورد", icon: LayoutDashboard, exact: true },
+  { href: "/admin/ops", label: "مرکز عملیات", icon: Activity, badge: "ops" },
   { href: "/admin/growth", label: "تحلیل رشد", icon: TrendingUp },
   { href: "/admin/deposits", label: "تأیید واریز", icon: Banknote, badge: "deposits" },
   { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
@@ -85,11 +87,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   })
   const stats = data?.data
 
+  // Live count of firing alerts, shown as a badge on the Operations Center link.
+  const { data: opsData } = useSWR<{ data: { firing: number } }>(
+    isAdmin ? "/api/v1/admin/ops/alerts?limit=1" : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  )
+  const firingAlerts = opsData?.data?.firing ?? 0
+
   const activeItem =
     items.find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href))) ?? items[0]
 
   function badgeCount(key?: string) {
-    if (!stats || !key) return 0
+    if (!key) return 0
+    if (key === "ops") return firingAlerts
+    if (!stats) return 0
     if (key === "deposits") return stats.pendingDeposits
     if (key === "withdrawals") return stats.pendingWithdrawals
     if (key === "deliveries") return stats.pendingDeliveries + stats.failedDeliveries

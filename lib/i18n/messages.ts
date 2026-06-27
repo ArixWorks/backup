@@ -20,6 +20,15 @@ export type MessageKey =
   | "common.back"
   | "common.cancel"
   | "common.vip"
+  | "tier.standard"
+  | "tier.bronze"
+  | "tier.silver"
+  | "tier.gold"
+  | "tier.diamond"
+  | "tier.vip"
+  | "membership.title"
+  | "membership.discount"
+  | "membership.vipExclusive"
   | "home.welcome"
   | "home.balance"
   | "home.topup"
@@ -158,6 +167,15 @@ const fa: Catalog = {
   "common.back": "بازگشت",
   "common.cancel": "انصراف",
   "common.vip": "عضویت ویژه",
+  "tier.standard": "استاندارد",
+  "tier.bronze": "برنزی",
+  "tier.silver": "نقره‌ای",
+  "tier.gold": "طلایی",
+  "tier.diamond": "دایموند",
+  "tier.vip": "وی‌آی‌پی",
+  "membership.title": "سطح عضویت",
+  "membership.discount": "{n}٪ تخفیف روی محصولات",
+  "membership.vipExclusive": "عضویت اختصاصی ویژه",
   "home.welcome": "خوش آمدید",
   "home.balance": "موجودی قابل استفاده",
   "home.topup": "شارژ کیف پول",
@@ -209,7 +227,7 @@ const fa: Catalog = {
   "reviews.commentPlaceholder": "تجربه‌ی خود را بنویسید (اختیاری)…",
   "reviews.submit": "ثبت",
   "reviews.delete": "حذف نظر",
-  "reviews.mustBuy": "فقط خریداران این محصول می‌توانند نظر ثبت کنند.",
+  "reviews.mustBuy": "فقط خریدار��ن این محصول می‌توانند نظر ثبت کنند.",
   "reviews.you": "شما",
   "reviews.thanks": "از ثبت نظر شما متشکریم!",
   "reviews.ratingsCount": "نظر",
@@ -295,6 +313,15 @@ const en: Catalog = {
   "common.back": "Back",
   "common.cancel": "Cancel",
   "common.vip": "VIP Member",
+  "tier.standard": "Standard",
+  "tier.bronze": "Bronze",
+  "tier.silver": "Silver",
+  "tier.gold": "Gold",
+  "tier.diamond": "Diamond",
+  "tier.vip": "VIP",
+  "membership.title": "Membership tier",
+  "membership.discount": "{n}% off products",
+  "membership.vipExclusive": "Exclusive VIP membership",
   "home.welcome": "Welcome",
   "home.balance": "Available balance",
   "home.topup": "Top up wallet",
@@ -432,6 +459,15 @@ const ru: Catalog = {
   "common.back": "Назад",
   "common.cancel": "Отмена",
   "common.vip": "VIP-участник",
+  "tier.standard": "Стандарт",
+  "tier.bronze": "Бронза",
+  "tier.silver": "Серебро",
+  "tier.gold": "Золото",
+  "tier.diamond": "Бриллиант",
+  "tier.vip": "VIP",
+  "membership.title": "Уровень членства",
+  "membership.discount": "Скидка {n}% на товары",
+  "membership.vipExclusive": "Эксклюзивное VIP-членство",
   "home.welcome": "Добро пожаловать",
   "home.balance": "Доступный баланс",
   "home.topup": "Пополнить кошелёк",
@@ -569,6 +605,15 @@ const hi: Catalog = {
   "common.back": "वापस",
   "common.cancel": "रद्द करें",
   "common.vip": "VIP सदस्य",
+  "tier.standard": "स्टैंडर्ड",
+  "tier.bronze": "ब्रॉन्ज़",
+  "tier.silver": "सिल्वर",
+  "tier.gold": "गोल्ड",
+  "tier.diamond": "डायमंड",
+  "tier.vip": "VIP",
+  "membership.title": "सदस्यता स्तर",
+  "membership.discount": "उत्पादों पर {n}% की छूट",
+  "membership.vipExclusive": "विशेष VIP सदस्यता",
   "home.welcome": "स्वागत है",
   "home.balance": "उपलब्ध शेष",
   "home.topup": "वॉलेट टॉप अप करें",
@@ -626,7 +671,7 @@ const hi: Catalog = {
   "reviews.ratingsCount": "समीक्षाएँ",
   "flash.buy": "खरीदें",
   "flash.soldOut": "बिक गया",
-  "flash.stock": "स्टॉक",
+  "flash.stock": "स्ट���क",
   "flash.sold": "बिके",
   "flash.autoDelivery": "स्वतः डिलीवरी",
   "flash.manualDelivery": "मैनुअल डिलीवरी",
@@ -634,7 +679,7 @@ const hi: Catalog = {
   "buy.unitPrice": "प्रति इकाई मूल्य",
   "buy.total": "कुल",
   "buy.selectPayment": "भुगतान विधि चुनें",
-  "buy.payWallet": "वॉलेट से भुगतान करें",
+  "buy.payWallet": "वॉलेट से भुगतान कर���ं",
   "buy.comingSoon": "जल्द आ रहा है",
   "buy.insufficient": "वॉलेट में पर्याप्त शेष नहीं।",
   "buy.confirm": "पुष्टि करें और भुगतान करें",

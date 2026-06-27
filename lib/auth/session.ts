@@ -1,9 +1,11 @@
 import "server-only"
+import { createHash } from "node:crypto"
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/db"
 import { ForbiddenError, UnauthorizedError } from "@/lib/core/errors"
 import { BASE_CURRENCY } from "@/lib/core/ledger"
 import { signSession, verifySession, SESSION_TTL_SECONDS } from "./token"
+import { recordPresence } from "@/lib/monitoring/metrics"
 
 /**
  * Identity layer. The session cookie holds a *signed* token (HMAC) rather than
@@ -36,6 +38,11 @@ export async function getCurrentUser() {
   // Enforce "log out from all sessions": a bumped tokenVersion invalidates every
   // session token issued before the bump.
   if ((user.tokenVersion ?? 0) !== payload.ver) return null
+  // Record genuine online presence (distinct users/sessions) for the Operations
+  // Center. Fire-and-forget; never blocks or breaks auth. The session id is a
+  // non-reversible hash of the token so we never persist the raw credential.
+  const sessionId = createHash("sha256").update(token!).digest("hex").slice(0, 16)
+  void recordPresence(user.id, sessionId)
   return user
 }
 

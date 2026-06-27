@@ -9,24 +9,35 @@ import {
   toBool,
   toNumber,
 } from "./settings"
+import {
+  EARNED_TIERS,
+  THRESHOLD_TIERS,
+  TIER_META,
+  TIER_ORDER,
+  tierRank as tierRankShared,
+  effectiveTier as computeEffectiveTier,
+  isVipActive,
+  normalizeEarnedTier,
+  type EarnedTier,
+  type ThresholdTier,
+  type Tier,
+} from "@/lib/tiers"
 
 type Tx = Prisma.TransactionClient
 type Db = typeof prisma | Tx
 
-// VIP tiers in ascending order. Index doubles as the rank.
-export const VIP_TIERS = ["STANDARD", "SILVER", "GOLD", "PLATINUM", "VIP"] as const
-export type VipTier = (typeof VIP_TIERS)[number]
+// Earned ladder (the auto engine only ever assigns one of these). Re-exported
+// for backward compatibility with existing imports.
+export const VIP_TIERS = EARNED_TIERS
+export type VipTier = EarnedTier
 
-export const VIP_TIER_LABELS: Record<VipTier, string> = {
-  STANDARD: "استاندارد",
-  SILVER: "نقره‌ای",
-  GOLD: "طلایی",
-  PLATINUM: "پلاتینیوم",
-  VIP: "وی‌آی‌پی",
-}
+/** Persian labels for every tier (including VIP), sourced from TIER_META. */
+export const VIP_TIER_LABELS = Object.fromEntries(
+  TIER_ORDER.map((t) => [t, TIER_META[t].label]),
+) as Record<Tier, string>
 
-export function vipRank(tier: VipTier): number {
-  return VIP_TIERS.indexOf(tier)
+export function vipRank(tier: Tier): number {
+  return tierRankShared(tier)
 }
 
 // ---------------------------------------------------------------------------
@@ -115,40 +126,42 @@ export async function earnPoints(
 // ---------------------------------------------------------------------------
 
 type TierThresholds = { points: number; spend: number }
+type ThresholdMap = Record<ThresholdTier, TierThresholds>
 
-async function tierThresholds(db: Db): Promise<Record<Exclude<VipTier, "STANDARD">, TierThresholds>> {
-  const [sp, gp, pp, vp, ss, gs, ps, vs] = await Promise.all([
+async function tierThresholds(db: Db): Promise<ThresholdMap> {
+  const [bp, sp, gp, dp, bs, ss, gs, ds] = await Promise.all([
+    getSetting(SETTING_KEYS.vipBronzePoints, db as typeof prisma),
     getSetting(SETTING_KEYS.vipSilverPoints, db as typeof prisma),
     getSetting(SETTING_KEYS.vipGoldPoints, db as typeof prisma),
-    getSetting(SETTING_KEYS.vipPlatinumPoints, db as typeof prisma),
-    getSetting(SETTING_KEYS.vipVipPoints, db as typeof prisma),
+    getSetting(SETTING_KEYS.vipDiamondPoints, db as typeof prisma),
+    getSetting(SETTING_KEYS.vipBronzeSpend, db as typeof prisma),
     getSetting(SETTING_KEYS.vipSilverSpend, db as typeof prisma),
     getSetting(SETTING_KEYS.vipGoldSpend, db as typeof prisma),
-    getSetting(SETTING_KEYS.vipPlatinumSpend, db as typeof prisma),
-    getSetting(SETTING_KEYS.vipVipSpend, db as typeof prisma),
+    getSetting(SETTING_KEYS.vipDiamondSpend, db as typeof prisma),
   ])
   return {
+    BRONZE: { points: toNumber(bp), spend: toNumber(bs) },
     SILVER: { points: toNumber(sp), spend: toNumber(ss) },
     GOLD: { points: toNumber(gp), spend: toNumber(gs) },
-    PLATINUM: { points: toNumber(pp), spend: toNumber(ps) },
-    VIP: { points: toNumber(vp), spend: toNumber(vs) },
+    DIAMOND: { points: toNumber(dp), spend: toNumber(ds) },
   }
 }
 
 /**
  * Combined tier rule: a user qualifies for a tier when they meet EITHER its
  * lifetime-points threshold OR its lifetime-spend threshold. The resulting
- * tier is the highest one for which either metric qualifies, so each metric
- * contributes independently ("combined" criteria).
+ * earned tier is the highest one for which either metric qualifies, so each
+ * metric contributes independently ("combined" criteria). VIP is never
+ * auto-assigned — it is an exclusive admin grant layered on top.
  */
 export function tierFor(
   lifetimePoints: number,
   totalSpent: bigint,
-  thresholds: Record<Exclude<VipTier, "STANDARD">, TierThresholds>,
-): VipTier {
+  thresholds: ThresholdMap,
+): EarnedTier {
   const spend = Number(totalSpent)
-  let tier: VipTier = "STANDARD"
-  for (const t of ["SILVER", "GOLD", "PLATINUM", "VIP"] as const) {
+  let tier: EarnedTier = "STANDARD"
+  for (const t of THRESHOLD_TIERS) {
     const th = thresholds[t]
     if (lifetimePoints >= th.points || spend >= th.spend) tier = t
   }
@@ -163,7 +176,7 @@ export function tierFor(
 export async function recomputeVipTier(
   userId: string,
   db: Db = prisma,
-): Promise<{ tier: VipTier; upgraded: boolean; previous: VipTier }> {
+): Promise<{ tier: EarnedTier; upgraded: boolean; previous: EarnedTier }> {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { lifetimePoints: true, totalSpent: true, vipTier: true },
@@ -172,7 +185,8 @@ export async function recomputeVipTier(
 
   const thresholds = await tierThresholds(db)
   const computed = tierFor(user.lifetimePoints, user.totalSpent, thresholds)
-  const previous = user.vipTier as VipTier
+  // Compare against the normalized earned tier (legacy PLATINUM/VIP -> DIAMOND).
+  const previous = normalizeEarnedTier(user.vipTier)
 
   if (vipRank(computed) > vipRank(previous)) {
     await db.user.update({
@@ -189,11 +203,96 @@ export async function recomputeVipTier(
       },
       db,
     ).catch(() => {})
-    // Grant the VIP-member achievement when reaching the top tier.
-    if (computed === "VIP") await awardBadge(userId, "VIP_MEMBER", db).catch(() => {})
+    // Reaching the top earned tier grants the elite achievement (idempotent).
+    if (computed === "DIAMOND") await awardBadge(userId, "VIP_MEMBER", db).catch(() => {})
     return { tier: computed, upgraded: true, previous }
   }
   return { tier: previous, upgraded: false, previous }
+}
+
+// ---------------------------------------------------------------------------
+// Exclusive VIP membership (admin-granted) + tier discounts
+// ---------------------------------------------------------------------------
+
+/** Resolve a user's effective tier (VIP when an active manual grant exists). */
+export async function getEffectiveTier(userId: string, db: Db = prisma): Promise<Tier> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { vipTier: true, vipManual: true, vipManualExpiresAt: true },
+  })
+  if (!user) return "STANDARD"
+  return computeEffectiveTier(user)
+}
+
+/** Settings key holding the discount percent for a given effective tier. */
+function discountKeyFor(tier: Tier): string | null {
+  switch (tier) {
+    case "BRONZE":
+      return SETTING_KEYS.tierDiscountBronze
+    case "SILVER":
+      return SETTING_KEYS.tierDiscountSilver
+    case "GOLD":
+      return SETTING_KEYS.tierDiscountGold
+    case "DIAMOND":
+      return SETTING_KEYS.tierDiscountDiamond
+    case "VIP":
+      return SETTING_KEYS.tierDiscountVip
+    default:
+      return null // STANDARD has no discount
+  }
+}
+
+/** Product discount percent (0-100) for an effective tier, clamped. */
+export async function tierDiscountPercent(tier: Tier, db: Db = prisma): Promise<number> {
+  const key = discountKeyFor(tier)
+  if (!key) return 0
+  const pct = toNumber(await getSetting(key, db as typeof prisma))
+  return Math.max(0, Math.min(100, pct))
+}
+
+/**
+ * Grant the exclusive VIP membership to a user. Optionally expires at a date
+ * (after which the user reverts to their earned tier automatically). Emits an
+ * in-app notification. Idempotent-friendly: re-granting just updates expiry.
+ */
+export async function grantVip(
+  userId: string,
+  expiresAt: Date | null,
+  db: Db = prisma,
+): Promise<void> {
+  await db.user.update({
+    where: { id: userId },
+    data: { vipManual: true, vipManualExpiresAt: expiresAt, vipSince: new Date() },
+  })
+  await awardBadge(userId, "VIP_MEMBER", db).catch(() => {})
+  await createNotification(
+    {
+      userId,
+      type: "VIP_UPGRADED",
+      title: "عضویت ویژه VIP",
+      body: "عضویت اختصاصی VIP برای شما فعال شد. از مزایای ویژه بهره‌مند شوید!",
+      href: "/rewards",
+    },
+    db,
+  ).catch(() => {})
+}
+
+/** Revoke the exclusive VIP membership; the user reverts to their earned tier. */
+export async function revokeVip(userId: string, db: Db = prisma): Promise<void> {
+  await db.user.update({
+    where: { id: userId },
+    data: { vipManual: false, vipManualExpiresAt: null },
+  })
+  await createNotification(
+    {
+      userId,
+      type: "VIP_UPGRADED",
+      title: "پایان عضویت ویژه",
+      body: "عضویت اختصاصی VIP شما به پایان رسید.",
+      href: "/rewards",
+    },
+    db,
+  ).catch(() => {})
 }
 
 /** Record lifetime spend (IRT) and recompute VIP tier. */
@@ -386,29 +485,46 @@ export async function getGamificationSummary(userId: string) {
       totalSpent: true,
       vipTier: true,
       vipSince: true,
+      vipManual: true,
+      vipManualExpiresAt: true,
       loginStreak: true,
     },
   })
   if (!user) return null
 
-  const thresholds: Record<Exclude<VipTier, "STANDARD">, TierThresholds> = {
+  const thresholds: ThresholdMap = {
+    BRONZE: { points: toNumber(settings[SETTING_KEYS.vipBronzePoints]), spend: toNumber(settings[SETTING_KEYS.vipBronzeSpend]) },
     SILVER: { points: toNumber(settings[SETTING_KEYS.vipSilverPoints]), spend: toNumber(settings[SETTING_KEYS.vipSilverSpend]) },
     GOLD: { points: toNumber(settings[SETTING_KEYS.vipGoldPoints]), spend: toNumber(settings[SETTING_KEYS.vipGoldSpend]) },
-    PLATINUM: { points: toNumber(settings[SETTING_KEYS.vipPlatinumPoints]), spend: toNumber(settings[SETTING_KEYS.vipPlatinumSpend]) },
-    VIP: { points: toNumber(settings[SETTING_KEYS.vipVipPoints]), spend: toNumber(settings[SETTING_KEYS.vipVipSpend]) },
+    DIAMOND: { points: toNumber(settings[SETTING_KEYS.vipDiamondPoints]), spend: toNumber(settings[SETTING_KEYS.vipDiamondSpend]) },
   }
 
-  const tier = user.vipTier as VipTier
-  const rank = vipRank(tier)
-  const nextTier = rank < VIP_TIERS.length - 1 ? VIP_TIERS[rank + 1] : null
-  const nextThreshold = nextTier && nextTier !== "STANDARD" ? thresholds[nextTier] : null
+  // Earned tier (auto) vs effective tier (VIP overrides when active).
+  const earnedTier = normalizeEarnedTier(user.vipTier)
+  const vipActive = isVipActive(user)
+  const effective = computeEffectiveTier(user)
+
+  // Progress is always toward the next EARNED tier (VIP is not earnable).
+  const earnedRank = vipRank(earnedTier)
+  const nextTier =
+    earnedRank < EARNED_TIERS.length - 1 ? EARNED_TIERS[earnedRank + 1] : null
+  const nextThreshold =
+    nextTier && nextTier !== "STANDARD" ? thresholds[nextTier as ThresholdTier] : null
+
+  const discountPercent = await tierDiscountPercent(effective)
 
   return {
     loyaltyPoints: user.loyaltyPoints,
     lifetimePoints: user.lifetimePoints,
     totalSpent: user.totalSpent.toString(),
-    tier,
-    tierLabel: VIP_TIER_LABELS[tier],
+    // `tier`/`tierLabel` reflect the EFFECTIVE tier shown across the app.
+    tier: effective,
+    tierLabel: VIP_TIER_LABELS[effective],
+    earnedTier,
+    earnedTierLabel: VIP_TIER_LABELS[earnedTier],
+    vipActive,
+    vipManualExpiresAt: user.vipManualExpiresAt,
+    discountPercent,
     vipSince: user.vipSince,
     loginStreak: user.loginStreak,
     nextTier,

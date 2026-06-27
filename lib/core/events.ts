@@ -10,7 +10,36 @@ export const Channels = {
   auction: (auctionId: string) => `auction:${auctionId}`,
   notifications: (userId: string) => `notify:${userId}`,
   broadcast: "broadcast",
+  /** Operations Center realtime stream (metrics, health, alerts, activity). */
+  ops: "ops:events",
 } as const
+
+/**
+ * Realtime events for the Operations Center. Consumed by the SSE/WebSocket
+ * gateway and pushed to the admin dashboard. Kept flexible (string `kind`) so
+ * new event types can be added without churning the domain event union.
+ */
+export type OpsEvent = {
+  kind:
+    | "metrics"
+    | "health"
+    | "alert"
+    | "alert_resolved"
+    | "activity"
+    | "error"
+    | "heartbeat"
+  at: string
+  payload: Record<string, unknown>
+}
+
+export async function emitOps(event: Omit<OpsEvent, "at">): Promise<void> {
+  try {
+    const full: OpsEvent = { ...event, at: new Date().toISOString() }
+    await cache.publish(Channels.ops, JSON.stringify(serialize(full)))
+  } catch {
+    // Realtime delivery is best-effort; never block the caller.
+  }
+}
 
 export type DomainEvent =
   | { type: "BID_PLACED"; auctionId: string; amount: string; bidderAlias: string; endTime: string }

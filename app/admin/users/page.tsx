@@ -3,9 +3,10 @@
 import useSWR, { mutate as globalMutate } from "swr"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Search, Ban, CheckCircle2, Wallet } from "lucide-react"
+import { Search, Ban, CheckCircle2, Wallet, Crown } from "lucide-react"
 import { fetcher, apiPost } from "@/lib/api-client"
 import { formatToman, formatNumber, formatDateTime } from "@/lib/format"
+import { effectiveTier, tierLabelFor, type Tier } from "@/lib/tiers"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,6 +37,9 @@ type AdminUser = {
   role: "USER" | "SUPPORT" | "ADMIN"
   status: "ACTIVE" | "BANNED"
   createdAt: string
+  vipTier: string | null
+  vipManual: boolean
+  vipManualExpiresAt: string | null
   wallet: { totalBalance: string; frozenBalance: string } | null
   _count: { orders: number; bids: number }
 }
@@ -56,6 +60,29 @@ export default function AdminUsersPage() {
   const [amount, setAmount] = useState("")
   const [reason, setReason] = useState("")
   const [busy, setBusy] = useState(false)
+
+  const [vipUser, setVipUser] = useState<AdminUser | null>(null)
+  const [vipDays, setVipDays] = useState("")
+  const [vipBusy, setVipBusy] = useState(false)
+
+  async function submitVip(action: "grant" | "revoke") {
+    if (!vipUser) return
+    setVipBusy(true)
+    try {
+      await apiPost(`/api/v1/admin/users/${vipUser.id}/vip`, {
+        action,
+        durationDays: action === "grant" && vipDays ? Number(vipDays) : 0,
+      })
+      toast.success(action === "grant" ? "عضویت ویژه فعال شد" : "عضویت ویژه لغو شد")
+      setVipUser(null)
+      setVipDays("")
+      mutate()
+    } catch (e: any) {
+      toast.error(e.message ?? "خطا")
+    } finally {
+      setVipBusy(false)
+    }
+  }
 
   async function toggleStatus(u: AdminUser) {
     const next = u.status === "BANNED" ? "ACTIVE" : "BANNED"
@@ -148,14 +175,28 @@ export default function AdminUsersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={u.role === "ADMIN" ? "default" : "secondary"} className="text-[10px]">
-                      {roleLabels[u.role]}
-                    </Badge>
-                    {u.status === "BANNED" && (
-                      <Badge variant="destructive" className="mr-1 text-[10px]">
-                        مسدود
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Badge variant={u.role === "ADMIN" ? "default" : "secondary"} className="text-[10px]">
+                        {roleLabels[u.role]}
                       </Badge>
-                    )}
+                      {(() => {
+                        const tier = effectiveTier(u)
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] ${tier === "VIP" ? "border-violet-500/50 text-violet-600 dark:text-violet-300" : ""}`}
+                          >
+                            {tier === "VIP" && <Crown className="me-0.5 h-3 w-3" />}
+                            {tierLabelFor(tier, "fa")}
+                          </Badge>
+                        )
+                      })()}
+                      {u.status === "BANNED" && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          مسدود
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className="font-mono text-sm" dir="ltr">
@@ -183,6 +224,15 @@ export default function AdminUsersPage() {
                       >
                         <Wallet className="h-3.5 w-3.5" />
                         تعدیل
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={`gap-1.5 ${u.vipManual ? "text-violet-600 dark:text-violet-300" : ""}`}
+                        onClick={() => setVipUser(u)}
+                      >
+                        <Crown className="h-3.5 w-3.5" />
+                        VIP
                       </Button>
                       {u.role !== "ADMIN" && (
                         <Button
@@ -248,6 +298,57 @@ export default function AdminUsersPage() {
             </Button>
             <Button onClick={submitAdjust} disabled={busy}>
               {busy ? "در حال ثبت…" : "ثبت تعدیل"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!vipUser} onOpenChange={(o) => !o && setVipUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-violet-500" />
+              عضویت ویژه VIP — {vipUser?.displayName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {vipUser?.vipManual ? (
+              <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-3 text-sm text-violet-600 dark:text-violet-300">
+                این کاربر هم‌اکنون عضو ویژه است
+                {vipUser.vipManualExpiresAt
+                  ? ` (تا ${formatDateTime(vipUser.vipManualExpiresAt)})`
+                  : " (بدون تاریخ انقضا)"}
+                .
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                عضویت ویژه به‌صورت دستی اعطا می‌شود و بالاترین سطح باشگاه است. مدت را خالی بگذارید تا
+                بدون انقضا باشد.
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-xs">مدت اعتبار (روز) — اختیاری</Label>
+              <Input
+                value={vipDays}
+                onChange={(e) => setVipDays(e.target.value)}
+                inputMode="numeric"
+                dir="ltr"
+                placeholder="مثلاً 30 (خالی = دائمی)"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            {vipUser?.vipManual && (
+              <Button
+                variant="destructive"
+                onClick={() => submitVip("revoke")}
+                disabled={vipBusy}
+              >
+                لغو عضویت ویژه
+              </Button>
+            )}
+            <Button onClick={() => submitVip("grant")} disabled={vipBusy}>
+              {vipBusy ? "در حال ثبت…" : vipUser?.vipManual ? "تمدید/به‌روزرسانی" : "فعال‌سازی VIP"}
             </Button>
           </DialogFooter>
         </DialogContent>

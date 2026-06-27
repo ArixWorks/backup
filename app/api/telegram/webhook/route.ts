@@ -3,6 +3,8 @@ import { handleUpdate, type TgUpdate } from "@/lib/telegram/handler"
 import { webhookSecret } from "@/lib/telegram/verify"
 import { cache } from "@/lib/redis"
 import { checkRateLimit } from "@/lib/api/rate-limit"
+import { withWebhook } from "@/lib/monitoring/instrument"
+import { touchHeartbeat } from "@/lib/monitoring/heartbeat"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -53,7 +55,17 @@ export async function POST(req: Request) {
     if (!limit.ok) return NextResponse.json({ ok: true })
   }
 
-  // Process; errors are isolated inside handleUpdate.
-  await handleUpdate(update)
+  // The bot is alive and receiving updates — record a liveness heartbeat the
+  // Operations Center reads to detect an offline bot/webhook.
+  void touchHeartbeat("bot")
+
+  // Process; errors are isolated inside handleUpdate, but we still wrap so the
+  // Operations Center records webhook duration/failures and captures errors.
+  // Always respond 200 so Telegram does not retry.
+  try {
+    await withWebhook("telegram", () => handleUpdate(update))
+  } catch {
+    // already captured by withWebhook
+  }
   return NextResponse.json({ ok: true })
 }
