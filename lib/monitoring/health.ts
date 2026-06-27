@@ -262,6 +262,41 @@ export async function checkAll(): Promise<HealthResult[]> {
   return results
 }
 
+/**
+ * Upsert a single service's health snapshot. Used by background units
+ * (cron/worker/queue) and the heartbeat endpoint to report their own status
+ * outside the central probe cycle.
+ */
+export async function reportServiceHealth(input: {
+  service: string
+  status: HealthStatus
+  latencyMs?: number | null
+  message?: string | null
+  meta?: Record<string, unknown> | null
+}): Promise<void> {
+  try {
+    await prisma.serviceHealth.upsert({
+      where: { service: input.service },
+      create: {
+        service: input.service,
+        status: input.status,
+        latencyMs: input.latencyMs ?? undefined,
+        message: input.message ?? undefined,
+        meta: (input.meta ?? undefined) as object | undefined,
+      },
+      update: {
+        status: input.status,
+        latencyMs: input.latencyMs ?? null,
+        message: input.message ?? null,
+        meta: (input.meta ?? undefined) as object | undefined,
+        checkedAt: new Date(),
+      },
+    })
+  } catch {
+    // best-effort
+  }
+}
+
 /** Read the last persisted health snapshot for all services (no live probing). */
 export async function getLatestHealth(): Promise<HealthResult[]> {
   const rows = await prisma.serviceHealth.findMany()

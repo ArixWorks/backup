@@ -29,6 +29,12 @@ interface CacheBackend {
   acquireLock(key: string, ttlMs: number): Promise<LockHandle | null>
   releaseLock(handle: LockHandle): Promise<void>
   publish(channel: string, message: string): Promise<void>
+  /**
+   * Subscribe to a pub/sub channel. Returns an unsubscribe function. In memory
+   * mode this is an in-process fan-out (works for a single instance, e.g. dev
+   * or a single-node VPS). With Redis it spans all instances.
+   */
+  subscribe(channel: string, handler: (message: string) => void): Promise<() => void>
 }
 
 // --- In-memory backend (dev / preview) --------------------------------------
@@ -36,6 +42,7 @@ interface CacheBackend {
 class MemoryBackend implements CacheBackend {
   private store = new Map<string, { value: string; expires: number | null }>()
   private locks = new Map<string, { token: string; expires: number }>()
+  private channels = new Map<string, Set<(message: string) => void>>()
 
   async get(key: string) {
     const entry = this.store.get(key)
@@ -91,8 +98,32 @@ class MemoryBackend implements CacheBackend {
     }
   }
 
-  async publish() {
-    // No-op in memory mode; realtime consumers fall back to polling.
+  async publish(channel: string, message: string) {
+    // In-process fan-out: delivers to subscribers in THIS instance. Spans
+    // multiple instances only with Redis, but is fully functional for dev and
+    // single-node deployments.
+    const subs = this.channels.get(channel)
+    if (!subs) return
+    for (const handler of subs) {
+      try {
+        handler(message)
+      } catch {
+        // a bad subscriber must not break publish
+      }
+    }
+  }
+
+  async subscribe(channel: string, handler: (message: string) => void) {
+    let set = this.channels.get(channel)
+    if (!set) {
+      set = new Set()
+      this.channels.set(channel, set)
+    }
+    set.add(handler)
+    return () => {
+      set?.delete(handler)
+      if (set && set.size === 0) this.channels.delete(channel)
+    }
   }
 }
 
@@ -143,6 +174,26 @@ class RedisBackend implements CacheBackend {
   async publish(channel: string, message: string) {
     await this.client.publish(channel, message)
   }
+
+  async subscribe(channel: string, handler: (message: string) => void) {
+    // A dedicated connection is required because a subscribed client cannot run
+    // normal commands.
+    const sub = this.client.duplicate()
+    await sub.subscribe(channel)
+    const listener = (ch: string, message: string) => {
+      if (ch === channel) handler(message)
+    }
+    sub.on("message", listener)
+    return () => {
+      try {
+        sub.off("message", listener)
+        void sub.unsubscribe(channel).catch(() => {})
+        void sub.quit().catch(() => {})
+      } catch {
+        // ignore teardown errors
+      }
+    }
+  }
 }
 
 let backend: CacheBackend | null = null
@@ -170,6 +221,8 @@ export const cache = {
     getBackend().setIfAbsent(key, value, ttlSeconds),
   publish: (channel: string, message: string) =>
     getBackend().publish(channel, message),
+  subscribe: (channel: string, handler: (message: string) => void) =>
+    getBackend().subscribe(channel, handler),
 }
 
 /**

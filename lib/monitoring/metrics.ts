@@ -106,17 +106,27 @@ function windowKey(suffix: string): string {
   return `ops:counter:${suffix}:${bucket}`
 }
 
-/** Increment request + (optionally) error counters and accumulate latency. */
-export async function recordRequest(ok: boolean, latencyMs?: number) {
+/**
+ * Increment request + (optionally) error counters and accumulate latency.
+ * `route`/`status` are accepted for call-site clarity and future per-route
+ * breakdowns; the window counters themselves stay low-cardinality.
+ */
+export async function recordRequest(input: {
+  ok: boolean
+  ms?: number
+  route?: string
+  status?: number
+}) {
+  const { ok, ms } = input
   try {
     await cache.incr(windowKey("req"), WINDOW_SECONDS * 2)
     if (!ok) await cache.incr(windowKey("err"), WINDOW_SECONDS * 2)
-    if (latencyMs != null && isFiniteNum(latencyMs)) {
+    if (ms != null && isFiniteNum(ms)) {
       await cache.incr(windowKey("latsum"), WINDOW_SECONDS * 2) // count
       // store cumulative latency in a parallel key (ms, integer)
       const k = windowKey("latms")
       const cur = Number((await cache.get(k)) ?? "0")
-      await cache.set(k, String(Math.round(cur + latencyMs)), WINDOW_SECONDS * 2)
+      await cache.set(k, String(Math.round(cur + ms)), WINDOW_SECONDS * 2)
     }
   } catch {
     // counters are best-effort
