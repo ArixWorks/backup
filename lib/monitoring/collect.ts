@@ -3,7 +3,9 @@ import { getSystemSnapshot } from "./system"
 import {
   recordMany,
   readRequestWindow,
+  readLatencyPercentiles,
   readCacheHitRatio,
+  readPresence,
   pruneOldMetrics,
   type MetricInput,
 } from "./metrics"
@@ -52,9 +54,20 @@ export async function runCollection(): Promise<{
   if (reqWindow.requests > 0) {
     add("app.rps", reqWindow.rps)
     add("app.error_rate", reqWindow.errorRate)
-    add("app.latency.p50", reqWindow.avgLatencyMs)
+  }
+  // Real latency percentiles from the sampled reservoir (independent of the
+  // request counter so p50/p95 are emitted whenever any latency was sampled).
+  const lat = await readLatencyPercentiles()
+  if (lat.count > 0) {
+    add("app.latency.p50", lat.p50)
+    add("app.latency.p95", lat.p95)
   }
   add("cache.hit_ratio", await readCacheHitRatio())
+
+  // Genuine online presence (distinct authenticated users / sessions).
+  const presence = await readPresence()
+  add("app.active_users", presence.users)
+  add("app.active_sessions", presence.sessions)
 
   // 3) Health probes (also yields DB/Redis internals).
   const health = await checkAll()

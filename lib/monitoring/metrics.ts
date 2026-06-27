@@ -127,9 +127,96 @@ export async function recordRequest(input: {
       const k = windowKey("latms")
       const cur = Number((await cache.get(k)) ?? "0")
       await cache.set(k, String(Math.round(cur + ms)), WINDOW_SECONDS * 2)
+      // Maintain a capped reservoir of recent latencies so we can compute real
+      // percentiles (p50/p95). Best-effort: a racy read-modify-write is fine for
+      // a sampled latency distribution.
+      const rk = windowKey("latres")
+      const raw = (await cache.get(rk)) ?? ""
+      const arr = raw ? raw.split(",") : []
+      arr.push(String(Math.round(ms)))
+      // keep the most recent LAT_RESERVOIR_MAX samples
+      const trimmed = arr.length > LAT_RESERVOIR_MAX ? arr.slice(arr.length - LAT_RESERVOIR_MAX) : arr
+      await cache.set(rk, trimmed.join(","), WINDOW_SECONDS * 2)
     }
   } catch {
     // counters are best-effort
+  }
+}
+
+const LAT_RESERVOIR_MAX = 500
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1))
+  return sorted[idx]
+}
+
+/** Compute real p50/p95 latency (ms) from the current window's reservoir. */
+export async function readLatencyPercentiles(): Promise<{ p50: number; p95: number; count: number }> {
+  try {
+    const raw = (await cache.get(windowKey("latres"))) ?? ""
+    const nums = raw
+      .split(",")
+      .map((s) => Number(s))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b)
+    return { p50: percentile(nums, 50), p95: percentile(nums, 95), count: nums.length }
+  } catch {
+    return { p50: 0, p95: 0, count: 0 }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Online presence (real active users / sessions over a rolling window).
+// ---------------------------------------------------------------------------
+
+const PRESENCE_WINDOW_SECONDS = 300 // 5 minutes
+const PRESENCE_MAX_ENTRIES = 5000
+
+function presenceKey(offset = 0): string {
+  const bucket = Math.floor(Date.now() / 1000 / PRESENCE_WINDOW_SECONDS) - offset
+  return `ops:presence:${bucket}`
+}
+
+/**
+ * Record genuine online presence from an authenticated request. Distinct
+ * `userId`s and `sessionId`s seen within the rolling window are counted as
+ * online users / active sessions. Best-effort and fire-and-forget.
+ */
+export async function recordPresence(userId: string, sessionId?: string | null): Promise<void> {
+  try {
+    const k = presenceKey()
+    const raw = await cache.get(k)
+    const map: { u: Record<string, number>; s: Record<string, number> } = raw
+      ? JSON.parse(raw)
+      : { u: {}, s: {} }
+    const now = Date.now()
+    map.u[userId] = now
+    if (sessionId) map.s[sessionId] = now
+    // Guard against unbounded growth under extreme load.
+    if (Object.keys(map.u).length <= PRESENCE_MAX_ENTRIES) {
+      await cache.set(k, JSON.stringify(map), PRESENCE_WINDOW_SECONDS * 2)
+    }
+  } catch {
+    // best-effort
+  }
+}
+
+/** Read distinct online users / active sessions across the current + prior window. */
+export async function readPresence(): Promise<{ users: number; sessions: number }> {
+  try {
+    const [curRaw, prevRaw] = await Promise.all([cache.get(presenceKey(0)), cache.get(presenceKey(1))])
+    const users = new Set<string>()
+    const sessions = new Set<string>()
+    for (const raw of [curRaw, prevRaw]) {
+      if (!raw) continue
+      const map = JSON.parse(raw) as { u?: Record<string, number>; s?: Record<string, number> }
+      for (const id of Object.keys(map.u ?? {})) users.add(id)
+      for (const id of Object.keys(map.s ?? {})) sessions.add(id)
+    }
+    return { users: users.size, sessions: sessions.size }
+  } catch {
+    return { users: 0, sessions: 0 }
   }
 }
 
