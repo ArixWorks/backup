@@ -55,14 +55,17 @@ export const THEMES = [
     label: "طلایی سینمایی",
     description: "سرمه‌ای عمیق با لهجه طلایی لوکس",
     swatch: ["#caa23f", "#f0d878", "#1a1d24"],
-    headerColor: "#1a1d24",
+    // Exact sRGB of this theme's --background (oklch(0.155 0.014 252)) so the
+    // browser/Telegram chrome matches the app body with no color seam.
+    headerColor: "#080d12",
   },
   {
     id: "aurora",
     label: "آرورا",
     description: "مشکی نیلی با لهجه بنفش الکتریک تا فیروزه‌ای",
     swatch: ["#8b5cf6", "#22d3ee", "#16131f"],
-    headerColor: "#16131f",
+    // Exact sRGB of this theme's --background (oklch(0.145 0.022 280)).
+    headerColor: "#080913",
   },
 ] as const
 

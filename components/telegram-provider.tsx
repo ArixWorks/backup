@@ -51,7 +51,37 @@ declare global {
   }
 }
 
-const BG = "#0d0f14"
+// Fallback that matches the default "gold" theme's --background (oklch(0.155
+// 0.014 252)). Only used if the runtime color resolve below fails.
+const FALLBACK_BG = "#080d12"
+
+/**
+ * Resolve the ACTIVE theme's --background to a #rrggbb hex that Telegram's
+ * setHeaderColor / setBackgroundColor accept. We read the real computed body
+ * background and let a 1x1 canvas convert whatever CSS color space it is in
+ * (oklch / rgb / color()) into plain sRGB bytes. Reading it live means the
+ * Telegram chrome always matches the app body for ANY theme (gold, aurora, or
+ * future ones) — no hardcoded per-theme values to keep in sync.
+ */
+function resolveThemeBg(): string {
+  try {
+    const raw =
+      getComputedStyle(document.body).backgroundColor ||
+      getComputedStyle(document.documentElement).getPropertyValue("--background").trim()
+    if (!raw) return FALLBACK_BG
+    const canvas = document.createElement("canvas")
+    canvas.width = canvas.height = 1
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return FALLBACK_BG
+    ctx.fillStyle = "#000000"
+    ctx.fillStyle = raw // browser parses any valid CSS color string
+    ctx.fillRect(0, 0, 1, 1)
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+    return "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")
+  } catch {
+    return FALLBACK_BG
+  }
+}
 
 /** Push Telegram's safe-area insets into CSS custom properties on <html>. */
 function applyInsets(wa: TelegramWebApp) {
@@ -83,8 +113,11 @@ export function TelegramProvider() {
             wa.expand()
             wa.disableVerticalSwipes?.()
             wa.enableClosingConfirmation?.()
-            wa.setHeaderColor?.(BG)
-            wa.setBackgroundColor?.(BG)
+            // Match Telegram's native header + background to the active theme's
+            // real body background so there is no color seam at the top.
+            const bg = resolveThemeBg()
+            wa.setHeaderColor?.(bg)
+            wa.setBackgroundColor?.(bg)
 
             // True fullscreen is Bot API 8.0+. Guard so older clients don't throw.
             // Only request it on phones (android/ios). On desktop / web clients
