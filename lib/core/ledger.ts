@@ -1,6 +1,7 @@
 import type { Prisma, WalletTxType, LedgerAccountKind } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { secureSlug } from "@/lib/id"
+import { withLock } from "@/lib/redis"
 import { ConflictError, ValidationError } from "./errors"
 
 type Tx = Prisma.TransactionClient
@@ -97,6 +98,21 @@ export function systemAccountForType(type: WalletTxType): LedgerAccountKind | nu
 /**
  * Fetch (or lazily create) a ledger account. USER_* accounts are scoped by
  * ownerUserId; SYS_* accounts are global (ownerUserId = null).
+ *
+ * CRITICAL: account creation must NEVER run on the caller's transaction `db`.
+ * In Postgres, once any statement in a transaction errors (a unique-constraint
+ * race on `create`, or a SERIALIZABLE serialization failure), the whole
+ * transaction enters the *aborted* state and every subsequent statement fails
+ * with `25P02 current transaction is aborted`. The previous implementation
+ * caught the failed `create` and then issued another query on the same aborted
+ * tx — which corrupted concurrent money operations and could also leak duplicate
+ * system accounts (NULL ownerUserId rows are "distinct" to the unique index).
+ *
+ * Instead we create on a separate autocommit connection (top-level `prisma`),
+ * serialized by a distributed lock so concurrent callers can't create
+ * duplicates. The committed row is then visible to the caller's subsequent
+ * write (UPDATE/INSERT operate on the latest committed row version; if SSI flags
+ * a conflict the caller's `serializableTx` simply retries).
  */
 export async function getOrCreateAccount(
   db: Tx,
@@ -108,14 +124,16 @@ export async function getOrCreateAccount(
   // compound unique lookup, which Prisma types as non-nullable.
   const existing = await db.ledgerAccount.findFirst({ where: { kind, ownerUserId, currency } })
   if (existing) return existing
-  // Create, tolerating a concurrent creator that won the unique-constraint race.
-  try {
-    return await db.ledgerAccount.create({ data: { kind, ownerUserId, currency } })
-  } catch {
-    const row = await db.ledgerAccount.findFirst({ where: { kind, ownerUserId, currency } })
-    if (!row) throw new ConflictError("Failed to create ledger account")
-    return row
-  }
+
+  // Account missing from this tx's snapshot — create it out-of-band so a race
+  // here cannot abort the caller's transaction.
+  return withLock(`ledger:acct:${kind}:${ownerUserId ?? "sys"}:${currency}`, async () => {
+    // Re-check on the autocommit connection inside the lock (another caller may
+    // have created it between our snapshot read and acquiring the lock).
+    const found = await prisma.ledgerAccount.findFirst({ where: { kind, ownerUserId, currency } })
+    if (found) return found
+    return prisma.ledgerAccount.create({ data: { kind, ownerUserId, currency } })
+  })
 }
 
 export interface LegInput {

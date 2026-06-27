@@ -2,6 +2,7 @@ import { randomBytes } from "crypto"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { creditCashback, creditReferralBonus, ensureWallet } from "./wallet"
+import { serializableTx } from "./ledger"
 import { earnPoints, addSpend, progressMission, awardBadge } from "./gamification"
 import { audit } from "./audit"
 import {
@@ -304,7 +305,7 @@ export async function rewardReferralJoin(userId: string): Promise<ReferralJoinRe
 
   const bonus = BigInt(Math.round(toNumber(await getSetting(SETTING_KEYS.referralJoinBonus))))
 
-  return prisma.$transaction(async (tx) => {
+  return serializableTx(async (tx) => {
     const me = await tx.user.findUnique({
       where: { id: userId },
       select: { referredById: true, referralJoinRewarded: true, displayName: true },

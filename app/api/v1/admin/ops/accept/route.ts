@@ -70,16 +70,16 @@ export async function GET(req: Request) {
       const dep = await createDepositRequest({ userId: uid, amount: 500_000n })
       await approveDeposit(dep.id, uid)
       const bal1 = await getBalances(uid)
-      check("wallet.deposit_approve_credits", bal1.available === 500_000n, `available=${bal1.available}`)
+      check("wallet.deposit_approve_credits", bal1.availableBalance === 500_000n, `available=${bal1.availableBalance}`)
 
       const dupErr = await settleErr(approveDeposit(dep.id, uid))
       const bal2 = await getBalances(uid)
-      check("wallet.double_approve_guard", dupErr !== null && bal2.available === 500_000n, `err=${dupErr}, bal=${bal2.available}`)
+      check("wallet.double_approve_guard", dupErr !== null && bal2.availableBalance === 500_000n, `err=${dupErr}, bal=${bal2.availableBalance}`)
 
       const dep2 = await createDepositRequest({ userId: uid, amount: 100_000n })
       await rejectDeposit(dep2.id, uid, "test reject")
       const bal3 = await getBalances(uid)
-      check("wallet.reject_no_credit", bal3.available === 500_000n, `bal=${bal3.available}`)
+      check("wallet.reject_no_credit", bal3.availableBalance === 500_000n, `bal=${bal3.availableBalance}`)
 
       // concurrent approval of one pending deposit -> exactly one credit
       const uid2 = await mkUser("wallet2")
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
       const outcomes = await Promise.allSettled(Array.from({ length: 5 }, () => approveDeposit(dep3.id, uid2)))
       const okCount = outcomes.filter((o) => o.status === "fulfilled").length
       const balC = await getBalances(uid2)
-      check("wallet.concurrent_approve_once", okCount === 1 && balC.available === 200_000n, `ok=${okCount}, bal=${balC.available}`)
+      check("wallet.concurrent_approve_once", okCount === 1 && balC.availableBalance === 200_000n, `ok=${okCount}, bal=${balC.availableBalance}`)
     }
 
     // ---------------------------------------------------------------
@@ -112,10 +112,17 @@ export async function GET(req: Request) {
       const order = await purchaseFixed({ userId: buyer.toString(), productId: prod.id, quantity: 1 })
       const balAfter = await getBalances(buyer)
       const sale = await prisma.fixedSale.findFirst({ where: { productId: prod.id } })
+      // Charge is exactly the price; final balance = 1,000,000 - 100,000 + cashback.
+      // Cashback (if configured) is credited back, so balance is in (900k, 1,000k).
+      const cashback = balAfter.availableBalance - 900_000n
       check(
         "commerce.purchase_charges_and_decrements",
-        balAfter.available === 900_000n && sale?.stock === 0 && order.status === "PAID",
-        `bal=${balAfter.available}, stock=${sale?.stock}, status=${order.status}`,
+        order.amount === 100_000n &&
+          sale?.stock === 0 &&
+          order.status === "PAID" &&
+          cashback >= 0n &&
+          cashback < 100_000n,
+        `charged=${order.amount}, bal=${balAfter.availableBalance}, cashback=${cashback}, stock=${sale?.stock}, status=${order.status}`,
       )
 
       // out of stock
@@ -157,7 +164,13 @@ export async function GET(req: Request) {
       const c1 = await mkUser("coup1", 1_000_000n)
       const o1 = await purchaseFixed({ userId: c1, productId: prod.id, quantity: 1, couponCode: code })
       const b1 = await getBalances(c1)
-      check("coupon.percent_discount_applied", o1.amount === 50_000n && b1.available === 950_000n, `charged=${o1.amount}, bal=${b1.available}`)
+      // 50% off 100,000 => charged 50,000; balance = 1,000,000 - 50,000 + cashback.
+      const cb = b1.availableBalance - 950_000n
+      check(
+        "coupon.percent_discount_applied",
+        o1.amount === 50_000n && cb >= 0n && cb < 50_000n,
+        `charged=${o1.amount}, bal=${b1.availableBalance}, cashback=${cb}`,
+      )
 
       // totalLimit=1 -> second distinct user redemption must fail
       const c2 = await mkUser("coup2", 1_000_000n)
@@ -222,8 +235,8 @@ export async function GET(req: Request) {
       const bidCount = await prisma.bid.count({ where: { auctionId: auction!.id } })
       check(
         "auction.concurrent_bids_consistent",
-        freshAuction != null && (freshAuction.highBid ?? 0n) > 0n && bidCount === accepted && bidCount > 0,
-        `highBid=${freshAuction?.highBid}, bids=${bidCount}, accepted=${accepted}`,
+        freshAuction != null && (freshAuction.currentPrice ?? 0n) > 0n && bidCount === accepted && bidCount > 0,
+        `currentPrice=${freshAuction?.currentPrice}, bids=${bidCount}, accepted=${accepted}`,
       )
 
       // finalize after end
@@ -240,14 +253,15 @@ export async function GET(req: Request) {
       const gv = await createGiveaway(
         {
           title: `${TAG} Giveaway`,
-          slug: `${TAG.toLowerCase()}-gv-${Date.now()}`,
           prizeKind: "CUSTOM",
-          prizeText: "Test prize",
+          prizeLabel: "Test prize",
           winnersCount: 2,
-          startTime: new Date(Date.now() - 60_000),
-          endTime: new Date(Date.now() + 3_600_000),
+          startAt: new Date(Date.now() - 60_000).toISOString(),
+          endAt: new Date(Date.now() + 3_600_000).toISOString(),
+          drawAt: new Date(Date.now() + 7_200_000).toISOString(),
           requiredChannels: [],
-        } as Parameters<typeof createGiveaway>[0],
+          status: "SCHEDULED",
+        },
         adminId,
       )
       created.giveaways.push(gv.id)
@@ -265,8 +279,8 @@ export async function GET(req: Request) {
       const total = await prisma.giveawayEntry.count({ where: { giveawayId: gv.id } })
       check("giveaway.distinct_entries", total === 6, `total=${total}`)
 
-      // draw -> exactly winnersCount distinct winners
-      await prisma.giveaway.update({ where: { id: gv.id }, data: { endTime: new Date(Date.now() - 1000) } })
+      // draw -> exactly winnersCount distinct winners (close registration first)
+      await prisma.giveaway.update({ where: { id: gv.id }, data: { endAt: new Date(Date.now() - 1000) } })
       const draw = (await drawGiveaway(gv.id, { actorId: adminId })) as { winners?: unknown[] }
       const winnerRows = await prisma.giveawayWinner.findMany({ where: { giveawayId: gv.id }, select: { userId: true } })
       const distinct = new Set(winnerRows.map((w) => w.userId)).size
@@ -341,14 +355,14 @@ async function cleanup(created: { users: string[]; products: string[]; auctions:
       if (wids.length) {
         await prisma.walletTransaction.deleteMany({ where: { walletId: { in: wids } } }).catch(() => {})
       }
-      await prisma.ledgerLeg.deleteMany({ where: { account: { ownerId: { in: u } } } }).catch(() => {})
+      await prisma.ledgerLeg.deleteMany({ where: { account: { ownerUserId: { in: u } } } }).catch(() => {})
       await prisma.depositRequest.deleteMany({ where: { userId: { in: u } } }).catch(() => {})
       await prisma.withdrawalRequest.deleteMany({ where: { userId: { in: u } } }).catch(() => {})
       await prisma.auditLog.deleteMany({ where: { actorId: { in: u } } }).catch(() => {})
       await prisma.notification.deleteMany({ where: { userId: { in: u } } }).catch(() => {})
       await prisma.giveawayEntry.deleteMany({ where: { userId: { in: u } } }).catch(() => {})
       await prisma.bid.deleteMany({ where: { userId: { in: u } } }).catch(() => {})
-      await prisma.ledgerAccount.deleteMany({ where: { ownerId: { in: u } } }).catch(() => {})
+      await prisma.ledgerAccount.deleteMany({ where: { ownerUserId: { in: u } } }).catch(() => {})
       await prisma.wallet.deleteMany({ where: { userId: { in: u } } }).catch(() => {})
       // unlink referrals then delete users
       await prisma.user.updateMany({ where: { referredById: { in: u } }, data: { referredById: null } }).catch(() => {})
