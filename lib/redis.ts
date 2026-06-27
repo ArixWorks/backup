@@ -9,6 +9,7 @@
  * backend is active. Swapping to a managed Redis requires zero code changes.
  */
 import type Redis from "ioredis"
+import { CircuitBreaker } from "@/lib/core/resilience"
 
 type LockHandle = { key: string; token: string }
 
@@ -66,19 +67,29 @@ class MemoryBackend implements CacheBackend {
   }
 
   async incr(key: string, ttlSeconds: number) {
-    const current = await this.get(key)
-    const next = (current ? Number.parseInt(current, 10) || 0 : 0) + 1
-    // Preserve the original window expiry: only set TTL on the first increment.
+    // Must be atomic: do the read-modify-write synchronously (no `await` in the
+    // middle) so concurrent callers on the same instance cannot interleave and
+    // under-count. This matches Redis INCR semantics and keeps the rate limiter
+    // / counters correct when running on the in-memory backend (dev or the
+    // Redis-down fallback path).
+    const now = Date.now()
     const existing = this.store.get(key)
-    const expires = current && existing?.expires ? existing.expires : Date.now() + ttlSeconds * 1000
+    const alive = existing && (!existing.expires || existing.expires >= now)
+    const next = (alive ? Number.parseInt(existing!.value, 10) || 0 : 0) + 1
+    const expires = alive && existing!.expires ? existing!.expires : now + ttlSeconds * 1000
     this.store.set(key, { value: String(next), expires })
     return next
   }
 
   async setIfAbsent(key: string, value: string, ttlSeconds: number) {
-    const current = await this.get(key)
-    if (current !== null) return false
-    await this.set(key, value, ttlSeconds)
+    // Atomic check-and-set with NO intervening `await` — otherwise concurrent
+    // callers all observe "absent" and all succeed, breaking idempotency and
+    // webhook de-duplication. Mirrors Redis `SET key val NX EX`.
+    const now = Date.now()
+    const existing = this.store.get(key)
+    const alive = existing && (!existing.expires || existing.expires >= now)
+    if (alive) return false
+    this.store.set(key, { value, expires: ttlSeconds ? now + ttlSeconds * 1000 : null })
     return true
   }
 
@@ -196,6 +207,76 @@ class RedisBackend implements CacheBackend {
   }
 }
 
+// --- Resilient backend (production wrapper) ---------------------------------
+
+/**
+ * Wraps the Redis backend with a circuit breaker and an in-memory fallback so a
+ * Redis outage degrades gracefully instead of taking the app down:
+ *
+ *  - While Redis is healthy, everything goes to Redis.
+ *  - On a Redis error the call transparently falls back to a local in-memory
+ *    backend; repeated failures trip the breaker so we stop hammering a dead
+ *    Redis and serve from memory until a cool-down probe succeeds.
+ *
+ * Degraded semantics are intentionally safe:
+ *  - Cache get/set/del: local cache (correctness never depends on the cache).
+ *  - Rate limiter incr: local counter (per-instance) — still bounds abuse.
+ *  - Idempotency setIfAbsent: local marker — still collapses same-instance dupes.
+ *  - Locks: local lock — distributed coordination is impossible while Redis is
+ *    down anyway, and money-path correctness is independently guaranteed by the
+ *    DB Serializable transactions + optimistic version guards.
+ *  - Pub/sub: in-process fan-out (single instance) — realtime still works locally.
+ */
+class ResilientBackend implements CacheBackend {
+  private breaker = new CircuitBreaker("redis", { failureThreshold: 5, resetTimeoutMs: 15_000 })
+  constructor(
+    private primary: CacheBackend,
+    private fallback: CacheBackend,
+  ) {}
+
+  private run<T>(op: (b: CacheBackend) => Promise<T>): Promise<T> {
+    return this.breaker.execute(
+      async () => {
+        try {
+          return await op(this.primary)
+        } catch (err) {
+          console.log("[v0] Redis op failed, falling back to memory:", (err as Error).message)
+          throw err
+        }
+      },
+      () => op(this.fallback),
+    )
+  }
+
+  get(key: string) {
+    return this.run((b) => b.get(key))
+  }
+  set(key: string, value: string, ttlSeconds?: number) {
+    return this.run((b) => b.set(key, value, ttlSeconds))
+  }
+  del(key: string) {
+    return this.run((b) => b.del(key))
+  }
+  incr(key: string, ttlSeconds: number) {
+    return this.run((b) => b.incr(key, ttlSeconds))
+  }
+  setIfAbsent(key: string, value: string, ttlSeconds: number) {
+    return this.run((b) => b.setIfAbsent(key, value, ttlSeconds))
+  }
+  acquireLock(key: string, ttlMs: number) {
+    return this.run((b) => b.acquireLock(key, ttlMs))
+  }
+  releaseLock(handle: LockHandle) {
+    return this.run((b) => b.releaseLock(handle))
+  }
+  publish(channel: string, message: string) {
+    return this.run((b) => b.publish(channel, message))
+  }
+  subscribe(channel: string, handler: (message: string) => void) {
+    return this.run((b) => b.subscribe(channel, handler))
+  }
+}
+
 let backend: CacheBackend | null = null
 
 function getBackend(): CacheBackend {
@@ -204,7 +285,9 @@ function getBackend(): CacheBackend {
   if (url) {
     // Lazy require so ioredis is never loaded in environments without Redis.
     const IORedis = require("ioredis") as typeof import("ioredis").default
-    backend = new RedisBackend(new IORedis(url, { maxRetriesPerRequest: 3 }))
+    const redis = new RedisBackend(new IORedis(url, { maxRetriesPerRequest: 3 }))
+    // Redis-backed in production, but never let a Redis outage crash the app.
+    backend = new ResilientBackend(redis, new MemoryBackend())
   } else {
     backend = new MemoryBackend()
   }

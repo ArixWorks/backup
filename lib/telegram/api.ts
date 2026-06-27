@@ -1,8 +1,26 @@
 import "server-only"
 import type { ButtonStyle } from "./config"
+import { CircuitBreaker, withRetry, withTimeout, TimeoutError } from "@/lib/core/resilience"
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null
+
+/** Per-request timeout for a single Telegram API call. */
+const TG_TIMEOUT_MS = 8_000
+/**
+ * Circuit breaker shared across all Telegram calls: if the API is down/slow,
+ * trip after repeated failures and fail fast for a short cool-down instead of
+ * making every request wait on the timeout.
+ */
+const tgBreaker = new CircuitBreaker("telegram", { failureThreshold: 8, resetTimeoutMs: 20_000 })
+
+/** Telegram "Too Many Requests" error carrying the server-advised wait (sec). */
+class TelegramRetryAfter extends Error {
+  constructor(public retryAfter: number) {
+    super(`Telegram rate limited; retry after ${retryAfter}s`)
+    this.name = "TelegramRetryAfter"
+  }
+}
 
 export type InlineButton = {
   text: string
@@ -33,19 +51,59 @@ export function botConfigured(): boolean {
   return Boolean(TOKEN)
 }
 
-async function call<T = any>(method: string, body: Record<string, unknown>): Promise<T> {
-  if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
-  const res = await fetch(`${API}/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  })
-  const data = await res.json()
+/** A single Telegram HTTP attempt, bounded by a timeout + abort signal. */
+async function callOnce<T>(method: string, body: Record<string, unknown>): Promise<T> {
+  const res = await withTimeout(
+    TG_TIMEOUT_MS,
+    (signal) =>
+      fetch(`${API}/${method}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      }),
+    `telegram.${method}`,
+  )
+  const data = await res.json().catch(() => ({ ok: false, description: "Invalid JSON from Telegram" }))
   if (!data.ok) {
-    console.log("[v0] Telegram API error:", method, JSON.stringify(data))
-    throw new Error(data.description || "Telegram API error")
+    // Honor Telegram's flood-control hint so retries back off the right amount.
+    const retryAfter = data.parameters?.retry_after
+    if (res.status === 429 && typeof retryAfter === "number") {
+      throw new TelegramRetryAfter(retryAfter)
+    }
+    // 5xx are transient and worth retrying; 4xx (bad request) are not.
+    const err = new Error(data.description || "Telegram API error") as Error & { status?: number }
+    err.status = res.status
+    throw err
   }
   return data.result as T
+}
+
+/**
+ * Resilient Telegram API call: per-attempt timeout (no hung serverless
+ * invocations on network latency), exponential-backoff retry for transient
+ * failures (timeouts, 5xx, 429 honoring `retry_after`), and a shared circuit
+ * breaker so a sustained outage fails fast instead of stalling every caller.
+ */
+async function call<T = any>(method: string, body: Record<string, unknown>): Promise<T> {
+  if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
+  return tgBreaker.execute(() =>
+    withRetry(() => callOnce<T>(method, body), {
+      attempts: 3,
+      baseDelayMs: 300,
+      maxDelayMs: 5_000,
+      // Retry timeouts, rate limits, and 5xx; never retry a 4xx client error.
+      retryable: (err) =>
+        err instanceof TimeoutError ||
+        err instanceof TelegramRetryAfter ||
+        ((err as { status?: number })?.status ?? 0) >= 500,
+      // When Telegram tells us how long to wait, respect it precisely.
+      delayFor: (err) =>
+        err instanceof TelegramRetryAfter ? err.retryAfter * 1000 : undefined,
+      onRetry: (err, attempt, delay) =>
+        console.log(`[v0] Telegram ${method} retry ${attempt} in ${delay}ms:`, (err as Error).message),
+    }),
+  )
 }
 
 export async function sendMessage(chatId: string | number, text: string, opts: SendOpts = {}) {
