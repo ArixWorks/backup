@@ -68,6 +68,50 @@ export async function checkMemberships(
   return { ok: false, missing }
 }
 
+export type SingleChannelResult = {
+  /** Whether the user is considered joined to this channel. */
+  joined: boolean
+  /**
+   * Whether the bot could ACTUALLY verify membership (it is an admin of the
+   * channel and Telegram returned a real status). When false, `joined` is an
+   * optimistic pass because the bot cannot read membership and therefore cannot
+   * enforce it — matching the bulk check, which skips unreadable channels.
+   */
+  verifiable: boolean
+}
+
+/**
+ * Check membership for a SINGLE required channel — used by the join gate to put
+ * a green tick on the specific channel a user just visited, the moment they
+ * return to the app.
+ *
+ * Semantics requested by product:
+ *  - If the bot is an admin of that channel → do a REAL getChatMember check and
+ *    report the true joined/not-joined status (`verifiable: true`).
+ *  - If the bot is NOT an admin (Telegram errors / can't read) → it cannot
+ *    enforce membership anyway, so optimistically pass (`verifiable: false`).
+ */
+export async function checkSingleChannel(
+  cfg: BotConfig,
+  telegramId: number | string,
+  channelId: string,
+): Promise<SingleChannelResult> {
+  const ch = activeChannels(cfg).find((c) => c.id.trim() === channelId.trim())
+  // Unknown / not-enforced channel → nothing to enforce, treat as passed.
+  if (!ch) return { joined: true, verifiable: false }
+
+  try {
+    const res = await getChatMember(ch.id.trim(), telegramId)
+    const status = res?.status ?? "left"
+    const isMember = JOINED.has(status) || (status === "restricted" && res.is_member === true)
+    return { joined: isMember, verifiable: true }
+  } catch (e) {
+    // Bot isn't admin / can't read this channel → can't enforce, optimistic pass.
+    console.log("[v0] single-channel getChatMember failed for", channelId, (e as Error).message)
+    return { joined: true, verifiable: false }
+  }
+}
+
 /** Drop the cached "passed" flag so the next check re-queries Telegram. */
 export async function clearMembershipCache(telegramId: number | string) {
   await cache.del(passKey(telegramId))
