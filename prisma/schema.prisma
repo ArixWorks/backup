@@ -1147,3 +1147,130 @@ model UserMission {
   @@unique([userId, missionId, periodKey])
   @@index([userId, periodKey])
 }
+
+// ---------------------------------------------------------------------------
+// Operations & Monitoring (Operations Center)
+// ---------------------------------------------------------------------------
+
+enum ServiceStatus {
+  UP
+  DEGRADED
+  DOWN
+  UNKNOWN
+}
+
+enum ErrorSource {
+  WEB
+  MINIAPP
+  BOT
+  API
+  SERVER_ACTION
+  WORKER
+  CRON
+  QUEUE
+  WEBHOOK
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertComparator {
+  GT
+  LT
+}
+
+enum AlertStatus {
+  FIRING
+  RESOLVED
+}
+
+// Time-series store for every collected metric (infra / app / business).
+// Kept compact; old rows are pruned by the monitor cron.
+model MetricSample {
+  id        String   @id @default(cuid())
+  name      String // metric key, e.g. "system.cpu.load1" or "app.rps"
+  value     Float
+  labels    Json? // optional dimensions, e.g. { service: "api", route: "/x" }
+  capturedAt DateTime @default(now())
+
+  @@index([name, capturedAt])
+  @@index([capturedAt])
+}
+
+// Latest health snapshot per service (upserted on each probe run).
+model ServiceHealth {
+  id        String        @id @default(cuid())
+  service   String        @unique // registry key, e.g. "postgres", "bot"
+  status    ServiceStatus @default(UNKNOWN)
+  latencyMs Float?
+  message   String?
+  meta      Json?
+  checkedAt DateTime      @default(now())
+
+  @@index([status])
+}
+
+// Sentry-style grouped error events (deduplicated by fingerprint).
+model ErrorEvent {
+  id          String      @id @default(cuid())
+  level       String      @default("error") // error | warning | info | fatal
+  source      ErrorSource @default(API)
+  name        String // error class / type
+  message     String
+  stack       String?
+  fingerprint String      @unique // grouping key (source + name + norm message)
+  context     Json?
+  userId      String?
+  release     String?
+  count       Int         @default(1)
+  resolved    Boolean     @default(false)
+  resolvedAt  DateTime?
+  firstSeenAt DateTime    @default(now())
+  lastSeenAt  DateTime    @default(now())
+
+  @@index([resolved, lastSeenAt])
+  @@index([source, lastSeenAt])
+}
+
+// Threshold/anomaly rule that drives alerting.
+model AlertRule {
+  id             String          @id @default(cuid())
+  name           String
+  metric         String // metric key this rule watches
+  comparator     AlertComparator @default(GT)
+  threshold      Float
+  forSeconds     Int             @default(0) // sustained duration before firing
+  severity       AlertSeverity   @default(WARNING)
+  channels       Json            @default("[\"dashboard\"]") // ["telegram","email","dashboard"]
+  enabled        Boolean         @default(true)
+  cooldownSeconds Int            @default(900)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  events AlertEvent[]
+
+  @@index([enabled])
+}
+
+// A fired alert occurrence (open → resolved lifecycle).
+model AlertEvent {
+  id         String        @id @default(cuid())
+  ruleId     String?
+  rule       AlertRule?    @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  title      String
+  severity   AlertSeverity @default(WARNING)
+  status     AlertStatus   @default(FIRING)
+  metric     String?
+  value      Float?
+  message    String
+  meta       Json?
+  acked      Boolean       @default(false)
+  startedAt  DateTime      @default(now())
+  resolvedAt DateTime?
+
+  @@index([status, startedAt])
+  @@index([severity, startedAt])
+}
