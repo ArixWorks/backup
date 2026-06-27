@@ -159,3 +159,29 @@ export const TIER_META: Record<Tier, TierVisual> = {
 export function tierLabelKey(tier: Tier): string {
   return `tier.${tier.toLowerCase()}`
 }
+
+/**
+ * Localized tier labels for non-React surfaces (the Telegram bot) that can't use
+ * the client i18n provider. Mirrors the web i18n `tier.*` keys. Falls back to fa.
+ */
+export const TIER_LABELS_BY_LOCALE: Record<string, Record<Tier, string>> = {
+  fa: { STANDARD: "استاندارد", BRONZE: "برنزی", SILVER: "نقره‌ای", GOLD: "طلایی", DIAMOND: "دایموند", VIP: "وی‌آی‌پی" },
+  en: { STANDARD: "Standard", BRONZE: "Bronze", SILVER: "Silver", GOLD: "Gold", DIAMOND: "Diamond", VIP: "VIP" },
+  ru: { STANDARD: "Стандарт", BRONZE: "Бронза", SILVER: "Серебро", GOLD: "Золото", DIAMOND: "Бриллиант", VIP: "VIP" },
+  hi: { STANDARD: "स्टैंडर्ड", BRONZE: "ब्रॉन्ज़", SILVER: "सिल्वर", GOLD: "गोल्ड", DIAMOND: "डायमंड", VIP: "VIP" },
+}
+
+/** A short emoji that visually matches each tier (used by the bot). */
+export const TIER_EMOJI: Record<Tier, string> = {
+  STANDARD: "▫️",
+  BRONZE: "🥉",
+  SILVER: "🥈",
+  GOLD: "🥇",
+  DIAMOND: "💎",
+  VIP: "👑",
+}
+
+/** Localized tier label with safe fallback to Persian. */
+export function tierLabelFor(tier: Tier, locale: string): string {
+  return (TIER_LABELS_BY_LOCALE[locale] ?? TIER_LABELS_BY_LOCALE.fa)[tier]
+}

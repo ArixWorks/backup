@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db"
 import { SETTING_KEYS, getSetting, toNumber } from "./settings"
 import { VIP_TIER_LABELS } from "./gamification"
-import type { VipTier } from "@prisma/client"
+import type { Tier } from "@/lib/tiers"
 
 /** "YYYY-MM-DD" for a date in server-local time (matches lastLoginDay format). */
 function dayKey(d: Date): string {
@@ -41,7 +41,7 @@ export interface GrowthAnalytics {
   loyalty: {
     totalPointsInCirculation: number
     vipMembers: number // anyone above STANDARD
-    tierDistribution: { tier: VipTier; label: string; count: number }[]
+    tierDistribution: { tier: Tier; label: string; count: number }[]
     newVipLast30: number
   }
   // 14-day signup trend for the chart
@@ -106,7 +106,7 @@ export async function getGrowthAnalytics(): Promise<GrowthAnalytics> {
 
   // Build EARNED tier distribution in canonical order. Legacy PLATINUM rows are
   // folded into DIAMOND. Exclusive VIP is an admin grant tracked separately.
-  const tierOrder: VipTier[] = ["STANDARD", "BRONZE", "SILVER", "GOLD", "DIAMOND"]
+  const tierOrder: Tier[] = ["STANDARD", "BRONZE", "SILVER", "GOLD", "DIAMOND"]
   const tierCountMap = new Map<string, number>()
   for (const g of tierGroups) {
     const key = g.vipTier === "PLATINUM" ? "DIAMOND" : g.vipTier

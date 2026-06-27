@@ -29,6 +29,8 @@ import { checkMemberships, clearMembershipCache, forcedJoinActive } from "./memb
 import { resolveTelegramUser } from "./user"
 import { setPending, getPending, clearPending } from "./state"
 import { getBalances } from "@/lib/core/wallet"
+import { effectiveTier, tierLabelFor, TIER_EMOJI } from "@/lib/tiers"
+import { tierDiscountPercent } from "@/lib/core/gamification"
 import { attachReferral, rewardReferralJoin, getReferralStats } from "@/lib/core/rewards"
 import { notifyReferralJoined } from "./notify"
 import { getOrdersForUser, listAuctions, getFlashProduct, type FlashSaleSummary } from "@/lib/core/catalog"
@@ -212,9 +214,16 @@ async function showWallet(chatId: number, user: User, editId?: number) {
     frozen: price(c, locale, b.frozenBalance),
     available: price(c, locale, b.availableBalance),
   })
+  // Append the membership tier so the bot matches the web app. VIP overrides
+  // the earned tier when an active manual grant exists.
+  const tier = effectiveTier(user)
+  const discount = await tierDiscountPercent(tier)
+  let tierLine = `\n\n${TIER_EMOJI[tier]} <b>${esc(tierLabelFor(tier, locale))}</b>`
+  if (discount > 0) tierLine += ` · ${esc(String(discount))}%`
+  const body = `${html}${tierLine}`
   const markup = walletMenu(c, locale)
-  if (editId) await editMessageText(chatId, editId, html, { replyMarkup: markup })
-  else await sendMessage(chatId, html, { replyMarkup: markup })
+  if (editId) await editMessageText(chatId, editId, body, { replyMarkup: markup })
+  else await sendMessage(chatId, body, { replyMarkup: markup })
 }
 
 async function showOrders(chatId: number, user: User, editId?: number) {

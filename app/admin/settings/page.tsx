@@ -21,7 +21,29 @@ const KEYS = {
   referralCommissionPercent: "referral.commissionPercent",
   referralMaxPerUser: "referral.maxPerUser",
   referralMinAccountAgeMin: "referral.minAccountAgeMin",
+  // Earned-tier thresholds (lifetime points + spend) and per-tier discounts.
+  vipBronzePoints: "vip.bronze.points",
+  vipSilverPoints: "vip.silver.points",
+  vipGoldPoints: "vip.gold.points",
+  vipDiamondPoints: "vip.diamond.points",
+  vipBronzeSpend: "vip.bronze.spend",
+  vipSilverSpend: "vip.silver.spend",
+  vipGoldSpend: "vip.gold.spend",
+  vipDiamondSpend: "vip.diamond.spend",
+  tierDiscountBronze: "tier.discount.bronze",
+  tierDiscountSilver: "tier.discount.silver",
+  tierDiscountGold: "tier.discount.gold",
+  tierDiscountDiamond: "tier.discount.diamond",
+  tierDiscountVip: "tier.discount.vip",
 } as const
+
+// Earned tiers configured in the admin tier table (VIP discount is separate).
+const TIER_ROWS = [
+  { id: "Bronze", label: "برنزی", points: "vipBronzePoints", spend: "vipBronzeSpend", discount: "tierDiscountBronze" },
+  { id: "Silver", label: "نقره‌ای", points: "vipSilverPoints", spend: "vipSilverSpend", discount: "tierDiscountSilver" },
+  { id: "Gold", label: "طلایی", points: "vipGoldPoints", spend: "vipGoldSpend", discount: "tierDiscountGold" },
+  { id: "Diamond", label: "دایموند", points: "vipDiamondPoints", spend: "vipDiamondSpend", discount: "tierDiscountDiamond" },
+] as const
 
 type Settings = Record<string, string>
 
@@ -44,17 +66,12 @@ export default function AdminSettingsPage() {
   async function save() {
     setSaving(true)
     try {
-      await apiPatch("/api/v1/admin/settings", {
-        [KEYS.cashbackEnabled]: form[KEYS.cashbackEnabled],
-        [KEYS.cashbackPercent]: form[KEYS.cashbackPercent],
-        [KEYS.referralEnabled]: form[KEYS.referralEnabled],
-        [KEYS.referralReferrerBonus]: form[KEYS.referralReferrerBonus],
-        [KEYS.referralRefereeBonus]: form[KEYS.referralRefereeBonus],
-        [KEYS.referralJoinBonus]: form[KEYS.referralJoinBonus],
-        [KEYS.referralCommissionPercent]: form[KEYS.referralCommissionPercent],
-        [KEYS.referralMaxPerUser]: form[KEYS.referralMaxPerUser],
-        [KEYS.referralMinAccountAgeMin]: form[KEYS.referralMinAccountAgeMin],
-      })
+      // Persist only the keys this page manages (each mapped from `form`).
+      const payload: Settings = {}
+      for (const key of Object.values(KEYS)) {
+        if (form[key] !== undefined) payload[key] = form[key]
+      }
+      await apiPatch("/api/v1/admin/settings", payload)
       toast.success("تنظیمات ذخیره شد")
       await mutate()
     } catch (err) {
@@ -199,6 +216,60 @@ export default function AdminSettingsPage() {
               placeholder="0"
             />
           </Field>
+
+          <div className="space-y-3 border-t border-border pt-4">
+            <div className="space-y-1">
+              <div className="text-sm font-bold text-foreground">سطوح عضویت (باشگاه مشتریان)</div>
+              <div className="text-xs text-muted-foreground">
+                هر سطح با رسیدن به امتیاز مادام‌العمر یا مجموع خرید (هرکدام زودتر) فعال می‌شود. تخفیف
+                سطح با کد تخفیف جمع نمی‌شود؛ بیشترین مقدار اعمال می‌شود.
+              </div>
+            </div>
+
+            {TIER_ROWS.map((row) => (
+              <div key={row.id} className="rounded-lg border border-border bg-secondary/40 p-3">
+                <div className="mb-2.5 text-sm font-bold">{row.label}</div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Field label="امتیاز لازم" hint="امتیاز مادام‌العمر">
+                    <Input
+                      type="number"
+                      value={form[KEYS[row.points]] ?? ""}
+                      onChange={(e) => set(KEYS[row.points], e.target.value)}
+                      placeholder="0"
+                    />
+                  </Field>
+                  <Field label="خرید لازم (تومان)" hint="مجموع خرید">
+                    <Input
+                      type="number"
+                      value={form[KEYS[row.spend]] ?? ""}
+                      onChange={(e) => set(KEYS[row.spend], e.target.value)}
+                      placeholder="0"
+                    />
+                  </Field>
+                  <Field label="تخفیف (٪)" hint="روی محصولات">
+                    <Input
+                      type="number"
+                      value={form[KEYS[row.discount]] ?? ""}
+                      onChange={(e) => set(KEYS[row.discount], e.target.value)}
+                      placeholder="0"
+                    />
+                  </Field>
+                </div>
+              </div>
+            ))}
+
+            <Field
+              label="تخفیف عضویت ویژه VIP (٪)"
+              hint="تخفیف اعضای VIP که توسط ادمین به‌صورت دستی اعطا می‌شود"
+            >
+              <Input
+                type="number"
+                value={form[KEYS.tierDiscountVip] ?? ""}
+                onChange={(e) => set(KEYS.tierDiscountVip, e.target.value)}
+                placeholder="10"
+              />
+            </Field>
+          </div>
 
           <div className="flex justify-end">
             <Button onClick={save} disabled={saving} className="gap-1.5">

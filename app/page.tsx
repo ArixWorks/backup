@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { ArrowLeft, Gavel, Zap, Wallet, Gift, Plus, Crown, ShoppingBag } from "lucide-react"
+import { ArrowLeft, Gavel, Zap, Wallet, Gift, Plus, ShoppingBag, BadgePercent } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
@@ -11,6 +11,7 @@ import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
 import { RecommendedRail } from "@/components/recommended-rail"
 import { Stagger, FadeItem, Pressable } from "@/components/motion"
+import { MembershipBadge } from "@/components/membership-badge"
 
 const quickActions: { href: string; label: MessageKey; icon: typeof Gavel }[] = [
   { href: "/auctions", label: "nav.auctions", icon: Gavel },
@@ -40,15 +41,24 @@ export default function HomePage() {
       {/* VIP balance hero */}
       <FadeItem>
         <section className="gold-border sheen surface-glow relative overflow-hidden p-5 shadow-xl shadow-primary/5">
-          <div className="relative z-[2] flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
+          <div className="relative z-[2] flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate text-sm text-muted-foreground">
               {t("home.welcome")}{user?.displayName ? ` ${user.displayName}` : ""}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-gold">
-              <Crown className="h-3 w-3 text-primary" />
-              {t("common.vip")}
-            </span>
+            {user ? (
+              <Link href="/rewards" className="shrink-0">
+                <MembershipBadge tier={user.membership.tier} />
+              </Link>
+            ) : null}
           </div>
+
+          {/* Tier discount perk hint (only when the tier unlocks a discount). */}
+          {user && user.membership.discountPercent > 0 ? (
+            <div className="relative z-[2] mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-gold">
+              <BadgePercent className="h-3.5 w-3.5 text-primary" />
+              {t("membership.discount").replace("{n}", String(user.membership.discountPercent))}
+            </div>
+          ) : null}
 
           <div className="relative z-[2] mt-5 flex items-center gap-2 text-xs text-muted-foreground">
             <Wallet className="h-4 w-4 text-primary" />
