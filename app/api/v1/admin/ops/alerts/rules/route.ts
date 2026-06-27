@@ -50,12 +50,14 @@ export const PATCH = route(async (req: Request) => {
   return rule
 })
 
-const deleteSchema = z.object({ id: z.string().min(1) })
-
-/** DELETE ops/alerts/rules -> remove a rule */
+/** DELETE ops/alerts/rules?id=... -> remove a rule */
 export const DELETE = route(async (req: Request) => {
   await requireAdmin()
-  const { id } = deleteSchema.parse(await req.json())
+  const id = new URL(req.url).searchParams.get("id")
+  if (!id) {
+    const { ValidationError } = await import("@/lib/core/errors")
+    throw new ValidationError("شناسه قانون لازم است")
+  }
   await prisma.alertRule.delete({ where: { id } })
   return { id }
 })

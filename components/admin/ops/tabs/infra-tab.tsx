@@ -58,7 +58,10 @@ export function InfraTab({ range }: { range: string }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {(isLoading ? featured.map((n) => ({ name: n, value: null, severity: "ok" as const })) : featuredKpis).map(
+        {(isLoading
+          ? featured.map((n) => ({ name: n, value: null, unit: undefined, severity: "ok" as const }))
+          : featuredKpis
+        ).map(
           (k) => {
             const Icon = ICONS[k.name] ?? Activity
             return (

@@ -38,7 +38,8 @@ type Overview = {
 
 type SeriesResp = { series: Record<string, { t: string; value: number }[]> }
 
-export function OverviewTab() {
+export function OverviewTab({ range = "24h" }: { range?: string }) {
+  void range
   const { data: ov, isLoading } = useOpsData<Overview>("/api/v1/admin/ops/overview", {
     on: ["metrics", "health", "alert", "alert_resolved"],
     refreshInterval: 10000,

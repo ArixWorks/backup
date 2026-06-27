@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db"
 import { cache } from "@/lib/redis"
 import type { AlertComparator, AlertSeverity } from "@prisma/client"
 import { dispatchAlert, type AlertChannel } from "./dispatch"
-import { metricDef } from "./registry"
+import { metricDef, METRICS } from "./registry"
 import type { HealthResult } from "./health"
 
 /**
@@ -187,4 +187,35 @@ export async function evaluateHealthAlerts(results: HealthResult[]): Promise<{ f
 function formatVal(n: number): string {
   if (Number.isInteger(n)) return String(n)
   return n.toFixed(2)
+}
+
+/**
+ * Idempotently create a sensible set of default alert rules derived from the
+ * registry's `critical` thresholds. Safe to call repeatedly: each rule has a
+ * deterministic name and is only created if no rule with that name exists.
+ * Runs lazily on first collection so a fresh install has working alerts.
+ */
+export async function seedDefaultAlertRules(): Promise<number> {
+  // Cheap guard so we don't query on every collection cycle.
+  const marker = "ops:rules_seeded"
+  if (!(await cache.setIfAbsent(marker, "1", 3600))) return 0
+
+  const existing = await prisma.alertRule.findMany({ select: { name: true } })
+  const have = new Set(existing.map((r) => r.name))
+
+  const defaults = METRICS.filter((m) => m.critical != null).map((m) => ({
+    name: `${m.label} بحرانی`,
+    metric: m.name,
+    comparator: (m.direction ?? "GT") as AlertComparator,
+    threshold: m.critical as number,
+    forSeconds: m.category === "infra" ? 120 : 60,
+    severity: "CRITICAL" as AlertSeverity,
+    channels: ["telegram", "email", "dashboard"],
+    cooldownSeconds: 900,
+  }))
+
+  const toCreate = defaults.filter((d) => !have.has(d.name))
+  if (toCreate.length === 0) return 0
+  await prisma.alertRule.createMany({ data: toCreate })
+  return toCreate.length
 }

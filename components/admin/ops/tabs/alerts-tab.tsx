@@ -86,9 +86,9 @@ export function AlertsTab() {
 
   async function deleteRule(id: string) {
     try {
-      await apiDelete("/api/v1/admin/ops/alerts/rules", { id } as never)
+      await apiDelete(`/api/v1/admin/ops/alerts/rules?id=${encodeURIComponent(id)}`)
     } catch {
-      // apiDelete may not accept a body in this client; fall back to POST-less path
+      toast.error("حذف قانون ناموفق بود")
     }
     void mutateRules()
   }

@@ -10,7 +10,7 @@ import {
 import { getBusinessMetrics, businessToSamples } from "./business"
 import { checkAll, type HealthResult } from "./health"
 import { readHeartbeat } from "./heartbeat"
-import { evaluateMetricAlerts, evaluateHealthAlerts } from "./alerts"
+import { evaluateMetricAlerts, evaluateHealthAlerts, seedDefaultAlertRules } from "./alerts"
 import { emitOps } from "@/lib/core/events"
 
 /**
@@ -23,6 +23,9 @@ export async function runCollection(): Promise<{
   health: HealthResult[]
   alerts: { fired: number; resolved: number }
 }> {
+  // Lazily ensure default alert rules exist (idempotent, throttled internally).
+  await seedDefaultAlertRules().catch(() => {})
+
   const samples: MetricInput[] = []
   const add = (name: string, value: number | null | undefined) => {
     if (value != null && Number.isFinite(value)) samples.push({ name, value })
