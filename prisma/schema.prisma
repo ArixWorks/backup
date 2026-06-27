@@ -205,8 +205,14 @@ model User {
   lifetimePoints   Int       @default(0)
   // totalSpent is lifetime spend in IRT minor units, the other VIP driver.
   totalSpent       BigInt    @default(0)
+  // vipTier holds the EARNED auto tier (STANDARD..DIAMOND), never VIP.
   vipTier          VipTier   @default(STANDARD)
   vipSince         DateTime?
+  // Exclusive VIP membership, granted only by an admin. When vipManual is true
+  // (and not past vipManualExpiresAt) the user's effective tier is VIP,
+  // overriding their earned tier. Admin can toggle it on/off at any time.
+  vipManual          Boolean   @default(false)
+  vipManualExpiresAt DateTime?
   // Daily-login streak tracking for the "daily login" mission.
   lastLoginDay     String?   // "YYYY-MM-DD" of the last counted login
   loginStreak      Int       @default(0)
@@ -1019,9 +1025,15 @@ model GiveawayWinner {
 
 enum VipTier {
   STANDARD
+  BRONZE
   SILVER
   GOLD
+  DIAMOND
+  // PLATINUM is deprecated (migrated to DIAMOND). Kept because Postgres cannot
+  // drop an enum value; no new rows should ever use it.
   PLATINUM
+  // VIP is an exclusive, admin-granted membership (see vipManual). The auto
+  // ladder never assigns VIP; it is layered on top via vipManual.
   VIP
 }
 

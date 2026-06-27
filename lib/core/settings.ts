@@ -26,16 +26,23 @@ export const SETTING_KEYS = {
   pointsPerGiveawayEntry: "loyalty.pointsPerGiveawayEntry",
   pointsDailyLogin: "loyalty.pointsDailyLogin",
   pointsProfileComplete: "loyalty.pointsProfileComplete",
-  // Lifetime-points thresholds for each VIP tier (combined with spend thresholds).
+  // Lifetime-points thresholds for each earned tier (combined with spend).
+  vipBronzePoints: "vip.bronze.points",
   vipSilverPoints: "vip.silver.points",
   vipGoldPoints: "vip.gold.points",
-  vipPlatinumPoints: "vip.platinum.points",
-  vipVipPoints: "vip.vip.points",
-  // Lifetime-spend thresholds (Toman) for each VIP tier.
+  vipDiamondPoints: "vip.diamond.points",
+  // Lifetime-spend thresholds (Toman) for each earned tier.
+  vipBronzeSpend: "vip.bronze.spend",
   vipSilverSpend: "vip.silver.spend",
   vipGoldSpend: "vip.gold.spend",
-  vipPlatinumSpend: "vip.platinum.spend",
-  vipVipSpend: "vip.vip.spend",
+  vipDiamondSpend: "vip.diamond.spend",
+  // Per-tier product discount (percent). The user's tier discount and any
+  // coupon do NOT stack — the larger of the two is applied at checkout.
+  tierDiscountBronze: "tier.discount.bronze",
+  tierDiscountSilver: "tier.discount.silver",
+  tierDiscountGold: "tier.discount.gold",
+  tierDiscountDiamond: "tier.discount.diamond",
+  tierDiscountVip: "tier.discount.vip",
 
   // --- Appearance ---
   themeActive: "theme.active", // one of THEME_IDS, applied to <html data-theme>
@@ -85,14 +92,20 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.pointsPerGiveawayEntry]: "5",
   [SETTING_KEYS.pointsDailyLogin]: "10",
   [SETTING_KEYS.pointsProfileComplete]: "50",
+  [SETTING_KEYS.vipBronzePoints]: "200",
   [SETTING_KEYS.vipSilverPoints]: "500",
   [SETTING_KEYS.vipGoldPoints]: "2000",
-  [SETTING_KEYS.vipPlatinumPoints]: "5000",
-  [SETTING_KEYS.vipVipPoints]: "15000",
+  [SETTING_KEYS.vipDiamondPoints]: "5000",
+  [SETTING_KEYS.vipBronzeSpend]: "300000", // 300K Toman
   [SETTING_KEYS.vipSilverSpend]: "1000000", // 1M Toman
   [SETTING_KEYS.vipGoldSpend]: "5000000",
-  [SETTING_KEYS.vipPlatinumSpend]: "20000000",
-  [SETTING_KEYS.vipVipSpend]: "50000000",
+  [SETTING_KEYS.vipDiamondSpend]: "20000000",
+  // Modest, sustainable tier discounts (percent).
+  [SETTING_KEYS.tierDiscountBronze]: "1",
+  [SETTING_KEYS.tierDiscountSilver]: "2",
+  [SETTING_KEYS.tierDiscountGold]: "3",
+  [SETTING_KEYS.tierDiscountDiamond]: "5",
+  [SETTING_KEYS.tierDiscountVip]: "10",
 
   [SETTING_KEYS.themeActive]: DEFAULT_THEME,
 }

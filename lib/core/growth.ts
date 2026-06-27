@@ -104,14 +104,27 @@ export async function getGrowthAnalytics(): Promise<GrowthAnalytics> {
     where: { lastLoginDay: { gte: dayKey(day30) } },
   })
 
-  // Build tier distribution in canonical order.
-  const tierOrder: VipTier[] = ["STANDARD", "SILVER", "GOLD", "PLATINUM", "VIP"]
-  const tierCountMap = new Map(tierGroups.map((g) => [g.vipTier, g._count._all]))
+  // Build EARNED tier distribution in canonical order. Legacy PLATINUM rows are
+  // folded into DIAMOND. Exclusive VIP is an admin grant tracked separately.
+  const tierOrder: VipTier[] = ["STANDARD", "BRONZE", "SILVER", "GOLD", "DIAMOND"]
+  const tierCountMap = new Map<string, number>()
+  for (const g of tierGroups) {
+    const key = g.vipTier === "PLATINUM" ? "DIAMOND" : g.vipTier
+    tierCountMap.set(key, (tierCountMap.get(key) ?? 0) + g._count._all)
+  }
   const tierDistribution = tierOrder.map((tier) => ({
     tier,
     label: VIP_TIER_LABELS[tier],
     count: tierCountMap.get(tier) ?? 0,
   }))
+  // Append the exclusive VIP membership (manual, active grants only).
+  const vipActiveCount = await prisma.user.count({
+    where: {
+      vipManual: true,
+      OR: [{ vipManualExpiresAt: null }, { vipManualExpiresAt: { gt: now } }],
+    },
+  })
+  tierDistribution.push({ tier: "VIP", label: VIP_TIER_LABELS.VIP, count: vipActiveCount })
 
   // 14-day signup trend, zero-filled.
   const trendMap = new Map<string, number>()

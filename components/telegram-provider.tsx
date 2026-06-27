@@ -21,6 +21,11 @@ type Inset = { top: number; bottom: number; left: number; right: number }
 type TelegramWebApp = {
   initData: string
   version?: string
+  /**
+   * Client platform: "android" | "ios" | "tdesktop" | "macos" | "weba" |
+   * "webk" | "web" | "unknown". We only request true fullscreen on phones.
+   */
+  platform?: string
   isFullscreen?: boolean
   safeAreaInset?: Inset
   contentSafeAreaInset?: Inset
@@ -82,10 +87,14 @@ export function TelegramProvider() {
             wa.setBackgroundColor?.(BG)
 
             // True fullscreen is Bot API 8.0+. Guard so older clients don't throw.
+            // Only request it on phones (android/ios). On desktop / web clients
+            // fullscreen makes the app awkwardly fill the whole window, so there
+            // we stick with expand() only.
+            const isMobile = wa.platform === "android" || wa.platform === "ios"
             const supportsFullscreen =
               typeof wa.requestFullscreen === "function" &&
               (wa.isVersionAtLeast?.("8.0") ?? false)
-            if (supportsFullscreen) {
+            if (isMobile && supportsFullscreen) {
               wa.requestFullscreen?.()
               document.documentElement.dataset.tgFullscreen = "1"
             }

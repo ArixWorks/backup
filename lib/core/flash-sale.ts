@@ -7,6 +7,7 @@ import { spendAvailable } from "./wallet"
 import { createManualDelivery, reserveAndDeliverAuto } from "./delivery"
 import { evaluateCoupon, redeemCoupon } from "./coupons"
 import { applyPurchaseRewards } from "./rewards"
+import { getEffectiveTier, tierDiscountPercent } from "./gamification"
 
 const RESERVATION_TTL_SECONDS = 600 // 10 minutes
 
@@ -185,12 +186,28 @@ export async function purchaseFixed(opts: {
 
       // Evaluate coupon (if any) against the pre-discount total. Throws a
       // ValidationError on any rule violation -> rolls back the whole tx.
-      let discount = 0n
+      let couponDiscount = 0n
       let couponId: string | null = null
       if (opts.couponCode) {
         const evaluated = await evaluateCoupon(tx, opts.couponCode, totalPrice, opts.userId)
         couponId = evaluated.couponId
-        discount = evaluated.preview.discount
+        couponDiscount = evaluated.preview.discount
+      }
+
+      // Membership-tier discount on the same pre-discount total. The tier
+      // discount and the coupon do NOT stack — we apply whichever is larger.
+      const effectiveTier = await getEffectiveTier(opts.userId, tx)
+      const tierPct = await tierDiscountPercent(effectiveTier, tx)
+      const tierDiscount = tierPct > 0 ? (totalPrice * BigInt(tierPct)) / 100n : 0n
+
+      let discount: bigint
+      if (tierDiscount >= couponDiscount) {
+        // Tier wins (or ties): apply it and DON'T consume the coupon, so the
+        // user keeps their coupon for later.
+        discount = tierDiscount
+        couponId = null
+      } else {
+        discount = couponDiscount
       }
       const chargeTotal = totalPrice - discount
 
