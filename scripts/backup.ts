@@ -10,10 +10,11 @@
  */
 import { writeFileSync, mkdirSync, existsSync } from "node:fs"
 import { gzipSync } from "node:zlib"
+import { createHash } from "node:crypto"
 import { Prisma, PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
-const FORMAT_VERSION = 2
+const FORMAT_VERSION = 3
 
 function topoSorted(): { name: string; delegate: string }[] {
   const models = Prisma.dmmf.datamodel.models
@@ -58,16 +59,20 @@ async function main() {
     tables[m.name] = rows.length
     total += rows.length
   }
-  const payload = { format: FORMAT_VERSION, createdAt: new Date().toISOString(), order: models.map((m) => m.name), tables, data }
+  const createdAt = new Date().toISOString()
+  const order = models.map((m) => m.name)
+  const checksum = createHash("sha256").update(JSON.stringify({ order, tables, data }, replacer)).digest("hex")
+  const payload = { format: FORMAT_VERSION, createdAt, checksum, order, tables, data }
   const buf = gzipSync(Buffer.from(JSON.stringify(payload, replacer), "utf8"), { level: 9 })
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+  const stamp = createdAt.replace(/[:.]/g, "-").slice(0, 19)
   const out = process.env.BACKUP_OUT ?? `./backups/subio-backup-${stamp}.json.gz`
   if (!process.env.BACKUP_OUT && !existsSync("./backups")) mkdirSync("./backups", { recursive: true })
   writeFileSync(out, buf)
 
   console.log(`✅ backup written: ${out}`)
   console.log(`   ${total.toLocaleString()} rows, ${(buf.byteLength / 1024).toFixed(1)} KB compressed`)
+  console.log(`   sha256: ${checksum}`)
   await prisma.$disconnect()
 }
 

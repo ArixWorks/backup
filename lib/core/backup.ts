@@ -1,5 +1,6 @@
 import "server-only"
 import { gzipSync, gunzipSync } from "node:zlib"
+import { createHash } from "node:crypto"
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 
@@ -17,7 +18,18 @@ import { prisma } from "@/lib/db"
  * settings, support tickets, monitoring — all 45 models.
  */
 
-export const BACKUP_FORMAT_VERSION = 2
+export const BACKUP_FORMAT_VERSION = 3
+/** Format versions this build can safely restore. */
+export const SUPPORTED_FORMATS = new Set<number>([2, 3])
+
+/**
+ * Deterministic SHA-256 over the meaningful backup content (order + per-table
+ * counts + rows). Computed on the pre-revive object using the same replacer as
+ * serialization so backup-side and restore-side hashes match byte-for-byte.
+ */
+function contentChecksum(content: { order: unknown; tables: unknown; data: unknown }): string {
+  return createHash("sha256").update(JSON.stringify(content, jsonReplacer)).digest("hex")
+}
 
 /** A model whose rows we will dump/restore, with its Prisma delegate name. */
 type ModelMeta = {
@@ -100,6 +112,8 @@ export type BackupMeta = {
   totalRows: number
   createdAt: string
   tables: Record<string, number>
+  format: number
+  checksum: string
 }
 
 export type BackupResult = BackupMeta & { buffer: Buffer }
@@ -125,25 +139,87 @@ export async function createBackup(): Promise<BackupResult> {
     totalRows += rows.length
   }
 
+  const createdAt = new Date().toISOString()
+  const order = models.map((m) => m.name)
+  const checksum = contentChecksum({ order, tables, data })
+
   const payload = {
     format: BACKUP_FORMAT_VERSION,
-    createdAt: new Date().toISOString(),
-    order: models.map((m) => m.name),
+    createdAt,
+    checksum,
+    order,
     tables,
     data,
   }
 
   const json = JSON.stringify(payload, jsonReplacer)
   const buffer = gzipSync(Buffer.from(json, "utf8"), { level: 9 })
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+  const stamp = createdAt.replace(/[:.]/g, "-").slice(0, 19)
 
   return {
     buffer,
     filename: `subio-backup-${stamp}.json.gz`,
     sizeBytes: buffer.byteLength,
     totalRows,
-    createdAt: payload.createdAt,
+    createdAt,
     tables,
+    format: BACKUP_FORMAT_VERSION,
+    checksum,
+  }
+}
+
+/**
+ * Validate a backup buffer WITHOUT writing anything: decompresses, parses,
+ * checks the format version, and verifies the SHA-256 content checksum. Used
+ * by the admin UI to vet an uploaded file before a destructive restore, and by
+ * the restore path itself. Throws a human-readable (fa) error on any problem.
+ */
+export function verifyBackup(buffer: Buffer): {
+  format: number
+  checksum: string
+  totalRows: number
+  tables: Record<string, number>
+  createdAt: string
+} {
+  let json: string
+  try {
+    json = gunzipSync(buffer).toString("utf8")
+  } catch {
+    throw new Error("فایل پشتیبان خراب است: از حالت فشرده خارج نشد (gzip نامعتبر).")
+  }
+  let parsed: {
+    format?: number
+    createdAt?: string
+    checksum?: string
+    order?: string[]
+    tables?: Record<string, number>
+    data?: Record<string, unknown[]>
+  }
+  try {
+    parsed = JSON.parse(json)
+  } catch {
+    throw new Error("فایل پشتیبان خراب است: ساختار JSON نامعتبر.")
+  }
+  if (parsed.format == null || !SUPPORTED_FORMATS.has(parsed.format)) {
+    throw new Error(`نسخه‌ی فرمت پشتیبان پشتیبانی نمی‌شود: ${String(parsed.format)}.`)
+  }
+  if (!parsed.data || typeof parsed.data !== "object") {
+    throw new Error("فایل پشتیبان نامعتبر است (داده‌ای یافت نشد).")
+  }
+  // Checksum is present from v3 onward; verify when available.
+  if (parsed.checksum) {
+    const recomputed = contentChecksum({ order: parsed.order, tables: parsed.tables, data: parsed.data })
+    if (recomputed !== parsed.checksum) {
+      throw new Error("صحت فایل پشتیبان تأیید نشد: checksum منطبق نیست (فایل خراب یا دستکاری‌شده).")
+    }
+  }
+  const totalRows = Object.values(parsed.tables ?? {}).reduce((a, b) => a + (b as number), 0)
+  return {
+    format: parsed.format,
+    checksum: parsed.checksum ?? "",
+    totalRows,
+    tables: parsed.tables ?? {},
+    createdAt: parsed.createdAt ?? "",
   }
 }
 
@@ -165,6 +241,10 @@ export type RestoreSummary = {
  *     then update in a second pass so inviter links are preserved.
  */
 export async function restoreBackup(buffer: Buffer): Promise<RestoreSummary> {
+  // Validate FIRST (decompress, parse, version, checksum). This guarantees we
+  // never TRUNCATE the live database for a corrupted/incompatible file.
+  verifyBackup(buffer)
+
   const json = gunzipSync(buffer).toString("utf8")
   const parsed = JSON.parse(json) as {
     format?: number

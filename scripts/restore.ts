@@ -6,11 +6,17 @@
  *
  * Run `prisma migrate deploy` first so the schema exists on the target DB.
  */
-import { readFileSync } from "node:fs"
+import { readFileSync, existsSync } from "node:fs"
 import { gunzipSync } from "node:zlib"
+import { createHash } from "node:crypto"
 import { Prisma, PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient()
+const SUPPORTED_FORMATS = new Set<number>([2, 3])
+
+function replacer(_k: string, v: unknown) {
+  return typeof v === "bigint" ? { __t: "bigint", v: v.toString() } : v
+}
 
 function topoSorted(): { name: string; delegate: string }[] {
   const models = Prisma.dmmf.datamodel.models
@@ -60,10 +66,49 @@ async function main() {
     console.error("⛔ refusing to restore. Set CONFIRM_RESTORE=ERASE to confirm (this WIPES the database).")
     process.exit(1)
   }
+  if (!existsSync(file)) {
+    console.error(`❌ backup file not found: ${file}`)
+    process.exit(1)
+  }
 
-  const parsed = JSON.parse(gunzipSync(readFileSync(file)).toString("utf8")) as {
+  // Validate BEFORE touching the DB: gunzip, parse, version, checksum.
+  let raw: string
+  try {
+    raw = gunzipSync(readFileSync(file)).toString("utf8")
+  } catch {
+    console.error("❌ corrupted backup: failed to gunzip (invalid gzip).")
+    process.exit(1)
+  }
+  let parsed: {
+    format?: number
+    checksum?: string
     order?: string[]
+    tables?: Record<string, number>
     data: Record<string, Record<string, unknown>[]>
+  }
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    console.error("❌ corrupted backup: invalid JSON.")
+    process.exit(1)
+  }
+  if (parsed.format == null || !SUPPORTED_FORMATS.has(parsed.format)) {
+    console.error(`❌ unsupported backup format version: ${String(parsed.format)}`)
+    process.exit(1)
+  }
+  if (!parsed.data || typeof parsed.data !== "object") {
+    console.error("❌ invalid backup: no data found.")
+    process.exit(1)
+  }
+  if (parsed.checksum) {
+    const recomputed = createHash("sha256")
+      .update(JSON.stringify({ order: parsed.order, tables: parsed.tables, data: parsed.data }, replacer))
+      .digest("hex")
+    if (recomputed !== parsed.checksum) {
+      console.error("❌ checksum mismatch — refusing to restore corrupted/tampered backup.")
+      process.exit(1)
+    }
+    console.log(`✓ checksum verified: ${parsed.checksum.slice(0, 16)}…`)
   }
   const models = topoSorted()
   const order = parsed.order?.length ? parsed.order : models.map((m) => m.name)

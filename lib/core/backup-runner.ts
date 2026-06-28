@@ -58,7 +58,9 @@ export async function runBackupNow(chatIdOverride?: string): Promise<BackupRunRe
     `🗄 <b>پشتیبان دیتابیس SubIO</b>\n` +
     `📅 ${new Date(backup.createdAt).toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}\n` +
     `📦 حجم: ${humanSize(backup.sizeBytes)}\n` +
-    `🧾 مجموع رکوردها: ${backup.totalRows.toLocaleString("fa-IR")}\n\n` +
+    `🧾 مجموع رکوردها: ${backup.totalRows.toLocaleString("fa-IR")}\n` +
+    `🔖 نسخه فرمت: ${backup.format}\n` +
+    `🔐 SHA-256: <code>${backup.checksum.slice(0, 16)}…</code>\n\n` +
     `${tables}\n\n` +
     `برای بازیابی، این فایل را در پنل ادمین → پشتیبان‌گیری بارگذاری کنید.`
 
