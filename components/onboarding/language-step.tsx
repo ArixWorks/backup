@@ -11,9 +11,12 @@ import { cn } from "@/lib/utils"
 /**
  * First-run language picker — the user's first impression of the platform.
  *
- * A cinematic golden-globe hero sits above four glassmorphic language cards
- * (animated flag, native name, ISO country code, animated selection check) and
- * a luxe gold CTA with a continuous light sweep. Trust badges anchor the foot.
+ * Designed as a single, non-scrolling welcome screen: a flexible cinematic
+ * globe hero (which shrinks to fit short viewports) sits above four glass
+ * language cards, a luxe gold CTA, and floating trust badges. Vertical rhythm
+ * uses clamp() so the whole composition fits inside the Telegram Mini App
+ * viewport on Android, iPhone, and Desktop without ever forcing a scroll.
+ *
  * All motion is GPU-friendly and respects prefers-reduced-motion.
  */
 export function LanguageStep({ onContinue }: { onContinue: () => void }) {
@@ -26,27 +29,31 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center text-center">
-      {/* Cinematic hero */}
-      <LanguageGlobe />
+    <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-[clamp(0.65rem,2.4vh,1.5rem)] text-center">
+      {/* Cinematic hero — absorbs leftover height and scales down when short */}
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center pt-1">
+        <LanguageGlobe />
+      </div>
 
-      {/* Title with sparkle accents */}
+      {/* Title */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-5"
+        className="shrink-0"
       >
-        <h1 className="flex items-center justify-center gap-2 text-2xl font-extrabold tracking-tight text-foreground">
+        <h1 className="flex items-center justify-center gap-2.5 text-[clamp(1.5rem,5.5vw,1.9rem)] font-extrabold leading-tight tracking-tight text-foreground">
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
           <span className="text-balance">زبان خود را انتخاب کنید</span>
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
         </h1>
-        <p className="mt-1.5 text-sm tracking-wide text-muted-foreground">Select your language</p>
+        <p className="mt-1.5 text-sm font-medium tracking-[0.18em] text-muted-foreground/90">
+          Select your language
+        </p>
       </motion.div>
 
       {/* Language cards */}
-      <div className="mt-7 grid w-full grid-cols-2 gap-3">
+      <div className="grid w-full shrink-0 grid-cols-2 gap-2.5">
         {DISPLAY_ORDER.map((code, i) => {
           const active = selected === code
           return (
@@ -61,10 +68,10 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.96 }}
               className={cn(
-                "glass group relative flex items-center gap-3 overflow-hidden rounded-2xl border px-3.5 py-3.5 text-start transition-colors duration-300",
+                "glass group relative flex items-center gap-2.5 overflow-hidden rounded-2xl border px-3 py-3 text-start transition-colors duration-300",
                 active
-                  ? "border-primary/70 bg-primary/[0.07]"
-                  : "border-border/60 hover:border-primary/40",
+                  ? "border-primary/70 bg-primary/[0.07] scale-[1.02]"
+                  : "border-border/60 hover:border-primary/45",
               )}
             >
               {/* Active glow + moving sheen */}
@@ -72,23 +79,26 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
                 <>
                   <span
                     aria-hidden
-                    className="animate-glow pointer-events-none absolute -inset-px rounded-2xl bg-[radial-gradient(120%_120%_at_50%_0%,color-mix(in_oklch,var(--primary)_30%,transparent),transparent_70%)]"
+                    className="animate-glow pointer-events-none absolute -inset-px rounded-2xl bg-[radial-gradient(120%_120%_at_50%_0%,color-mix(in_oklch,var(--primary)_32%,transparent),transparent_70%)]"
                   />
                   <span className="sheen pointer-events-none absolute inset-0 rounded-2xl" />
                 </>
               )}
 
-              {/* Waving flag chip */}
+              {/* Waving flag chip — all cards wave gently, active waves livelier */}
               <span
                 aria-hidden
-                className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background/60 ring-1 ring-border/60"
+                className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/60 ring-1 ring-border/60"
               >
-                <span className={cn("text-xl leading-none", active && "animate-flag")}>
+                <span
+                  className="animate-flag text-xl leading-none"
+                  style={{ animationDuration: active ? "2.4s" : "3.6s" }}
+                >
                   {FLAG[code]}
                 </span>
               </span>
 
-              <span className="relative flex-1 text-sm font-bold text-foreground">
+              <span className="relative flex-1 text-[0.95rem] font-bold text-foreground">
                 {LOCALE_NAMES[code]}
               </span>
 
@@ -102,7 +112,7 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
                 className={cn(
                   "relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all duration-300",
                   active
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground shadow-[0_0_12px_color-mix(in_oklch,var(--primary)_60%,transparent)]"
                     : "border-2 border-muted-foreground/40",
                 )}
               >
@@ -121,7 +131,7 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
         })}
       </div>
 
-      {/* Premium continue CTA */}
+      {/* Premium continue CTA with a continuous light sweep */}
       <motion.button
         type="button"
         onClick={onContinue}
@@ -130,27 +140,42 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
         transition={{ delay: 0.5, type: "spring", stiffness: 220, damping: 22 }}
         whileHover={{ scale: 1.015 }}
         whileTap={{ scale: 0.97 }}
-        className="bg-gold sheen elevate-gold relative mt-7 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-base font-extrabold text-primary-foreground"
+        className="bg-gold elevate-gold relative flex w-full shrink-0 items-center justify-center gap-2 overflow-hidden rounded-2xl py-[clamp(0.85rem,2vh,1.05rem)] text-base font-extrabold text-primary-foreground"
       >
+        {/* moving light sweep */}
+        <span
+          aria-hidden
+          className="cta-sweep pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 skew-x-[-20deg] bg-[linear-gradient(90deg,transparent,color-mix(in_oklch,white_55%,transparent),transparent)]"
+        />
         <span className="relative z-[2]">ادامه</span>
         <ChevronLeft className="relative z-[2] h-5 w-5" />
       </motion.button>
 
-      {/* Trust badges */}
+      {/* Trust badges with floating + glow */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.65, duration: 0.5 }}
-        className="mt-7 flex w-full items-stretch justify-center"
+        className="flex w-full shrink-0 items-stretch justify-center pb-[max(0.25rem,env(safe-area-inset-bottom))]"
       >
         {TRUST.map((b, i) => (
           <div key={b.fa} className="flex flex-1 items-center justify-center">
-            <div className="flex flex-col items-center gap-1.5 px-2 text-center">
-              <b.icon className="h-5 w-5 text-primary" aria-hidden />
-              <span className="text-xs font-bold text-foreground">{b.fa}</span>
-              <span className="text-[10px] text-muted-foreground">{b.en}</span>
-            </div>
-            {i < TRUST.length - 1 && <span className="h-9 w-px bg-border/60" aria-hidden />}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 + i * 0.1, duration: 0.45 }}
+              className="flex flex-col items-center gap-1 px-2 text-center"
+            >
+              <span
+                className="animate-bubble flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20"
+                style={{ animationDelay: `${i * 0.5}s` }}
+              >
+                <b.icon className="h-[1.05rem] w-[1.05rem] text-primary" aria-hidden />
+              </span>
+              <span className="text-[0.7rem] font-bold leading-tight text-foreground">{b.fa}</span>
+              <span className="text-[0.6rem] leading-tight text-muted-foreground">{b.en}</span>
+            </motion.div>
+            {i < TRUST.length - 1 && <span className="h-10 w-px self-center bg-border/50" aria-hidden />}
           </div>
         ))}
       </motion.div>
