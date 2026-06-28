@@ -60,6 +60,16 @@
   --shadow-lg: 0 18px 40px -12px oklch(0 0 0 / 0.6), 0 6px 16px -8px oklch(0 0 0 / 0.45);
   /* Top highlight + inner depth for glass surfaces. */
   --inset-highlight: inset 0 1px 0 0 oklch(1 0 0 / 0.06);
+
+  /* ── Motion system ───────────────────────────────────────────────────────
+     One source of truth for animation timing so every transition, hover,
+     press, and reveal across the platform shares the same cadence. */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1); /* primary "settle" curve */
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1); /* gentle overshoot */
+  --duration-fast: 150ms; /* taps, hovers, icon swaps */
+  --duration-base: 240ms; /* most UI transitions */
+  --duration-slow: 420ms; /* page / surface transitions */
 }
 
 /* ============================================================================
@@ -242,6 +252,12 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+  /* Guarantees a comfortable ~44px touch target inside the Telegram webview
+     without forcing visual size — pad the hit area, not the pixels. */
+  .tap-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
   }
 }
 

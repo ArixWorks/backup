@@ -11,6 +11,7 @@ import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
 import { RecommendedRail } from "@/components/recommended-rail"
 import { Stagger, FadeItem, Pressable } from "@/components/motion"
+import { Button } from "@/components/ui/button"
 import { MembershipBadge } from "@/components/membership-badge"
 
 const quickActions: { href: string; label: MessageKey; icon: typeof Gavel }[] = [
@@ -72,24 +73,24 @@ export default function HomePage() {
           </div>
 
           <div className="relative z-[2] mt-6 flex gap-2.5">
-            <Pressable className="flex-1">
-              <Link
-                href="/wallet"
-                className="bg-gold elevate-gold inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold text-primary-foreground"
-              >
-                <Plus className="h-4 w-4" strokeWidth={2.6} />
-                {t("home.topup")}
-              </Link>
-            </Pressable>
-            <Pressable className="flex-1">
-              <Link
-                href="/auctions"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/25 bg-secondary/50 px-4 py-3 text-sm font-bold backdrop-blur transition-colors hover:border-primary/45"
-              >
-                <Gavel className="h-4 w-4 text-primary" />
-                {t("nav.auctions")}
-              </Link>
-            </Pressable>
+            <Button
+              variant="gold"
+              size="lg"
+              className="flex-1"
+              render={<Link href="/wallet" />}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.6} />
+              {t("home.topup")}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1 border-primary/25 bg-secondary/50 font-bold backdrop-blur hover:border-primary/45"
+              render={<Link href="/auctions" />}
+            >
+              <Gavel className="h-4 w-4 text-primary" />
+              {t("nav.auctions")}
+            </Button>
           </div>
 
           {/* Ambient floating gold orb for cinematic depth (decorative). */}
