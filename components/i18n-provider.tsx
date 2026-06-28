@@ -10,7 +10,7 @@ import {
   isRTL,
   tgLangToLocale,
 } from "@/lib/i18n/locales"
-import { MESSAGES, type MessageKey } from "@/lib/i18n/messages"
+import { MESSAGES, interpolate, type MessageKey, type MessageVars } from "@/lib/i18n/messages"
 import {
   formatPrice,
   formatPriceValue,
@@ -22,7 +22,7 @@ import {
 type I18nContextValue = {
   locale: Locale
   setLocale: (locale: Locale) => void
-  t: (key: MessageKey) => string
+  t: (key: MessageKey, vars?: MessageVars) => string
   /** Format a Toman amount into the active locale's currency (with symbol/word). */
   price: (toman: bigint | number | string) => string
   /** Numeric-only price (no currency word). */
@@ -104,7 +104,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     return {
       locale,
       setLocale,
-      t: (key) => catalog[key] ?? MESSAGES[DEFAULT_LOCALE][key] ?? key,
+      t: (key, vars) => interpolate(catalog[key] ?? MESSAGES[DEFAULT_LOCALE][key] ?? key, vars),
       price: (toman) => formatPrice(toman, locale, usdRate),
       priceValue: (toman) => formatPriceValue(toman, locale, usdRate),
       priceCompact: (toman) => formatPriceCompactParts(toman, locale, usdRate),

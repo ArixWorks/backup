@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react"
 import { Check, Loader2 } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 
 /** Final onboarding screen — celebratory check + enter the store. */
 export function SuccessStep({
@@ -11,6 +12,7 @@ export function SuccessStep({
   busy: boolean
   onStart: () => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
       <motion.div
@@ -43,7 +45,7 @@ export function SuccessStep({
         transition={{ delay: 0.3 }}
         className="mt-7 text-3xl font-extrabold tracking-tight text-foreground"
       >
-        همه‌چیز آماده است!
+        {t("success.title")}
       </motion.h1>
       <motion.p
         initial={{ opacity: 0, y: 12 }}
@@ -51,7 +53,7 @@ export function SuccessStep({
         transition={{ delay: 0.38 }}
         className="mx-auto mt-2 max-w-xs text-pretty text-sm leading-relaxed text-muted-foreground"
       >
-        تمام شد. از فروشگاه لذت ببرید — شارژ کنید، خرید کنید، تمام.
+        {t("success.body")}
       </motion.p>
 
       <motion.button
@@ -64,7 +66,7 @@ export function SuccessStep({
         transition={{ delay: 0.46 }}
         className="elevate-gold mt-9 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground"
       >
-        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "شروع خرید"}
+        {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : t("success.start")}
       </motion.button>
     </div>
   )

@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
  * All motion is GPU-friendly and respects prefers-reduced-motion.
  */
 export function LanguageStep({ onContinue }: { onContinue: () => void }) {
-  const { locale, setLocale } = useI18n()
+  const { locale, setLocale, t } = useI18n()
   const [selected, setSelected] = useState<Locale>(locale)
 
   function pick(next: Locale) {
@@ -45,7 +45,7 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
       >
         <h1 className="flex items-center justify-center gap-2.5 text-[clamp(1.5rem,5.5vw,1.9rem)] font-extrabold leading-tight tracking-tight text-foreground">
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-          <span className="text-balance">زبان خود را انتخاب کنید</span>
+          <span className="text-balance">{t("lang.selectTitle")}</span>
           <Sparkles className="h-4 w-4 text-primary" aria-hidden />
         </h1>
         <p className="mt-1.5 text-sm font-medium tracking-[0.18em] text-muted-foreground/90">
@@ -154,7 +154,7 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
           aria-hidden
           className="cta-sweep pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 skew-x-[-20deg] bg-[linear-gradient(90deg,transparent,color-mix(in_oklch,white_55%,transparent),transparent)]"
         />
-        <span className="relative z-[2]">ادامه</span>
+        <span className="relative z-[2]">{t("common.continue")}</span>
         <ChevronLeft className="relative z-[2] h-5 w-5" />
       </motion.button>
 
@@ -166,7 +166,7 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
         className="flex w-full shrink-0 items-stretch justify-center pb-[max(0.25rem,env(safe-area-inset-bottom))]"
       >
         {TRUST.map((b, i) => (
-          <div key={b.fa} className="flex flex-1 items-center justify-center">
+          <div key={b.key} className="flex flex-1 items-center justify-center">
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -179,8 +179,10 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
               >
                 <b.icon className="h-[1.05rem] w-[1.05rem] text-primary" aria-hidden />
               </span>
-              <span className="text-[0.7rem] font-bold leading-tight text-foreground">{b.fa}</span>
-              <span className="text-[0.6rem] leading-tight text-muted-foreground">{b.en}</span>
+              <span className="text-[0.7rem] font-bold leading-tight text-foreground">{t(b.key)}</span>
+              {locale !== "en" && (
+                <span className="text-[0.6rem] leading-tight text-muted-foreground">{b.en}</span>
+              )}
             </motion.div>
             {i < TRUST.length - 1 && <span className="h-10 w-px self-center bg-border/50" aria-hidden />}
           </div>
@@ -209,9 +211,9 @@ const COUNTRY_CODE: Record<Locale, string> = {
   hi: "IN",
 }
 
-/** Bilingual trust badges anchoring the foot of the screen. */
+/** Trust badges anchoring the foot of the screen (localized live via t()). */
 const TRUST = [
-  { icon: Shield, fa: "امن و مطمئن", en: "Secure & Safe" },
-  { icon: Zap, fa: "سریع و آسان", en: "Fast & Easy" },
-  { icon: Headphones, fa: "پشتیبانی ۲۴/۷", en: "24/7 Support" },
+  { icon: Shield, key: "trust.secure", en: "Secure & Safe" },
+  { icon: Zap, key: "trust.fast", en: "Fast & Easy" },
+  { icon: Headphones, key: "trust.support", en: "24/7 Support" },
 ] as const
