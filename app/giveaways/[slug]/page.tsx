@@ -8,8 +8,10 @@ import { fetcher } from "@/lib/api-client"
 import { EmptyState } from "@/components/empty-state"
 import { GiveawayDetail, type GiveawayDetailData } from "@/components/giveaway-detail"
 import { Stagger, FadeItem } from "@/components/motion"
+import { useI18n } from "@/components/i18n-provider"
 
 export default function GiveawayLandingPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { t } = useI18n()
   const { slug } = use(params)
   const { data, isLoading, mutate } = useSWR<{ data: GiveawayDetailData }>(
     `/api/v1/giveaways/${slug}`,
@@ -27,7 +29,7 @@ export default function GiveawayLandingPage({ params }: { params: Promise<{ slug
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowRight className="h-4 w-4" />
-          همه قرعه‌کشی‌ها
+          {t("giveaways.all")}
         </Link>
       </FadeItem>
 
@@ -37,8 +39,8 @@ export default function GiveawayLandingPage({ params }: { params: Promise<{ slug
         <FadeItem>
           <EmptyState
             icon={Gift}
-            title="قرعه‌کشی یافت نشد"
-            actionLabel="همه قرعه‌کشی‌ها"
+            title={t("giveaways.notFound")}
+            actionLabel={t("giveaways.all")}
             actionHref="/giveaways"
           />
         </FadeItem>

@@ -224,6 +224,42 @@ export type MessageKey =
   | "account.logoutAllError"
   | "account.methodTelegram"
   | "account.methodPassword"
+  | "auctions.emptyDesc"
+  | "auctions.finalized"
+  | "auctions.cancelled"
+  | "giveaways.myWins"
+  | "giveaways.empty"
+  | "giveaways.emptyDesc"
+  | "giveaways.past"
+  | "giveaways.all"
+  | "giveaways.notFound"
+  | "adetail.back"
+  | "adetail.bids"
+  | "adetail.bidHistory"
+  | "adetail.noBids"
+  | "adetail.auto"
+  | "adetail.topBidNow"
+  | "adetail.basePrice"
+  | "adetail.startsIn"
+  | "adetail.endsIn"
+  | "adetail.reserveMet"
+  | "adetail.reserveNotMet"
+  | "adetail.minIncrement"
+  | "adetail.winnersCount"
+  | "adetail.endTime"
+  | "wins.signInRequired"
+  | "wins.copied"
+  | "wins.copyFailed"
+  | "wins.copy"
+  | "wins.pendingManual"
+  | "wins.pendingAuto"
+  | "wins.walletCredited"
+  | "wins.couponTitle"
+  | "wins.claimTitle"
+  | "wins.position"
+  | "wins.empty"
+  | "wins.emptyDesc"
+  | "wins.emptyAction"
 
 type Catalog = Record<MessageKey, string>
 
@@ -446,6 +482,42 @@ const fa: Catalog = {
   "account.logoutAllError": "خروج از همه دستگاه‌ها ناموفق بود",
   "account.methodTelegram": "تلگرام",
   "account.methodPassword": "ایمیل و رمز عبور",
+  "auctions.emptyDesc": "در حال حاضر مزایده فعالی برگزار نمی‌شود. بعداً دوباره سر بزنید.",
+  "auctions.finalized": "تسویه‌شده",
+  "auctions.cancelled": "لغوشده",
+  "giveaways.myWins": "جوایز من",
+  "giveaways.empty": "در حال حاضر قرعه‌کشی فعالی وجود ندارد",
+  "giveaways.emptyDesc": "به‌زودی قرعه‌کشی‌های جدید اضافه می‌شود. منتظر بمانید!",
+  "giveaways.past": "قرعه‌کشی‌های پیشین",
+  "giveaways.all": "همه قرعه‌کشی‌ها",
+  "giveaways.notFound": "قرعه‌کشی یافت نشد",
+  "adetail.back": "بازگشت به مزایده‌ها",
+  "adetail.bids": "{n} پیشنهاد",
+  "adetail.bidHistory": "تاریخچه پیشنهادها",
+  "adetail.noBids": "هنوز پیشنهادی ثبت نشده است. اولین پیشنهاد را شما ثبت کنید.",
+  "adetail.auto": "خودکار",
+  "adetail.topBidNow": "بالاترین پیشنهاد فعلی",
+  "adetail.basePrice": "قیمت پایه",
+  "adetail.startsIn": "شروع تا",
+  "adetail.endsIn": "پایان تا",
+  "adetail.reserveMet": "قیمت رزرو فروشنده تأمین شده است",
+  "adetail.reserveNotMet": "قیمت رزرو هنوز تأمین نشده است",
+  "adetail.minIncrement": "حداقل افزایش",
+  "adetail.winnersCount": "تعداد برنده",
+  "adetail.endTime": "زمان پایان",
+  "wins.signInRequired": "برای مشاهده‌ی جوایز، ابتدا وارد حساب کاربری خود شوید.",
+  "wins.copied": "کپی شد",
+  "wins.copyFailed": "کپی ناموفق بود",
+  "wins.copy": "کپی",
+  "wins.pendingManual": "در انتظار تحویل دستی: {error}",
+  "wins.pendingAuto": "جایزه‌ی شما به‌زودی توسط تیم پشتیبانی تحویل داده می‌شود.",
+  "wins.walletCredited": "مبلغ {amount} تومان به کیف پول شما واریز شد.",
+  "wins.couponTitle": "کد تخفیف شما",
+  "wins.claimTitle": "اطلاعات دریافت جایزه",
+  "wins.position": "نفر {n}",
+  "wins.empty": "هنوز در هیچ قرعه‌کشی‌ای برنده نشده‌اید",
+  "wins.emptyDesc": "در قرعه‌کشی‌های فعال شرکت کنید تا شانس بردن جوایز را داشته باشید.",
+  "wins.emptyAction": "مشاهده قرعه‌کشی‌های فعال",
 }
 
 const en: Catalog = {
@@ -667,6 +739,42 @@ const en: Catalog = {
   "account.logoutAllError": "Failed to log out of all devices",
   "account.methodTelegram": "Telegram",
   "account.methodPassword": "Email & password",
+  "auctions.emptyDesc": "No active auctions are running right now. Check back later.",
+  "auctions.finalized": "Finalized",
+  "auctions.cancelled": "Cancelled",
+  "giveaways.myWins": "My prizes",
+  "giveaways.empty": "No active giveaways right now",
+  "giveaways.emptyDesc": "New giveaways are coming soon. Stay tuned!",
+  "giveaways.past": "Past giveaways",
+  "giveaways.all": "All giveaways",
+  "giveaways.notFound": "Giveaway not found",
+  "adetail.back": "Back to auctions",
+  "adetail.bids": "{n} bids",
+  "adetail.bidHistory": "Bid history",
+  "adetail.noBids": "No bids yet. Be the first to place one.",
+  "adetail.auto": "auto",
+  "adetail.topBidNow": "Current top bid",
+  "adetail.basePrice": "Starting price",
+  "adetail.startsIn": "Starts in",
+  "adetail.endsIn": "Ends in",
+  "adetail.reserveMet": "The seller's reserve price has been met",
+  "adetail.reserveNotMet": "The reserve price has not been met yet",
+  "adetail.minIncrement": "Min. increment",
+  "adetail.winnersCount": "Winners",
+  "adetail.endTime": "End time",
+  "wins.signInRequired": "Sign in to view your prizes.",
+  "wins.copied": "Copied",
+  "wins.copyFailed": "Copy failed",
+  "wins.copy": "Copy",
+  "wins.pendingManual": "Awaiting manual delivery: {error}",
+  "wins.pendingAuto": "Your prize will be delivered shortly by the support team.",
+  "wins.walletCredited": "{amount} Toman was credited to your wallet.",
+  "wins.couponTitle": "Your discount code",
+  "wins.claimTitle": "Prize claim details",
+  "wins.position": "Place {n}",
+  "wins.empty": "You haven't won any giveaway yet",
+  "wins.emptyDesc": "Enter active giveaways for a chance to win prizes.",
+  "wins.emptyAction": "View active giveaways",
 }
 
 const ru: Catalog = {
@@ -888,6 +996,42 @@ const ru: Catalog = {
   "account.logoutAllError": "Не удалось выйти на всех устройствах",
   "account.methodTelegram": "Telegram",
   "account.methodPassword": "Эл. почта и пароль",
+  "auctions.emptyDesc": "Сейчас нет активных аукционов. Загляните позже.",
+  "auctions.finalized": "Завершён",
+  "auctions.cancelled": "Отменён",
+  "giveaways.myWins": "Мои призы",
+  "giveaways.empty": "Сейчас нет активных розыгрышей",
+  "giveaways.emptyDesc": "Новые розыгрыши скоро появятся. Следите за обновлениями!",
+  "giveaways.past": "Прошедшие розыгрыши",
+  "giveaways.all": "Все розыгрыши",
+  "giveaways.notFound": "Розыгрыш не найден",
+  "adetail.back": "Назад к аукционам",
+  "adetail.bids": "Ставок: {n}",
+  "adetail.bidHistory": "История ставок",
+  "adetail.noBids": "Ставок пока нет. Сделайте первую.",
+  "adetail.auto": "авто",
+  "adetail.topBidNow": "Текущая высшая ставка",
+  "adetail.basePrice": "Стартовая цена",
+  "adetail.startsIn": "Начало через",
+  "adetail.endsIn": "Окончание через",
+  "adetail.reserveMet": "Резервная цена продавца достигнута",
+  "adetail.reserveNotMet": "Резервная цена ещё не достигнута",
+  "adetail.minIncrement": "Мин. шаг",
+  "adetail.winnersCount": "Победителей",
+  "adetail.endTime": "Время окончания",
+  "wins.signInRequired": "Войдите, чтобы увидеть свои призы.",
+  "wins.copied": "Скопировано",
+  "wins.copyFailed": "Не удалось скопировать",
+  "wins.copy": "Копировать",
+  "wins.pendingManual": "Ожидает ручной выдачи: {error}",
+  "wins.pendingAuto": "Ваш приз скоро будет выдан командой поддержки.",
+  "wins.walletCredited": "{amount} туманов зачислено на ваш кошелёк.",
+  "wins.couponTitle": "Ваш промокод",
+  "wins.claimTitle": "Данные для получения приза",
+  "wins.position": "Место {n}",
+  "wins.empty": "Вы ещё не выиграли ни одного розыгрыша",
+  "wins.emptyDesc": "Участвуйте в активных розыгрышах ради шанса на приз.",
+  "wins.emptyAction": "Смотреть активные розыгрыши",
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
@@ -1110,6 +1254,42 @@ const hi: Catalog = {
   "account.logoutAllError": "Sabhi devices se logout nahi ho saka",
   "account.methodTelegram": "Telegram",
   "account.methodPassword": "Email aur password",
+  "auctions.emptyDesc": "Abhi koi active nilami nahi chal rahi. Baad mein dobara dekhein.",
+  "auctions.finalized": "Finalized",
+  "auctions.cancelled": "Cancelled",
+  "giveaways.myWins": "Mere prizes",
+  "giveaways.empty": "Abhi koi active giveaway nahi hai",
+  "giveaways.emptyDesc": "Naye giveaways jald aa rahe hain. Bane rahein!",
+  "giveaways.past": "Pichhle giveaways",
+  "giveaways.all": "Sabhi giveaways",
+  "giveaways.notFound": "Giveaway nahi mila",
+  "adetail.back": "Nilami par wapas",
+  "adetail.bids": "{n} boli",
+  "adetail.bidHistory": "Boli history",
+  "adetail.noBids": "Abhi koi boli nahi. Pehli boli aap lagayein.",
+  "adetail.auto": "auto",
+  "adetail.topBidNow": "Current top boli",
+  "adetail.basePrice": "Starting price",
+  "adetail.startsIn": "Shuru hone mein",
+  "adetail.endsIn": "Khatam hone mein",
+  "adetail.reserveMet": "Seller ki reserve price poori ho gayi hai",
+  "adetail.reserveNotMet": "Reserve price abhi poori nahi hui hai",
+  "adetail.minIncrement": "Min. increment",
+  "adetail.winnersCount": "Winners",
+  "adetail.endTime": "End time",
+  "wins.signInRequired": "Apne prizes dekhne ke liye sign in karein.",
+  "wins.copied": "Copy ho gaya",
+  "wins.copyFailed": "Copy nahi ho saka",
+  "wins.copy": "Copy",
+  "wins.pendingManual": "Manual delivery ka intezaar: {error}",
+  "wins.pendingAuto": "Aapka prize jald hi support team dwara deliver kiya jaayega.",
+  "wins.walletCredited": "{amount} Toman aapke wallet mein credit ho gaya.",
+  "wins.couponTitle": "Aapka discount code",
+  "wins.claimTitle": "Prize claim details",
+  "wins.position": "Position {n}",
+  "wins.empty": "Aapne abhi tak koi giveaway nahi jeeta",
+  "wins.emptyDesc": "Active giveaways mein hissa lein aur prizes jeetne ka mauka paayein.",
+  "wins.emptyAction": "Active giveaways dekhein",
 }
 
 export const MESSAGES: Record<Locale, Catalog> = { fa, en, ru, hi }

@@ -12,6 +12,8 @@ import { Countdown } from "@/components/countdown"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatRelative, formatNumber } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type Bid = {
   id: string
@@ -43,15 +45,16 @@ type AuctionDetail = {
   bids: Bid[]
 }
 
-const statusLabels: Record<string, string> = {
-  SCHEDULED: "زمان‌بندی‌شده",
-  ACTIVE: "در حال برگزاری",
-  ENDED: "پایان‌یافته",
-  FINALIZED: "تسویه‌شده",
-  CANCELLED: "لغوشده",
+const statusLabels: Record<string, MessageKey> = {
+  SCHEDULED: "auctions.scheduled",
+  ACTIVE: "auctions.live",
+  ENDED: "auctions.ended",
+  FINALIZED: "auctions.finalized",
+  CANCELLED: "auctions.cancelled",
 }
 
 export default function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useI18n()
   const { id } = use(params)
   const { data, isLoading, mutate } = useSWR<{ data: AuctionDetail }>(
     `/api/v1/auctions/${id}`,
@@ -76,7 +79,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowRight className="h-4 w-4" />
-        بازگشت به مزایده‌ها
+        {t("adetail.back")}
       </Link>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -95,7 +98,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
             )}
             <div className="absolute right-3 top-3 flex gap-2">
               <span className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium backdrop-blur">
-                {statusLabels[a.status] ?? a.status}
+                {statusLabels[a.status] ? t(statusLabels[a.status]) : a.status}
               </span>
             </div>
             <div className="absolute bottom-3 left-3">
@@ -110,7 +113,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               )}
               <span className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" />
-                {formatNumber(a.bidCount)} پیشنهاد
+                {t("adetail.bids", { n: formatNumber(a.bidCount) })}
               </span>
             </div>
             <h1 className="text-2xl font-extrabold leading-tight">{a.title}</h1>
@@ -123,11 +126,11 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           <div className="rounded-xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-bold">
               <Gavel className="h-4 w-4 text-primary" />
-              تاریخچه پیشنهادها
+              {t("adetail.bidHistory")}
             </div>
             {a.bids.length === 0 ? (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                هنوز پیشنهادی ثبت نشده است. اولین پیشنهاد را شما ثبت کنید.
+                {t("adetail.noBids")}
               </div>
             ) : (
               <ul className="divide-y divide-border">
@@ -145,13 +148,13 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                         <span className="text-sm font-medium">{b.alias}</span>
                         <span className="text-xs text-muted-foreground">
                           {formatRelative(b.createdAt)}
-                          {b.isAuto && " • خودکار"}
+                          {b.isAuto && ` • ${t("adetail.auto")}`}
                         </span>
                       </div>
                     </div>
                     <span className="tabular-nums font-bold">
                       {formatToman(b.amount)}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">تومان</span>
+                      <span className="text-xs font-normal text-muted-foreground">{t("common.toman")}</span>
                     </span>
                   </li>
                 ))}
@@ -165,20 +168,20 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           <div className="space-y-4 rounded-xl border border-border bg-card p-5">
             <div>
               <span className="text-xs text-muted-foreground">
-                {a.bidCount > 0 ? "بالاترین پیشنهاد فعلی" : "قیمت پایه"}
+                {a.bidCount > 0 ? t("adetail.topBidNow") : t("adetail.basePrice")}
               </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-3xl font-extrabold tabular-nums text-primary">
                   {formatToman(a.currentPrice)}
                 </span>
-                <span className="text-sm text-muted-foreground">تومان</span>
+                <span className="text-sm text-muted-foreground">{t("common.toman")}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2.5 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                {a.status === "SCHEDULED" ? "شروع تا" : "پایان تا"}
+                {a.status === "SCHEDULED" ? t("adetail.startsIn") : t("adetail.endsIn")}
               </span>
               <Countdown
                 target={a.status === "SCHEDULED" ? a.startTime : a.endTime}
@@ -194,14 +197,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 }`}
               >
                 <ShieldAlert className="h-4 w-4" />
-                {a.reserveMet ? "قیمت رزرو فروشنده تأمین شده است" : "قیمت رزرو هنوز تأمین نشده است"}
+                {a.reserveMet ? t("adetail.reserveMet") : t("adetail.reserveNotMet")}
               </div>
             )}
 
             <dl className="grid grid-cols-2 gap-2 text-xs">
-              <Detail label="حداقل افزایش" value={`${formatToman(a.minimumIncrement)} ت`} />
-              <Detail label="تعداد برنده" value={formatNumber(a.quantity)} />
-              <Detail label="زمان پایان" value={formatDateTime(a.endTime)} full />
+              <Detail label={t("adetail.minIncrement")} value={`${formatToman(a.minimumIncrement)} ${t("common.toman")}`} />
+              <Detail label={t("adetail.winnersCount")} value={formatNumber(a.quantity)} />
+              <Detail label={t("adetail.endTime")} value={formatDateTime(a.endTime)} full />
             </dl>
 
             {(a.status === "SCHEDULED" || a.status === "ACTIVE") && (

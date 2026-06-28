@@ -11,6 +11,8 @@ import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
 import { Stagger, FadeItem } from "@/components/motion"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type Win = {
   id: string
@@ -29,14 +31,14 @@ type Win = {
   }
 }
 
-function copy(text: string) {
-  navigator.clipboard.writeText(text).then(
-    () => toast.success("کپی شد"),
-    () => toast.error("کپی ناموفق بود"),
-  )
-}
-
 function CopyRow({ label, value }: { label: string; value: string }) {
+  const { t } = useI18n()
+  function copy(text: string) {
+    navigator.clipboard.writeText(text).then(
+      () => toast.success(t("wins.copied")),
+      () => toast.error(t("wins.copyFailed")),
+    )
+  }
   return (
     <div className="flex items-center justify-between gap-3 px-3 py-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -47,7 +49,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
         <button
           type="button"
           onClick={() => copy(value)}
-          aria-label="کپی"
+          aria-label={t("wins.copy")}
           className="text-muted-foreground transition hover:text-primary"
         >
           <Copy className="h-3.5 w-3.5" />

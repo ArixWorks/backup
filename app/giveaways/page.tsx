@@ -35,7 +35,7 @@ export default function GiveawaysPage() {
               className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-secondary/70"
             >
               <Trophy className="h-3.5 w-3.5 text-primary" />
-              جوایز من
+              {t("giveaways.myWins")}
               <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
           </div>
@@ -53,8 +53,8 @@ export default function GiveawaysPage() {
         <FadeItem>
           <EmptyState
             icon={Gift}
-            title="در حال حاضر قرعه‌کشی فعالی وجود ندارد"
-            description="به‌زودی قرعه‌کشی‌های جدید اضافه می‌شود. منتظر بمانید!"
+            title={t("giveaways.empty")}
+            description={t("giveaways.emptyDesc")}
           />
         </FadeItem>
       ) : (
@@ -72,7 +72,7 @@ export default function GiveawaysPage() {
           {past.length > 0 && (
             <FadeItem>
               <section className="space-y-3">
-                <h2 className="text-sm font-bold text-muted-foreground">قرعه‌کشی‌های پیشین</h2>
+                <h2 className="text-sm font-bold text-muted-foreground">{t("giveaways.past")}</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {past.map((g) => (
                     <GiveawayCard key={g.id} giveaway={g} />

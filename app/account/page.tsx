@@ -9,10 +9,13 @@ import { EmailSection } from "@/components/account/email-section"
 import { PasswordSection } from "@/components/account/password-section"
 import { TelegramSection } from "@/components/account/telegram-section"
 import type { AccountState } from "@/lib/account-types"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type StateResponse = { ok: boolean; data: AccountState }
 
 export default function AccountPage() {
+  const { t } = useI18n()
   const { data, mutate, isLoading } = useSWR<StateResponse>("/api/v1/account/state", fetcher)
   const state = data?.data
   const [loggingOut, setLoggingOut] = useState(false)
@@ -30,7 +33,7 @@ export default function AccountPage() {
       // The session is now invalid everywhere; send the user to login.
       window.location.href = "/login"
     } catch (e) {
-      setLogoutError(e instanceof ApiError ? e.message : "خروج از همه دستگاه‌ها ناموفق بود")
+      setLogoutError(e instanceof ApiError ? e.message : t("account.logoutAllError"))
       setLoggingOut(false)
     }
   }
@@ -43,9 +46,9 @@ export default function AccountPage() {
     )
   }
 
-  const methodLabels: Record<string, string> = {
-    telegram: "تلگرام",
-    password: "ایمیل و رمز عبور",
+  const methodLabels: Record<string, MessageKey> = {
+    telegram: "account.methodTelegram",
+    password: "account.methodPassword",
   }
 
   return (
@@ -53,14 +56,14 @@ export default function AccountPage() {
       <header className="flex items-center gap-2">
         <ShieldCheck className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-2xl font-extrabold">تنظیمات حساب و امنیت</h1>
-          <p className="text-xs text-muted-foreground">روش‌های ورود و امنیت حساب خود را مدیریت کنید</p>
+          <h1 className="text-2xl font-extrabold">{t("account.title")}</h1>
+          <p className="text-xs text-muted-foreground">{t("account.subtitle")}</p>
         </div>
       </header>
 
       {/* Active login methods summary */}
       <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-        <h2 className="mb-2 text-sm font-bold text-foreground">روش‌های ورود فعال</h2>
+        <h2 className="mb-2 text-sm font-bold text-foreground">{t("account.activeMethods")}</h2>
         {state.methods.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {state.methods.map((m) => (
@@ -73,14 +76,13 @@ export default function AccountPage() {
                 ) : (
                   <KeyRound className="h-3.5 w-3.5 text-primary" />
                 )}
-                {methodLabels[m] ?? m}
+                {methodLabels[m] ? t(methodLabels[m]) : m}
               </span>
             ))}
           </div>
         ) : (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            هنوز هیچ روش ورود کاملی فعال نیست. برای ایمن‌سازی حساب، ایمیل خود را تأیید کنید یا تلگرام را
-            متصل کنید.
+            {t("account.noMethods")}
           </p>
         )}
       </section>
@@ -91,9 +93,9 @@ export default function AccountPage() {
 
       {/* Danger zone: log out everywhere */}
       <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
-        <h2 className="text-sm font-bold text-foreground">خروج از همه دستگاه‌ها</h2>
+        <h2 className="text-sm font-bold text-foreground">{t("account.logoutAll")}</h2>
         <p className="mb-3 mt-1 text-xs leading-relaxed text-muted-foreground">
-          با این کار همه نشست‌های فعال در سایر دستگاه‌ها باطل می‌شوند و باید دوباره وارد شوید.
+          {t("account.logoutAllDesc")}
         </p>
         {logoutError && (
           <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -112,7 +114,7 @@ export default function AccountPage() {
           ) : (
             <>
               <LogOut className="h-4 w-4" />
-              خروج از همه دستگاه‌ها
+              {t("account.logoutAll")}
             </>
           )}
         </Button>

@@ -8,6 +8,8 @@ import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatNumber } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type Order = {
   id: string
@@ -26,17 +28,18 @@ type Order = {
   } | null
 }
 
-const payloadLabels: Record<string, string> = {
-  username: "نام کاربری",
-  password: "رمز عبور",
-  email: "ایمیل",
-  licenseKey: "کلید لایسنس",
-  code: "کد",
-  note: "توضیحات",
-  url: "لینک",
+const payloadLabels: Record<string, MessageKey> = {
+  username: "payload.username",
+  password: "payload.password",
+  email: "payload.email",
+  licenseKey: "payload.licenseKey",
+  code: "payload.code",
+  note: "payload.note",
+  url: "payload.url",
 }
 
 function DeliveryPayload({ payload }: { payload: Record<string, unknown> | string }) {
+  const { t } = useI18n()
   if (typeof payload === "string") {
     return (
       <pre className="overflow-x-auto rounded-lg border border-border bg-secondary/60 p-3 text-left font-mono text-sm">
@@ -51,7 +54,7 @@ function DeliveryPayload({ payload }: { payload: Record<string, unknown> | strin
           .filter(([, value]) => value !== null && value !== undefined && value !== "")
           .map(([key, value]) => (
           <div key={key} className="flex items-center justify-between gap-3 px-3 py-2">
-            <dt className="text-xs text-muted-foreground">{payloadLabels[key] ?? key}</dt>
+            <dt className="text-xs text-muted-foreground">{payloadLabels[key] ? t(payloadLabels[key]) : key}</dt>
             <dd className="text-left font-mono text-sm" dir="ltr">
               {String(value)}
             </dd>
@@ -63,18 +66,19 @@ function DeliveryPayload({ payload }: { payload: Record<string, unknown> | strin
 }
 
 type StatusVariant = "warning" | "secondary" | "success" | "destructive"
-const statusMap: Record<string, { label: string; variant: StatusVariant; icon: typeof Clock }> = {
-  PENDING: { label: "در انتظار", variant: "warning", icon: Clock },
-  PAID: { label: "پرداخت‌شده", variant: "secondary", icon: CheckCircle2 },
-  DELIVERED: { label: "تحویل‌شده", variant: "success", icon: CheckCircle2 },
-  COMPLETED: { label: "تکمیل‌شده", variant: "success", icon: CheckCircle2 },
-  FAILED: { label: "ناموفق", variant: "destructive", icon: XCircle },
-  REFUNDED: { label: "بازگشت‌خورده", variant: "secondary", icon: RotateCcw },
-  CANCELLED: { label: "لغوشده", variant: "secondary", icon: XCircle },
+const statusMap: Record<string, { label: MessageKey; variant: StatusVariant; icon: typeof Clock }> = {
+  PENDING: { label: "status.pending", variant: "warning", icon: Clock },
+  PAID: { label: "status.paid", variant: "secondary", icon: CheckCircle2 },
+  DELIVERED: { label: "status.delivered", variant: "success", icon: CheckCircle2 },
+  COMPLETED: { label: "status.completed", variant: "success", icon: CheckCircle2 },
+  FAILED: { label: "status.failed", variant: "destructive", icon: XCircle },
+  REFUNDED: { label: "status.refunded", variant: "secondary", icon: RotateCcw },
+  CANCELLED: { label: "status.cancelled", variant: "secondary", icon: XCircle },
 }
 
 export default function OrdersPage() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: Order[] }>(
     user ? "/api/v1/orders" : null,
     fetcher,
@@ -83,14 +87,14 @@ export default function OrdersPage() {
   const orders = data?.data ?? []
 
   if (!user) {
-    return <SignInRequired description="برای مشاهده سفارش‌ها، ابتدا وارد حساب کاربری خود شوید." />
+    return <SignInRequired description={t("orders.signInRequired")} />
   }
 
   return (
     <div className="space-y-5">
       <h1 className="flex items-center gap-2 text-xl font-extrabold">
         <Package className="h-5 w-5 text-primary" />
-        سفارش‌های من
+        {t("orders.title")}
       </h1>
 
       {isLoading ? (
@@ -102,9 +106,9 @@ export default function OrdersPage() {
       ) : orders.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
-          title="هنوز سفارشی ثبت نکرده‌اید"
-          description="از فروش فوری دیدن کنید و اولین خرید خود را انجام دهید."
-          actionLabel="مشاهده فروش فوری"
+          title={t("orders.empty")}
+          description={t("orders.emptyDesc")}
+          actionLabel={t("orders.emptyAction")}
           actionHref="/flash"
         />
       ) : (
@@ -125,37 +129,37 @@ export default function OrdersPage() {
                     <div>
                       <h3 className="font-bold">{o.title}</h3>
                       <span className="text-xs text-muted-foreground">
-                        کد سفارش {o.publicId} • {formatDateTime(o.createdAt)}
+                        {t("orders.codeLabel")} {o.publicId} • {formatDateTime(o.createdAt)}
                       </span>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
                     <Badge variant={s.variant} className="gap-1 rounded-full">
                       <s.icon className="h-3.5 w-3.5" />
-                      {s.label}
+                      {t(s.label)}
                     </Badge>
                     <span className="tabular-nums text-sm font-bold">
-                      {formatToman(o.amount)} ت
+                      {formatToman(o.amount)} {t("common.toman")}
                     </span>
                   </div>
                 </div>
 
                 {o.quantity > 1 && (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    تعداد: {formatNumber(o.quantity)}
+                    {t("orders.quantity")}: {formatNumber(o.quantity)}
                   </div>
                 )}
 
                 {o.delivery?.payload && (
                   <div className="mt-3 space-y-1.5">
-                    <span className="text-xs text-muted-foreground">اطلاعات تحویل:</span>
+                    <span className="text-xs text-muted-foreground">{t("orders.deliveryInfo")}</span>
                     <DeliveryPayload payload={o.delivery.payload} />
                   </div>
                 )}
                 {o.delivery?.error && o.status === "REFUNDED" && (
                   <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
                     <RotateCcw className="h-3.5 w-3.5" />
-                    تحویل ناموفق بود و مبلغ به‌صورت خودکار به کیف پول شما بازگشت داده شد.
+                    {t("orders.refundedNote")}
                   </div>
                 )}
               </li>
