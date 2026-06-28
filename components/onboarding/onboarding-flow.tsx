@@ -84,7 +84,7 @@ export function OnboardingFlow() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.99 }}
           transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 py-8"
+          className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-y-auto px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
           {resolvedStep === "join" && (
             <JoinGateStep
