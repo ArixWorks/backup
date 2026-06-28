@@ -46,11 +46,11 @@ function StatusBadge({ status }: { status: string }) {
   const tone = STATUS_TONE[status] ?? "muted"
   const cls =
     tone === "good"
-      ? "border-emerald-500/40 text-emerald-500"
+      ? "border-success/40 text-success"
       : tone === "bad"
         ? "border-destructive/40 text-destructive"
         : tone === "warn"
-          ? "border-amber-500/40 text-amber-500"
+          ? "border-warning/40 text-warning"
           : "border-border text-muted-foreground"
   return (
     <Badge variant="outline" className={cls}>

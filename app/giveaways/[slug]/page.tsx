@@ -2,9 +2,10 @@
 
 import { use } from "react"
 import useSWR from "swr"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Gift } from "lucide-react"
 import Link from "next/link"
 import { fetcher } from "@/lib/api-client"
+import { EmptyState } from "@/components/empty-state"
 import { GiveawayDetail, type GiveawayDetailData } from "@/components/giveaway-detail"
 import { Stagger, FadeItem } from "@/components/motion"
 
@@ -34,9 +35,12 @@ export default function GiveawayLandingPage({ params }: { params: Promise<{ slug
         <div className="shimmer card-premium h-96 w-full rounded-2xl border border-border" />
       ) : !giveaway ? (
         <FadeItem>
-          <div className="card-premium rounded-2xl border border-dashed border-border/80 p-10 text-center text-sm text-muted-foreground">
-            قرعه‌کشی یافت نشد.
-          </div>
+          <EmptyState
+            icon={Gift}
+            title="قرعه‌کشی یافت نشد"
+            actionLabel="همه قرعه‌کشی‌ها"
+            actionHref="/giveaways"
+          />
         </FadeItem>
       ) : (
         <GiveawayDetail giveaway={giveaway} onChange={() => mutate()} />

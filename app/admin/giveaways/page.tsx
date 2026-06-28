@@ -23,9 +23,9 @@ type GiveawayRow = {
 const STATUS_META: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "پیش‌نویس", className: "bg-secondary text-muted-foreground" },
   SCHEDULED: { label: "زمان‌بندی‌شده", className: "bg-primary/10 text-primary" },
-  ACTIVE: { label: "فعال", className: "bg-emerald-500/15 text-emerald-500" },
-  PAUSED: { label: "متوقف", className: "bg-amber-500/15 text-amber-500" },
-  LOCKED: { label: "آماده قرعه‌کشی", className: "bg-amber-500/15 text-amber-500" },
+  ACTIVE: { label: "فعال", className: "bg-success/15 text-success" },
+  PAUSED: { label: "متوقف", className: "bg-warning/15 text-warning" },
+  LOCKED: { label: "آماده قرعه‌کشی", className: "bg-warning/15 text-warning" },
   DRAWING: { label: "در حال قرعه‌کشی", className: "bg-primary/15 text-primary" },
   FINISHED: { label: "پایان‌یافته", className: "bg-secondary text-muted-foreground" },
   CANCELLED: { label: "لغو شده", className: "bg-destructive/10 text-destructive" },

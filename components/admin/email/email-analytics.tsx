@@ -30,11 +30,11 @@ type Analytics = {
 function Kpi({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" | "warn" }) {
   const toneClass =
     tone === "good"
-      ? "text-emerald-500"
+      ? "text-success"
       : tone === "bad"
         ? "text-destructive"
         : tone === "warn"
-          ? "text-amber-500"
+          ? "text-warning"
           : "text-foreground"
   return (
     <Card className="p-4">

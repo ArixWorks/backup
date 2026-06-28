@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { LifeBuoy, ChevronLeft, MessageSquare, Info } from "lucide-react"
+import { LifeBuoy, ChevronLeft, MessageSquare } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NewTicketDialog } from "@/components/support/new-ticket-dialog"
 import { formatRelative } from "@/lib/format"
@@ -34,11 +35,7 @@ export default function SupportPage() {
   const tickets = data?.data ?? []
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای استفاده از پشتیبانی ابتدا وارد شوید.
-      </div>
-    )
+    return <SignInRequired description="برای استفاده از پشتیبانی، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (
@@ -61,10 +58,11 @@ export default function SupportPage() {
           ))}
         </div>
       ) : tickets.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          <Info className="h-5 w-5" />
-          هنوز تیکتی ثبت نکرده‌اید.
-        </div>
+        <EmptyState
+          icon={MessageSquare}
+          title="هنوز تیکتی ثبت نکرده‌اید"
+          description="اگر سوال یا مشکلی دارید، یک تیکت جدید بسازید تا تیم پشتیبانی بررسی کند."
+        />
       ) : (
         <ul className="space-y-2">
           {tickets.map((t) => (

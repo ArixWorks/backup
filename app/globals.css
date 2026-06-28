@@ -60,6 +60,16 @@
   --shadow-lg: 0 18px 40px -12px oklch(0 0 0 / 0.6), 0 6px 16px -8px oklch(0 0 0 / 0.45);
   /* Top highlight + inner depth for glass surfaces. */
   --inset-highlight: inset 0 1px 0 0 oklch(1 0 0 / 0.06);
+
+  /* ── Motion system ───────────────────────────────────────────────────────
+     One source of truth for animation timing so every transition, hover,
+     press, and reveal across the platform shares the same cadence. */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1); /* primary "settle" curve */
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1); /* gentle overshoot */
+  --duration-fast: 150ms; /* taps, hovers, icon swaps */
+  --duration-base: 240ms; /* most UI transitions */
+  --duration-slow: 420ms; /* page / surface transitions */
 }
 
 /* ============================================================================
@@ -242,6 +252,12 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+  /* Guarantees a comfortable ~44px touch target inside the Telegram webview
+     without forcing visual size — pad the hit area, not the pixels. */
+  .tap-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
   }
 }
 
@@ -487,6 +503,29 @@
     will-change: transform;
   }
 
+  /* 3D wind ripple for the rendered flag images — pivots on the pole side
+     and gently rotates in Y/Z so the cloth looks like it's catching wind. */
+  @keyframes flag-wind {
+    0%,
+    100% {
+      transform: rotateY(0deg) rotateZ(-1.5deg) skewY(0deg) scaleX(1);
+    }
+    25% {
+      transform: rotateY(14deg) rotateZ(1deg) skewY(1.2deg) scaleX(0.985);
+    }
+    50% {
+      transform: rotateY(0deg) rotateZ(1.8deg) skewY(0deg) scaleX(1);
+    }
+    75% {
+      transform: rotateY(-12deg) rotateZ(0.5deg) skewY(-1.2deg) scaleX(0.985);
+    }
+  }
+  .animate-flag-wind {
+    animation: flag-wind 3.6s ease-in-out infinite;
+    transform-origin: left center;
+    will-change: transform;
+  }
+
   /* Soft pulsing halo behind the selected card / globe. */
   @keyframes glow-pulse {
     0%,
@@ -541,6 +580,7 @@
   .animate-orbit-rev,
   .animate-twinkle,
   .animate-flag,
+  .animate-flag-wind,
   .animate-glow,
   .animate-bubble,
   .cta-sweep {

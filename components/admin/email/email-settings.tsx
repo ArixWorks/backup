@@ -103,13 +103,13 @@ export function EmailSettings() {
       {/* Provider status banner */}
       <Card
         className={`flex items-center gap-3 p-4 ${
-          form.providerConfigured ? "border-emerald-500/30" : "border-amber-500/40"
+          form.providerConfigured ? "border-success/30" : "border-warning/40"
         }`}
       >
         {form.providerConfigured ? (
-          <ShieldCheck className="size-5 shrink-0 text-emerald-500" />
+          <ShieldCheck className="size-5 shrink-0 text-success" />
         ) : (
-          <ShieldAlert className="size-5 shrink-0 text-amber-500" />
+          <ShieldAlert className="size-5 shrink-0 text-warning" />
         )}
         <div className="flex-1 text-sm">
           <p className="font-medium">
@@ -186,7 +186,7 @@ export function EmailSettings() {
       <Card className="flex flex-col gap-4 p-4">
         <p className="text-sm font-semibold">تنظیمات ارسال</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="نرخ در دقیقه">
+          <Field label="نرخ در د��یقه">
             <Input
               type="number"
               value={form.ratePerMinute}

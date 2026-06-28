@@ -4,8 +4,9 @@ import { use, useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { ArrowRight, Package, Tag, ExternalLink, Share2 } from "lucide-react"
+import { ArrowRight, Package, PackageX, Tag, ExternalLink, Share2 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
+import { EmptyState } from "@/components/empty-state"
 import { FlashBuyButton } from "@/components/flash-buy-button"
 import { ProductWatchButton } from "@/components/product-watch-button"
 import { ProductGallery } from "@/components/product-gallery"
@@ -72,9 +73,12 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
           <ArrowRight className="h-4 w-4" />
           {t("detail.back")}
         </Link>
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          {t("detail.notFound")}
-        </div>
+        <EmptyState
+          icon={PackageX}
+          title={t("detail.notFound")}
+          actionLabel={t("detail.back")}
+          actionHref="/flash"
+        />
       </div>
     )
   }

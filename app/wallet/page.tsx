@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Loader2, Plus, Crown, ChevronLeft } from "lucide-react"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { SignInRequired } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ReferralCard } from "@/components/referral-card"
@@ -60,11 +61,7 @@ export default function WalletPage() {
   }
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای مشاهده کیف پول، یک حساب کاربری انتخاب کنید.
-      </div>
-    )
+    return <SignInRequired description="برای مشاهده کیف پول، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (

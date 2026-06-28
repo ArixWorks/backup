@@ -1,9 +1,11 @@
 "use client"
 
 import useSWR from "swr"
-import { Package, Gavel, Zap, CheckCircle2, Clock, XCircle, RotateCcw } from "lucide-react"
+import { Package, Gavel, Zap, CheckCircle2, Clock, XCircle, RotateCcw, ShoppingBag } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { EmptyState, SignInRequired } from "@/components/empty-state"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatNumber } from "@/lib/format"
 
@@ -60,14 +62,15 @@ function DeliveryPayload({ payload }: { payload: Record<string, unknown> | strin
   )
 }
 
-const statusMap: Record<string, { label: string; cls: string; icon: typeof Clock }> = {
-  PENDING: { label: "در انتظار", cls: "bg-warning/15 text-warning", icon: Clock },
-  PAID: { label: "پرداخت‌شده", cls: "bg-secondary text-foreground", icon: CheckCircle2 },
-  DELIVERED: { label: "تحویل‌شده", cls: "bg-success/15 text-success", icon: CheckCircle2 },
-  COMPLETED: { label: "تکمیل‌شده", cls: "bg-success/15 text-success", icon: CheckCircle2 },
-  FAILED: { label: "ناموفق", cls: "bg-destructive/15 text-destructive", icon: XCircle },
-  REFUNDED: { label: "بازگشت‌خورده", cls: "bg-muted text-muted-foreground", icon: RotateCcw },
-  CANCELLED: { label: "لغوشده", cls: "bg-muted text-muted-foreground", icon: XCircle },
+type StatusVariant = "warning" | "secondary" | "success" | "destructive"
+const statusMap: Record<string, { label: string; variant: StatusVariant; icon: typeof Clock }> = {
+  PENDING: { label: "در انتظار", variant: "warning", icon: Clock },
+  PAID: { label: "پرداخت‌شده", variant: "secondary", icon: CheckCircle2 },
+  DELIVERED: { label: "تحویل‌شده", variant: "success", icon: CheckCircle2 },
+  COMPLETED: { label: "تکمیل‌شده", variant: "success", icon: CheckCircle2 },
+  FAILED: { label: "ناموفق", variant: "destructive", icon: XCircle },
+  REFUNDED: { label: "بازگشت‌خورده", variant: "secondary", icon: RotateCcw },
+  CANCELLED: { label: "لغوشده", variant: "secondary", icon: XCircle },
 }
 
 export default function OrdersPage() {
@@ -80,11 +83,7 @@ export default function OrdersPage() {
   const orders = data?.data ?? []
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای مشاهده سفارش‌ها، یک حساب کاربری انتخاب کنید.
-      </div>
-    )
+    return <SignInRequired description="برای مشاهده سفارش‌ها، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (
@@ -101,9 +100,13 @@ export default function OrdersPage() {
           ))}
         </div>
       ) : orders.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          هنوز سفارشی ثبت نکرده‌اید.
-        </div>
+        <EmptyState
+          icon={ShoppingBag}
+          title="هنوز سفارشی ثبت نکرده‌اید"
+          description="از فروش فوری دیدن کنید و اولین خرید خود را انجام دهید."
+          actionLabel="مشاهده فروش فوری"
+          actionHref="/flash"
+        />
       ) : (
         <ul className="space-y-3">
           {orders.map((o) => {
@@ -127,12 +130,10 @@ export default function OrdersPage() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${s.cls}`}
-                    >
+                    <Badge variant={s.variant} className="gap-1 rounded-full">
                       <s.icon className="h-3.5 w-3.5" />
                       {s.label}
-                    </span>
+                    </Badge>
                     <span className="tabular-nums text-sm font-bold">
                       {formatToman(o.amount)} ت
                     </span>

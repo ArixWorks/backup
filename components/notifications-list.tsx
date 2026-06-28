@@ -29,6 +29,8 @@ import {
 import { useState } from "react"
 import { fetcher, apiPost, apiDelete } from "@/lib/api-client"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
+import { EmptyState } from "@/components/empty-state"
 import { formatRelative } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -189,13 +191,13 @@ export function NotificationsList() {
       {/* Search + mark-all */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="جستجو در اعلان‌ها…"
-            className="w-full rounded-xl border border-border bg-card py-2 pe-3 ps-9 text-sm outline-none focus:border-primary"
+            className="pe-3 ps-9"
           />
         </div>
         {unread > 0 && tab !== "archived" && (
@@ -219,15 +221,23 @@ export function NotificationsList() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          {search.trim()
-            ? "اعلانی با این جستجو پیدا نشد."
-            : tab === "archived"
-              ? "بایگانی شما خالی است."
-              : tab === "unread"
-                ? "اعلان خوانده‌نشده‌ای ندارید."
-                : "هنوز اعلانی ندارید. وقتی خبری باشد اینجا نمایش داده می‌شود."}
-        </div>
+        <EmptyState
+          icon={search.trim() ? Search : tab === "archived" ? Archive : tab === "unread" ? CheckCheck : Bell}
+          title={
+            search.trim()
+              ? "اعلانی با این جستجو پیدا نشد"
+              : tab === "archived"
+                ? "بایگانی شما خالی است"
+                : tab === "unread"
+                  ? "اعلان خوانده‌نشده‌ای ندارید"
+                  : "هنوز اعلانی ندارید"
+          }
+          description={
+            !search.trim() && tab === "all"
+              ? "وقتی خبری درباره سفارش‌ها، مزایده‌ها یا تراکنش‌ها باشد، اینجا نمایش داده می‌شود."
+              : undefined
+          }
+        />
       ) : (
         <ul className="space-y-2">
           {items.map((n) => {

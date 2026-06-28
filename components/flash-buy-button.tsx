@@ -279,7 +279,7 @@ export function FlashBuyButton({
                   type="button"
                   onClick={pay}
                   disabled={loading || insufficient}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 p-4 text-right transition-colors hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 p-4 text-start transition-[background-color] duration-[var(--duration-fast)] ease-[var(--ease-out-quint)] hover:bg-primary/15 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <span className="flex items-center gap-2 font-bold text-foreground">
                     <Wallet className="h-5 w-5 text-primary" />
@@ -331,6 +331,9 @@ export function FlashBuyButton({
               ) : (
                 <p className="text-sm text-muted-foreground">{t("buy.pendingManual")}</p>
               )}
+              <Button variant="gold" size="lg" className="mt-1 w-full" onClick={() => setOpen(false)}>
+                {t("common.done")}
+              </Button>
             </>
           )}
         </DialogContent>

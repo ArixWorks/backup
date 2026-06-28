@@ -19,6 +19,7 @@ export type MessageKey =
   | "common.loading"
   | "common.back"
   | "common.cancel"
+  | "common.done"
   | "common.vip"
   | "tier.standard"
   | "tier.bronze"
@@ -166,6 +167,7 @@ const fa: Catalog = {
   "common.loading": "در حال بارگذاری…",
   "common.back": "بازگشت",
   "common.cancel": "انصراف",
+  "common.done": "تمام",
   "common.vip": "عضویت ویژه",
   "tier.standard": "استاندارد",
   "tier.bronze": "برنزی",
@@ -312,6 +314,7 @@ const en: Catalog = {
   "common.loading": "Loading…",
   "common.back": "Back",
   "common.cancel": "Cancel",
+  "common.done": "Done",
   "common.vip": "VIP Member",
   "tier.standard": "Standard",
   "tier.bronze": "Bronze",
@@ -458,6 +461,7 @@ const ru: Catalog = {
   "common.loading": "Загрузка…",
   "common.back": "Назад",
   "common.cancel": "Отмена",
+  "common.done": "Готово",
   "common.vip": "VIP-участник",
   "tier.standard": "Стандарт",
   "tier.bronze": "Бронза",
@@ -604,6 +608,7 @@ const hi: Catalog = {
   "common.loading": "लोड हो रहा है…",
   "common.back": "वापस",
   "common.cancel": "रद्द करें",
+  "common.done": "हो गया",
   "common.vip": "VIP सदस्य",
   "tier.standard": "स्टैंडर्ड",
   "tier.bronze": "ब्रॉन्ज़",
@@ -648,7 +653,7 @@ const hi: Catalog = {
   "detail.shareCopied": "लिंक कॉपी हुआ",
   "detail.notFound": "यह उत्पाद नहीं मिला या अब उपलब्ध नहीं है।",
   "detail.eachFrom": "प्रति इकाई से",
-  "detail.restockNotice": "यह उत्पाद स्टॉक में नहीं है। वापस आने पर सूचना पाने के लिए अलर्ट चालू करें।",
+  "detail.restockNotice": "यह उत्पाद स्टॉक में नहीं है। वापस आने पर सूचना पाने के लिए अ���र्ट चालू करें।",
   "search.placeholder": "उत्पाद खोजें…",
   "search.all": "सभी",
   "search.noResults": "आपकी खोज के लिए कोई परिणाम नहीं मिला।",
