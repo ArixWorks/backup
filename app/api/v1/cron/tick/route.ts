@@ -87,6 +87,28 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] daily backup gate error:", (e as Error).message)
   }
 
+  // Drain the transactional email queue (rate-limited inside the worker).
+  // Best-effort: a mail failure must never break the scheduler tick.
+  let email: { claimed: number; sent: number; failed: number; retried: number } = {
+    claimed: 0,
+    sent: 0,
+    failed: 0,
+    retried: 0,
+  }
+  try {
+    const emailStart = Date.now()
+    const { processEmailQueue } = await import("@/lib/email/worker")
+    const r = await processEmailQueue()
+    email = { claimed: r.claimed, sent: r.sent, failed: r.failed, retried: r.retried }
+    // Report the email queue as a live "queue" worker to the Operations Center,
+    // carrying real backlog size + processing latency for the queue metrics.
+    const { prisma } = await import("@/lib/db")
+    const pending = await prisma.emailJob.count({ where: { status: "QUEUED" } }).catch(() => 0)
+    void touchHeartbeat("queue", { size: pending, latencyMs: Date.now() - emailStart })
+  } catch (e) {
+    console.log("[v0] email queue processing error:", (e as Error).message)
+  }
+
   return {
     activated: activated.activated,
     notified,
@@ -94,6 +116,7 @@ export const POST = route(async (req: Request) => {
     ...ticked,
     giveaways,
     backup,
+    email,
   }
     })
   } catch (err) {

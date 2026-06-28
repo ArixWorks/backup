@@ -1,7 +1,33 @@
 "use client"
 
-import { useEffect } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { useSWRConfig } from "swr"
+
+/**
+ * Lifecycle of the automatic Telegram Mini App login:
+ *  - "detecting":      figuring out whether we were launched from Telegram
+ *  - "authenticating": initData found, verifying + creating/loading the user
+ *  - "authenticated":  session cookie set and session cache revalidated
+ *  - "outside":        not launched from Telegram (plain website)
+ *  - "error":          launched from Telegram but the initData login failed
+ *
+ * The AuthGate reads this so it never bounces a real Telegram user to /login
+ * while the auto-login is still in flight (the previous race that showed the
+ * login screen on first open for brand-new accounts).
+ */
+export type TelegramAuthPhase =
+  | "detecting"
+  | "authenticating"
+  | "authenticated"
+  | "outside"
+  | "error"
+
+const TelegramAuthContext = createContext<{ phase: TelegramAuthPhase }>({ phase: "detecting" })
+
+/** Read the current Telegram auto-login phase from anywhere in the tree. */
+export function useTelegramAuth() {
+  return useContext(TelegramAuthContext)
+}
 
 /**
  * Bootstraps the Telegram Mini App experience when the site is opened inside
@@ -12,6 +38,7 @@ import { useSWRConfig } from "swr"
  *    our chrome never sits under the notch or Telegram's floating controls
  *  - disables vertical swipe-to-close so scrolling never dismisses the app
  *  - authenticates via initData (sets our session cookie) and revalidates
+ *  - publishes its progress via context so the AuthGate can wait for it
  *
  * Outside Telegram it is a no-op, so the normal web app is unaffected.
  */
@@ -95,19 +122,53 @@ function applyInsets(wa: TelegramWebApp) {
   root.style.setProperty("--tg-safe-right", `${safe.right + content.right}px`)
 }
 
-export function TelegramProvider() {
+/**
+ * Synchronously decide whether this load *might* have come from Telegram.
+ *
+ * Telegram appends a `tgWebApp...` payload to the launch URL (usually in the
+ * hash, sometimes in the query string) and exposes WebApp.initData once the SDK
+ * script resolves. Any of these signals means we should wait for the initData
+ * login instead of treating the visitor as an anonymous website user.
+ *
+ * This is intentionally permissive: a false positive only costs a brief loader
+ * (boot() then resolves to "outside" and the gate redirects), whereas a false
+ * negative would resurface the original bug — bouncing a real Telegram user to
+ * /login before their account is created.
+ */
+function launchedFromTelegram(): boolean {
+  if (typeof window === "undefined") return false
+  const url = window.location.hash + window.location.search
+  return /tgWebApp/i.test(url) || !!window.Telegram?.WebApp?.initData
+}
+
+export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const { mutate } = useSWRConfig()
+  // Start optimistic: on the website we resolve to "outside" with no spinner;
+  // inside Telegram we start "authenticating" so the gate waits for us.
+  const [phase, setPhase] = useState<TelegramAuthPhase>(() =>
+    launchedFromTelegram() ? "authenticating" : "detecting",
+  )
 
   useEffect(() => {
     let cancelled = false
     let wa: TelegramWebApp | undefined
     const onInsets = () => wa && applyInsets(wa)
+    const set = (p: TelegramAuthPhase) => {
+      if (!cancelled) setPhase(p)
+    }
 
     async function boot() {
+      // Same permissive launch hint used for the initial phase. Captured once at
+      // boot because Telegram clears the #tgWebApp fragment shortly after launch;
+      // while this is true we keep polling for initData rather than giving up and
+      // declaring "outside".
+      const hint = launchedFromTelegram()
+
       // The SDK script may load slightly after hydration; poll briefly.
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 30 && !cancelled; i++) {
         wa = window.Telegram?.WebApp
         if (wa && wa.initData) {
+          set("authenticating")
           try {
             wa.ready()
             wa.expand()
@@ -142,20 +203,44 @@ export function TelegramProvider() {
             /* ignore — never block auth on chrome setup */
           }
 
-          const res = await fetch("/api/telegram/auth", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ initData: wa.initData }),
-            credentials: "include",
-          })
-          if (!cancelled && res.ok) {
-            document.documentElement.dataset.telegram = "1"
-            await mutate("/api/v1/auth/session")
+          try {
+            const res = await fetch("/api/telegram/auth", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ initData: wa.initData }),
+              credentials: "include",
+            })
+            if (cancelled) return
+            if (res.ok) {
+              document.documentElement.dataset.telegram = "1"
+              // Populate the session cache BEFORE flipping to "authenticated"
+              // so the gate sees the user immediately and never redirects.
+              await mutate("/api/v1/auth/session")
+              set("authenticated")
+            } else {
+              // Verified-but-rejected (expired / bad signature / rate limited):
+              // fall back to /login so email or the Login Widget can be used.
+              set("error")
+            }
+          } catch {
+            set("error")
           }
+          return
+        }
+
+        // SDK has loaded but there is no initData and no Telegram launch hint
+        // (Telegram always appends the #tgWebApp fragment): this is the plain
+        // website, so stop immediately rather than polling the full window.
+        if (wa && !wa.initData && !hint) {
+          set("outside")
           return
         }
         await new Promise((r) => setTimeout(r, 100))
       }
+
+      // Polling window elapsed. If we had a launch hint but never received
+      // initData, surface an error so the gate can recover via /login.
+      set(hint ? "error" : "outside")
     }
 
     boot()
@@ -168,5 +253,5 @@ export function TelegramProvider() {
     }
   }, [mutate])
 
-  return null
+  return <TelegramAuthContext.Provider value={{ phase }}>{children}</TelegramAuthContext.Provider>
 }

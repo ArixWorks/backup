@@ -52,6 +52,22 @@ export const SETTING_KEYS = {
   backupChatId: "backup.chatId", // Telegram chat id the backup file is sent to
   backupHour: "backup.hour", // 0..23, hour (Asia/Tehran) the daily backup fires
   backupLastRunDate: "backup.lastRunDate", // internal: YYYY-MM-DD (Tehran) of last run
+
+  // --- Email infrastructure ---
+  emailEnabled: "email.enabled", // master switch for outbound email
+  emailFromName: "email.fromName", // display name on the From header
+  emailDomain: "email.domain", // verified sending domain, e.g. "subio.shop"
+  emailNoreplyAddress: "email.address.noreply", // full address or local part
+  emailSupportAddress: "email.address.support",
+  emailBillingAddress: "email.address.billing",
+  emailSecurityAddress: "email.address.security",
+  emailReplyTo: "email.replyTo", // optional Reply-To for transactional mail
+  emailBlockDisposable: "email.blockDisposable", // reject disposable inboxes
+  emailRatePerMinute: "email.ratePerMinute", // outgoing send cap per minute (flood guard)
+  emailBatchSize: "email.batchSize", // jobs processed per worker tick
+  emailMaxAttempts: "email.maxAttempts", // default retry ceiling per job
+  emailOpenTracking: "email.openTracking", // request open tracking from provider
+  emailClickTracking: "email.clickTracking", // request click tracking from provider
 } as const
 
 /** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
@@ -123,6 +139,24 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.backupChatId]: "1645353710",
   [SETTING_KEYS.backupHour]: "0",
   [SETTING_KEYS.backupLastRunDate]: "",
+
+  // Email: enabled by default; addresses default to local parts that combine
+  // with `email.domain` (or RESEND_FROM's domain) at send time. Conservative
+  // rate limit and batch size keep the provider happy and avoid floods.
+  [SETTING_KEYS.emailEnabled]: "true",
+  [SETTING_KEYS.emailFromName]: "Subio Shop",
+  [SETTING_KEYS.emailDomain]: "",
+  [SETTING_KEYS.emailNoreplyAddress]: "noreply",
+  [SETTING_KEYS.emailSupportAddress]: "support",
+  [SETTING_KEYS.emailBillingAddress]: "billing",
+  [SETTING_KEYS.emailSecurityAddress]: "security",
+  [SETTING_KEYS.emailReplyTo]: "",
+  [SETTING_KEYS.emailBlockDisposable]: "false",
+  [SETTING_KEYS.emailRatePerMinute]: "60",
+  [SETTING_KEYS.emailBatchSize]: "25",
+  [SETTING_KEYS.emailMaxAttempts]: "5",
+  [SETTING_KEYS.emailOpenTracking]: "true",
+  [SETTING_KEYS.emailClickTracking]: "true",
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]

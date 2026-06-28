@@ -1274,3 +1274,105 @@ model AlertEvent {
   @@index([status, startedAt])
   @@index([severity, startedAt])
 }
+
+// ---------------------------------------------------------------------------
+// Email infrastructure (enterprise-grade queue + delivery tracking)
+// ---------------------------------------------------------------------------
+
+enum EmailStatus {
+  QUEUED // accepted, waiting for a worker
+  PROCESSING // claimed by a worker, send in flight
+  SENT // handed to the provider successfully
+  DELIVERED // provider confirmed delivery (webhook)
+  FAILED // permanently failed (gave up after retries / 4xx)
+  BOUNCED // recipient bounced (webhook)
+  COMPLAINED // marked as spam (webhook)
+  CANCELED // canceled before sending (e.g. invalid address)
+}
+
+// Catalog of transactional templates. Adding a value here + a renderer in
+// lib/email/templates.ts is all that's needed for a new email type.
+enum EmailTemplateKey {
+  WELCOME
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  PURCHASE_CONFIRMATION
+  WALLET_DEPOSIT_APPROVED
+  WALLET_DEPOSIT_REJECTED
+  REFUND_COMPLETED
+  GIVEAWAY_WINNER
+  GIVEAWAY_REGISTRATION
+  AUCTION_WINNER
+  AUCTION_OUTBID
+  VIP_ACTIVATED
+  REFERRAL_REWARD
+  SUPPORT_REPLY
+  SECURITY_ALERT
+  GENERIC
+}
+
+// Verified sender identities. The actual From address for each is resolved
+// from settings/env at send time (lib/email/senders.ts).
+enum EmailSenderId {
+  NOREPLY
+  SUPPORT
+  BILLING
+  SECURITY
+}
+
+// A single queued/processed email. This is BOTH the durable work item and the
+// delivery record, so queued mail survives restarts and is captured by the DB
+// backup automatically. Idempotency is enforced by `idempotencyKey`.
+model EmailJob {
+  id               String           @id @default(cuid())
+  idempotencyKey   String           @unique
+  template         EmailTemplateKey
+  sender           EmailSenderId    @default(NOREPLY)
+  to               String
+  locale           String           @default("fa")
+  subject          String
+  payload          Json? // template variables (rendered at send time)
+  status           EmailStatus      @default(QUEUED)
+  priority         Int              @default(5) // lower runs sooner
+  attempts         Int              @default(0)
+  maxAttempts      Int              @default(5)
+  nextAttemptAt    DateTime         @default(now())
+  lastError        String?
+  providerId       String? // Resend message id
+  providerResponse Json?
+  userId           String? // soft reference (no FK) for analytics/audit
+  openCount        Int              @default(0)
+  clickCount       Int              @default(0)
+  queuedAt         DateTime         @default(now())
+  processingAt     DateTime?
+  sentAt           DateTime?
+  deliveredAt      DateTime?
+  failedAt         DateTime?
+  openedAt         DateTime?
+  clickedAt        DateTime?
+  updatedAt        DateTime         @updatedAt
+
+  events EmailEvent[]
+
+  @@index([status, nextAttemptAt])
+  @@index([template, queuedAt])
+  @@index([to])
+  @@index([providerId])
+  @@index([queuedAt])
+}
+
+// Raw provider lifecycle events (delivered, bounced, opened, clicked, …),
+// kept for the full audit trail and analytics.
+model EmailEvent {
+  id         String    @id @default(cuid())
+  jobId      String?
+  job        EmailJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  providerId String?
+  type       String // provider event type, e.g. "email.delivered"
+  payload    Json?
+  occurredAt DateTime  @default(now())
+
+  @@index([jobId])
+  @@index([type, occurredAt])
+  @@index([providerId])
+}

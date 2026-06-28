@@ -417,6 +417,113 @@
       background-position: 100% 50%;
     }
   }
+
+  /* ===== Language picker hero (premium "global platform" intro) ===== */
+
+  /* Continuous yaw for the golden globe — GPU-accelerated transform only. */
+  @keyframes globe-yaw {
+    to {
+      transform: rotateY(360deg);
+    }
+  }
+  .animate-globe {
+    animation: globe-yaw 26s linear infinite;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  /* Orbital ring rotation (tilted in 3D by its wrapper). */
+  @keyframes orbit-spin {
+    to {
+      transform: rotateZ(360deg);
+    }
+  }
+  .animate-orbit {
+    animation: orbit-spin 14s linear infinite;
+    will-change: transform;
+  }
+  .animate-orbit-rev {
+    animation: orbit-spin 22s linear infinite reverse;
+    will-change: transform;
+  }
+
+  /* Twinkling gold dust / particles. */
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: 0.15;
+      transform: scale(0.7);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.15);
+    }
+  }
+  .animate-twinkle {
+    animation: twinkle 3.6s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+
+  /* Gentle cloth-wave for flag chips. */
+  @keyframes flag-wave {
+    0%,
+    100% {
+      transform: rotate(-2.5deg) skewX(0deg) scaleY(1);
+    }
+    50% {
+      transform: rotate(2.5deg) skewX(-5deg) scaleY(0.96);
+    }
+  }
+  .animate-flag {
+    animation: flag-wave 3.2s ease-in-out infinite;
+    transform-origin: left center;
+    will-change: transform;
+  }
+
+  /* Soft pulsing halo behind the selected card / globe. */
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      opacity: 0.45;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.85;
+      transform: scale(1.06);
+    }
+  }
+  .animate-glow {
+    animation: glow-pulse 3.4s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+
+  /* Floating bubbles around the globe (staggered via inline delay). */
+  @keyframes float-bubble {
+    0%,
+    100% {
+      transform: translateY(0) translateZ(0);
+    }
+    50% {
+      transform: translateY(-9px) translateZ(0);
+    }
+  }
+  .animate-bubble {
+    animation: float-bubble 4.5s ease-in-out infinite;
+    will-change: transform;
+  }
+}
+
+/* Reduced-motion: silence every decorative loop for the language hero. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-globe,
+  .animate-orbit,
+  .animate-orbit-rev,
+  .animate-twinkle,
+  .animate-flag,
+  .animate-glow,
+  .animate-bubble {
+    animation: none !important;
+  }
 }
 
 /* Honor user reduced-motion preferences across all decorative animations. */

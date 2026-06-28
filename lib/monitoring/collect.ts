@@ -13,6 +13,7 @@ import { getBusinessMetrics, businessToSamples } from "./business"
 import { checkAll, type HealthResult } from "./health"
 import { readHeartbeat } from "./heartbeat"
 import { evaluateMetricAlerts, evaluateHealthAlerts, seedDefaultAlertRules } from "./alerts"
+import { readEmailBounceRate } from "@/lib/email/analytics"
 import { emitOps } from "@/lib/core/events"
 
 /**
@@ -80,6 +81,15 @@ export async function runCollection(): Promise<{
   }
   const redis = health.find((h) => h.service === "redis")
   if (redis) add("redis.latency", redis.latencyMs)
+
+  // Email queue health derived from the email probe's meta (no extra queries).
+  const email = health.find((h) => h.service === "email")
+  if (email) {
+    const meta = (email.meta ?? {}) as { queued?: number; failed24h?: number }
+    add("email.queue.size", meta.queued ?? null)
+    add("email.failed", meta.failed24h ?? null)
+    add("email.bounce_rate", await readEmailBounceRate())
+  }
 
   // Worker-reported metrics (only present when those processes report in).
   const queueHb = await readHeartbeat("queue")

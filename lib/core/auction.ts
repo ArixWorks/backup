@@ -15,6 +15,7 @@ import { BASE_CURRENCY, serializableTx } from "./ledger"
 import { progressMission } from "./gamification"
 import { createManualDelivery, NoInventoryError, reserveAndDeliverAuto } from "./delivery"
 import { notifyAuctionWon } from "@/lib/telegram/notify"
+import { formatToman } from "@/lib/format"
 
 type Tx = Prisma.TransactionClient
 
@@ -210,6 +211,7 @@ export async function placeBid(opts: {
     // Notify the displaced bidder that they've been outbid (best-effort).
     if (result.displacedUserId) {
       const { createNotification } = await import("./notifications")
+      const { sendAuctionOutbidEmail } = await import("@/lib/email")
       await createNotification({
         userId: result.displacedUserId,
         type: "AUCTION_OUTBID",
@@ -217,6 +219,13 @@ export async function placeBid(opts: {
         body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به جمع برندگان پیشنهاد جدید بدهید.`,
         href: `/auctions/${result.auctionId}`,
       }).catch(() => {})
+      await sendAuctionOutbidEmail({
+        userId: result.displacedUserId,
+        auctionId: result.auctionId,
+        title: result.productTitle,
+        // The displacing bid amount uniquely identifies this outbid event.
+        bidId: `${result.displacedUserId}:${result.amount.toString()}`,
+      })
     }
     return result
   })
@@ -398,6 +407,7 @@ export async function finalizeAuction(auctionId: string) {
     // Best-effort Telegram notifications to winners (never blocks settlement).
     if (res.finalized && "winnerList" in res && res.winnerList) {
       const { createNotification } = await import("./notifications")
+      const { sendAuctionWinnerEmail } = await import("@/lib/email")
       for (const w of res.winnerList) {
         await notifyAuctionWon(w.userId, res.title!, w.amount, res.coverImage)
         await createNotification({
@@ -408,6 +418,13 @@ export async function finalizeAuction(auctionId: string) {
           href: "/orders",
           image: res.coverImage,
         }).catch(() => {})
+        await sendAuctionWinnerEmail({
+          userId: w.userId,
+          auctionId,
+          title: res.title!,
+          amount: formatToman(w.amount),
+          currency: "IRT",
+        })
       }
       // Notify participants who did not win (funds already released above).
       if ("loserIds" in res && res.loserIds) {
