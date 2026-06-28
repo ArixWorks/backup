@@ -62,9 +62,9 @@ type Detail = {
 const STATUS_META: Record<string, { label: string; className: string }> = {
   DRAFT: { label: "پیش‌نویس", className: "bg-secondary text-muted-foreground" },
   SCHEDULED: { label: "زمان‌بندی‌شده", className: "bg-primary/10 text-primary" },
-  ACTIVE: { label: "فعال", className: "bg-emerald-500/15 text-emerald-500" },
-  PAUSED: { label: "متوقف", className: "bg-amber-500/15 text-amber-500" },
-  LOCKED: { label: "آماده قرعه‌کشی", className: "bg-amber-500/15 text-amber-500" },
+  ACTIVE: { label: "فعال", className: "bg-success/15 text-success" },
+  PAUSED: { label: "متوقف", className: "bg-warning/15 text-warning" },
+  LOCKED: { label: "آماده قرعه‌کشی", className: "bg-warning/15 text-warning" },
   DRAWING: { label: "در حال قرعه‌کشی", className: "bg-primary/15 text-primary" },
   FINISHED: { label: "پایان‌یافته", className: "bg-secondary text-muted-foreground" },
   CANCELLED: { label: "لغو شده", className: "bg-destructive/10 text-destructive" },
@@ -192,7 +192,7 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={Users} label="کل شرکت‌کنندگان" value={stats.total} />
-        <StatCard icon={CheckCircle2} label="واجد شرایط" value={stats.eligible} tone="emerald" />
+        <StatCard icon={CheckCircle2} label="واجد شرایط" value={stats.eligible} tone="success" />
         <StatCard icon={XCircle} label="غیرواجد" value={stats.ineligible} tone="destructive" />
         <StatCard icon={Trophy} label="برندگان" value={stats.winners} tone="primary" />
       </div>
@@ -226,7 +226,7 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
             کنترل قرعه‌کشی
           </h2>
           {stats.eligible === 0 && (
-            <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
+            <div className="flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning">
               <AlertTriangle className="h-4 w-4" />
               هنوز شرکت‌کننده‌ی واجد شرایطی وجود ندارد.
             </div>
@@ -292,7 +292,7 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
                 </div>
                 <div className="text-left">
                   {w.delivered ? (
-                    <span className="flex items-center gap-1 text-xs text-emerald-500">
+                    <span className="flex items-center gap-1 text-xs text-success">
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       تحویل شد
                     </span>
@@ -302,7 +302,7 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
                       خطای تحویل
                     </span>
                   ) : (
-                    <span className="text-xs text-amber-500">در انتظار تحویل دستی</span>
+                    <span className="text-xs text-warning">در انتظار تحویل دستی</span>
                   )}
                 </div>
               </li>
@@ -323,11 +323,11 @@ function StatCard({
   icon: typeof Users
   label: string
   value: number
-  tone?: "default" | "emerald" | "destructive" | "primary"
+  tone?: "default" | "success" | "destructive" | "primary"
 }) {
   const toneClass =
-    tone === "emerald"
-      ? "text-emerald-500"
+    tone === "success"
+      ? "text-success"
       : tone === "destructive"
         ? "text-destructive"
         : tone === "primary"

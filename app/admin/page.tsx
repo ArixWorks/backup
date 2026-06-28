@@ -232,7 +232,7 @@ function ActionCard({
         has && danger
           ? "border-destructive/40 bg-destructive/5"
           : has
-            ? "border-amber-500/40 bg-amber-500/5"
+            ? "border-warning/40 bg-warning/5"
             : "border-border bg-card"
       }`}
     >
@@ -242,7 +242,7 @@ function ActionCard({
             has && danger
               ? "bg-destructive/15 text-destructive"
               : has
-                ? "bg-amber-500/15 text-amber-400"
+                ? "bg-warning/15 text-warning"
                 : "bg-secondary text-muted-foreground"
           }`}
         >

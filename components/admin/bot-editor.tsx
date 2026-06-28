@@ -750,7 +750,7 @@ function ConnectionStatus({ status }: { status: StatusResponse["data"] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">ربات متصل</p>
           <p className="truncate text-sm font-medium" dir="ltr">
@@ -761,9 +761,9 @@ function ConnectionStatus({ status }: { status: StatusResponse["data"] }) {
 
       <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
         {hasWebhook ? (
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
         ) : (
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+          <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
         )}
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">وبهوک</p>
@@ -772,7 +772,7 @@ function ConnectionStatus({ status }: { status: StatusResponse["data"] }) {
       </div>
 
       <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-        <Link2 className={cn("h-5 w-5 shrink-0", hasAppUrl ? "text-emerald-500" : "text-amber-500")} />
+        <Link2 className={cn("h-5 w-5 shrink-0", hasAppUrl ? "text-success" : "text-warning")} />
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">آدرس عمومی اپ</p>
           <p className="truncate text-sm font-medium" dir="ltr">

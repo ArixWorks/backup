@@ -248,12 +248,12 @@ function PendingCard({
     <Link
       href={href}
       className={`rounded-xl border p-5 transition-colors hover:border-primary/40 ${
-        has ? "border-amber-500/40 bg-amber-500/5" : "border-border bg-card"
+        has ? "border-warning/40 bg-warning/5" : "border-border bg-card"
       }`}
     >
       <div className="flex items-center justify-between text-muted-foreground">
         <span className="text-xs">{label}</span>
-        <span className={has ? "text-amber-400" : ""}>{icon}</span>
+        <span className={has ? "text-warning" : ""}>{icon}</span>
       </div>
       {loading ? (
         <Skeleton className="mt-2 h-8 w-24" />

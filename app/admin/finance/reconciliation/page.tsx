@@ -81,17 +81,17 @@ export default function ReconciliationPage() {
           <Card
             className={`flex items-center gap-3 p-5 ${
               data.ok
-                ? "border-emerald-500/40 bg-emerald-500/5"
+                ? "border-success/40 bg-success/5"
                 : "border-destructive/40 bg-destructive/5"
             }`}
           >
             {data.ok ? (
-              <CheckCircle2 className="h-8 w-8 shrink-0 text-emerald-500" />
+              <CheckCircle2 className="h-8 w-8 shrink-0 text-success" />
             ) : (
               <AlertTriangle className="h-8 w-8 shrink-0 text-destructive" />
             )}
             <div>
-              <p className={`font-semibold ${data.ok ? "text-emerald-600" : "text-destructive"}`}>
+              <p className={`font-semibold ${data.ok ? "text-success" : "text-destructive"}`}>
                 {data.ok ? "همه‌چیز تراز است" : "مغایرت یافت شد"}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -117,7 +117,7 @@ export default function ReconciliationPage() {
                     </p>
                   </div>
                   {z.balanced ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-600">تراز</Badge>
+                    <Badge variant="success">تراز</Badge>
                   ) : (
                     <Badge variant="destructive">نامتوازن</Badge>
                   )}
