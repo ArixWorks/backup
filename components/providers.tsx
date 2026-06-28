@@ -8,9 +8,10 @@ import { ReferralCapture } from "@/components/referral-capture"
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <I18nProvider>
-      <TelegramProvider />
-      <ReferralCapture />
-      {children}
+      <TelegramProvider>
+        <ReferralCapture />
+        {children}
+      </TelegramProvider>
       <Toaster position="top-center" richColors theme="dark" />
     </I18nProvider>
   )
