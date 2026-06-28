@@ -115,9 +115,9 @@ async function main() {
   const delegateOf = new Map(models.map((m) => [m.name, m.delegate]))
   const revived = deepRevive(parsed.data) as Record<string, Record<string, unknown>[]>
 
-  const referrals: { id: unknown; referredById: unknown }[] = []
+  const referrals: { id: unknown; referredById: unknown; updatedAt: unknown }[] = []
   for (const u of revived["User"] ?? []) {
-    if (u.referredById != null) referrals.push({ id: u.id, referredById: u.referredById })
+    if (u.referredById != null) referrals.push({ id: u.id, referredById: u.referredById, updatedAt: u.updatedAt })
   }
 
   const tableList = models.map((m) => `"${m.name}"`).join(", ")
@@ -137,7 +137,15 @@ async function main() {
         console.log(`  ${name}: ${res.count}`)
       }
       for (const link of referrals) {
-        await tx.user.update({ where: { id: link.id as string }, data: { referredById: link.referredById as string } }).catch(() => {})
+        await tx.user
+          .update({
+            where: { id: link.id as string },
+            data: {
+              referredById: link.referredById as string,
+              ...(link.updatedAt != null ? { updatedAt: link.updatedAt as Date } : {}),
+            },
+          })
+          .catch(() => {})
       }
     },
     { timeout: 120_000, maxWait: 10_000 },

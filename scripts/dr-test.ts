@@ -126,8 +126,9 @@ async function restore(client: PrismaClient, buffer: Buffer) {
   const parsed = verify(buffer)
   const order: string[] = parsed.order?.length ? parsed.order : MODELS.map((m) => m.name)
   const revived = deepRevive(parsed.data) as Record<string, Record<string, unknown>[]>
-  const referrals: { id: unknown; referredById: unknown }[] = []
-  for (const u of revived["User"] ?? []) if (u.referredById != null) referrals.push({ id: u.id, referredById: u.referredById })
+  const referrals: { id: unknown; referredById: unknown; updatedAt: unknown }[] = []
+  for (const u of revived["User"] ?? [])
+    if (u.referredById != null) referrals.push({ id: u.id, referredById: u.referredById, updatedAt: u.updatedAt })
   const tableList = MODELS.map((m) => `"${m.name}"`).join(", ")
   let total = 0
   await client.$transaction(
@@ -143,7 +144,15 @@ async function restore(client: PrismaClient, buffer: Buffer) {
         total += res.count
       }
       for (const l of referrals)
-        await tx.user.update({ where: { id: l.id as string }, data: { referredById: l.referredById as string } }).catch(() => {})
+        await tx.user
+          .update({
+            where: { id: l.id as string },
+            data: {
+              referredById: l.referredById as string,
+              ...(l.updatedAt != null ? { updatedAt: l.updatedAt as Date } : {}),
+            },
+          })
+          .catch(() => {})
     },
     { timeout: 180_000, maxWait: 15_000 },
   )

@@ -262,10 +262,14 @@ export async function restoreBackup(buffer: Buffer): Promise<RestoreSummary> {
 
   const revived = deepRevive(parsed.data) as Record<string, Record<string, unknown>[]>
 
-  // Capture inviter links to re-apply after all users exist.
-  const userReferrals: { id: unknown; referredById: unknown }[] = []
+  // Capture inviter links to re-apply after all users exist. We also carry the
+  // ORIGINAL updatedAt: the second-pass update would otherwise trip User's
+  // @updatedAt and silently rewrite the timestamp, corrupting audit history.
+  const userReferrals: { id: unknown; referredById: unknown; updatedAt: unknown }[] = []
   for (const u of revived["User"] ?? []) {
-    if (u.referredById != null) userReferrals.push({ id: u.id, referredById: u.referredById })
+    if (u.referredById != null) {
+      userReferrals.push({ id: u.id, referredById: u.referredById, updatedAt: u.updatedAt })
+    }
   }
 
   let totalRows = 0
@@ -304,11 +308,15 @@ export async function restoreBackup(buffer: Buffer): Promise<RestoreSummary> {
         totalRows += res.count
       }
 
-      // 3. Re-apply inviter self-references.
+      // 3. Re-apply inviter self-references, re-asserting the original
+      //    updatedAt so @updatedAt doesn't overwrite it.
       for (const link of userReferrals) {
         await tx.user.update({
           where: { id: link.id as string },
-          data: { referredById: link.referredById as string },
+          data: {
+            referredById: link.referredById as string,
+            ...(link.updatedAt != null ? { updatedAt: link.updatedAt as Date } : {}),
+          },
         }).catch(() => {})
       }
     },
