@@ -16,6 +16,7 @@
     "db:backup": "tsx scripts/backup.ts",
     "db:restore": "tsx scripts/restore.ts",
     "go-live": "prisma migrate deploy && tsx scripts/production-seed.ts",
+    "email:e2e": "tsx --require ./scripts/_stub-server-only.cjs scripts/email-e2e.ts",
     "ops:ws": "node server/ops-ws-server.mjs",
     "postinstall": "prisma generate"
   },
@@ -31,6 +32,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

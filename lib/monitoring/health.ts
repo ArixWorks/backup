@@ -129,11 +129,39 @@ async function probeWebhook(): Promise<Partial<HealthResult>> {
   }
 }
 
-function probeEmail(): Partial<HealthResult> {
+async function probeEmail(): Promise<Partial<HealthResult>> {
   const configured = Boolean(process.env.RESEND_API_KEY)
-  return configured
-    ? { status: "UP", latencyMs: null, message: null, meta: { provider: "resend" } }
-    : { status: "DEGRADED", latencyMs: null, message: "RESEND_API_KEY تنظیم نشده" }
+  // Inspect the durable queue: a large backlog or many recent failures means
+  // delivery is degraded even if the provider key is present.
+  let queued = 0
+  let failed24h = 0
+  let oldestQueuedMin: number | null = null
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const [q, f, oldest] = await Promise.all([
+      prisma.emailJob.count({ where: { status: "QUEUED" } }),
+      prisma.emailJob.count({ where: { status: "FAILED", failedAt: { gte: since } } }),
+      prisma.emailJob.findFirst({ where: { status: "QUEUED" }, orderBy: { queuedAt: "asc" }, select: { queuedAt: true } }),
+    ])
+    queued = q
+    failed24h = f
+    if (oldest) oldestQueuedMin = Math.round((Date.now() - oldest.queuedAt.getTime()) / 60000)
+  } catch {
+    // table may not exist yet on a fresh DB; fall back to config-only status.
+  }
+
+  const meta = { provider: "resend", queued, failed24h, oldestQueuedMin }
+  if (!configured) {
+    return { status: "DEGRADED", latencyMs: null, message: "RESEND_API_KEY تنظیم نشده (فقط ثبت می‌شود)", meta }
+  }
+  // Backlog stuck for >15 min or a spike of failures => degraded.
+  if ((oldestQueuedMin != null && oldestQueuedMin > 15) || queued > 500) {
+    return { status: "DEGRADED", latencyMs: null, message: `صف ایمیل پر است (${queued} در انتظار)`, meta }
+  }
+  if (failed24h > 20) {
+    return { status: "DEGRADED", latencyMs: null, message: `ارسال‌های ناموفق زیاد (${failed24h} در ۲۴ ساعت)`, meta }
+  }
+  return { status: "UP", latencyMs: null, message: null, meta }
 }
 
 async function probePing(def: ServiceDef): Promise<Partial<HealthResult>> {
@@ -200,7 +228,7 @@ async function probeService(def: ServiceDef): Promise<HealthResult> {
       partial = await probeWebhook()
       break
     case "email":
-      partial = probeEmail()
+      partial = await probeEmail()
       break
     // Internal HTTP-served surfaces: if this code runs, the API/web layer is up.
     case "web":

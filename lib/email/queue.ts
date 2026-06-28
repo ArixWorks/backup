@@ -117,8 +117,13 @@ export async function enqueueEmail(input: EnqueueInput): Promise<EnqueueResult> 
     }
   }
 
-  // 5) Create the QUEUED job. A unique-key conflict means it's already queued
-  //    (idempotent) — treat as success without creating a duplicate.
+  // 5) Idempotency fast-path: if a job already exists for this key, return it
+  //    without attempting an insert (avoids a noisy unique-violation in logs).
+  const prior = await prisma.emailJob.findUnique({ where: { idempotencyKey }, select: { id: true } })
+  if (prior) return { queued: true, jobId: prior.id, deduped: true }
+
+  // 6) Create the QUEUED job. A unique-key conflict here means a concurrent
+  //    enqueue won the race — treat as success without creating a duplicate.
   try {
     const job = await prisma.emailJob.create({
       data: {

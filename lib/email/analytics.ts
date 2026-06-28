@@ -93,6 +93,22 @@ export async function getTemplateBreakdown(windowDays = 30): Promise<TemplateBre
   return grouped.map((g) => ({ template: g.template, count: g._count._all }))
 }
 
+/**
+ * Bounce rate (percent, 0..100) over the last 24h, for the Ops Center metric.
+ * Denominator is everything that reached the provider (sent+delivered+bounced).
+ */
+export async function readEmailBounceRate(): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  const [bounced, reached] = await Promise.all([
+    prisma.emailJob.count({ where: { status: "BOUNCED", updatedAt: { gte: since } } }),
+    prisma.emailJob.count({
+      where: { status: { in: ["SENT", "DELIVERED", "BOUNCED"] }, updatedAt: { gte: since } },
+    }),
+  ])
+  if (reached === 0) return 0
+  return Math.round((bounced / reached) * 1000) / 10
+}
+
 /** Daily sent counts for a sparkline/area chart. */
 export async function getDailyVolume(windowDays = 14): Promise<{ date: string; count: number }[]> {
   const since = new Date(Date.now() - windowDays * 86_400_000)

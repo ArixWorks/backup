@@ -123,7 +123,7 @@ export function EmailLogs() {
           value={status}
           onValueChange={(v) => {
             setPage(1)
-            setStatus(v)
+            setStatus(v ?? "ALL")
           }}
         >
           <SelectTrigger className="sm:w-44">
