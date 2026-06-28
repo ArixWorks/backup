@@ -172,6 +172,58 @@ export type MessageKey =
   | "profile.role"
   | "profile.notLinked"
   | "profile.language"
+  | "join.title"
+  | "join.subtitle"
+  | "join.notJoined"
+  | "join.verified"
+  | "join.enter"
+  | "join.checkMe"
+  | "join.checking"
+  | "join.confirmed"
+  | "join.retry"
+  | "join.failed"
+  | "wallet.signInRequired"
+  | "wallet.topupDemo"
+  | "wallet.amountPlaceholder"
+  | "wallet.charge"
+  | "wallet.demoNote"
+  | "wallet.minTopup"
+  | "wallet.topupSuccess"
+  | "wallet.topupError"
+  | "wallet.rewardsTitle"
+  | "wallet.rewardsSubtitle"
+  | "notif.title"
+  | "notif.subtitle"
+  | "notif.signInRequired"
+  | "orders.signInRequired"
+  | "orders.emptyDesc"
+  | "orders.emptyAction"
+  | "orders.codeLabel"
+  | "orders.deliveryInfo"
+  | "orders.refundedNote"
+  | "status.pending"
+  | "status.paid"
+  | "status.delivered"
+  | "status.completed"
+  | "status.failed"
+  | "status.refunded"
+  | "status.cancelled"
+  | "payload.username"
+  | "payload.password"
+  | "payload.email"
+  | "payload.licenseKey"
+  | "payload.code"
+  | "payload.note"
+  | "payload.url"
+  | "account.title"
+  | "account.subtitle"
+  | "account.activeMethods"
+  | "account.noMethods"
+  | "account.logoutAll"
+  | "account.logoutAllDesc"
+  | "account.logoutAllError"
+  | "account.methodTelegram"
+  | "account.methodPassword"
 
 type Catalog = Record<MessageKey, string>
 
@@ -342,6 +394,58 @@ const fa: Catalog = {
   "profile.role": "نقش",
   "profile.notLinked": "متصل نشده",
   "profile.language": "زبان",
+  "join.title": "فقط برای اعضا",
+  "join.subtitle": "برای استفاده از {brand} روی هر کانال بزن و عضو شو؛ بعد از بازگشت، تیک سبز روشن می‌شود.",
+  "join.notJoined": "هنوز عضو نشده‌اید — دوباره امتحان کن",
+  "join.verified": "عضویت تأیید شد",
+  "join.enter": "ورود به اپ",
+  "join.checkMe": "عضو شدم، بررسی کن",
+  "join.checking": "در حال بررسی…",
+  "join.confirmed": "تأیید شد",
+  "join.retry": "دوباره بررسی کن",
+  "join.failed": "عضویت همه‌ی کانال‌ها تأیید نشد. ابتدا عضو شو، سپس دوباره بررسی کن.",
+  "wallet.signInRequired": "برای مشاهده کیف پول، ابتدا وارد حساب کاربری خود شوید.",
+  "wallet.topupDemo": "شارژ کیف پول (دمو)",
+  "wallet.amountPlaceholder": "مبلغ به تومان",
+  "wallet.charge": "شارژ",
+  "wallet.demoNote": "در نسخه واقعی، شارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.",
+  "wallet.minTopup": "حداقل مبلغ شارژ ۱۰٬۰۰۰ تومان است",
+  "wallet.topupSuccess": "کیف پول شارژ شد",
+  "wallet.topupError": "خطا در شارژ کیف پول",
+  "wallet.rewardsTitle": "باشگاه مشتریان و امتیازها",
+  "wallet.rewardsSubtitle": "سطح عضویت، مأموریت‌ها و دستاوردهای خود را ببینید",
+  "notif.title": "اعلان‌ها",
+  "notif.subtitle": "آخرین رویدادهای حساب شما: موجودی محصولات، سفارش‌ها، مزایده‌ها و تراکنش‌ها.",
+  "notif.signInRequired": "برای مشاهده اعلان‌ها، ابتدا وارد حساب کاربری خود شوید.",
+  "orders.signInRequired": "برای مشاهده سفارش‌ها، ابتدا وارد حساب کاربری خود شوید.",
+  "orders.emptyDesc": "از فروش فوری دیدن کنید و اولین خرید خود را انجام دهید.",
+  "orders.emptyAction": "مشاهده فروش فوری",
+  "orders.codeLabel": "کد سفارش",
+  "orders.deliveryInfo": "اطلاعات تحویل:",
+  "orders.refundedNote": "تحویل ناموفق بود و مبلغ به‌صورت خودکار به کیف پول شما بازگشت داده شد.",
+  "status.pending": "در انتظار",
+  "status.paid": "پرداخت‌شده",
+  "status.delivered": "تحویل‌شده",
+  "status.completed": "تکمیل‌شده",
+  "status.failed": "ناموفق",
+  "status.refunded": "بازگشت‌خورده",
+  "status.cancelled": "لغوشده",
+  "payload.username": "نام کاربری",
+  "payload.password": "رمز عبور",
+  "payload.email": "ایمیل",
+  "payload.licenseKey": "کلید لایسنس",
+  "payload.code": "کد",
+  "payload.note": "توضیحات",
+  "payload.url": "لینک",
+  "account.title": "تنظیمات حساب و امنیت",
+  "account.subtitle": "روش‌های ورود و امنیت حساب خود را مدیریت کنید",
+  "account.activeMethods": "روش‌های ورود فعال",
+  "account.noMethods": "هنوز هیچ روش ورود کاملی فعال نیست. برای ایمن‌سازی حساب، ایمیل خود را تأیید کنید یا تلگرام را متصل کنید.",
+  "account.logoutAll": "خروج از همه دستگاه‌ها",
+  "account.logoutAllDesc": "با این کار همه نشست‌های فعال در سایر دستگاه‌ها باطل می‌شوند و باید دوباره وارد شوید.",
+  "account.logoutAllError": "خروج از همه دستگاه‌ها ناموفق بود",
+  "account.methodTelegram": "تلگرام",
+  "account.methodPassword": "ایمیل و رمز عبور",
 }
 
 const en: Catalog = {
@@ -511,6 +615,58 @@ const en: Catalog = {
   "profile.role": "Role",
   "profile.notLinked": "Not linked",
   "profile.language": "Language",
+  "join.title": "Members only",
+  "join.subtitle": "To use {brand}, tap each channel and join; the green tick lights up when you return.",
+  "join.notJoined": "Not joined yet — try again",
+  "join.verified": "Membership verified",
+  "join.enter": "Enter the app",
+  "join.checkMe": "I joined, check me",
+  "join.checking": "Checking…",
+  "join.confirmed": "Verified",
+  "join.retry": "Check again",
+  "join.failed": "Not all channels were verified. Join first, then check again.",
+  "wallet.signInRequired": "Sign in to view your wallet.",
+  "wallet.topupDemo": "Top up wallet (demo)",
+  "wallet.amountPlaceholder": "Amount in Toman",
+  "wallet.charge": "Top up",
+  "wallet.demoNote": "In the live version, top-ups are done via card transfer and admin approval.",
+  "wallet.minTopup": "The minimum top-up amount is 10,000 Toman",
+  "wallet.topupSuccess": "Wallet topped up",
+  "wallet.topupError": "Failed to top up wallet",
+  "wallet.rewardsTitle": "Rewards club & points",
+  "wallet.rewardsSubtitle": "See your membership tier, missions and achievements",
+  "notif.title": "Notifications",
+  "notif.subtitle": "Your latest account events: product restocks, orders, auctions and transactions.",
+  "notif.signInRequired": "Sign in to view your notifications.",
+  "orders.signInRequired": "Sign in to view your orders.",
+  "orders.emptyDesc": "Visit the flash sale and make your first purchase.",
+  "orders.emptyAction": "Browse flash sale",
+  "orders.codeLabel": "Order code",
+  "orders.deliveryInfo": "Delivery info:",
+  "orders.refundedNote": "Delivery failed and the amount was automatically refunded to your wallet.",
+  "status.pending": "Pending",
+  "status.paid": "Paid",
+  "status.delivered": "Delivered",
+  "status.completed": "Completed",
+  "status.failed": "Failed",
+  "status.refunded": "Refunded",
+  "status.cancelled": "Cancelled",
+  "payload.username": "Username",
+  "payload.password": "Password",
+  "payload.email": "Email",
+  "payload.licenseKey": "License key",
+  "payload.code": "Code",
+  "payload.note": "Note",
+  "payload.url": "Link",
+  "account.title": "Account & security settings",
+  "account.subtitle": "Manage your login methods and account security",
+  "account.activeMethods": "Active login methods",
+  "account.noMethods": "No full login method is active yet. To secure your account, verify your email or link Telegram.",
+  "account.logoutAll": "Log out of all devices",
+  "account.logoutAllDesc": "This invalidates all active sessions on other devices and you'll need to sign in again.",
+  "account.logoutAllError": "Failed to log out of all devices",
+  "account.methodTelegram": "Telegram",
+  "account.methodPassword": "Email & password",
 }
 
 const ru: Catalog = {
@@ -566,7 +722,7 @@ const ru: Catalog = {
   "home.quickActions": "Быстрый доступ",
   "home.liveAuctions": "Активные аукционы",
   "home.flashSales": "Распродажи",
-  "home.noAuctions": "Нет активных аукционов.",
+  "home.noAuctions": "Нет активных аукцио��ов.",
   "home.noFlash": "Нет активных распродаж.",
   "wallet.title": "Кошелёк",
   "wallet.available": "Доступный баланс",
@@ -680,6 +836,58 @@ const ru: Catalog = {
   "profile.role": "Роль",
   "profile.notLinked": "Не привязан",
   "profile.language": "Язык",
+  "join.title": "Только для участников",
+  "join.subtitle": "Чтобы пользоваться {brand}, нажмите на каждый канал и подпишитесь; при возврате загорится зелёная галочка.",
+  "join.notJoined": "Ещё не подписаны — попробуйте снова",
+  "join.verified": "Подписка подтверждена",
+  "join.enter": "Войти в приложение",
+  "join.checkMe": "Я подписался, проверьте",
+  "join.checking": "Проверка…",
+  "join.confirmed": "Подтверждено",
+  "join.retry": "Проверить снова",
+  "join.failed": "Не все каналы подтверждены. Сначала подпишитесь, затем проверьте снова.",
+  "wallet.signInRequired": "Войдите, чтобы увидеть кошелёк.",
+  "wallet.topupDemo": "Пополнить кошелёк (демо)",
+  "wallet.amountPlaceholder": "Сумма в туманах",
+  "wallet.charge": "Пополнить",
+  "wallet.demoNote": "В реальной версии пополнение выполняется переводом по карте с подтверждением администратора.",
+  "wallet.minTopup": "Минимальная сумма пополнения — 10 000 туманов",
+  "wallet.topupSuccess": "Кошелёк пополнен",
+  "wallet.topupError": "Не удалось пополнить кошелёк",
+  "wallet.rewardsTitle": "Клуб лояльности и баллы",
+  "wallet.rewardsSubtitle": "Посмотрите свой уровень, задания и достижения",
+  "notif.title": "Уведомления",
+  "notif.subtitle": "Последние события вашего аккаунта: пополнения товаров, заказы, аукционы и транзакции.",
+  "notif.signInRequired": "Войдите, чтобы увидеть уведомления.",
+  "orders.signInRequired": "Войдите, чтобы увидеть заказы.",
+  "orders.emptyDesc": "Загляните в распродажу и сделайте первую покупку.",
+  "orders.emptyAction": "К распродаже",
+  "orders.codeLabel": "Код заказа",
+  "orders.deliveryInfo": "Информация о доставке:",
+  "orders.refundedNote": "Доставка не удалась, и сумма автоматически возвращена в ваш кошелёк.",
+  "status.pending": "В ожидании",
+  "status.paid": "Оплачено",
+  "status.delivered": "Доставлено",
+  "status.completed": "Завершено",
+  "status.failed": "Не удалось",
+  "status.refunded": "Возвращено",
+  "status.cancelled": "Отменено",
+  "payload.username": "Имя пользователя",
+  "payload.password": "Пароль",
+  "payload.email": "Эл. почта",
+  "payload.licenseKey": "Лицензионный ключ",
+  "payload.code": "Код",
+  "payload.note": "Примечание",
+  "payload.url": "Ссылка",
+  "account.title": "Настройки аккаунта и безопасности",
+  "account.subtitle": "Управляйте способами входа и безопасностью аккаунта",
+  "account.activeMethods": "Активные способы входа",
+  "account.noMethods": "Пока нет ни одного полного способа входа. Чтобы защитить аккаунт, подтвердите эл. почту или подключите Telegram.",
+  "account.logoutAll": "Выйти на всех устройствах",
+  "account.logoutAllDesc": "Это завершит все активные сессии на других устройствах, и вам нужно будет войти заново.",
+  "account.logoutAllError": "Не удалось выйти на всех устройствах",
+  "account.methodTelegram": "Telegram",
+  "account.methodPassword": "Эл. почта и пароль",
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
@@ -850,6 +1058,58 @@ const hi: Catalog = {
   "profile.role": "Role",
   "profile.notLinked": "Link nahi hai",
   "profile.language": "Bhasha",
+  "join.title": "Sirf members ke liye",
+  "join.subtitle": "{brand} use karne ke liye har channel par tap karke join karein; wapas aane par green tick on ho jaayega.",
+  "join.notJoined": "Abhi join nahi kiya — phir se try karein",
+  "join.verified": "Membership verify ho gayi",
+  "join.enter": "App mein jaayein",
+  "join.checkMe": "Maine join kar liya, check karein",
+  "join.checking": "Check ho raha hai…",
+  "join.confirmed": "Verified",
+  "join.retry": "Phir se check karein",
+  "join.failed": "Sabhi channels verify nahi hue. Pehle join karein, phir se check karein.",
+  "wallet.signInRequired": "Wallet dekhne ke liye sign in karein.",
+  "wallet.topupDemo": "Wallet top up karein (demo)",
+  "wallet.amountPlaceholder": "Toman mein amount",
+  "wallet.charge": "Top up",
+  "wallet.demoNote": "Live version mein top-up card transfer aur admin approval se hota hai.",
+  "wallet.minTopup": "Minimum top-up amount 10,000 Toman hai",
+  "wallet.topupSuccess": "Wallet top up ho gaya",
+  "wallet.topupError": "Wallet top up nahi ho saka",
+  "wallet.rewardsTitle": "Rewards club aur points",
+  "wallet.rewardsSubtitle": "Apna membership tier, missions aur achievements dekhein",
+  "notif.title": "Notifications",
+  "notif.subtitle": "Aapke account ke latest events: product restock, orders, auctions aur transactions.",
+  "notif.signInRequired": "Notifications dekhne ke liye sign in karein.",
+  "orders.signInRequired": "Orders dekhne ke liye sign in karein.",
+  "orders.emptyDesc": "Flash sale dekhein aur apni pehli purchase karein.",
+  "orders.emptyAction": "Flash sale dekhein",
+  "orders.codeLabel": "Order code",
+  "orders.deliveryInfo": "Delivery info:",
+  "orders.refundedNote": "Delivery fail ho gayi aur amount apne aap aapke wallet mein refund ho gaya.",
+  "status.pending": "Pending",
+  "status.paid": "Paid",
+  "status.delivered": "Delivered",
+  "status.completed": "Completed",
+  "status.failed": "Fail",
+  "status.refunded": "Refunded",
+  "status.cancelled": "Cancelled",
+  "payload.username": "Username",
+  "payload.password": "Password",
+  "payload.email": "Email",
+  "payload.licenseKey": "License key",
+  "payload.code": "Code",
+  "payload.note": "Note",
+  "payload.url": "Link",
+  "account.title": "Account aur security settings",
+  "account.subtitle": "Apne login methods aur account security manage karein",
+  "account.activeMethods": "Active login methods",
+  "account.noMethods": "Abhi koi poora login method active nahi hai. Account secure karne ke liye apna email verify karein ya Telegram link karein.",
+  "account.logoutAll": "Sabhi devices se logout karein",
+  "account.logoutAllDesc": "Isse doosre devices ki sabhi active sessions band ho jaayengi aur aapko dobara sign in karna hoga.",
+  "account.logoutAllError": "Sabhi devices se logout nahi ho saka",
+  "account.methodTelegram": "Telegram",
+  "account.methodPassword": "Email aur password",
 }
 
 export const MESSAGES: Record<Locale, Catalog> = { fa, en, ru, hi }

@@ -5,6 +5,7 @@ import { motion } from "motion/react"
 import { Send, Users, ChevronLeft, Check, Loader2 } from "lucide-react"
 import { apiPost } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 import { GuardianMascot, type MascotState } from "./guardian-mascot"
 import type { OnboardChannel } from "./onboarding-flow"
 
@@ -33,6 +34,7 @@ export function JoinGateStep({
   brandName: string
   onPassed: () => void
 }) {
+  const { t } = useI18n()
   const [verify, setVerify] = useState<VerifyState>("idle")
   const [status, setStatus] = useState<Record<string, ChannelStatus>>({})
   const [mascot, setMascot] = useState<MascotState>("idle")
@@ -153,7 +155,7 @@ export function JoinGateStep({
         animate={{ opacity: 1, y: 0 }}
         className="mt-3 text-balance text-center text-2xl font-extrabold tracking-tight text-foreground"
       >
-        فقط برای اعضا
+        {t("join.title")}
       </motion.h1>
       <motion.p
         initial={{ opacity: 0, y: 8 }}
@@ -161,7 +163,7 @@ export function JoinGateStep({
         transition={{ delay: 0.05 }}
         className="mx-auto mt-2 max-w-xs text-pretty text-center text-sm leading-relaxed text-muted-foreground"
       >
-        برای استفاده از {brandName} روی هر کانال بزن و عضو شو؛ بعد از بازگشت، تیک سبز روشن می‌شود.
+        {t("join.subtitle", { brand: brandName })}
       </motion.p>
 
       <div className="mt-6 flex flex-col gap-3">
@@ -182,7 +184,7 @@ export function JoinGateStep({
               className={cn(
                 "flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-right transition-colors",
                 joined
-                  ? "border-emerald-500/50 bg-emerald-500/10"
+                  ? "border-success/50 bg-success/10"
                   : todo
                     ? "border-destructive/40 bg-destructive/5"
                     : "glass border-border/60 hover:border-primary/40",
@@ -191,7 +193,7 @@ export function JoinGateStep({
               <span
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
-                  joined ? "bg-emerald-500/15 text-emerald-400" : "bg-sky-500/15 text-sky-400",
+                  joined ? "bg-success/15 text-success" : "bg-primary/15 text-primary",
                 )}
               >
                 {i === 0 ? <Send className="h-5 w-5" /> : <Users className="h-5 w-5" />}
@@ -199,9 +201,9 @@ export function JoinGateStep({
               <span className="flex flex-1 flex-col">
                 <span className="text-sm font-semibold text-foreground">{ch.title}</span>
                 {todo && (
-                  <span className="text-xs text-destructive">هنوز عضو نشده‌اید — دوباره امتحان کن</span>
+                  <span className="text-xs text-destructive">{t("join.notJoined")}</span>
                 )}
-                {joined && <span className="text-xs text-emerald-400">عضویت تأیید شد</span>}
+                {joined && <span className="text-xs text-success">{t("join.verified")}</span>}
               </span>
 
               {/* Trailing state indicator */}
@@ -213,7 +215,7 @@ export function JoinGateStep({
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 400, damping: 16 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-success text-success-foreground"
                   >
                     <Check className="h-4 w-4" />
                   </motion.span>
@@ -235,16 +237,16 @@ export function JoinGateStep({
           className={cn(
             "elevate-gold flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-colors",
             verify === "passed" || allJoined
-              ? "bg-emerald-500 text-white"
+              ? "bg-success text-success-foreground"
               : "bg-primary text-primary-foreground",
           )}
         >
           {verify === "checking" && <Loader2 className="h-5 w-5 animate-spin" />}
           {(verify === "passed") && <Check className="h-5 w-5" />}
-          {verify === "idle" && (allJoined ? "ورود به اپ" : "عضو شدم، بررسی کن")}
-          {verify === "checking" && "در حال بررسی…"}
-          {verify === "passed" && "تأیید شد"}
-          {verify === "failed" && "دوباره بررسی کن"}
+          {verify === "idle" && (allJoined ? t("join.enter") : t("join.checkMe"))}
+          {verify === "checking" && t("join.checking")}
+          {verify === "passed" && t("join.confirmed")}
+          {verify === "failed" && t("join.retry")}
         </motion.button>
 
         {verify === "failed" && (
@@ -253,7 +255,7 @@ export function JoinGateStep({
             animate={{ opacity: 1, y: 0 }}
             className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-center text-xs text-destructive"
           >
-            عضویت همه‌ی کانال‌ها تأیید نشد. ابتدا عضو شو، سپس دوباره بررسی کن.
+            {t("join.failed")}
           </motion.p>
         )}
       </div>
