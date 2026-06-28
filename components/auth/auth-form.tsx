@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
 import { ShieldCheck, Send, Loader2 } from "lucide-react"
 import { Logo } from "@/components/logo"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
@@ -112,7 +113,6 @@ export function AuthForm() {
               placeholder={t("auth.displayName")}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="h-11 rounded-xl"
               autoComplete="name"
             />
           )}
@@ -122,7 +122,6 @@ export function AuthForm() {
             placeholder={t("auth.email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="h-11 rounded-xl"
             dir="ltr"
             autoComplete="email"
           />
@@ -132,7 +131,6 @@ export function AuthForm() {
             placeholder={t("auth.password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-11 rounded-xl"
             dir="ltr"
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             minLength={mode === "signup" ? 8 : undefined}
@@ -140,25 +138,23 @@ export function AuthForm() {
 
           {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={busy}
-            className="active:scale-press flex h-11 items-center justify-center gap-2 rounded-xl bg-primary font-bold text-primary-foreground transition-opacity disabled:opacity-60"
-          >
+          <Button type="submit" variant="gold" size="lg" disabled={busy} className="mt-1 w-full">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {busy ? t("auth.signingIn") : mode === "signup" ? t("auth.signUp") : t("auth.signIn")}
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => {
               setMode((m) => (m === "signin" ? "signup" : "signin"))
               setError(null)
             }}
-            className="text-center text-sm text-primary transition-opacity hover:opacity-80"
+            className="w-full text-primary hover:text-primary"
           >
             {mode === "signin" ? t("auth.toSignUp") : t("auth.toSignIn")}
-          </button>
+          </Button>
 
           {mode === "signin" && (
             <Link

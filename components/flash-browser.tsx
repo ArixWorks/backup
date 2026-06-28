@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { Search, X } from "lucide-react"
+import { Search, SearchX, X, Zap } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
+import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -139,9 +141,27 @@ export function FlashBrowser() {
           ))}
         </div>
       ) : sales.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          {search || category ? t("search.noResults") : t("flash.empty")}
-        </div>
+        search || category ? (
+          <EmptyState
+            icon={SearchX}
+            title={t("search.noResults")}
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRawSearch("")
+                  setSearch("")
+                  setCategory("")
+                }}
+              >
+                {t("search.all")}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={Zap} title={t("flash.empty")} />
+        )
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {sales.map((s) => (
