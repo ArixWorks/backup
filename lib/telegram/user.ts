@@ -21,12 +21,29 @@ function displayNameOf(tg: TgIdentity): string {
 }
 
 /**
+ * Telegram ids that should be granted ADMIN on login, from the
+ * `ADMIN_TELEGRAM_IDS` env (comma/space separated). This is the production
+ * bootstrap path: instead of seeding a demo admin, the real owner just opens
+ * the Mini App and is promoted automatically on first contact. Safe to leave
+ * set — it only ever promotes, never demotes.
+ */
+function adminTelegramIds(): Set<string> {
+  return new Set(
+    (process.env.ADMIN_TELEGRAM_IDS ?? "")
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  )
+}
+
+/**
  * Find a user by Telegram id, or create one (with wallet) on first contact.
  * Always refreshes the cached Telegram profile + chat id. Idempotent.
  */
 export async function resolveTelegramUser(tg: TgIdentity) {
   const telegramId = String(tg.id)
   const chatId = tg.chatId != null ? String(tg.chatId) : telegramId
+  const isBootstrapAdmin = adminTelegramIds().has(telegramId)
 
   const existing = await prisma.user.findUnique({ where: { telegramId } })
   if (existing) {
@@ -41,6 +58,8 @@ export async function resolveTelegramUser(tg: TgIdentity) {
           ? existing.languageCode
           : (tg.language_code ?? existing.languageCode),
         isPremium: tg.is_premium ?? existing.isPremium,
+        // Promote (never demote) configured owners to ADMIN on login.
+        ...(isBootstrapAdmin && existing.role !== "ADMIN" ? { role: "ADMIN" as const } : {}),
       },
     })
   }
@@ -56,6 +75,7 @@ export async function resolveTelegramUser(tg: TgIdentity) {
       isPremium: tg.is_premium ?? false,
       displayName: displayNameOf(tg),
       alias,
+      role: isBootstrapAdmin ? "ADMIN" : undefined,
       username: tg.username ? `tg_${tg.username}`.toLowerCase().slice(0, 32) : undefined,
       wallets: { create: { currency: "IRT", totalBalance: 0n } },
     },

@@ -11,6 +11,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:prod": "tsx scripts/production-seed.ts",
+    "db:reset": "tsx scripts/reset-data.ts",
+    "go-live": "prisma migrate deploy && tsx scripts/production-seed.ts",
     "ops:ws": "node server/ops-ws-server.mjs",
     "postinstall": "prisma generate"
   },
