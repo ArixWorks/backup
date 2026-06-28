@@ -4,7 +4,7 @@ import useSWR from "swr"
 import { Package, Gavel, Zap, CheckCircle2, Clock, XCircle, RotateCcw, ShoppingBag } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
-import { EmptyState } from "@/components/empty-state"
+import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatNumber } from "@/lib/format"
@@ -83,11 +83,7 @@ export default function OrdersPage() {
   const orders = data?.data ?? []
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای مشاهده سفارش‌ها، یک حساب کاربری انتخاب کنید.
-      </div>
-    )
+    return <SignInRequired description="برای مشاهده سفارش‌ها، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (

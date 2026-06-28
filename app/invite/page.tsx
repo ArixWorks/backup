@@ -6,6 +6,7 @@ import { ReferralCard } from "@/components/referral-card"
 import { ReferralActivity, type ReferralItem } from "@/components/invite/referral-activity"
 import { useSession } from "@/hooks/use-session"
 import { fetcher } from "@/lib/api-client"
+import { SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type ReferralData = {
@@ -51,9 +52,7 @@ export default function InvitePage() {
       </header>
 
       {!user ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          برای دریافت لینک دعوت، ابتدا وارد حساب کاربری خود شوید.
-        </div>
+        <SignInRequired description="برای دریافت لینک دعوت، ابتدا وارد حساب کاربری خود شوید." />
       ) : (
         <>
           <ReferralCard />

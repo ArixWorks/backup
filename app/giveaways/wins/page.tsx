@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Trophy, Gift, Copy, Wallet, Ticket, KeyRound, Clock, ChevronLeft } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
 import { Stagger, FadeItem } from "@/components/motion"
@@ -130,11 +131,7 @@ export default function MyPrizesPage() {
   const wins = data?.data ?? []
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای مشاهده‌ی جوایز، وارد حساب کاربری شوید.
-      </div>
-    )
+    return <SignInRequired description="برای مشاهده‌ی جوایز، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (
@@ -163,13 +160,13 @@ export default function MyPrizesPage() {
         </div>
       ) : wins.length === 0 ? (
         <FadeItem>
-          <div className="card-premium rounded-2xl border border-dashed border-border/80 p-10 text-center">
-            <Gift className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">هنوز در هیچ قرعه‌کشی‌ای برنده نشده‌اید.</p>
-            <Link href="/giveaways" className="mt-3 inline-block text-sm font-semibold text-primary">
-              مشاهده قرعه‌کشی‌های فعال
-            </Link>
-          </div>
+          <EmptyState
+            icon={Gift}
+            title="هنوز در هیچ قرعه‌کشی‌ای برنده نشده‌اید"
+            description="در قرعه‌کشی‌های فعال شرکت کنید تا شانس بردن جوایز را داشته باشید."
+            actionLabel="مشاهده قرعه‌کشی‌های فعال"
+            actionHref="/giveaways"
+          />
         </FadeItem>
       ) : (
         <ul className="space-y-3">

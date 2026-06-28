@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Undo2, Loader2, Upload, ShieldCheck, Info, CheckCircle2 } from "lucide-react"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { SignInRequired } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -88,11 +89,7 @@ export default function RefundsPage() {
   }
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای ثبت درخواست بازگشت وجه ابتدا وارد شوید.
-      </div>
-    )
+    return <SignInRequired description="برای ثبت درخواست بازگشت وجه، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (

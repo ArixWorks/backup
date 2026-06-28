@@ -4,6 +4,7 @@ import useSWR from "swr"
 import { Gavel } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
+import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function AuctionsPage() {
@@ -31,9 +32,11 @@ export default function AuctionsPage() {
           ))}
         </div>
       ) : auctions.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          مزایده‌ای یافت نشد.
-        </div>
+        <EmptyState
+          icon={Gavel}
+          title="مزایده‌ای یافت نشد"
+          description="در حال حاضر مزایده فعالی برگزار نمی‌شود. بعداً دوباره سر بزنید."
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {auctions.map((a) => (

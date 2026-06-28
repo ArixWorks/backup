@@ -1,9 +1,10 @@
 "use client"
 
 import useSWR from "swr"
-import { ReceiptText, Info, ArrowDownLeft } from "lucide-react"
+import { ReceiptText, ArrowDownLeft } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
 import { DEPOSIT_STATUS_LABELS, DEPOSIT_STATUS_TONE } from "@/lib/support-meta"
@@ -27,11 +28,7 @@ export default function ReportsPage() {
   const deposits = data?.data ?? []
 
   if (!user) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-        برای مشاهده گزارش واریزها ابتدا وارد شوید.
-      </div>
-    )
+    return <SignInRequired description="برای مشاهده گزارش واریزها، ابتدا وارد حساب کاربری خود شوید." />
   }
 
   return (
@@ -51,10 +48,13 @@ export default function ReportsPage() {
           ))}
         </div>
       ) : deposits.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          <Info className="h-5 w-5" />
-          هنوز واریزی ثبت نشده است.
-        </div>
+        <EmptyState
+          icon={ReceiptText}
+          title="هنوز واریزی ثبت نشده است"
+          description="برای شارژ کیف پول از صفحه کیف پول اقدام کنید."
+          actionLabel="شارژ کیف پول"
+          actionHref="/wallet"
+        />
       ) : (
         <ul className="space-y-2">
           {deposits.map((d) => (

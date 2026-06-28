@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import type { LucideIcon } from "lucide-react"
+import { LogIn, type LucideIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -86,5 +86,29 @@ export function EmptyState({
 
       {cta && <div className="pt-1">{cta}</div>}
     </motion.div>
+  )
+}
+
+/**
+ * Canonical "you need an account" state, shared by every auth-gated page
+ * (wallet, orders, notifications, support, reports, …). Wraps EmptyState so the
+ * sign-in prompt looks identical platform-wide and always offers a way in.
+ */
+export function SignInRequired({
+  description = "برای ادامه، ابتدا وارد حساب کاربری خود شوید.",
+  className,
+}: {
+  description?: string
+  className?: string
+}) {
+  return (
+    <EmptyState
+      icon={LogIn}
+      title="ورود لازم است"
+      description={description}
+      actionLabel="ورود به حساب"
+      actionHref="/login"
+      className={className}
+    />
   )
 }

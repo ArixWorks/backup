@@ -2,6 +2,7 @@
 
 import { Bell } from "lucide-react"
 import { NotificationsList } from "@/components/notifications-list"
+import { SignInRequired } from "@/components/empty-state"
 import { useSession } from "@/hooks/use-session"
 
 export default function NotificationsPage() {
@@ -20,9 +21,7 @@ export default function NotificationsPage() {
       </header>
 
       {!user ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          برای مشاهده اعلان‌ها، ابتدا یک حساب کاربری انتخاب کنید.
-        </div>
+        <SignInRequired description="برای مشاهده اعلان‌ها، ابتدا وارد حساب کاربری خود شوید." />
       ) : (
         <NotificationsList />
       )}

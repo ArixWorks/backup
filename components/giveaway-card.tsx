@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Gift, Users, Trophy } from "lucide-react"
 import { Countdown } from "@/components/countdown"
+import { Badge } from "@/components/ui/badge"
 import { formatNumber } from "@/lib/format"
 
 export type GiveawaySummary = {
@@ -58,19 +59,15 @@ export function GiveawayCard({ giveaway }: { giveaway: GiveawaySummary }) {
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/85 via-transparent to-transparent" />
         <div className="absolute right-3 top-3">
-          <span
-            className={
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium " +
-              (meta.tone === "live"
-                ? "bg-destructive text-white"
-                : meta.tone === "soon"
-                  ? "bg-primary/90 text-primary-foreground"
-                  : "bg-secondary/90 text-muted-foreground")
-            }
+          <Badge
+            variant={meta.tone === "live" ? "destructive" : meta.tone === "soon" ? "default" : "secondary"}
+            className="gap-1 rounded-full"
           >
-            {meta.tone === "live" && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />}
+            {meta.tone === "live" && (
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+            )}
             {meta.label}
-          </span>
+          </Badge>
         </div>
       </div>
 

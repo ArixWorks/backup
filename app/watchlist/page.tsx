@@ -1,11 +1,11 @@
 "use client"
 
 import useSWR from "swr"
-import Link from "next/link"
 import { BellRing, Zap } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { WatchedProducts } from "@/components/watched-products"
+import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSession } from "@/hooks/use-session"
 
@@ -31,9 +31,7 @@ export default function WatchlistPage() {
       </header>
 
       {!user ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          برای مشاهده لیست پیگیری، ابتدا یک حساب کاربری انتخاب کنید.
-        </div>
+        <SignInRequired description="برای مشاهده لیست پیگیری، ابتدا وارد حساب کاربری خود شوید." />
       ) : (
         <div className="space-y-7">
           {/* Watched auctions */}
@@ -49,12 +47,13 @@ export default function WatchlistPage() {
                 ))}
               </div>
             ) : auctions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                هنوز مزایده‌ای را پیگیری نمی‌کنید.{" "}
-                <Link href="/auctions" className="text-primary hover:underline">
-                  مشاهده مزایده‌ها
-                </Link>
-              </div>
+              <EmptyState
+                icon={BellRing}
+                title="هنوز مزایده‌ای را پیگیری نمی‌کنید"
+                description="مزایده‌های موردعلاقه‌تان را دنبال کنید تا هنگام شروع، باخبر شوید."
+                actionLabel="مشاهده مزایده‌ها"
+                actionHref="/auctions"
+              />
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {auctions.map((a) => (

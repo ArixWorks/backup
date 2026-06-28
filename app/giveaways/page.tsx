@@ -6,6 +6,7 @@ import { Gift, Trophy, ChevronLeft } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useI18n } from "@/components/i18n-provider"
 import { GiveawayCard, type GiveawaySummary } from "@/components/giveaway-card"
+import { EmptyState } from "@/components/empty-state"
 import { Stagger, FadeItem } from "@/components/motion"
 
 export default function GiveawaysPage() {
@@ -50,10 +51,11 @@ export default function GiveawaysPage() {
         </div>
       ) : giveaways.length === 0 ? (
         <FadeItem>
-          <div className="card-premium rounded-2xl border border-dashed border-border/80 p-10 text-center">
-            <Gift className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">در حال حاضر قرعه‌کشی فعالی وجود ندارد.</p>
-          </div>
+          <EmptyState
+            icon={Gift}
+            title="در حال حاضر قرعه‌کشی فعالی وجود ندارد"
+            description="به‌زودی قرعه‌کشی‌های جدید اضافه می‌شود. منتظر بمانید!"
+          />
         </FadeItem>
       ) : (
         <>
