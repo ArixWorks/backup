@@ -165,5 +165,13 @@ export async function staffReply(input: {
     data: { status: input.close ? "CLOSED" : "ANSWERED", lastReplyAt: new Date() },
   })
   await audit({ actorId: input.staffId, action: "ticket.reply", entity: "ticket", entityId: ticket.id })
+  // Email the ticket owner that support replied (best-effort).
+  const { sendSupportReplyEmail } = await import("@/lib/email")
+  await sendSupportReplyEmail({
+    userId: ticket.userId,
+    ticketId: ticket.publicId,
+    subject: ticket.subject,
+    message: body,
+  })
   return message
 }

@@ -5,6 +5,7 @@ import { freeze, getBalances, mutateWallet, unfreeze } from "./wallet"
 import { serializableTx } from "./ledger"
 import { audit } from "./audit"
 import { createNotification } from "./notifications"
+import { sendRefundCompletedEmail } from "@/lib/email"
 import { formatToman } from "@/lib/format"
 
 const MIN_REFUND = 10000n
@@ -140,6 +141,12 @@ export async function approveRefund(refundId: string, adminId: string) {
     body: `مبلغ ${formatToman(updated.amount)} تومان به کارت شما بازگردانده شد.`,
     href: "/refunds",
   }).catch(() => {})
+  await sendRefundCompletedEmail({
+    userId: updated.userId,
+    refundId: updated.id,
+    amount: formatToman(updated.amount),
+    currency: "IRT",
+  })
   return updated
 }
 

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db"
 import { audit } from "@/lib/core/audit"
 import { hashPassword, verifyPassword } from "@/lib/auth/password"
 import { ValidationError, ConflictError, NotFoundError, ForbiddenError } from "@/lib/core/errors"
-import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/email/send"
+import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } from "@/lib/email"
 import type { TelegramUser } from "@/lib/telegram/verify"
 
 /**
@@ -136,7 +136,7 @@ export async function startEmailVerification(input: {
       },
     })
     const link = `${input.origin}/account/verify-email?token=${raw}`
-    await sendVerificationEmail(email, link)
+    await sendVerificationEmail({ to: email, userId: user.id, code: raw.slice(0, 8), verifyUrl: link })
   })
 
   await recordAuthEvent(user.id, "email.verify_requested", { email })
@@ -165,6 +165,8 @@ export async function confirmEmail(rawToken: string) {
     await tx.authToken.update({ where: { id: token.id }, data: { usedAt: new Date() } })
   })
   await recordAuthEvent(token.userId, "email.verified", { email: token.email })
+  // Onboarding: welcome the user now that their email is confirmed.
+  await sendWelcomeEmail({ to: token.email, userId: token.userId })
   return { ok: true }
 }
 
@@ -214,7 +216,7 @@ export async function requestPasswordReset(emailInput: string, origin: string) {
       },
     })
     const link = `${origin}/reset-password?token=${raw}`
-    await sendPasswordResetEmail(email, link)
+    await sendPasswordResetEmail({ to: email, userId: user.id, resetUrl: link, code: raw.slice(0, 8) })
     await recordAuthEvent(user.id, "password.reset_requested")
   }
   return { ok: true }

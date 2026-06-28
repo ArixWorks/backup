@@ -298,5 +298,29 @@ export async function purchaseFixed(opts: {
     }
   }
 
+  // Transactional emails (best-effort, queued — never block the purchase).
+  try {
+    const { sendPurchaseConfirmationEmail, sendReferralRewardEmail } = await import("@/lib/email")
+    const { formatToman } = await import("@/lib/format")
+    await sendPurchaseConfirmationEmail({
+      userId: order.userId,
+      orderId: order.publicId,
+      productName: product.title,
+      amount: formatToman(order.amount),
+      currency: "IRT",
+    })
+    if (rewardSummary?.commission) {
+      const { referrerId, amount } = rewardSummary.commission
+      await sendReferralRewardEmail({
+        userId: referrerId,
+        refId: `${order.id}:commission`,
+        amount: formatToman(amount),
+        currency: "IRT",
+      })
+    }
+  } catch (e) {
+    console.log("[v0] purchase email error:", (e as Error).message)
+  }
+
   return order
 }

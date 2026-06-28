@@ -266,7 +266,7 @@ export async function setGiveawayLifecycle(
   switch (action) {
     case "publish": {
       if (g.status !== "DRAFT" && g.status !== "SCHEDULED") {
-        throw new ValidationError("این قرعه‌کشی قبلاً منتشر شده است")
+        throw new ValidationError("این قرعه‌کشی قبلاً منت��ر شده است")
       }
       data.status = now >= g.startAt && now < g.endAt ? "ACTIVE" : "SCHEDULED"
       break
@@ -720,6 +720,7 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
       try {
         const { notifyGiveawayWon } = await import("@/lib/telegram/notify")
         const { createNotification } = await import("./notifications")
+        const { sendGiveawayWinnerEmail } = await import("@/lib/email")
         const g = await prisma.giveaway.findUnique({ where: { id: giveawayId } })
         for (const w of res.winners) {
           await notifyGiveawayWon(w.userId, g?.title ?? "", g?.prizeLabel ?? "", g?.slug ?? "")
@@ -731,6 +732,11 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
             href: `/giveaways/${g?.slug ?? ""}`,
             image: g?.prizeImage ?? g?.coverImage ?? null,
           }).catch(() => {})
+          await sendGiveawayWinnerEmail({
+            userId: w.userId,
+            giveawayId,
+            prize: g?.prizeLabel ?? "جایزه",
+          })
         }
       } catch (e) {
         console.log("[v0] giveaway winner notify error:", (e as Error).message)

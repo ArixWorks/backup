@@ -6,6 +6,7 @@ import { serializableTx } from "./ledger"
 import { audit } from "./audit"
 import { notifyDepositApproved, notifyWithdrawApproved } from "@/lib/telegram/notify"
 import { createNotification } from "./notifications"
+import { sendDepositApprovedEmail, sendDepositRejectedEmail } from "@/lib/email"
 import { formatToman } from "@/lib/format"
 
 // --- Deposits ----------------------------------------------------------------
@@ -60,6 +61,12 @@ export async function approveDeposit(depositId: string, adminId: string) {
     body: `مبلغ ${formatToman(updated.amount)} تومان به کیف پول شما اضافه شد.`,
     href: "/wallet",
   }).catch(() => {})
+  await sendDepositApprovedEmail({
+    userId: updated.userId,
+    depositId: updated.id,
+    amount: formatToman(updated.amount),
+    currency: "IRT",
+  })
   return updated
 }
 
@@ -72,6 +79,13 @@ export async function rejectDeposit(depositId: string, adminId: string, reason?:
     data: { status: "REJECTED", reviewedById: adminId, reviewedAt: new Date(), rejectReason: reason },
   })
   await audit({ actorId: adminId, action: "deposit.reject", entity: "deposit", entityId: req.id, meta: { reason } })
+  await sendDepositRejectedEmail({
+    userId: updated.userId,
+    depositId: updated.id,
+    amount: formatToman(updated.amount),
+    currency: "IRT",
+    reason: updated.rejectReason ?? undefined,
+  })
   return updated
 }
 
