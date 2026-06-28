@@ -56,9 +56,13 @@ async function main() {
     payload: { subject: "E2E", heading: "سلام", body: "دوباره" },
   })
   check("first enqueue queued", a.queued === true && !a.deduped)
-  check("duplicate idempotencyKey deduped", b.deduped === true && b.jobId === a.jobId, JSON.stringify(b))
+  check(
+    "duplicate idempotencyKey deduped",
+    b.queued === true && b.deduped === true && a.queued === true && b.jobId === a.jobId,
+    JSON.stringify(b),
+  )
 
-  const jobId = a.jobId!
+  const jobId = a.queued ? a.jobId : ""
 
   // 3) Worker processing
   console.log("3) worker processing")
