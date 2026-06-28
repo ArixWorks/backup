@@ -131,6 +131,39 @@ export async function sendPhoto(
   })
 }
 
+/**
+ * Upload a file to a chat (multipart/form-data — Telegram doesn't accept JSON
+ * for file uploads, so this bypasses the JSON `call()` helper). Used to deliver
+ * database backups to the admin. Bot upload limit is 50MB; gzipped JSON
+ * backups stay far below that. Bounded by a longer timeout since the upload
+ * carries the whole file.
+ */
+export async function sendDocument(
+  chatId: string | number,
+  file: Buffer | Uint8Array,
+  filename: string,
+  caption?: string,
+): Promise<unknown> {
+  if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
+  const form = new FormData()
+  form.append("chat_id", String(chatId))
+  if (caption) {
+    form.append("caption", caption)
+    form.append("parse_mode", "HTML")
+  }
+  const bytes = new Uint8Array(file)
+  form.append("document", new Blob([bytes], { type: "application/gzip" }), filename)
+
+  const res = await withTimeout(
+    60_000,
+    (signal) => fetch(`${API}/sendDocument`, { method: "POST", body: form, signal }),
+    "telegram.sendDocument",
+  )
+  const data = await res.json().catch(() => ({ ok: false, description: "Invalid JSON from Telegram" }))
+  if (!data.ok) throw new Error(data.description || "Telegram sendDocument failed")
+  return data.result
+}
+
 export async function editMessageText(
   chatId: string | number,
   messageId: number,

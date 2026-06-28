@@ -314,11 +314,18 @@ export async function awardBadge(userId: string, badgeCode: string, db: Db = pri
   const badge = await db.badge.findUnique({ where: { code: badgeCode } })
   if (!badge || !badge.isActive) return false
 
-  try {
-    await db.userBadge.create({ data: { userId, badgeCode } })
-  } catch {
-    return false // already owned (unique constraint)
-  }
+  // Insert with ON CONFLICT DO NOTHING (skipDuplicates). A plain `create` that
+  // hit the (userId, badgeCode) unique constraint would THROW, and inside a
+  // SERIALIZABLE transaction that aborts the entire tx in Postgres (25P02) —
+  // poisoning every subsequent query even though we catch the error here. This
+  // previously made a user's *second* purchase fail with a 500 once they
+  // already owned the badge. createMany+skipDuplicates never raises, so the
+  // surrounding purchase transaction stays healthy.
+  const inserted = await db.userBadge.createMany({
+    data: [{ userId, badgeCode }],
+    skipDuplicates: true,
+  })
+  if (inserted.count === 0) return false // already owned
 
   if (badge.points > 0) {
     await earnPoints(userId, badge.points, "ACHIEVEMENT", { type: "badge", id: badgeCode }, db)

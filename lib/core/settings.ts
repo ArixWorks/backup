@@ -46,6 +46,12 @@ export const SETTING_KEYS = {
 
   // --- Appearance ---
   themeActive: "theme.active", // one of THEME_IDS, applied to <html data-theme>
+
+  // --- Automated backups ---
+  backupEnabled: "backup.enabled", // "true" | "false" — daily auto-backup on/off
+  backupChatId: "backup.chatId", // Telegram chat id the backup file is sent to
+  backupHour: "backup.hour", // 0..23, hour (Asia/Tehran) the daily backup fires
+  backupLastRunDate: "backup.lastRunDate", // internal: YYYY-MM-DD (Tehran) of last run
 } as const
 
 /** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
@@ -111,6 +117,12 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.tierDiscountVip]: "10",
 
   [SETTING_KEYS.themeActive]: DEFAULT_THEME,
+
+  // Daily backup: enabled, sent to the owner's chat at 00:00 Asia/Tehran.
+  [SETTING_KEYS.backupEnabled]: "true",
+  [SETTING_KEYS.backupChatId]: "1645353710",
+  [SETTING_KEYS.backupHour]: "0",
+  [SETTING_KEYS.backupLastRunDate]: "",
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]

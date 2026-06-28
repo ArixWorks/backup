@@ -27,6 +27,7 @@ import {
   Loader2,
   ChevronDown,
   Activity,
+  DatabaseBackup,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -68,6 +69,7 @@ const items: NavItem[] = [
   { href: "/admin/channel", label: "پست کانال", icon: Megaphone },
   { href: "/admin/bot", label: "ربات تلگرام", icon: Bot },
   { href: "/admin/settings", label: "تنظیمات پاداش", icon: Settings2 },
+  { href: "/admin/backup", label: "پشتیبان‌گیری", icon: DatabaseBackup },
   { href: "/admin/audit", label: "گزارش فعالیت", icon: ScrollText },
 ]
 

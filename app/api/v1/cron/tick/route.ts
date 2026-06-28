@@ -77,12 +77,23 @@ export const POST = route(async (req: Request) => {
   // pre-draw admin alert, and auto-draw any campaign flagged autoDraw.
   const giveaways = await tickGiveaways()
 
+  // Daily database backup, gated to once per Tehran-local day at the configured
+  // hour (default 00:00). Best-effort: never let a backup failure break the tick.
+  let backup: { ran: boolean; reason?: string } = { ran: false }
+  try {
+    const { maybeRunDailyBackup } = await import("@/lib/core/backup-runner")
+    backup = await maybeRunDailyBackup()
+  } catch (e) {
+    console.log("[v0] daily backup gate error:", (e as Error).message)
+  }
+
   return {
     activated: activated.activated,
     notified,
     endingSoon: endingSoon.notified,
     ...ticked,
     giveaways,
+    backup,
   }
     })
   } catch (err) {
