@@ -123,15 +123,22 @@ function applyInsets(wa: TelegramWebApp) {
 }
 
 /**
- * Synchronously decide whether this load came from Telegram. Telegram appends a
- * `#tgWebApp...` fragment to the URL on launch, which is available immediately
- * (before the async SDK script resolves), and WebApp.initData is the canonical
- * signal once the SDK is present. Using both lets the website skip the wait
- * entirely while Telegram launches are always recognised.
+ * Synchronously decide whether this load *might* have come from Telegram.
+ *
+ * Telegram appends a `tgWebApp...` payload to the launch URL (usually in the
+ * hash, sometimes in the query string) and exposes WebApp.initData once the SDK
+ * script resolves. Any of these signals means we should wait for the initData
+ * login instead of treating the visitor as an anonymous website user.
+ *
+ * This is intentionally permissive: a false positive only costs a brief loader
+ * (boot() then resolves to "outside" and the gate redirects), whereas a false
+ * negative would resurface the original bug — bouncing a real Telegram user to
+ * /login before their account is created.
  */
 function launchedFromTelegram(): boolean {
   if (typeof window === "undefined") return false
-  return /tgWebApp/i.test(window.location.hash) || !!window.Telegram?.WebApp?.initData
+  const url = window.location.hash + window.location.search
+  return /tgWebApp/i.test(url) || !!window.Telegram?.WebApp?.initData
 }
 
 export function TelegramProvider({ children }: { children: React.ReactNode }) {
@@ -151,7 +158,11 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function boot() {
-      const hint = /tgWebApp/i.test(window.location.hash)
+      // Same permissive launch hint used for the initial phase. Captured once at
+      // boot because Telegram clears the #tgWebApp fragment shortly after launch;
+      // while this is true we keep polling for initData rather than giving up and
+      // declaring "outside".
+      const hint = launchedFromTelegram()
 
       // The SDK script may load slightly after hydration; poll briefly.
       for (let i = 0; i < 30 && !cancelled; i++) {
