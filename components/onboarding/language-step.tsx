@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { motion } from "motion/react"
 import { Check, ChevronLeft, Headphones, Shield, Sparkles, Zap } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
@@ -85,16 +86,22 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
                 </>
               )}
 
-              {/* Waving flag chip — all cards wave gently, active waves livelier */}
+              {/* 3D flag that ripples in the wind — active waves livelier */}
               <span
                 aria-hidden
-                className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background/60 ring-1 ring-border/60"
+                className="relative flex h-11 w-11 shrink-0 items-center justify-center [perspective:340px]"
               >
                 <span
-                  className="animate-flag text-xl leading-none"
+                  className="animate-flag-wind relative block h-11 w-11"
                   style={{ animationDuration: active ? "2.4s" : "3.6s" }}
                 >
-                  {FLAG[code]}
+                  <Image
+                    src={FLAG[code] || "/placeholder.svg"}
+                    alt=""
+                    fill
+                    sizes="44px"
+                    className="object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.28)]"
+                  />
                 </span>
               </span>
 
@@ -186,12 +193,12 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
 /** Display order chosen to match the reference layout (en, fa, hi, ru). */
 const DISPLAY_ORDER: Locale[] = ["en", "fa", "hi", "ru"]
 
-/** Flag emoji per locale. */
+/** 3D rendered waving-flag image per locale. */
 const FLAG: Record<Locale, string> = {
-  fa: "🇮🇷",
-  en: "🇬🇧",
-  ru: "🇷🇺",
-  hi: "🇮🇳",
+  fa: "/onboarding/flags/fa.png",
+  en: "/onboarding/flags/en.png",
+  ru: "/onboarding/flags/ru.png",
+  hi: "/onboarding/flags/hi.png",
 }
 
 /** ISO country code shown as a small badge on each card. */

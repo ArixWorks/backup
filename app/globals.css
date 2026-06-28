@@ -487,6 +487,29 @@
     will-change: transform;
   }
 
+  /* 3D wind ripple for the rendered flag images — pivots on the pole side
+     and gently rotates in Y/Z so the cloth looks like it's catching wind. */
+  @keyframes flag-wind {
+    0%,
+    100% {
+      transform: rotateY(0deg) rotateZ(-1.5deg) skewY(0deg) scaleX(1);
+    }
+    25% {
+      transform: rotateY(14deg) rotateZ(1deg) skewY(1.2deg) scaleX(0.985);
+    }
+    50% {
+      transform: rotateY(0deg) rotateZ(1.8deg) skewY(0deg) scaleX(1);
+    }
+    75% {
+      transform: rotateY(-12deg) rotateZ(0.5deg) skewY(-1.2deg) scaleX(0.985);
+    }
+  }
+  .animate-flag-wind {
+    animation: flag-wind 3.6s ease-in-out infinite;
+    transform-origin: left center;
+    will-change: transform;
+  }
+
   /* Soft pulsing halo behind the selected card / globe. */
   @keyframes glow-pulse {
     0%,
@@ -541,6 +564,7 @@
   .animate-orbit-rev,
   .animate-twinkle,
   .animate-flag,
+  .animate-flag-wind,
   .animate-glow,
   .animate-bubble,
   .cta-sweep {
