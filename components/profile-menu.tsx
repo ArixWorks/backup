@@ -105,9 +105,11 @@ export function ProfileMenu() {
         aria-label={t("menu.accountAria")}
         className="active:scale-press relative rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
       >
-        <Avatar size="default" className="ring-1 ring-primary/30">
+        <Avatar size="default" className="h-9 w-9 ring-1 ring-primary/30">
           {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
-          <AvatarFallback className="bg-primary/15 text-primary">{initials(user.displayName)}</AvatarFallback>
+          <AvatarFallback className="bg-primary/15 text-sm font-bold text-primary">
+            {initials(user.displayName)}
+          </AvatarFallback>
         </Avatar>
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-background">

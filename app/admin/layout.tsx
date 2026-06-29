@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { AdminShell } from "@/components/admin/admin-shell"
 
 export const metadata: Metadata = {
-  title: "پنل مدیریت | Bot Subio",
+  title: "پنل مدیریت | SubIO",
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
