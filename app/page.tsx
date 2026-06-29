@@ -10,7 +10,7 @@ import type { MessageKey } from "@/lib/i18n/messages"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
 import { RecommendedRail } from "@/components/recommended-rail"
-import { Stagger, FadeItem, Pressable } from "@/components/motion"
+import { Stagger, FadeItem, Pressable, Tilt } from "@/components/motion"
 import { Button } from "@/components/ui/button"
 import { MembershipBadge } from "@/components/membership-badge"
 
@@ -41,7 +41,8 @@ export default function HomePage() {
     <Stagger className="space-y-7">
       {/* VIP balance hero */}
       <FadeItem>
-        <section className="gold-border sheen surface-glow relative overflow-hidden p-5 shadow-xl shadow-primary/5">
+        <Tilt max={6} glare className="rounded-[var(--radius)]">
+        <section className="gold-border sheen surface-glow relative overflow-hidden p-5 shadow-xl shadow-primary/5 [transform-style:preserve-3d]">
           <div className="relative z-[2] flex items-center justify-between gap-2">
             <span className="min-w-0 truncate text-sm text-muted-foreground">
               {t("home.welcome")}{user?.displayName ? ` ${user.displayName}` : ""}
@@ -65,14 +66,14 @@ export default function HomePage() {
             <Wallet className="h-4 w-4 text-primary" />
             {t("home.balance")}
           </div>
-          <div className="relative z-[2] mt-1.5 flex items-baseline gap-1.5">
+          <div className="relative z-[2] mt-1.5 flex items-baseline gap-1.5 [transform:translateZ(45px)]">
             <span className="text-gold min-w-0 truncate text-[clamp(1.7rem,8.5vw,2.6rem)] font-extrabold leading-none tabular-nums tracking-tight">
               {priceValue(user?.balances?.availableBalance ?? 0)}
             </span>
             <span className="shrink-0 text-sm text-muted-foreground">{currency}</span>
           </div>
 
-          <div className="relative z-[2] mt-6 flex gap-2.5">
+          <div className="relative z-[2] mt-6 flex gap-2.5 [transform:translateZ(30px)]">
             <Button
               variant="gold"
               size="lg"
@@ -99,23 +100,26 @@ export default function HomePage() {
             className="animate-float pointer-events-none absolute -left-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-2xl"
           />
         </section>
+        </Tilt>
       </FadeItem>
 
       {/* Quick actions */}
       <FadeItem>
         <section className="grid grid-cols-4 gap-2.5">
           {quickActions.map((a) => (
-            <Pressable key={a.href}>
-              <Link
-                href={a.href}
-                className="card-premium group flex flex-col items-center gap-2 rounded-2xl border border-border p-3 transition-all duration-300 hover:-translate-y-1 hover:border-primary/40"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20 transition-all duration-300 group-hover:bg-primary/15 group-hover:ring-primary/40">
-                  <a.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
-                </span>
-                <span className="text-center text-[11px] font-medium leading-tight">{t(a.label)}</span>
-              </Link>
-            </Pressable>
+            <Tilt key={a.href} max={12} className="rounded-2xl">
+              <Pressable>
+                <Link
+                  href={a.href}
+                  className="card-premium group flex flex-col items-center gap-2 rounded-2xl border border-border p-3 [transform-style:preserve-3d] transition-all duration-300 hover:border-primary/40"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20 transition-all duration-300 [transform:translateZ(28px)] group-hover:bg-primary/15 group-hover:ring-primary/40">
+                    <a.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                  </span>
+                  <span className="text-center text-[11px] font-medium leading-tight [transform:translateZ(14px)]">{t(a.label)}</span>
+                </Link>
+              </Pressable>
+            </Tilt>
           ))}
         </section>
       </FadeItem>
@@ -140,7 +144,9 @@ export default function HomePage() {
           ) : (
             <div className="space-y-3">
               {liveAuctions.slice(0, 3).map((a) => (
-                <AuctionCard key={a.id} auction={a} />
+                <Tilt key={a.id} max={5} glare className="rounded-2xl">
+                  <AuctionCard auction={a} />
+                </Tilt>
               ))}
             </div>
           )}
@@ -162,7 +168,9 @@ export default function HomePage() {
           ) : (
             <div className="space-y-3">
               {flashSales.slice(0, 3).map((s) => (
-                <FlashCard key={s.id} sale={s} onPurchased={() => mutateFlash()} />
+                <Tilt key={s.id} max={5} glare className="rounded-2xl">
+                  <FlashCard sale={s} onPurchased={() => mutateFlash()} />
+                </Tilt>
               ))}
             </div>
           )}

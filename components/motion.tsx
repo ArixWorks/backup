@@ -86,28 +86,52 @@ export function Pressable({
  * Cinematic 3D tilt that follows the pointer — premium hover feedback for
  * feature cards on desktop. No-ops on touch devices and when the user prefers
  * reduced motion, so the mobile Telegram experience stays flat and snappy.
+ *
+ * The wrapper establishes a real 3D context (`preserve-3d`), so descendants can
+ * pop toward the viewer with a `[transform:translateZ(...)]` utility for layered
+ * depth. An optional glossy glare follows the pointer for a glassy, lit feel.
  */
 export function Tilt({
   children,
   className,
   max = 8,
+  glare = false,
+  scale = 1.02,
 }: {
   children: ReactNode
   className?: string
   max?: number
+  glare?: boolean
+  scale?: number
 }) {
   const reduce = useReducedMotion()
   const rx = useMotionValue(0)
   const ry = useMotionValue(0)
+  const sc = useMotionValue(1)
+  const gx = useMotionValue(50)
+  const gy = useMotionValue(50)
+  const go = useMotionValue(0)
   const srx = useSpring(rx, { stiffness: 200, damping: 18 })
   const sry = useSpring(ry, { stiffness: 200, damping: 18 })
+  const ssc = useSpring(sc, { stiffness: 220, damping: 20 })
+  const glareBg = useTransform(
+    [gx, gy] as const,
+    ([x, y]: number[]) =>
+      `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35), rgba(255,255,255,0) 55%)`,
+  )
 
   if (reduce) return <div className={className}>{children}</div>
 
   return (
     <motion.div
       className={className}
-      style={{ rotateX: srx, rotateY: sry, transformPerspective: 900 }}
+      style={{
+        rotateX: srx,
+        rotateY: sry,
+        scale: ssc,
+        transformPerspective: 900,
+        transformStyle: "preserve-3d",
+      }}
       onPointerMove={(e) => {
         if (e.pointerType === "touch") return
         const r = e.currentTarget.getBoundingClientRect()
@@ -115,13 +139,26 @@ export function Tilt({
         const py = (e.clientY - r.top) / r.height - 0.5
         ry.set(px * max * 2)
         rx.set(-py * max * 2)
+        sc.set(scale)
+        gx.set((px + 0.5) * 100)
+        gy.set((py + 0.5) * 100)
+        go.set(1)
       }}
       onPointerLeave={() => {
         rx.set(0)
         ry.set(0)
+        sc.set(1)
+        go.set(0)
       }}
     >
       {children}
+      {glare ? (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] mix-blend-soft-light"
+          style={{ background: glareBg, opacity: go }}
+        />
+      ) : null}
     </motion.div>
   )
 }
