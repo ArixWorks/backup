@@ -6,6 +6,8 @@ import { Gift, Users, Trophy } from "lucide-react"
 import { Countdown } from "@/components/countdown"
 import { Badge } from "@/components/ui/badge"
 import { formatNumber } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 export type GiveawaySummary = {
   id: string
@@ -22,17 +24,20 @@ export type GiveawaySummary = {
   _count?: { entries: number }
 }
 
-const STATUS: Record<string, { label: string; tone: "live" | "soon" | "done" | "locked" }> = {
-  ACTIVE: { label: "در حال ثبت‌نام", tone: "live" },
-  SCHEDULED: { label: "به‌زودی", tone: "soon" },
-  PAUSED: { label: "متوقف", tone: "soon" },
-  LOCKED: { label: "بسته شد", tone: "locked" },
-  DRAWING: { label: "در حال قرعه‌کشی", tone: "locked" },
-  FINISHED: { label: "پایان‌یافته", tone: "done" },
+const STATUS: Record<string, { labelKey: MessageKey; tone: "live" | "soon" | "done" | "locked" }> = {
+  ACTIVE: { labelKey: "gwStatus.ACTIVE", tone: "live" },
+  SCHEDULED: { labelKey: "gwStatus.SCHEDULED", tone: "soon" },
+  PAUSED: { labelKey: "gwStatus.PAUSED", tone: "soon" },
+  LOCKED: { labelKey: "gwStatus.LOCKED", tone: "locked" },
+  DRAWING: { labelKey: "gwStatus.DRAWING", tone: "locked" },
+  FINISHED: { labelKey: "gwStatus.FINISHED", tone: "done" },
 }
 
 export function GiveawayCard({ giveaway }: { giveaway: GiveawaySummary }) {
-  const meta = STATUS[giveaway.status] ?? { label: giveaway.status, tone: "soon" as const }
+  const { t } = useI18n()
+  const meta = STATUS[giveaway.status]
+  const label = meta ? t(meta.labelKey) : giveaway.status
+  const tone = meta?.tone ?? ("soon" as const)
   const isActive = giveaway.status === "ACTIVE"
   const isScheduled = giveaway.status === "SCHEDULED"
   const isFinished = giveaway.status === "FINISHED"
@@ -60,13 +65,13 @@ export function GiveawayCard({ giveaway }: { giveaway: GiveawaySummary }) {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/85 via-transparent to-transparent" />
         <div className="absolute right-3 top-3">
           <Badge
-            variant={meta.tone === "live" ? "destructive" : meta.tone === "soon" ? "default" : "secondary"}
+            variant={tone === "live" ? "destructive" : tone === "soon" ? "default" : "secondary"}
             className="gap-1 rounded-full"
           >
-            {meta.tone === "live" && (
+            {tone === "live" && (
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
             )}
-            {meta.label}
+            {label}
           </Badge>
         </div>
       </div>
@@ -82,17 +87,17 @@ export function GiveawayCard({ giveaway }: { giveaway: GiveawaySummary }) {
         <div className="flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-xs">
           <Trophy className="h-3.5 w-3.5 shrink-0 text-primary" />
           <span className="line-clamp-1 font-medium text-foreground">{giveaway.prizeLabel}</span>
-          <span className="mr-auto shrink-0 text-muted-foreground">{giveaway.winnersCount} برنده</span>
+          <span className="mr-auto shrink-0 text-muted-foreground">{t("gw.winnersCount", { count: giveaway.winnersCount })}</span>
         </div>
 
         <div className="mt-auto flex items-end justify-between gap-2">
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
-            {formatNumber(participants)} شرکت‌کننده
+            {formatNumber(participants)} {t("gw.participants")}
           </span>
           <div className="text-left">
             <span className="text-[11px] text-muted-foreground">
-              {isScheduled ? "شروع تا" : isFinished ? "قرعه‌کشی شد" : "قرعه‌کشی تا"}
+              {isScheduled ? t("gw.startsUntil") : isFinished ? t("gw.drawn") : t("gw.drawUntil")}
             </span>
             <div className="text-sm font-medium">
               {isFinished ? (

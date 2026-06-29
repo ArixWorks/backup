@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { formatToman } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
 
 type Props = {
   auctionId: string
@@ -27,6 +28,7 @@ export function BidPanel({
   onChanged,
 }: Props) {
   const { user, refresh } = useSession()
+  const { t } = useI18n()
   const [amount, setAmount] = useState<string>(String(minNextBid))
   const [loading, setLoading] = useState(false)
   const [buying, setBuying] = useState(false)
@@ -39,32 +41,32 @@ export function BidPanel({
   const available = user?.balances?.availableBalance ?? 0
 
   async function placeBid() {
-    if (!user) return toast.error("ابتدا یک حساب کاربری انتخاب کنید")
+    if (!user) return toast.error(t("buy.loginFirst"))
     const value = Number(amount)
     if (!Number.isFinite(value) || value < minNextBid) {
-      return toast.error(`حداقل پیشنهاد ${formatToman(minNextBid)} تومان است`)
+      return toast.error(t("bid.minBid", { amount: formatToman(minNextBid) }))
     }
     setLoading(true)
     try {
       await apiPost(`/api/v1/auctions/${auctionId}/bids`, { amount: value })
-      toast.success("پیشنهاد شما ثبت شد")
+      toast.success(t("bid.placed"))
       await Promise.all([refresh(), onChanged()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در ثبت پیشنهاد")
+      toast.error(err instanceof ApiError ? err.message : t("bid.errPlace"))
     } finally {
       setLoading(false)
     }
   }
 
   async function buyNow() {
-    if (!user) return toast.error("ابتدا یک حساب کاربری انتخاب کنید")
+    if (!user) return toast.error(t("buy.loginFirst"))
     setBuying(true)
     try {
       await apiPost(`/api/v1/auctions/${auctionId}/buy-now`)
-      toast.success("محصول با خرید فوری برای شما ثبت شد")
+      toast.success(t("bid.buyNowSuccess"))
       await Promise.all([refresh(), onChanged()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در خرید فوری")
+      toast.error(err instanceof ApiError ? err.message : t("bid.errBuyNow"))
     } finally {
       setBuying(false)
     }
@@ -77,7 +79,7 @@ export function BidPanel({
   if (ended) {
     return (
       <div className="rounded-xl border border-border bg-card p-5 text-center text-sm text-muted-foreground">
-        این مزایده فعال نیست.
+        {t("bid.notActive")}
       </div>
     )
   }
@@ -85,13 +87,13 @@ export function BidPanel({
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-5">
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">موجودی قابل استفاده</span>
-        <span className="tabular-nums font-medium">{formatToman(available)} تومان</span>
+        <span className="text-muted-foreground">{t("wallet.available")}</span>
+        <span className="tabular-nums font-medium">{formatToman(available)} {t("common.toman")}</span>
       </div>
 
       <div className="space-y-2">
         <label htmlFor="bid" className="text-sm font-medium">
-          مبلغ پیشنهاد (تومان)
+          {t("bid.amountLabel")}
         </label>
         <Input
           id="bid"
@@ -108,7 +110,7 @@ export function BidPanel({
               onClick={() => bump(m)}
               className="flex-1 rounded-md border border-border bg-secondary py-1.5 text-xs font-medium transition-colors hover:border-primary/40"
             >
-              {m === 0 ? "حداقل" : `+${formatToman(minimumIncrement * m)}`}
+              {m === 0 ? t("bid.min") : `+${formatToman(minimumIncrement * m)}`}
             </button>
           ))}
         </div>
@@ -116,7 +118,7 @@ export function BidPanel({
 
       <Button onClick={placeBid} disabled={loading} className="w-full gap-2" size="lg">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gavel className="h-4 w-4" />}
-        ثبت پیشنهاد
+        {t("bid.submit")}
       </Button>
 
       {buyNowPrice != null && (
@@ -128,12 +130,12 @@ export function BidPanel({
           size="lg"
         >
           {buying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-primary" />}
-          خرید فوری با {formatToman(buyNowPrice)} تومان
+          {t("bid.buyNow", { amount: `${formatToman(buyNowPrice)} ${t("common.toman")}` })}
         </Button>
       )}
 
       <p className="text-center text-xs leading-5 text-muted-foreground">
-        با ثبت پیشنهاد، تنها اختلاف مبلغ نسبت به پیشنهاد قبلی شما از موجودی مسدود می‌شود.
+        {t("bid.hint")}
       </p>
     </div>
   )

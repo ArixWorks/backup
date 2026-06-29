@@ -12,6 +12,8 @@ import { Countdown } from "@/components/countdown"
 import { formatNumber } from "@/lib/format"
 import { useSession } from "@/hooks/use-session"
 import { FadeItem } from "@/components/motion"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type Channel = { id: string; title: string; url: string }
 type Winner = { position: number; name: string; username: string | null }
@@ -54,6 +56,7 @@ export function GiveawayDetail({
   onChange: () => void
 }) {
   const { user } = useSession()
+  const { t } = useI18n()
   const [joining, setJoining] = useState(false)
   const [missing, setMissing] = useState<Channel[]>([])
   const firedRef = useRef(false)
@@ -80,15 +83,15 @@ export function GiveawayDetail({
         `/api/v1/giveaways/${giveaway.slug}/enter`,
       )
       if (res.data.joined) {
-        toast.success("شرکت شما ثبت شد! موفق باشی")
+        toast.success(t("gwd.entered"))
         fireConfetti()
         onChange()
       } else {
         setMissing(res.data.missing)
-        toast.error("برای شرکت، اول در کانال‌های زیر عضو شو")
+        toast.error(t("gwd.joinChannelsFirst"))
       }
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "خطا در ثبت شرکت")
+      toast.error(e instanceof ApiError ? e.message : t("gwd.errEnter"))
     } finally {
       setJoining(false)
     }
@@ -133,7 +136,7 @@ export function GiveawayDetail({
             <div className="card-premium flex flex-col items-center justify-center gap-1 rounded-2xl border border-border p-4 text-center">
               <Clock className="h-4 w-4 text-primary" />
               <span className="text-[11px] text-muted-foreground">
-                {isScheduled ? "شروع ثبت‌نام تا" : "قرعه‌کشی تا"}
+                {isScheduled ? t("gwd.startRegUntil") : t("gw.drawUntil")}
               </span>
               <Countdown
                 target={isScheduled ? giveaway.startAt : giveaway.drawAt}
@@ -143,7 +146,7 @@ export function GiveawayDetail({
             </div>
             <div className="card-premium flex flex-col items-center justify-center gap-1 rounded-2xl border border-border p-4 text-center">
               <Users className="h-4 w-4 text-primary" />
-              <span className="text-[11px] text-muted-foreground">شرکت‌کنندگان</span>
+              <span className="text-[11px] text-muted-foreground">{t("gwd.participants")}</span>
               <span className="text-lg font-extrabold tabular-nums">{formatNumber(giveaway.participants)}</span>
             </div>
           </div>
@@ -157,11 +160,11 @@ export function GiveawayDetail({
             <Trophy className="h-6 w-6 text-primary" />
           </span>
           <div className="min-w-0">
-            <span className="text-[11px] text-muted-foreground">جایزه</span>
+            <span className="text-[11px] text-muted-foreground">{t("gwd.prize")}</span>
             <p className="truncate font-bold leading-6">{giveaway.prizeLabel}</p>
           </div>
           <span className="mr-auto shrink-0 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-gold">
-            {giveaway.winnersCount} برنده
+            {t("gw.winnersCount", { count: giveaway.winnersCount })}
           </span>
         </div>
       </FadeItem>
@@ -181,7 +184,7 @@ export function GiveawayDetail({
       {giveaway.requiredChannels.length > 0 && !isFinished && (
         <FadeItem>
           <div className="card-premium space-y-2.5 rounded-2xl border border-border p-4">
-            <h2 className="text-sm font-bold">برای شرکت باید عضو این کانال‌ها باشی</h2>
+            <h2 className="text-sm font-bold">{t("gwd.mustJoin")}</h2>
             <div className="space-y-2">
               {giveaway.requiredChannels.map((c) => {
                 const isMissing = missing.some((m) => m.id === c.id)
@@ -206,7 +209,7 @@ export function GiveawayDetail({
             </div>
             {missing.length > 0 && (
               <p className="text-[11px] text-destructive">
-                بعد از عضویت، دوباره دکمه شرکت را بزن.
+                {t("gwd.afterJoinRetry")}
               </p>
             )}
           </div>
@@ -224,6 +227,7 @@ export function GiveawayDetail({
           isScheduled={isScheduled}
           isLocked={isLocked}
           isFinished={isFinished}
+          t={t}
         />
       </FadeItem>
 
@@ -233,10 +237,10 @@ export function GiveawayDetail({
           <div className="card-premium gold-border space-y-3 rounded-2xl p-5">
             <h2 className="flex items-center gap-2 text-base font-extrabold">
               <PartyPopper className="h-5 w-5 text-primary" />
-              برندگان قرعه‌کشی
+              {t("gwd.winners")}
             </h2>
             {giveaway.winners.length === 0 ? (
-              <p className="text-sm text-muted-foreground">برنده‌ای ثبت نشده است.</p>
+              <p className="text-sm text-muted-foreground">{t("gwd.noWinners")}</p>
             ) : (
               <ul className="space-y-2">
                 {giveaway.winners.map((w, i) => (
@@ -275,6 +279,7 @@ function EntryCta({
   isScheduled,
   isLocked,
   isFinished,
+  t,
 }: {
   giveaway: GiveawayDetailData
   loggedIn: boolean
@@ -284,12 +289,13 @@ function EntryCta({
   isScheduled: boolean
   isLocked: boolean
   isFinished: boolean
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string
 }) {
   if (giveaway.entered && !isFinished) {
     return (
       <div className="flex items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-4 text-sm font-bold text-gold">
         <Check className="h-5 w-5" />
-        شرکت شما ثبت شده است
+        {t("gwd.alreadyEntered")}
       </div>
     )
   }
@@ -300,7 +306,7 @@ function EntryCta({
     return (
       <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-sm text-muted-foreground">
         <Clock className="h-5 w-5 text-primary" />
-        ثبت‌نام هنوز شروع نشده است
+        {t("gwd.notStarted")}
       </div>
     )
   }
@@ -309,7 +315,7 @@ function EntryCta({
     return (
       <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-4 py-4 text-sm text-muted-foreground">
         <Lock className="h-5 w-5 text-primary" />
-        ثبت‌نام بسته شده و قرعه‌کشی در راه است
+        {t("gwd.regClosed")}
       </div>
     )
   }
@@ -320,7 +326,7 @@ function EntryCta({
         href="/login"
         className="bg-gold elevate-gold flex items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-primary-foreground"
       >
-        برای شرکت وارد شو
+        {t("gwd.signInToEnter")}
       </Link>
     )
   }
@@ -334,7 +340,7 @@ function EntryCta({
         className="bg-gold elevate-gold flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold text-primary-foreground disabled:opacity-60"
       >
         {joining ? <Loader2 className="h-5 w-5 animate-spin" /> : <Gift className="h-5 w-5" />}
-        شرکت در قرعه‌کشی
+        {t("gwd.enter")}
       </button>
     )
   }
@@ -343,19 +349,22 @@ function EntryCta({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string; pulse?: boolean }> = {
-    ACTIVE: { label: "در حال ثبت‌نام", cls: "bg-destructive text-white", pulse: true },
-    SCHEDULED: { label: "به‌زودی", cls: "bg-primary/90 text-primary-foreground" },
-    PAUSED: { label: "متوقف", cls: "bg-secondary text-muted-foreground" },
-    LOCKED: { label: "بسته شد", cls: "bg-secondary text-muted-foreground" },
-    DRAWING: { label: "در حال قرعه‌کشی", cls: "bg-primary/90 text-primary-foreground" },
-    FINISHED: { label: "پایان‌یافته", cls: "bg-secondary text-muted-foreground" },
+  const { t } = useI18n()
+  const map: Record<string, { labelKey: MessageKey; cls: string; pulse?: boolean }> = {
+    ACTIVE: { labelKey: "gwStatus.ACTIVE", cls: "bg-destructive text-white", pulse: true },
+    SCHEDULED: { labelKey: "gwStatus.SCHEDULED", cls: "bg-primary/90 text-primary-foreground" },
+    PAUSED: { labelKey: "gwStatus.PAUSED", cls: "bg-secondary text-muted-foreground" },
+    LOCKED: { labelKey: "gwStatus.LOCKED", cls: "bg-secondary text-muted-foreground" },
+    DRAWING: { labelKey: "gwStatus.DRAWING", cls: "bg-primary/90 text-primary-foreground" },
+    FINISHED: { labelKey: "gwStatus.FINISHED", cls: "bg-secondary text-muted-foreground" },
   }
-  const m = map[status] ?? { label: status, cls: "bg-secondary text-muted-foreground" }
+  const m = map[status]
+  const label = m ? t(m.labelKey) : status
+  const cls = m?.cls ?? "bg-secondary text-muted-foreground"
   return (
-    <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium " + m.cls}>
-      {m.pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />}
-      {m.label}
+    <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium " + cls}>
+      {m?.pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />}
+      {label}
     </span>
   )
 }

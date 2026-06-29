@@ -43,7 +43,7 @@ export function AuthForm() {
         await apiPost("/api/v1/auth/telegram", payload)
         await finishLogin()
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : "خطا در ورود با تلگرام")
+        setError(e instanceof ApiError ? e.message : t("auth.errTelegram"))
         setBusy(false)
       }
     },
@@ -63,7 +63,7 @@ export function AuthForm() {
       })
       await finishLogin()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "خطایی رخ داد")
+      setError(err instanceof ApiError ? err.message : t("auth.genericError"))
       setBusy(false)
     }
   }
@@ -161,7 +161,7 @@ export function AuthForm() {
               href="/forgot-password"
               className="text-center text-xs text-muted-foreground transition-opacity hover:opacity-80"
             >
-              رمز عبور خود را فراموش کرده‌اید؟
+              {t("auth.forgotLink")}
             </Link>
           )}
         </form>
