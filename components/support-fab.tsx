@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { AnimatePresence, motion } from "motion/react"
 import { Headphones } from "lucide-react"
 import { useSession } from "@/hooks/use-session"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Always-available customer-support entry point. A thumb-reachable floating
@@ -15,6 +16,7 @@ import { useSession } from "@/hooks/use-session"
 export function SupportFab() {
   const pathname = usePathname()
   const { user } = useSession()
+  const { t } = useI18n()
 
   if (!user) return null
   if (pathname?.startsWith("/support")) return null
@@ -33,7 +35,7 @@ export function SupportFab() {
       >
         <Link
           href="/support"
-          aria-label="پشتیبانی آنلاین"
+          aria-label={t("a11y.supportOnline")}
           className="active:scale-press elevate-gold bg-gold group relative flex h-14 w-14 items-center justify-center rounded-full text-primary-foreground ring-1 ring-primary/50 transition-transform hover:scale-105"
         >
           {/* soft pulsing halo */}

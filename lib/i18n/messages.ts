@@ -424,6 +424,14 @@ export type MessageKey =
   | "acctTg.needOtherMethod"
   | "acctTg.notAvailable"
   | "acctTg.connectAccount"
+  | "common.ended"
+  | "a11y.mainNav"
+  | "a11y.supportOnline"
+  | "home.recommended"
+  | "flash.followCategoryHint"
+  | "signIn.title"
+  | "signIn.defaultDesc"
+  | "signIn.action"
 
 type Catalog = Record<MessageKey, string>
 
@@ -596,7 +604,7 @@ const fa: Catalog = {
   "profile.language": "زبان",
   "join.title": "فقط برای اعضا",
   "join.subtitle": "برای استفاده از {brand} روی هر کانال بزن و عضو شو؛ بعد از بازگشت، تیک سبز روشن می‌شود.",
-  "join.notJoined": "هنوز عضو نشده‌اید — دوباره امتحان کن",
+  "join.notJoined": "هنوز عضو نشده‌اید — د��باره امتحان کن",
   "join.verified": "عضویت تأیید شد",
   "join.enter": "ورود به اپ",
   "join.checkMe": "عضو شدم، بررسی کن",
@@ -618,7 +626,7 @@ const fa: Catalog = {
   "notif.subtitle": "آخرین رویدادهای حساب شما: موجودی محصولات، سفارش‌ها، مزایده‌ها و تراکنش‌ها.",
   "notif.signInRequired": "برای مشاهده اعلان‌ها، ابتدا وارد حساب کاربری خود شوید.",
   "orders.signInRequired": "برای مشاهده سفارش‌ها، ابتدا وارد حساب کاربری خود شوید.",
-  "orders.emptyDesc": "از فروش فوری دیدن کنید و اولین خرید خود را انجام دهید.",
+  "orders.emptyDesc": "از فروش فوری دی��ن کنید و اولین خرید خود را انجام دهید.",
   "orders.emptyAction": "مشاهده فروش فوری",
   "orders.codeLabel": "کد سفارش",
   "orders.deliveryInfo": "اطلاعات تحویل:",
@@ -832,7 +840,7 @@ const fa: Catalog = {
   "acctPwd.errMin": "رمز عبور جدید باید حداقل ۸ کاراکتر باشد",
   "acctPwd.errMismatch": "تکرار رمز عبور مطابقت ندارد",
   "acctPwd.failed": "تغییر رمز عبور ناموفق بود",
-  "acctPwd.currentPlaceholder": "رمز عبور فعلی",
+  "acctPwd.currentPlaceholder": "رمز عب��ر فعلی",
   "acctPwd.newPlaceholder": "رمز عبور جدید (حداقل ۸ کاراکتر)",
   "acctPwd.confirmPlaceholder": "تکرار رمز عبور جدید",
   "acctPwd.save": "ذخیره رمز جدید",
@@ -846,6 +854,14 @@ const fa: Catalog = {
   "acctTg.needOtherMethod": "برای قطع اتصال تلگرام، ابتدا یک ایمیل تأییدشده و رمز عبور تنظیم کنید تا راه ورود دیگری داشته باشید.",
   "acctTg.notAvailable": "اتصال تلگرام در این آدرس فعال نیست.",
   "acctTg.connectAccount": "اتصال حساب تلگرام",
+  "common.ended": "پایان یافت",
+  "a11y.mainNav": "ناوبری اصلی",
+  "a11y.supportOnline": "پشتیبانی آنلاین",
+  "home.recommended": "پیشنهاد برای شما",
+  "flash.followCategoryHint": "با دنبال‌کردن این دسته، هنگام افزودن محصول جدید با صدا مطلع می‌شوید.",
+  "signIn.title": "ورود لازم است",
+  "signIn.defaultDesc": "برای ادامه، ابتدا وارد حساب کاربری خود شوید.",
+  "signIn.action": "ورود به حساب",
 }
 
 const en: Catalog = {
@@ -1267,6 +1283,14 @@ const en: Catalog = {
   "acctTg.needOtherMethod": "To unlink Telegram, first set a verified email and password so you have another way to sign in.",
   "acctTg.notAvailable": "Telegram login is not available on this domain.",
   "acctTg.connectAccount": "Connect Telegram account",
+  "common.ended": "Ended",
+  "a11y.mainNav": "Main navigation",
+  "a11y.supportOnline": "Online support",
+  "home.recommended": "Recommended for you",
+  "flash.followCategoryHint": "Follow this category to get a sound alert when a new product is added.",
+  "signIn.title": "Sign-in required",
+  "signIn.defaultDesc": "Please sign in to your account to continue.",
+  "signIn.action": "Sign in to account",
 }
 
 const ru: Catalog = {
@@ -1299,7 +1323,7 @@ const ru: Catalog = {
   "tour.s2.title": "Пополните баланс",
   "tour.s2.body": "Пополняйте кошельком, криптой или через шлюз и покупайте быстрее.",
   "tour.s3.title": "Купите товар",
-  "tour.s3.body": "Нажмите на товар, чтобы увидеть детали и оплатить. Доставка мгновенная.",
+  "tour.s3.body": "Нажмите на товар, чтобы увидеть детали �� оплатить. Доставка мгновенная.",
   "tour.s4.title": "Участвуйте в аукционах",
   "tour.s4.body": "Делайте ставки на особые товары и выигрывайте по лучшей цене — уникальная возможность.",
   "tour.s5.title": "Ничего не пропустите",
@@ -1413,7 +1437,7 @@ const ru: Catalog = {
   "auth.tagline": "Войдите через аккаунт Telegram, чтобы продолжить",
   "auth.telegramBtn": "Войти через Telegram",
   "auth.secureNote": "Безопасный вход через Telegram",
-  "auth.privacyTitle": "Конфиденциальность и безопасность",
+  "auth.privacyTitle": "Конфиденциа��ьность и безопасность",
   "auth.privacy1": "Используется официальный вход Telegram — мы не касаемся вашего аккаунта или пароля",
   "auth.privacy2": "Мы читаем только ваше имя, username и фото профиля",
   "auth.privacy3": "Ваши сообщения и чаты полностью недоступны нам",
@@ -1525,7 +1549,7 @@ const ru: Catalog = {
   "wins.emptyDesc": "Участвуйте в активных розыгрышах ради шанса на приз.",
   "wins.emptyAction": "Смотреть активные розыгрыши",
   "watchlist.signInRequired": "Войдите, чтобы увидеть список отслеживания.",
-  "watchlist.emptyDesc": "Следите за любимыми аукционами, чтобы получить уведомление о старте.",
+  "watchlist.emptyDesc": "Следит�� за любимыми аукционами, чтобы получить уведомление о старте.",
   "watchlist.flashProducts": "Товары распродажи",
   "rewards.title": "Клуб лояльности",
   "rewards.subtitle": "Зарабатывайте баллы, повышайте уровень и получайте награды",
@@ -1688,6 +1712,14 @@ const ru: Catalog = {
   "acctTg.needOtherMethod": "Чтобы отключить Telegram, сначала задайте подтверждённый email и пароль, чтобы иметь другой способ входа.",
   "acctTg.notAvailable": "Вход через Telegram недоступен на этом домене.",
   "acctTg.connectAccount": "Подключить аккаунт Telegram",
+  "common.ended": "Завершено",
+  "a11y.mainNav": "Основная навигация",
+  "a11y.supportOnline": "Онлайн-поддержка",
+  "home.recommended": "Рекомендуем вам",
+  "flash.followCategoryHint": "Подпишитесь на категорию, чтобы получать звуковое уведомление о новых товарах.",
+  "signIn.title": "Требуется вход",
+  "signIn.defaultDesc": "Войдите в свой аккаунт, чтобы продолжить.",
+  "signIn.action": "Войти в аккаунт",
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
@@ -2110,6 +2142,14 @@ const hi: Catalog = {
   "acctTg.needOtherMethod": "Telegram unlink karne ke liye pehle ek verified email aur password set karein taki sign in ka doosra tareeka ho.",
   "acctTg.notAvailable": "Is domain par Telegram login uplabdh nahi hai.",
   "acctTg.connectAccount": "Telegram account connect karein",
+  "common.ended": "Khatam ho gaya",
+  "a11y.mainNav": "Main navigation",
+  "a11y.supportOnline": "Online support",
+  "home.recommended": "Aapke liye suggestions",
+  "flash.followCategoryHint": "Is category ko follow karein, naya product add hone par sound alert milega.",
+  "signIn.title": "Sign-in zaroori hai",
+  "signIn.defaultDesc": "Aage badhne ke liye apne account mein sign in karein.",
+  "signIn.action": "Account mein sign in karein",
 }
 
 export const MESSAGES: Record<Locale, Catalog> = { fa, en, ru, hi }

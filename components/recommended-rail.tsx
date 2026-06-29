@@ -6,6 +6,7 @@ import { fetcher } from "@/lib/api-client"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Stagger, FadeItem } from "@/components/motion"
+import { useI18n } from "@/components/i18n-provider"
 
 type Recommendation = FlashSale & { reason: string }
 
@@ -15,6 +16,7 @@ type Recommendation = FlashSale & { reason: string }
  * itself entirely when there's nothing to suggest.
  */
 export function RecommendedRail({ limit = 6 }: { limit?: number }) {
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: Recommendation[] }>(
     `/api/v1/recommendations?limit=${limit}`,
     fetcher,
@@ -28,7 +30,7 @@ export function RecommendedRail({ limit = 6 }: { limit?: number }) {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-extrabold">پیشنهاد برای شما</h2>
+          <h2 className="text-lg font-extrabold">{t("home.recommended")}</h2>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[0, 1].map((i) => (
@@ -45,7 +47,7 @@ export function RecommendedRail({ limit = 6 }: { limit?: number }) {
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-extrabold">پیشنهاد برای شما</h2>
+        <h2 className="text-lg font-extrabold">{t("home.recommended")}</h2>
       </div>
       <Stagger className="grid grid-cols-2 gap-3">
         {items.map((rec) => (

@@ -7,8 +7,10 @@ import { BadgeCheck, XCircle, Loader2 } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { buttonVariants } from "@/components/ui/button"
 import { apiPost, ApiError } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
 
 function VerifyInner() {
+  const { t } = useI18n()
   const params = useSearchParams()
   const token = params.get("token") ?? ""
   const [status, setStatus] = useState<"working" | "ok" | "error">("working")
@@ -20,15 +22,16 @@ function VerifyInner() {
     ran.current = true
     if (!token) {
       setStatus("error")
-      setMessage("لینک تأیید نامعتبر است.")
+      setMessage(t("verify.invalidLink"))
       return
     }
     apiPost("/api/v1/account/email/confirm", { token })
       .then(() => setStatus("ok"))
       .catch((e) => {
         setStatus("error")
-        setMessage(e instanceof ApiError ? e.message : "تأیید ایمیل ناموفق بود.")
+        setMessage(e instanceof ApiError ? e.message : t("verify.emailFailed"))
       })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   return (
@@ -41,17 +44,17 @@ function VerifyInner() {
         {status === "working" && (
           <div className="mt-6 flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">در حال تأیید ایمیل…</p>
+            <p className="text-sm text-muted-foreground">{t("verify.working")}</p>
           </div>
         )}
 
         {status === "ok" && (
           <div className="mt-6 flex flex-col items-center gap-3">
             <BadgeCheck className="h-12 w-12 text-primary" />
-            <h1 className="text-lg font-extrabold text-foreground">ایمیل شما تأیید شد</h1>
-            <p className="text-sm text-muted-foreground">اکنون می‌توانید با ایمیل و رمز عبور وارد شوید.</p>
+            <h1 className="text-lg font-extrabold text-foreground">{t("verify.okTitle")}</h1>
+            <p className="text-sm text-muted-foreground">{t("verify.okDesc")}</p>
             <Link href="/account" className={buttonVariants({ className: "mt-2 w-full" })}>
-              بازگشت به تنظیمات حساب
+              {t("verify.backToAccount")}
             </Link>
           </div>
         )}
@@ -59,13 +62,13 @@ function VerifyInner() {
         {status === "error" && (
           <div className="mt-6 flex flex-col items-center gap-3">
             <XCircle className="h-12 w-12 text-destructive" />
-            <h1 className="text-lg font-extrabold text-foreground">تأیید ناموفق بود</h1>
+            <h1 className="text-lg font-extrabold text-foreground">{t("verify.failedTitle")}</h1>
             <p className="text-sm text-muted-foreground">{message}</p>
             <Link
               href="/account"
               className={buttonVariants({ variant: "outline", className: "mt-2 w-full" })}
             >
-              بازگشت به تنظیمات حساب
+              {t("verify.backToAccount")}
             </Link>
           </div>
         )}
