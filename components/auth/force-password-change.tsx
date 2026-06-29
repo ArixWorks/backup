@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useSession } from "@/hooks/use-session"
 import { apiPost, ApiError } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Blocking overlay shown when the signed-in account is flagged
@@ -15,6 +16,7 @@ import { apiPost, ApiError } from "@/lib/api-client"
  */
 export function ForcePasswordChange() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { mutate } = useSWRConfig()
   const [current, setCurrent] = useState("")
   const [next, setNext] = useState("")
@@ -28,11 +30,11 @@ export function ForcePasswordChange() {
     e.preventDefault()
     setError(null)
     if (next.length < 8) {
-      setError("رمز عبور جدید باید حداقل ۸ کاراکتر باشد")
+      setError(t("acctPwd.errMin"))
       return
     }
     if (next !== confirm) {
-      setError("تکرار رمز عبور مطابقت ندارد")
+      setError(t("acctPwd.errMismatch"))
       return
     }
     setBusy(true)
@@ -40,7 +42,7 @@ export function ForcePasswordChange() {
       await apiPost("/api/v1/account/password", { currentPassword: current, newPassword: next })
       await mutate("/api/v1/auth/session")
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "تغییر رمز عبور ناموفق بود")
+      setError(err instanceof ApiError ? err.message : t("acctPwd.failed"))
       setBusy(false)
     }
   }
@@ -52,9 +54,9 @@ export function ForcePasswordChange() {
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
             <ShieldAlert className="h-6 w-6" />
           </span>
-          <h1 className="text-lg font-extrabold text-foreground">تغییر رمز عبور الزامی است</h1>
+          <h1 className="text-lg font-extrabold text-foreground">{t("forcePwd.title")}</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            برای ادامه، لطفاً یک رمز عبور جدید و امن برای حساب خود تنظیم کنید.
+            {t("forcePwd.desc")}
           </p>
         </div>
 
@@ -65,7 +67,7 @@ export function ForcePasswordChange() {
           <Input
             type="password"
             dir="ltr"
-            placeholder="رمز عبور فعلی"
+            placeholder={t("acctPwd.currentPlaceholder")}
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             required
@@ -73,7 +75,7 @@ export function ForcePasswordChange() {
           <Input
             type="password"
             dir="ltr"
-            placeholder="رمز عبور جدید (حداقل ۸ کاراکتر)"
+            placeholder={t("acctPwd.newPlaceholder")}
             value={next}
             onChange={(e) => setNext(e.target.value)}
             required
@@ -81,13 +83,13 @@ export function ForcePasswordChange() {
           <Input
             type="password"
             dir="ltr"
-            placeholder="تکرار رمز عبور جدید"
+            placeholder={t("acctPwd.confirmPlaceholder")}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
           />
           <Button type="submit" disabled={busy} className="mt-1 w-full">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "ذخیره و ادامه"}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("forcePwd.save")}
           </Button>
         </form>
       </div>

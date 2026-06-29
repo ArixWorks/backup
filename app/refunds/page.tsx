@@ -13,13 +13,24 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { uploadFile } from "@/lib/upload-client"
 import { formatToman, formatDateTime } from "@/lib/format"
-import { REFUND_STATUS_LABELS, REFUND_STATUS_TONE } from "@/lib/support-meta"
+import { REFUND_STATUS_TONE } from "@/lib/support-meta"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
+
+type RefundStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID"
+
+const REFUND_STATUS_KEY: Record<RefundStatus, MessageKey> = {
+  PENDING: "refundStatus.PENDING",
+  APPROVED: "refundStatus.APPROVED",
+  REJECTED: "refundStatus.REJECTED",
+  PAID: "refundStatus.PAID",
+}
 
 type Refund = {
   id: string
   publicId: string
   amount: number
-  status: keyof typeof REFUND_STATUS_LABELS
+  status: RefundStatus
   fullName: string
   cardLast4: string
   reason: string | null
@@ -33,6 +44,7 @@ function groupDigits(value: string, size: number) {
 
 export default function RefundsPage() {
   const { user, refresh } = useSession()
+  const { t } = useI18n()
   const { data, isLoading, mutate } = useSWR<{ data: Refund[] }>(
     user ? "/api/v1/refunds" : null,
     fetcher,
@@ -53,12 +65,12 @@ export default function RefundsPage() {
 
   async function submit() {
     const value = Number(amount)
-    if (!Number.isFinite(value) || value < 10000) return toast.error("حداقل مبلغ بازگشت ۱۰٬۰۰۰ تومان است")
-    if (value > available) return toast.error("مبلغ بیشتر از موجودی قابل استفاده است")
-    if (fullName.trim().length < 3) return toast.error("نام و نام خانوادگی را کامل وارد کنید")
-    if (nationalId.replace(/\D/g, "").length !== 10) return toast.error("کد ملی باید ۱۰ رقم باشد")
-    if (cardNumber.replace(/\D/g, "").length !== 16) return toast.error("شماره کارت باید ۱۶ رقم باشد")
-    if (!file) return toast.error("بارگذاری تصویر کارت ملی الزامی است")
+    if (!Number.isFinite(value) || value < 10000) return toast.error(t("refunds.errMinAmount"))
+    if (value > available) return toast.error(t("refunds.errOverBalance"))
+    if (fullName.trim().length < 3) return toast.error(t("refunds.errFullName"))
+    if (nationalId.replace(/\D/g, "").length !== 10) return toast.error(t("refunds.errNationalId"))
+    if (cardNumber.replace(/\D/g, "").length !== 16) return toast.error(t("refunds.errCard"))
+    if (!file) return toast.error(t("refunds.errFile"))
 
     setBusy(true)
     try {
@@ -72,7 +84,7 @@ export default function RefundsPage() {
         iban: iban.replace(/\D/g, "") || undefined,
         reason: reason || undefined,
       })
-      toast.success("درخواست بازگشت وجه ثبت شد")
+      toast.success(t("refunds.success"))
       setAmount("")
       setFullName("")
       setNationalId("")
@@ -82,14 +94,14 @@ export default function RefundsPage() {
       setFile(null)
       await Promise.all([mutate(), refresh()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در ثبت درخواست")
+      toast.error(err instanceof ApiError ? err.message : t("refunds.errSubmit"))
     } finally {
       setBusy(false)
     }
   }
 
   if (!user) {
-    return <SignInRequired description="برای ثبت درخواست بازگشت وجه، ابتدا وارد حساب کاربری خود شوید." />
+    return <SignInRequired description={t("refunds.signInRequired")} />
   }
 
   return (
@@ -97,52 +109,52 @@ export default function RefundsPage() {
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-xl font-extrabold">
           <Undo2 className="h-5 w-5 text-primary" />
-          بازگشت وجه
+          {t("refunds.title")}
         </h1>
         <p className="text-sm text-muted-foreground text-pretty">
-          اگر تمایل به ادامه همکاری ندارید، می‌توانید موجودی کیف پول خود را به همان کارتی که با آن واریز کرده‌اید بازگردانید.
+          {t("refunds.subtitle")}
         </p>
       </header>
 
       <div className="flex items-start gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs leading-relaxed text-muted-foreground">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <p className="text-pretty">
-          برای جلوگیری از سوءاستفاده، مبلغ فقط به کارتی بازگردانده می‌شود که قبلاً با آن واریز موفق داشته‌اید و مشخصات هویتی (کد ملی و تصویر کارت ملی) باید با صاحب کارت یکی باشد.
+          {t("refunds.notice")}
         </p>
       </div>
 
       <section className="space-y-4 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>موجودی قابل بازگشت</span>
-          <span className="text-gold tabular-nums text-base font-extrabold">{formatToman(available)} تومان</span>
+          <span>{t("refunds.available")}</span>
+          <span className="text-gold tabular-nums text-base font-extrabold">{formatToman(available)} {t("common.toman")}</span>
         </div>
 
-        <Field label="مبلغ بازگشت (تومان)">
+        <Field label={t("refunds.amountLabel")}>
           <Input
             inputMode="numeric"
-            placeholder="مثلاً ۵۰٬۰۰۰"
+            placeholder={t("refunds.amountPlaceholder")}
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
             className="tabular-nums"
           />
         </Field>
 
-        <Field label="نام و نام خانوادگی (مطابق کارت ملی)">
-          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="نام کامل صاحب کارت" />
+        <Field label={t("refunds.fullNameLabel")}>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t("refunds.fullNamePlaceholder")} />
         </Field>
 
-        <Field label="کد ملی">
+        <Field label={t("refunds.nationalIdLabel")}>
           <Input
             inputMode="numeric"
             maxLength={10}
-            placeholder="۱۰ رقم"
+            placeholder={t("refunds.nationalIdPlaceholder")}
             value={nationalId}
             onChange={(e) => setNationalId(e.target.value.replace(/[^0-9]/g, ""))}
             className="tabular-nums"
           />
         </Field>
 
-        <Field label="شماره کارت بانکی مقصد">
+        <Field label={t("refunds.cardLabel")}>
           <Input
             inputMode="numeric"
             dir="ltr"
@@ -153,7 +165,7 @@ export default function RefundsPage() {
           />
         </Field>
 
-        <Field label="شماره شبا (اختیاری)">
+        <Field label={t("refunds.ibanLabel")}>
           <Input
             inputMode="numeric"
             dir="ltr"
@@ -164,7 +176,7 @@ export default function RefundsPage() {
           />
         </Field>
 
-        <Field label="تصویر کارت ملی">
+        <Field label={t("refunds.nationalCardLabel")}>
           <input
             ref={fileRef}
             type="file"
@@ -178,22 +190,22 @@ export default function RefundsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-input bg-background px-3 py-4 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
           >
             {file ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Upload className="h-4 w-4" />}
-            <span className="truncate">{file ? file.name : "انتخاب تصویر کارت ملی"}</span>
+            <span className="truncate">{file ? file.name : t("refunds.nationalCardPick")}</span>
           </button>
         </Field>
 
-        <Field label="توضیحات (اختیاری)">
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="در صورت تمایل علت درخواست را بنویسید" />
+        <Field label={t("refunds.reasonLabel")}>
+          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={t("refunds.reasonPlaceholder")} />
         </Field>
 
         <Button onClick={submit} disabled={busy} className="w-full gap-2">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {busy ? "در حال ثبت…" : "ثبت درخواست بازگشت وجه"}
+          {busy ? t("refunds.submitting") : t("refunds.submit")}
         </Button>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-bold text-muted-foreground">درخواست‌های قبلی</h2>
+        <h2 className="text-sm font-bold text-muted-foreground">{t("refunds.previous")}</h2>
         {isLoading ? (
           <div className="space-y-2">
             {[0, 1].map((i) => (
@@ -203,25 +215,25 @@ export default function RefundsPage() {
         ) : refunds.length === 0 ? (
           <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
-            هنوز درخواستی ثبت نکرده‌اید.
+            {t("refunds.empty")}
           </div>
         ) : (
           <ul className="space-y-2">
             {refunds.map((r) => (
               <li key={r.id} className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="tabular-nums text-base font-extrabold">{formatToman(r.amount)} ت</span>
+                  <span className="tabular-nums text-base font-extrabold">{formatToman(r.amount)} {t("common.toman")}</span>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${REFUND_STATUS_TONE[r.status]}`}>
-                    {REFUND_STATUS_LABELS[r.status]}
+                    {t(REFUND_STATUS_KEY[r.status])}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span dir="ltr">کارت •••• {r.cardLast4}</span>
+                  <span dir="ltr">{t("refunds.card")} •••• {r.cardLast4}</span>
                   <span>{formatDateTime(r.createdAt)}</span>
                 </div>
                 {r.rejectReason && (
                   <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    دلیل رد: {r.rejectReason}
+                    {t("refunds.rejectReason")} {r.rejectReason}
                   </p>
                 )}
               </li>

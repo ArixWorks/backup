@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Loader2, Plus, Crown, ChevronLeft } from "lucide-react"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { useI18n } from "@/components/i18n-provider"
 import { SignInRequired } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +27,7 @@ type WalletData = {
 
 export default function WalletPage() {
   const { user, refresh } = useSession()
+  const { t } = useI18n()
   const { data, isLoading, mutate } = useSWR<{ data: WalletData }>(
     user ? "/api/v1/wallet" : null,
     fetcher,
@@ -37,7 +39,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(false)
 
   const currencies = data?.data.currencies ?? [
-    { code: "IRT", name: "تومان", symbol: "تومان", decimals: 0 },
+    { code: "IRT", name: t("common.toman"), symbol: t("common.toman"), decimals: 0 },
   ]
   const balances = data?.data.allBalances ?? []
   const selectedMeta = currencies.find((c) => c.code === selected) ?? currencies[0]
@@ -45,23 +47,23 @@ export default function WalletPage() {
   async function topup() {
     const value = Number(amount)
     if (!Number.isFinite(value) || value < 10000) {
-      return toast.error("حداقل مبلغ شارژ ۱۰٬۰۰۰ تومان است")
+      return toast.error(t("wallet.minTopup"))
     }
     setLoading(true)
     try {
       await apiPost("/api/v1/wallet/topup", { amount: value })
-      toast.success("کیف پول شارژ شد")
+      toast.success(t("wallet.topupSuccess"))
       setAmount("")
       await Promise.all([mutate(), refresh()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در شارژ کیف پول")
+      toast.error(err instanceof ApiError ? err.message : t("wallet.topupError"))
     } finally {
       setLoading(false)
     }
   }
 
   if (!user) {
-    return <SignInRequired description="برای مشاهده کیف پول، ابتدا وارد حساب کاربری خود شوید." />
+    return <SignInRequired description={t("wallet.signInRequired")} />
   }
 
   return (
@@ -82,23 +84,23 @@ export default function WalletPage() {
         <div className="card-premium rounded-2xl border border-border p-5">
           <h2 className="mb-3 flex items-center gap-2 font-bold">
             <Plus className="h-4 w-4 text-primary" />
-            شارژ کیف پول (دمو)
+            {t("wallet.topupDemo")}
           </h2>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               inputMode="numeric"
-              placeholder="مبلغ به تومان"
+              placeholder={t("wallet.amountPlaceholder")}
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
               className="tabular-nums"
             />
             <Button onClick={topup} disabled={loading} className="gap-2 sm:w-40">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              شارژ
+              {t("wallet.charge")}
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            در نسخه واقعی، شارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.
+            {t("wallet.demoNote")}
           </p>
         </div>
       )}
@@ -111,8 +113,8 @@ export default function WalletPage() {
           <Crown className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-foreground">باشگاه مشتریان و امتیازها</p>
-          <p className="text-xs text-muted-foreground">سطح عضویت، مأموریت‌ها و دستاوردهای خود را ببینید</p>
+          <p className="font-bold text-foreground">{t("wallet.rewardsTitle")}</p>
+          <p className="text-xs text-muted-foreground">{t("wallet.rewardsSubtitle")}</p>
         </div>
         <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" />
       </Link>

@@ -7,12 +7,22 @@ import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
-import { DEPOSIT_STATUS_LABELS, DEPOSIT_STATUS_TONE } from "@/lib/support-meta"
+import { DEPOSIT_STATUS_TONE } from "@/lib/support-meta"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
+
+type DepositStatus = "PENDING" | "APPROVED" | "REJECTED"
+
+const DEPOSIT_STATUS_KEY: Record<DepositStatus, MessageKey> = {
+  PENDING: "depositStatus.PENDING",
+  APPROVED: "depositStatus.APPROVED",
+  REJECTED: "depositStatus.REJECTED",
+}
 
 type Deposit = {
   id: string
   amount: number
-  status: keyof typeof DEPOSIT_STATUS_LABELS
+  status: DepositStatus
   cardLast4: string | null
   reference: string | null
   createdAt: string
@@ -20,6 +30,7 @@ type Deposit = {
 
 export default function ReportsPage() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: Deposit[] }>(
     user ? "/api/v1/wallet/deposits" : null,
     fetcher,
@@ -28,7 +39,7 @@ export default function ReportsPage() {
   const deposits = data?.data ?? []
 
   if (!user) {
-    return <SignInRequired description="برای مشاهده گزارش واریزها، ابتدا وارد حساب کاربری خود شوید." />
+    return <SignInRequired description={t("reports.signInRequired")} />
   }
 
   return (
@@ -36,9 +47,9 @@ export default function ReportsPage() {
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-xl font-extrabold">
           <ReceiptText className="h-5 w-5 text-primary" />
-          گزارش واریزها
+          {t("reports.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">تاریخچه درخواست‌های شارژ کیف پول و وضعیت بررسی آن‌ها.</p>
+        <p className="text-sm text-muted-foreground">{t("reports.subtitle")}</p>
       </header>
 
       {isLoading ? (
@@ -50,9 +61,9 @@ export default function ReportsPage() {
       ) : deposits.length === 0 ? (
         <EmptyState
           icon={ReceiptText}
-          title="هنوز واریزی ثبت نشده است"
-          description="برای شارژ کیف پول از صفحه کیف پول اقدام کنید."
-          actionLabel="شارژ کیف پول"
+          title={t("reports.empty")}
+          description={t("reports.emptyDesc")}
+          actionLabel={t("reports.emptyAction")}
           actionHref="/wallet"
         />
       ) : (
@@ -65,18 +76,18 @@ export default function ReportsPage() {
                     <ArrowDownLeft className="h-4 w-4" />
                   </span>
                   <div className="flex flex-col">
-                    <span className="tabular-nums text-base font-extrabold">{formatToman(d.amount)} ت</span>
+                    <span className="tabular-nums text-base font-extrabold">{formatToman(d.amount)} {t("common.toman")}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTime(d.createdAt)}</span>
                   </div>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${DEPOSIT_STATUS_TONE[d.status]}`}>
-                  {DEPOSIT_STATUS_LABELS[d.status]}
+                  {t(DEPOSIT_STATUS_KEY[d.status])}
                 </span>
               </div>
               {(d.cardLast4 || d.reference) && (
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  {d.cardLast4 && <span dir="ltr">کارت •••• {d.cardLast4}</span>}
-                  {d.reference && <span>کد پیگیری: {d.reference}</span>}
+                  {d.cardLast4 && <span dir="ltr">{t("reports.card")} •••• {d.cardLast4}</span>}
+                  {d.reference && <span>{t("reports.reference")} {d.reference}</span>}
                 </div>
               )}
             </li>

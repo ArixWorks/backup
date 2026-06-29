@@ -20,11 +20,27 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { uploadFile } from "@/lib/upload-client"
 import { formatDateTime } from "@/lib/format"
-import {
-  SUPPORT_STATUS_LABELS,
-  SUPPORT_STATUS_TONE,
-  SUPPORT_CATEGORY_LABELS,
-} from "@/lib/support-meta"
+import { SUPPORT_STATUS_TONE } from "@/lib/support-meta"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
+
+type SupportStatus = "OPEN" | "ANSWERED" | "PENDING" | "CLOSED"
+type SupportCategory = "GENERAL" | "PAYMENT" | "ORDER" | "REFUND" | "TECHNICAL"
+
+const SUPPORT_STATUS_KEY: Record<SupportStatus, MessageKey> = {
+  OPEN: "supportStatus.OPEN",
+  ANSWERED: "supportStatus.ANSWERED",
+  PENDING: "supportStatus.PENDING",
+  CLOSED: "supportStatus.CLOSED",
+}
+
+const SUPPORT_CAT_KEY: Record<SupportCategory, MessageKey> = {
+  GENERAL: "supportCat.GENERAL",
+  PAYMENT: "supportCat.PAYMENT",
+  ORDER: "supportCat.ORDER",
+  REFUND: "supportCat.REFUND",
+  TECHNICAL: "supportCat.TECHNICAL",
+}
 
 type Message = {
   id: string
@@ -38,12 +54,13 @@ type Ticket = {
   id: string
   publicId: string
   subject: string
-  category: keyof typeof SUPPORT_CATEGORY_LABELS
-  status: keyof typeof SUPPORT_STATUS_LABELS
+  category: SupportCategory
+  status: SupportStatus
   messages: Message[]
 }
 
 export default function TicketThreadPage({ params }: { params: Promise<{ publicId: string }> }) {
+  const { t } = useI18n()
   const { publicId } = use(params)
   const { data, isLoading, mutate } = useSWR<{ data: Ticket }>(
     `/api/v1/support/${publicId}`,
@@ -70,7 +87,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
       setFile(null)
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در ارسال پیام")
+      toast.error(err instanceof ApiError ? err.message : t("ticket.errSend"))
     } finally {
       setBusy(false)
     }
@@ -79,10 +96,10 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
   async function closeTicket() {
     try {
       await apiDelete(`/api/v1/support/${publicId}`)
-      toast.success("تیکت بسته شد")
+      toast.success(t("ticket.closedToast"))
       await mutate()
     } catch {
-      toast.error("خطا در بستن تیکت")
+      toast.error(t("ticket.errClose"))
     }
   }
 
@@ -91,17 +108,17 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
       <div className="flex items-center gap-2">
         <Link
           href="/support"
-          aria-label="بازگشت"
+          aria-label={t("ticket.back")}
           className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowRight className="h-4 w-4" />
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold">
-          {ticket?.subject ?? "تیکت"}
+          {ticket?.subject ?? t("ticket.fallbackTitle")}
         </h1>
         {ticket && (
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${SUPPORT_STATUS_TONE[ticket.status]}`}>
-            {SUPPORT_STATUS_LABELS[ticket.status]}
+            {t(SUPPORT_STATUS_KEY[ticket.status])}
           </span>
         )}
       </div>
@@ -115,7 +132,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
       ) : (
         <>
           <div className="text-xs text-muted-foreground">
-            دسته‌بندی: {SUPPORT_CATEGORY_LABELS[ticket.category]}
+            {t("ticket.category")} {t(SUPPORT_CAT_KEY[ticket.category])}
           </div>
 
           <ul className="space-y-3">
@@ -144,7 +161,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
                       className="mt-2 inline-flex items-center gap-1 text-xs text-primary underline"
                     >
                       <Paperclip className="h-3 w-3" />
-                      مشاهده پیوست
+                      {t("ticket.viewAttachment")}
                     </a>
                   )}
                   <span className="mt-1 block text-[10px] text-muted-foreground">
@@ -158,7 +175,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
           {closed ? (
             <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
               <CheckCircle2 className="h-4 w-4" />
-              این تیکت بسته شده است.
+              {t("ticket.closedNotice")}
             </div>
           ) : (
             <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
@@ -166,7 +183,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 rows={3}
-                placeholder="پاسخ خود را بنویسید…"
+                placeholder={t("ticket.replyPlaceholder")}
               />
               <input
                 ref={fileRef}
@@ -179,12 +196,12 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}>
                     <Paperclip className="h-4 w-4" />
-                    پیوست
+                    {t("ticket.attach")}
                   </Button>
                   {file && (
                     <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                       <span className="max-w-28 truncate">{file.name}</span>
-                      <button type="button" onClick={() => setFile(null)} aria-label="حذف پیوست">
+                      <button type="button" onClick={() => setFile(null)} aria-label={t("ticket.removeAttach")}>
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </span>
@@ -192,11 +209,11 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
                 </div>
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="ghost" size="sm" onClick={closeTicket}>
-                    بستن تیکت
+                    {t("ticket.closeTicket")}
                   </Button>
                   <Button onClick={send} disabled={busy} size="sm" className="gap-1.5">
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    ارسال
+                    {t("ticket.send")}
                   </Button>
                 </div>
               </div>

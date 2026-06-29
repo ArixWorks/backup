@@ -77,13 +77,13 @@ export function ProfileMenu() {
   const isStaff = user.role === "ADMIN"
 
   const items: Item[] = [
-    { href: "/notifications", label: "اعلان‌ها", desc: "آخرین رویدادها", icon: Bell, badge: unread },
-    { href: "/wallet", label: "کیف پول", desc: "موجودی و شارژ", icon: Wallet, tone: "primary" },
-    { href: "/reports", label: "گزارش واریزها", desc: "تاریخچه و وضعیت", icon: ReceiptText },
-    { href: "/support", label: "تیکت و پشتیبانی", desc: "ثبت و پیگیری درخواست", icon: LifeBuoy },
-    { href: "/refunds", label: "درخواست بازگشت وجه", desc: "عودت به کارت بانکی", icon: Undo2 },
-    { href: "/profile", label: "حساب کاربری", desc: "اطلاعات و تنظیمات", icon: User },
-    { href: "/account", label: "امنیت و ورود", desc: "ایمیل، رمز عبور، تلگرام", icon: ShieldCheck },
+    { href: "/notifications", label: t("menu.notifications"), desc: t("menu.notificationsDesc"), icon: Bell, badge: unread },
+    { href: "/wallet", label: t("menu.wallet"), desc: t("menu.walletDesc"), icon: Wallet, tone: "primary" },
+    { href: "/reports", label: t("menu.reports"), desc: t("menu.reportsDesc"), icon: ReceiptText },
+    { href: "/support", label: t("menu.support"), desc: t("menu.supportDesc"), icon: LifeBuoy },
+    { href: "/refunds", label: t("menu.refunds"), desc: t("menu.refundsDesc"), icon: Undo2 },
+    { href: "/profile", label: t("menu.profile"), desc: t("menu.profileDesc"), icon: User },
+    { href: "/account", label: t("menu.account"), desc: t("menu.accountDesc"), icon: ShieldCheck },
   ]
 
   function go(href: string) {
@@ -102,7 +102,7 @@ export function ProfileMenu() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger
-        aria-label="حساب کاربری"
+        aria-label={t("menu.accountAria")}
         className="active:scale-press relative rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
       >
         <Avatar size="default" className="ring-1 ring-primary/30">
@@ -125,7 +125,7 @@ export function ProfileMenu() {
             "data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom",
           )}
         >
-          <DialogPrimitive.Title className="sr-only">منوی حساب کاربری</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="sr-only">{t("menu.title")}</DialogPrimitive.Title>
 
           {/* grab handle */}
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/30" />
@@ -155,8 +155,8 @@ export function ProfileMenu() {
               <button
                 type="button"
                 onClick={toggleMute}
-                aria-label={muted ? "روشن کردن صدای اعلان" : "خاموش کردن صدای اعلان"}
-                title={muted ? "صدای اعلان خاموش است" : "صدای اعلان روشن است"}
+                aria-label={muted ? t("menu.unmuteAria") : t("menu.muteAria")}
+                title={muted ? t("menu.mutedTitle") : t("menu.unmutedTitle")}
                 className="active:scale-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors hover:text-foreground"
               >
                 {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -215,8 +215,8 @@ export function ProfileMenu() {
                   <ShieldCheck className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-foreground">پنل مدیریت</span>
-                  <span className="block truncate text-xs text-muted-foreground">مدیریت فروشگاه</span>
+                  <span className="block truncate text-sm font-semibold text-foreground">{t("menu.admin")}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{t("menu.adminDesc")}</span>
                 </span>
                 <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>

@@ -2,6 +2,8 @@
 
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react"
 import { formatNumber, formatRelative } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 export type PointEntry = {
   id: string
@@ -12,21 +14,22 @@ export type PointEntry = {
   createdAt: string
 }
 
-const REASON_LABELS: Record<string, string> = {
-  PURCHASE: "خرید",
-  REFERRAL: "دعوت دوستان",
-  GIVEAWAY_ENTRY: "شرکت در قرعه‌کشی",
-  DAILY_LOGIN: "ورود روزانه",
-  PROFILE_COMPLETE: "تکمیل پروفایل",
-  MISSION_REWARD: "پاداش مأموریت",
-  ACHIEVEMENT: "دستاورد",
-  ADMIN_ADJUSTMENT: "تعدیل مدیریت",
-  REDEEM: "استفاده از امتیاز",
+const REASON_KEYS: Record<string, MessageKey> = {
+  PURCHASE: "ptSrc.PURCHASE",
+  REFERRAL: "ptSrc.REFERRAL",
+  GIVEAWAY_ENTRY: "ptSrc.GIVEAWAY_ENTRY",
+  DAILY_LOGIN: "ptSrc.DAILY_LOGIN",
+  PROFILE_COMPLETE: "ptSrc.PROFILE_COMPLETE",
+  MISSION_REWARD: "ptSrc.MISSION_REWARD",
+  ACHIEVEMENT: "ptSrc.ACHIEVEMENT",
+  ADMIN_ADJUSTMENT: "ptSrc.ADMIN_ADJUSTMENT",
+  REDEEM: "ptSrc.REDEEM",
 }
 
 export function PointsHistory({ entries }: { entries: PointEntry[] }) {
+  const { t } = useI18n()
   if (entries.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">هنوز امتیازی ثبت نشده است</p>
+    return <p className="py-8 text-center text-sm text-muted-foreground">{t("points.empty")}</p>
   }
 
   return (
@@ -44,7 +47,7 @@ export function PointsHistory({ entries }: { entries: PointEntry[] }) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-foreground">
-                {entry.note ?? REASON_LABELS[entry.reason] ?? entry.reason}
+                {entry.note ?? (REASON_KEYS[entry.reason] ? t(REASON_KEYS[entry.reason]) : entry.reason)}
               </p>
               <p className="text-xs text-muted-foreground">{formatRelative(entry.createdAt)}</p>
             </div>

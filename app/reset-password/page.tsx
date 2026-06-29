@@ -8,8 +8,10 @@ import { Logo } from "@/components/logo"
 import { Input } from "@/components/ui/input"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { apiPost, ApiError } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
 
 function ResetInner() {
+  const { t } = useI18n()
   const params = useSearchParams()
   const router = useRouter()
   const token = params.get("token") ?? ""
@@ -26,11 +28,11 @@ function ResetInner() {
     e.preventDefault()
     setError(null)
     if (password.length < 8) {
-      setError("رمز عبور باید حداقل ۸ کاراکتر باشد")
+      setError(t("auth.errMinPassword"))
       return
     }
     if (password !== confirm) {
-      setError("تکرار رمز عبور مطابقت ندارد")
+      setError(t("auth.errPasswordMismatch"))
       return
     }
     setBusy(true)
@@ -39,7 +41,7 @@ function ResetInner() {
       setDone(true)
       setTimeout(() => router.replace("/login"), 1800)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "بازنشانی رمز عبور ناموفق بود")
+      setError(err instanceof ApiError ? err.message : t("auth.resetFailed"))
     } finally {
       setBusy(false)
     }
@@ -50,22 +52,22 @@ function ResetInner() {
       <div className="glass w-full max-w-md rounded-3xl border border-primary/15 p-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo />
-          <h1 className="text-xl font-extrabold text-foreground">تنظیم رمز عبور جدید</h1>
+          <h1 className="text-xl font-extrabold text-foreground">{t("auth.resetTitle")}</h1>
         </div>
 
         {done ? (
           <div className="mt-6 flex flex-col items-center gap-3 text-center">
             <CheckCircle2 className="h-12 w-12 text-primary" />
-            <p className="text-sm text-muted-foreground">در حال انتقال به صفحه ورود…</p>
+            <p className="text-sm text-muted-foreground">{t("auth.resetRedirecting")}</p>
           </div>
         ) : invalidToken ? (
           <div className="mt-6 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm text-destructive">لینک بازنشانی نامعتبر است.</p>
+            <p className="text-sm text-destructive">{t("auth.resetInvalidLink")}</p>
             <Link
               href="/forgot-password"
               className={buttonVariants({ variant: "outline", className: "w-full" })}
             >
-              درخواست لینک جدید
+              {t("auth.requestNewLink")}
             </Link>
           </div>
         ) : (
@@ -76,7 +78,7 @@ function ResetInner() {
             <Input
               type="password"
               dir="ltr"
-              placeholder="رمز عبور جدید (حداقل ۸ کاراکتر)"
+              placeholder={t("auth.newPasswordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -84,19 +86,19 @@ function ResetInner() {
             <Input
               type="password"
               dir="ltr"
-              placeholder="تکرار رمز عبور جدید"
+              placeholder={t("auth.confirmNewPlaceholder")}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
             />
             <Button type="submit" disabled={busy} className="w-full">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "ذخیره رمز عبور جدید"}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("auth.saveNewPassword")}
             </Button>
             <Link
               href="/login"
               className={buttonVariants({ variant: "outline", className: "w-full" })}
             >
-              بازگشت به ورود
+              {t("auth.backToLogin")}
             </Link>
           </form>
         )}

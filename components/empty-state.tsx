@@ -5,6 +5,7 @@ import { LogIn, type LucideIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * The single, canonical empty state for the whole platform. Every "nothing
@@ -95,18 +96,19 @@ export function EmptyState({
  * sign-in prompt looks identical platform-wide and always offers a way in.
  */
 export function SignInRequired({
-  description = "برای ادامه، ابتدا وارد حساب کاربری خود شوید.",
+  description,
   className,
 }: {
   description?: string
   className?: string
 }) {
+  const { t } = useI18n()
   return (
     <EmptyState
       icon={LogIn}
-      title="ورود لازم است"
-      description={description}
-      actionLabel="ورود به حساب"
+      title={t("signIn.title")}
+      description={description ?? t("signIn.defaultDesc")}
+      actionLabel={t("signIn.action")}
       actionHref="/login"
       className={className}
     />

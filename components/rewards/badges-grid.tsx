@@ -3,6 +3,7 @@
 import * as Icons from "lucide-react"
 import { Lock } from "lucide-react"
 import { formatNumber } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
 
 export type Badge = {
   code: string
@@ -21,14 +22,15 @@ function BadgeIcon({ name }: { name: string }) {
 }
 
 export function BadgesGrid({ badges }: { badges: Badge[] }) {
+  const { t } = useI18n()
   const earnedCount = badges.filter((b) => b.earned).length
 
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-foreground">دستاوردها</h3>
+        <h3 className="text-sm font-bold text-foreground">{t("rewards.achievements")}</h3>
         <span className="text-xs text-muted-foreground">
-          {formatNumber(earnedCount)} از {formatNumber(badges.length)}
+          {t("rewards.earnedOf", { earned: formatNumber(earnedCount), total: formatNumber(badges.length) })}
         </span>
       </div>
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">

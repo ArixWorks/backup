@@ -22,7 +22,7 @@ export function BottomNav() {
 
   return (
     <nav
-      aria-label="ناوبری اصلی"
+      aria-label={t("a11y.mainNav")}
       className={cn(
         // Flush to the very bottom edge, full width, fully opaque so page
         // content can never bleed through and become unreadable. The safe-area

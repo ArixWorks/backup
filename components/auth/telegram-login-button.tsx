@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Loader2, Send } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Renders the official Telegram Login Widget. Telegram injects an iframe button
@@ -20,6 +21,7 @@ export function TelegramLoginButton({
   botUsername: string
   onAuth: (data: Record<string, unknown>) => void
 }) {
+  const { t } = useI18n()
   const ref = useRef<HTMLDivElement>(null)
   const cbName = useRef(`onTelegramAuth_${Math.random().toString(36).slice(2)}`)
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading")
@@ -74,7 +76,7 @@ export function TelegramLoginButton({
       {status === "loading" && (
         <div className="flex items-center justify-center gap-2 rounded-xl bg-[#229ED9] px-4 py-3 text-sm font-bold text-white">
           <Loader2 className="h-4 w-4 animate-spin" />
-          در حال بارگذاری ورود تلگرام…
+          {t("tgLogin.loading")}
         </div>
       )}
 
@@ -82,10 +84,10 @@ export function TelegramLoginButton({
         <div className="flex flex-col items-center gap-2">
           <div className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#229ED9]/60 px-4 py-3 text-sm font-bold text-white">
             <Send className="h-4 w-4" />
-            ورود تلگرام در این آدرس فعال نیست
+            {t("tgLogin.unavailable")}
           </div>
           <p className="text-center text-xs leading-relaxed text-muted-foreground">
-            دامنه‌ی این سایت هنوز در BotFather ثبت نشده است. لطفاً پایین‌تر با ایمیل وارد شوید.
+            {t("tgLogin.domainNotice")}
           </p>
         </div>
       )}

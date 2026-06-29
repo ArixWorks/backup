@@ -12,40 +12,22 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type Slide = {
   icon: LucideIcon
-  title: string
-  body: string
+  title: MessageKey
+  body: MessageKey
 }
 
 /** Five-step guided tour of the marketplace, shown after language selection. */
 const SLIDES: Slide[] = [
-  {
-    icon: Compass,
-    title: "به فروشگاه خوش آمدید",
-    body: "محصولات دیجیتال، حساب‌ها و کلیدها را مرور کنید. همه‌چیز مرتب و دسته‌بندی‌شده است.",
-  },
-  {
-    icon: Wallet,
-    title: "موجودی خود را شارژ کنید",
-    body: "با کیف پول، ارز دیجیتال یا درگاه، موجودی اضافه کنید و سریع‌تر خرید کنید.",
-  },
-  {
-    icon: ShoppingBag,
-    title: "خرید محصول",
-    body: "روی هر محصول بزنید تا جزئیات را ببینید و پرداخت کنید. تحویل آنی همین‌جا انجام می‌شود.",
-  },
-  {
-    icon: Gavel,
-    title: "در مزایده‌ها شرکت کنید",
-    body: "روی محصولات ویژه پیشنهاد بدهید و با بهترین قیمت برنده شوید — یک امکان منحصربه‌فرد.",
-  },
-  {
-    icon: BellRing,
-    title: "هیچ‌چیز را از دست ندهید",
-    body: "برای موجودی مجدد و قرعه‌کشی‌ها اعلان دریافت کنید و همیشه یک قدم جلوتر باشید.",
-  },
+  { icon: Compass, title: "tour.s1.title", body: "tour.s1.body" },
+  { icon: Wallet, title: "tour.s2.title", body: "tour.s2.body" },
+  { icon: ShoppingBag, title: "tour.s3.title", body: "tour.s3.body" },
+  { icon: Gavel, title: "tour.s4.title", body: "tour.s4.body" },
+  { icon: BellRing, title: "tour.s5.title", body: "tour.s5.body" },
 ]
 
 export function TutorialStep({
@@ -55,6 +37,7 @@ export function TutorialStep({
   onDone: () => void
   onSkip: () => void
 }) {
+  const { t } = useI18n()
   const [index, setIndex] = useState(0)
   const slide = SLIDES[index]
   const isLast = index === SLIDES.length - 1
@@ -85,7 +68,7 @@ export function TutorialStep({
           onClick={onSkip}
           className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          رد کردن
+          {t("tour.skip")}
         </button>
       </div>
 
@@ -104,13 +87,13 @@ export function TutorialStep({
               <Icon className="h-12 w-12" />
             </span>
             <p className="mb-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              مرحله {index + 1} از {SLIDES.length}
+              {t("tour.step", { n: index + 1, total: SLIDES.length })}
             </p>
             <h2 className="text-balance text-2xl font-extrabold tracking-tight text-foreground">
-              {slide.title}
+              {t(slide.title)}
             </h2>
             <p className="mx-auto mt-3 max-w-xs text-pretty text-sm leading-relaxed text-muted-foreground">
-              {slide.body}
+              {t(slide.body)}
             </p>
           </motion.div>
         </AnimatePresence>
@@ -122,7 +105,7 @@ export function TutorialStep({
         whileTap={{ scale: 0.98 }}
         className="elevate-gold flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground"
       >
-        {isLast ? "بزن بریم" : "بعدی"}
+        {isLast ? t("tour.start") : t("tour.next")}
         <ChevronLeft className="h-5 w-5" />
       </motion.button>
     </div>

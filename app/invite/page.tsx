@@ -8,31 +8,21 @@ import { useSession } from "@/hooks/use-session"
 import { fetcher } from "@/lib/api-client"
 import { SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useI18n } from "@/components/i18n-provider"
 
 type ReferralData = {
   recent?: ReferralItem[]
 }
 
 const STAGES = [
-  {
-    icon: UserCheck,
-    title: "دوستت عضو می‌شود",
-    desc: "وقتی دوستت با لینک تو وارد ربات شود و عضویت را کامل کند، پاداش اول را می‌گیری.",
-  },
-  {
-    icon: ShoppingBag,
-    title: "اولین خرید دوستت",
-    desc: "با نخستین خرید دوستت، هم تو و هم او پاداش ویژه‌ی خرید اول را دریافت می‌کنید.",
-  },
-  {
-    icon: InfinityIcon,
-    title: "درآمد دائمی",
-    desc: "از این پس بابت هر خرید دوستت، درصدی اعتبار به‌صورت همیشگی نصیب تو می‌شود.",
-  },
-]
+  { icon: UserCheck, titleKey: "invite.s1.title", descKey: "invite.s1.desc" },
+  { icon: ShoppingBag, titleKey: "invite.s2.title", descKey: "invite.s2.desc" },
+  { icon: InfinityIcon, titleKey: "invite.s3.title", descKey: "invite.s3.desc" },
+] as const
 
 export default function InvitePage() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: ReferralData }>(
     user ? "/api/v1/referral" : null,
     fetcher,
@@ -44,21 +34,21 @@ export default function InvitePage() {
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-xl font-extrabold">
           <Gift className="h-5 w-5 text-primary" />
-          دعوت دوستان
+          {t("invite.title")}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ از عضویت تا هر خرید آن‌ها.
+          {t("invite.subtitle")}
         </p>
       </header>
 
       {!user ? (
-        <SignInRequired description="برای دریافت لینک دعوت، ابتدا وارد حساب کاربری خود شوید." />
+        <SignInRequired description={t("invite.signInRequired")} />
       ) : (
         <>
           <ReferralCard />
 
           <section className="space-y-3">
-            <h2 className="text-sm font-bold text-foreground">چطور پاداش می‌گیرم؟</h2>
+            <h2 className="text-sm font-bold text-foreground">{t("invite.how")}</h2>
             <ol className="flex flex-col gap-2">
               {STAGES.map((s, i) => {
                 const Icon = s.icon
@@ -72,9 +62,9 @@ export default function InvitePage() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground">
-                        {`${i + 1}. ${s.title}`}
+                        {`${i + 1}. ${t(s.titleKey)}`}
                       </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">{s.desc}</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{t(s.descKey)}</p>
                     </div>
                   </li>
                 )
@@ -83,7 +73,7 @@ export default function InvitePage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-bold text-foreground">دعوت‌های اخیر</h2>
+            <h2 className="text-sm font-bold text-foreground">{t("invite.recent")}</h2>
             {isLoading ? (
               <div className="space-y-2">
                 <Skeleton className="h-14 w-full rounded-xl" />

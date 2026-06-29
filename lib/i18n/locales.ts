@@ -12,7 +12,8 @@ export const LOCALE_NAMES: Record<Locale, string> = {
   fa: "فارسی",
   en: "English",
   ru: "Русский",
-  hi: "हिन्दी",
+  // Romanized Hindi (Roman Hindi) — Latin script, not Devanagari.
+  hi: "Hindi",
 }
 
 /** Short flag emoji for the language switcher. */

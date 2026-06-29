@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { msUntil, formatCountdown } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 
 export function Countdown({
   target,
@@ -15,6 +16,7 @@ export function Countdown({
   className?: string
   prefix?: string
 }) {
+  const { t } = useI18n()
   const [ms, setMs] = useState(() => msUntil(target))
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function Countdown({
       dir="ltr"
     >
       {prefix}
-      {ms <= 0 ? "پایان یافت" : formatCountdown(ms)}
+      {ms <= 0 ? t("common.ended") : formatCountdown(ms)}
     </span>
   )
 }

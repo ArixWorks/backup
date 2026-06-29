@@ -1,6 +1,8 @@
 "use client"
 
 import { UserPlus, UserCheck, ShoppingBag } from "lucide-react"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 export type ReferralItem = {
   name: string
@@ -10,30 +12,32 @@ export type ReferralItem = {
 
 const STAGE_META: Record<
   ReferralItem["stage"],
-  { label: string; icon: typeof UserPlus; className: string }
+  { labelKey: MessageKey; icon: typeof UserPlus; className: string }
 > = {
-  pending: { label: "ثبت‌نام", icon: UserPlus, className: "text-muted-foreground" },
-  joined: { label: "فعال", icon: UserCheck, className: "text-primary" },
-  purchased: { label: "خرید کرد", icon: ShoppingBag, className: "text-emerald-500" },
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const day = Math.floor(diff / 86400000)
-  if (day > 0) return `${day} روز پیش`
-  const hour = Math.floor(diff / 3600000)
-  if (hour > 0) return `${hour} ساعت پیش`
-  const min = Math.floor(diff / 60000)
-  return min > 0 ? `${min} دقیقه پیش` : "همین حالا"
+  pending: { labelKey: "refAct.pending", icon: UserPlus, className: "text-muted-foreground" },
+  joined: { labelKey: "refAct.joined", icon: UserCheck, className: "text-primary" },
+  purchased: { labelKey: "refAct.purchased", icon: ShoppingBag, className: "text-emerald-500" },
 }
 
 export function ReferralActivity({ items }: { items: ReferralItem[] }) {
+  const { t } = useI18n()
+
+  function timeAgo(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime()
+    const day = Math.floor(diff / 86400000)
+    if (day > 0) return t("refAct.daysAgo", { count: day })
+    const hour = Math.floor(diff / 3600000)
+    if (hour > 0) return t("refAct.hoursAgo", { count: hour })
+    const min = Math.floor(diff / 60000)
+    return min > 0 ? t("refAct.minutesAgo", { count: min }) : t("refAct.now")
+  }
+
   if (!items.length) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
-        <p className="text-sm text-muted-foreground">هنوز کسی را دعوت نکرده‌اید.</p>
+        <p className="text-sm text-muted-foreground">{t("refAct.empty")}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          لینک خود را به اشتراک بگذارید تا اینجا دوستانتان را ببینید.
+          {t("refAct.emptyDesc")}
         </p>
       </div>
     )
@@ -56,7 +60,7 @@ export function ReferralActivity({ items }: { items: ReferralItem[] }) {
               <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
               <p className="text-[11px] text-muted-foreground">{timeAgo(item.joinedAt)}</p>
             </div>
-            <span className={`shrink-0 text-xs font-bold ${meta.className}`}>{meta.label}</span>
+            <span className={`shrink-0 text-xs font-bold ${meta.className}`}>{t(meta.labelKey)}</span>
           </li>
         )
       })}

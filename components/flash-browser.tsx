@@ -127,7 +127,7 @@ export function FlashBrowser() {
       {category && (
         <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-2">
           <p className="text-xs text-muted-foreground">
-            با دنبال‌کردن این دسته، هنگام افزودن محصول جدید با صدا مطلع می‌شوید.
+            {t("flash.followCategoryHint")}
           </p>
           <CategoryFollowButton category={category} />
         </div>

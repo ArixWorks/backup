@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { playNotificationChime } from "@/lib/notification-sound"
+import { useI18n } from "@/components/i18n-provider"
 
 interface NotificationItem {
   id: string
@@ -28,6 +29,7 @@ interface NotifResponse {
  */
 export function NotificationWatcher() {
   const { user } = useSession()
+  const { t } = useI18n()
   const router = useRouter()
   const lastSeenId = useRef<string | null>(null)
   const initialized = useRef(false)
@@ -60,12 +62,15 @@ export function NotificationWatcher() {
       const first = fresh[0]
       toast(first.title, {
         description:
-          fresh.length > 1 ? `${first.body} (+${fresh.length - 1} اعلان دیگر)` : first.body,
+          fresh.length > 1
+            ? t("notif.moreCount", { body: first.body, count: fresh.length - 1 })
+            : first.body,
         action: first.href
-          ? { label: "مشاهده", onClick: () => router.push(first.href!) }
+          ? { label: t("notif.view"), onClick: () => router.push(first.href!) }
           : undefined,
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, router])
 
   return null

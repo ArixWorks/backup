@@ -6,8 +6,10 @@ import { fetcher } from "@/lib/api-client"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { EmptyState } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useI18n } from "@/components/i18n-provider"
 
 export default function AuctionsPage() {
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: AuctionSummary[] }>("/api/v1/auctions", fetcher, {
     refreshInterval: 8000,
   })
@@ -18,10 +20,10 @@ export default function AuctionsPage() {
       <header className="space-y-1">
         <h1 className="flex items-center gap-2 text-xl font-extrabold">
           <Gavel className="h-5 w-5 text-primary" />
-          مزایده‌ها
+          {t("auctions.title")}
         </h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          روی محصولات دیجیتال پیشنهاد بدهید؛ مبلغ پیشنهاد تا پایان مزایده مسدود می‌شود.
+          {t("auctions.subtitle")}
         </p>
       </header>
 
@@ -34,8 +36,8 @@ export default function AuctionsPage() {
       ) : auctions.length === 0 ? (
         <EmptyState
           icon={Gavel}
-          title="مزایده‌ای یافت نشد"
-          description="در حال حاضر مزایده فعالی برگزار نمی‌شود. بعداً دوباره سر بزنید."
+          title={t("auctions.empty")}
+          description={t("auctions.emptyDesc")}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

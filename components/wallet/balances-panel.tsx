@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { formatMoney } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
 
 export type CurrencyMeta = { code: string; name: string; symbol: string; decimals: number }
 export type Balance = {
@@ -51,6 +52,7 @@ export function BalancesPanel({
   onSelect: (code: string) => void
   onChanged: () => void
 }) {
+  const { t } = useI18n()
   const meta = currencies.find((c) => c.code === selected)
   const decimals = meta?.decimals ?? 0
   const current =
@@ -62,11 +64,11 @@ export function BalancesPanel({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-extrabold">کیف پول</h1>
+          <h1 className="text-xl font-extrabold">{t("wallet.title")}</h1>
         </div>
         {currencies.length > 1 && (
           <Select value={selected} onValueChange={(v) => v && onSelect(v)}>
-            <SelectTrigger className="w-32" aria-label="انتخاب ارز">
+            <SelectTrigger className="w-32" aria-label={t("wallet.selectCurrency")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -81,7 +83,7 @@ export function BalancesPanel({
       </div>
 
       <BalanceCard
-        label="موجودی قابل استفاده"
+        label={t("wallet.available")}
         value={current.availableBalance}
         symbol={meta?.symbol ?? ""}
         decimals={decimals}
@@ -90,14 +92,14 @@ export function BalancesPanel({
       />
       <div className="grid grid-cols-2 gap-3">
         <BalanceCard
-          label="موجودی کل"
+          label={t("wallet.total")}
           value={current.totalBalance}
           symbol={meta?.symbol ?? ""}
           decimals={decimals}
           loading={loading}
         />
         <BalanceCard
-          label="مسدودشده"
+          label={t("wallet.frozenShort")}
           value={current.frozenBalance}
           symbol={meta?.symbol ?? ""}
           decimals={decimals}
@@ -172,6 +174,7 @@ function ConvertDialog({
   defaultFrom: string
   onDone: () => void
 }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(currencies.find((c) => c.code !== defaultFrom)?.code ?? defaultFrom)
@@ -196,17 +199,17 @@ function ConvertDialog({
   const previewMinor = rate != null ? Math.floor(minorAmount * rate) : 0
 
   async function submit() {
-    if (!minorAmount || minorAmount <= 0) return toast.error("مبلغ را وارد کنید")
-    if (from === to) return toast.error("ارز مبدأ و مقصد یکسان است")
+    if (!minorAmount || minorAmount <= 0) return toast.error(t("convert.enterAmount"))
+    if (from === to) return toast.error(t("convert.sameCurrency"))
     setLoading(true)
     try {
       await apiPost("/api/v1/wallet/convert", { from, to, amount: minorAmount })
-      toast.success("تبدیل ارز با موفقیت انجام شد")
+      toast.success(t("convert.success"))
       setAmount("")
       setOpen(false)
       onDone()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در تبدیل ارز")
+      toast.error(err instanceof ApiError ? err.message : t("convert.error"))
     } finally {
       setLoading(false)
     }
@@ -218,18 +221,18 @@ function ConvertDialog({
         render={
           <Button variant="outline" className="w-full gap-2">
             <ArrowLeftRight className="h-4 w-4" />
-            تبدیل ارز
+            {t("convert.button")}
           </Button>
         }
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>تبدیل ارز</DialogTitle>
+          <DialogTitle>{t("convert.button")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">از</label>
+              <label className="text-xs text-muted-foreground">{t("convert.from")}</label>
               <Select value={from} onValueChange={(v) => v && setFrom(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -240,7 +243,7 @@ function ConvertDialog({
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">به</label>
+              <label className="text-xs text-muted-foreground">{t("convert.to")}</label>
               <Select value={to} onValueChange={(v) => v && setTo(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -252,10 +255,12 @@ function ConvertDialog({
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">مبلغ ({fromMeta?.symbol})</label>
+            <label className="text-xs text-muted-foreground">
+              {t("convert.amountLabel", { symbol: fromMeta?.symbol ?? "" })}
+            </label>
             <Input
               inputMode="decimal"
-              placeholder="مبلغ"
+              placeholder={t("convert.amountPlaceholder")}
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
               className="tabular-nums"
@@ -263,10 +268,10 @@ function ConvertDialog({
           </div>
           <div className="rounded-lg bg-muted/50 p-3 text-sm">
             {rate == null ? (
-              <span className="text-muted-foreground">نرخ تبدیل در دسترس نیست</span>
+              <span className="text-muted-foreground">{t("convert.rateUnavailable")}</span>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">دریافتی تقریبی</span>
+                <span className="text-muted-foreground">{t("convert.approxReceive")}</span>
                 <span className="font-bold tabular-nums">
                   {formatMoney(previewMinor, toMeta?.decimals ?? 0)} {toMeta?.symbol}
                 </span>
@@ -277,7 +282,7 @@ function ConvertDialog({
         <DialogFooter>
           <Button onClick={submit} disabled={loading || rate == null} className="gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
-            تبدیل
+            {t("convert.button")}
           </Button>
         </DialogFooter>
       </DialogContent>

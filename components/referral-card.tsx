@@ -7,6 +7,7 @@ import { Gift, Copy, Check, Users, UserCheck, Wallet, Send } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { formatToman } from "@/lib/format"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useI18n } from "@/components/i18n-provider"
 
 type ReferralData = {
   code: string
@@ -25,6 +26,7 @@ function getTelegramWebApp() {
 }
 
 export function ReferralCard() {
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: ReferralData }>("/api/v1/referral", fetcher)
   const [copied, setCopied] = useState(false)
   const ref = data?.data
@@ -47,16 +49,16 @@ export function ReferralCard() {
     try {
       await navigator.clipboard.writeText(link)
       setCopied(true)
-      toast.success("لینک دعوت کپی شد")
+      toast.success(t("referral.copied"))
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error("کپی ناموفق بود")
+      toast.error(t("referral.copyFailed"))
     }
   }
 
   function share() {
     if (!link) return
-    const text = "به جمع ما بپیوند و از مزایده‌ها و فروش ویژه بهره‌مند شو!"
+    const text = t("referral.shareText")
     const wa = getTelegramWebApp()
     // Native Telegram forward sheet when inside the Mini App.
     if (wa?.openTelegramLink) {
@@ -67,7 +69,7 @@ export function ReferralCard() {
     }
     // Web Share API elsewhere, with a copy fallback.
     if (typeof navigator !== "undefined" && navigator.share) {
-      navigator.share({ title: "دعوت دوستان", text, url: link }).catch(() => {})
+      navigator.share({ title: t("referral.shareTitle"), text, url: link }).catch(() => {})
       return
     }
     copy()
@@ -86,11 +88,11 @@ export function ReferralCard() {
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
           <Gift className="h-4 w-4" />
         </span>
-        دعوت دوستان
+        {t("referral.title")}
       </h2>
       <p className="relative z-[1] mb-4 text-xs leading-relaxed text-muted-foreground">
-        لینک اختصاصی‌ات را به اشتراک بگذار. با هر دعوت موفق پاداش می‌گیری و از{" "}
-        <strong className="text-foreground">هر خرید</strong> دوستانت هم اعتبار دائمی نصیبت می‌شود.
+        {t("referral.desc")}{" "}
+        <strong className="text-foreground">{t("referral.descEachPurchase")}</strong>
       </p>
 
       {isLoading ? (
@@ -104,7 +106,7 @@ export function ReferralCard() {
             <button
               type="button"
               onClick={copy}
-              aria-label="کپی لینک دعوت"
+              aria-label={t("referral.copyAria")}
               className="active:scale-press inline-flex shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-primary transition-colors hover:bg-primary/15"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -117,13 +119,13 @@ export function ReferralCard() {
             className="active:scale-press bg-gold elevate-gold relative z-[1] mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-primary-foreground"
           >
             <Send className="h-4 w-4" />
-            {isBotLink ? "ارسال لینک در تلگرام" : "اشتراک‌گذاری لینک دعوت"}
+            {isBotLink ? t("referral.sendTelegram") : t("referral.shareLink")}
           </button>
 
           <div className="relative z-[1] mt-4 grid grid-cols-3 gap-2">
-            <Stat icon={Users} label="دعوت‌شده" value={ref?.totalReferred ?? 0} />
-            <Stat icon={UserCheck} label="فعال" value={ref?.joinedReferred ?? 0} accent />
-            <Stat icon={Wallet} label="درآمد (ت)" value={earned} accent />
+            <Stat icon={Users} label={t("referral.statReferred")} value={ref?.totalReferred ?? 0} />
+            <Stat icon={UserCheck} label={t("referral.statActive")} value={ref?.joinedReferred ?? 0} accent />
+            <Stat icon={Wallet} label={t("referral.statEarned")} value={earned} accent />
           </div>
         </>
       )}

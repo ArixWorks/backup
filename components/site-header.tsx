@@ -15,7 +15,7 @@ import { useI18n } from "@/components/i18n-provider"
  */
 export function SiteHeader() {
   const { user } = useSession()
-  const { priceCompact } = useI18n()
+  const { priceCompact, t } = useI18n()
   const balance = priceCompact(user?.balances?.availableBalance ?? 0)
 
   return (
@@ -32,7 +32,7 @@ export function SiteHeader() {
         <div className="flex min-w-0 items-center gap-2.5">
           <Link
             href="/wallet"
-            aria-label="کیف پول"
+            aria-label={t("nav.wallet")}
             className="active:scale-press group flex min-w-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 shadow-[0_0_0_1px_rgba(0,0,0,0.15)] transition-all hover:border-primary/60 hover:bg-primary/15"
           >
             <Wallet className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:scale-110" />
