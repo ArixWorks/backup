@@ -65,6 +65,7 @@ export function StatementPanel({
   decimals: number
   symbol: string
 }) {
+  const { t } = useI18n()
   const [type, setType] = useState("ALL")
   const [q, setQ] = useState("")
   const [from, setFrom] = useState("")
@@ -97,7 +98,7 @@ export function StatementPanel({
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-        <span className="font-bold">صورت‌حساب</span>
+        <span className="font-bold">{t("stmt.title")}</span>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -107,7 +108,7 @@ export function StatementPanel({
             aria-expanded={showFilters}
           >
             <Filter className="h-4 w-4" />
-            فیلتر
+            {t("stmt.filter")}
           </Button>
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={exportCsv}>
             <Download className="h-4 w-4" />
@@ -120,7 +121,7 @@ export function StatementPanel({
         <div className="relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="جستجو در توضیحات یا مرجع..."
+            placeholder={t("stmt.searchPlaceholder")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pr-9"
@@ -129,28 +130,28 @@ export function StatementPanel({
         {showFilters && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">نوع تراکنش</label>
+              <label className="text-xs text-muted-foreground">{t("stmt.txnType")}</label>
               <Select value={type} onValueChange={(v) => v && setType(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {FILTER_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  {FILTER_TYPES.map((ft) => (
+                    <SelectItem key={ft.value} value={ft.value}>{t(ft.key)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">از تاریخ</label>
+              <label className="text-xs text-muted-foreground">{t("stmt.fromDate")}</label>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">تا تاریخ</label>
+              <label className="text-xs text-muted-foreground">{t("stmt.toDate")}</label>
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
           </div>
         )}
         {!isLoading && (
-          <p className="text-xs text-muted-foreground">{total} تراکنش یافت شد</p>
+          <p className="text-xs text-muted-foreground">{t("stmt.foundCount", { count: total })}</p>
         )}
       </div>
 
@@ -161,13 +162,13 @@ export function StatementPanel({
           ))}
         </div>
       ) : txns.length === 0 ? (
-        <div className="p-6 text-center text-sm text-muted-foreground">تراکنشی یافت نشد.</div>
+        <div className="p-6 text-center text-sm text-muted-foreground">{t("stmt.empty")}</div>
       ) : (
         <ul className="divide-y divide-border">
-          {txns.map((t) => {
-            const positive = POSITIVE.has(t.type)
+          {txns.map((tx) => {
+            const positive = POSITIVE.has(tx.type)
             return (
-              <li key={t.id} className="flex items-center justify-between px-4 py-3">
+              <li key={tx.id} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <span
                     className={`flex h-9 w-9 items-center justify-center rounded-full ${
@@ -181,16 +182,18 @@ export function StatementPanel({
                     )}
                   </span>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">{txnLabels[t.type] ?? t.type}</span>
-                    <span className="text-xs text-muted-foreground">{formatDateTime(t.createdAt)}</span>
+                    <span className="text-sm font-medium">
+                      {txnLabelKeys[tx.type] ? t(txnLabelKeys[tx.type]) : tx.type}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(tx.createdAt)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="tabular-nums text-sm font-bold">
-                    {formatMoney(t.amount, decimals)} {symbol}
+                    {formatMoney(tx.amount, decimals)} {symbol}
                   </span>
                   <span className="text-[11px] text-muted-foreground tabular-nums">
-                    {formatMoney(t.balanceAfter, decimals)}
+                    {formatMoney(tx.balanceAfter, decimals)}
                   </span>
                 </div>
               </li>

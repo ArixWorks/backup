@@ -33,6 +33,8 @@ import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/empty-state"
 import { formatRelative } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 interface NotificationItem {
   id: string
@@ -76,13 +78,14 @@ const ICONS: Record<string, typeof Bell> = {
 
 type Tab = "all" | "unread" | "archived"
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "all", label: "همه" },
-  { key: "unread", label: "خوانده‌نشده" },
-  { key: "archived", label: "بایگانی" },
+const TABS: { key: Tab; labelKey: MessageKey }[] = [
+  { key: "all", labelKey: "notifList.tabAll" },
+  { key: "unread", labelKey: "notifList.tabUnread" },
+  { key: "archived", labelKey: "notifList.tabArchived" },
 ]
 
 export function NotificationsList() {
+  const { t } = useI18n()
   const router = useRouter()
   const [marking, setMarking] = useState(false)
   const [tab, setTab] = useState<Tab>("all")
@@ -166,20 +169,20 @@ export function NotificationsList() {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 rounded-xl bg-secondary/50 p-1">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.key}
+            key={tabItem.key}
             type="button"
-            onClick={() => setTab(t.key)}
+            onClick={() => setTab(tabItem.key)}
             className={cn(
               "flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors",
-              tab === t.key
+              tab === tabItem.key
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {t.label}
-            {t.key === "unread" && unread > 0 && (
+            {t(tabItem.labelKey)}
+            {tabItem.key === "unread" && unread > 0 && (
               <span className="ms-1 rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
                 {unread}
               </span>
@@ -196,7 +199,7 @@ export function NotificationsList() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="جستجو در اعلان‌ها…"
+            placeholder={t("notifList.searchPlaceholder")}
             className="pe-3 ps-9"
           />
         </div>
@@ -208,7 +211,7 @@ export function NotificationsList() {
             className="flex shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-primary hover:bg-secondary/40 disabled:opacity-50"
           >
             {marking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
-            خواندن همه
+            {t("notifList.markAll")}
           </button>
         )}
       </div>
@@ -225,17 +228,15 @@ export function NotificationsList() {
           icon={search.trim() ? Search : tab === "archived" ? Archive : tab === "unread" ? CheckCheck : Bell}
           title={
             search.trim()
-              ? "اعلانی با این جستجو پیدا نشد"
+              ? t("notifList.emptySearch")
               : tab === "archived"
-                ? "بایگانی شما خالی است"
+                ? t("notifList.emptyArchived")
                 : tab === "unread"
-                  ? "اعلان خوانده‌نشده‌ای ندارید"
-                  : "هنوز اعلانی ندارید"
+                  ? t("notifList.emptyUnread")
+                  : t("notifList.emptyAll")
           }
           description={
-            !search.trim() && tab === "all"
-              ? "وقتی خبری درباره سفارش‌ها، مزایده‌ها یا تراکنش‌ها باشد، اینجا نمایش داده می‌شود."
-              : undefined
+            !search.trim() && tab === "all" ? t("notifList.emptyAllDesc") : undefined
           }
         />
       ) : (
@@ -290,7 +291,7 @@ export function NotificationsList() {
                       <button
                         type="button"
                         onClick={() => unarchive(n.id)}
-                        aria-label="بازگردانی به صندوق"
+                        aria-label={t("notifList.restore")}
                         className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
                       >
                         <ArchiveRestore className="h-4 w-4" />
@@ -298,7 +299,7 @@ export function NotificationsList() {
                       <button
                         type="button"
                         onClick={() => remove(n.id)}
-                        aria-label="حذف"
+                        aria-label={t("notifList.delete")}
                         className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -309,7 +310,7 @@ export function NotificationsList() {
                       <button
                         type="button"
                         onClick={() => archive(n.id)}
-                        aria-label="بایگانی"
+                        aria-label={t("notifList.archive")}
                         className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
                       >
                         <Archive className="h-4 w-4" />
@@ -317,7 +318,7 @@ export function NotificationsList() {
                       <button
                         type="button"
                         onClick={() => remove(n.id)}
-                        aria-label="حذف"
+                        aria-label={t("notifList.delete")}
                         className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       >
                         <X className="h-4 w-4" />
