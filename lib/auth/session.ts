@@ -6,6 +6,7 @@ import { ForbiddenError, UnauthorizedError } from "@/lib/core/errors"
 import { BASE_CURRENCY } from "@/lib/core/ledger"
 import { signSession, verifySession, SESSION_TTL_SECONDS } from "./token"
 import { recordPresence } from "@/lib/monitoring/metrics"
+import { isBootstrapAdminTelegramId } from "@/lib/telegram/user"
 
 /**
  * Identity layer. The session cookie holds a *signed* token (HMAC) rather than
@@ -57,7 +58,17 @@ export async function requireUser() {
 
 export async function requireAdmin() {
   const user = await requireUser()
-  if (user.role !== "ADMIN") throw new ForbiddenError("Admin access required")
+  if (user.role !== "ADMIN") {
+    // The permanent built-in owner is always an admin, even if the DB role was
+    // never set (e.g. they logged in before promotion, or the DB was wiped and
+    // re-seeded without the role). Self-heal the role so the rest of the app
+    // sees a consistent state, then allow access.
+    if (isBootstrapAdminTelegramId(user.telegramId)) {
+      await prisma.user.update({ where: { id: user.id }, data: { role: "ADMIN" } })
+      return { ...user, role: "ADMIN" as const }
+    }
+    throw new ForbiddenError("Admin access required")
+  }
   return user
 }
 
