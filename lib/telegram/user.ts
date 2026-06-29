@@ -21,19 +21,34 @@ function displayNameOf(tg: TgIdentity): string {
 }
 
 /**
- * Telegram ids that should be granted ADMIN on login, from the
- * `ADMIN_TELEGRAM_IDS` env (comma/space separated). This is the production
- * bootstrap path: instead of seeding a demo admin, the real owner just opens
- * the Mini App and is promoted automatically on first contact. Safe to leave
- * set — it only ever promotes, never demotes.
+ * Permanent, built-in owner Telegram id(s). These are ALWAYS granted ADMIN on
+ * login, regardless of environment configuration or database state. This is the
+ * hard guarantee that the owner can never be locked out — even if the database
+ * is wiped and re-seeded, this id is promoted to ADMIN on first contact.
  */
-function adminTelegramIds(): Set<string> {
-  return new Set(
-    (process.env.ADMIN_TELEGRAM_IDS ?? "")
+export const DEFAULT_ADMIN_TELEGRAM_IDS = ["1645353710"] as const
+
+/**
+ * Telegram ids that should be granted ADMIN on login. Combines the permanent
+ * built-in owner id(s) above with the optional `ADMIN_TELEGRAM_IDS` env
+ * (comma/space separated). This is the production bootstrap path: the real
+ * owner just opens the Mini App and is promoted automatically on first contact.
+ * Safe to leave set — it only ever promotes, never demotes.
+ */
+export function adminTelegramIds(): Set<string> {
+  return new Set([
+    ...DEFAULT_ADMIN_TELEGRAM_IDS,
+    ...(process.env.ADMIN_TELEGRAM_IDS ?? "")
       .split(/[\s,]+/)
       .map((s) => s.trim())
       .filter(Boolean),
-  )
+  ])
+}
+
+/** True when the given Telegram id must always be treated as an admin. */
+export function isBootstrapAdminTelegramId(telegramId: string | null | undefined): boolean {
+  if (!telegramId) return false
+  return adminTelegramIds().has(String(telegramId))
 }
 
 /**
