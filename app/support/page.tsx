@@ -9,24 +9,41 @@ import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NewTicketDialog } from "@/components/support/new-ticket-dialog"
 import { formatRelative } from "@/lib/format"
-import {
-  SUPPORT_STATUS_LABELS,
-  SUPPORT_STATUS_TONE,
-  SUPPORT_CATEGORY_LABELS,
-} from "@/lib/support-meta"
+import { SUPPORT_STATUS_TONE } from "@/lib/support-meta"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
+
+type SupportStatus = "OPEN" | "ANSWERED" | "PENDING" | "CLOSED"
+type SupportCategory = "GENERAL" | "PAYMENT" | "ORDER" | "REFUND" | "TECHNICAL"
+
+const SUPPORT_STATUS_KEY: Record<SupportStatus, MessageKey> = {
+  OPEN: "supportStatus.OPEN",
+  ANSWERED: "supportStatus.ANSWERED",
+  PENDING: "supportStatus.PENDING",
+  CLOSED: "supportStatus.CLOSED",
+}
+
+const SUPPORT_CAT_KEY: Record<SupportCategory, MessageKey> = {
+  GENERAL: "supportCat.GENERAL",
+  PAYMENT: "supportCat.PAYMENT",
+  ORDER: "supportCat.ORDER",
+  REFUND: "supportCat.REFUND",
+  TECHNICAL: "supportCat.TECHNICAL",
+}
 
 type Ticket = {
   id: string
   publicId: string
   subject: string
-  category: keyof typeof SUPPORT_CATEGORY_LABELS
-  status: keyof typeof SUPPORT_STATUS_LABELS
+  category: SupportCategory
+  status: SupportStatus
   lastReplyAt: string
   messageCount: number
 }
 
 export default function SupportPage() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { data, isLoading, mutate } = useSWR<{ data: Ticket[] }>(
     user ? "/api/v1/support" : null,
     fetcher,
@@ -35,7 +52,7 @@ export default function SupportPage() {
   const tickets = data?.data ?? []
 
   if (!user) {
-    return <SignInRequired description="برای استفاده از پشتیبانی، ابتدا وارد حساب کاربری خود شوید." />
+    return <SignInRequired description={t("support.signInRequired")} />
   }
 
   return (
@@ -44,9 +61,9 @@ export default function SupportPage() {
         <div className="min-w-0 space-y-1">
           <h1 className="flex items-center gap-2 text-xl font-extrabold">
             <LifeBuoy className="h-5 w-5 text-primary" />
-            پشتیبانی و تیکت‌ها
+            {t("support.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">سوال یا مشکلی دارید؟ تیکت بزنید تا بررسی کنیم.</p>
+          <p className="text-sm text-muted-foreground">{t("support.subtitle")}</p>
         </div>
         <NewTicketDialog onCreated={() => mutate()} />
       </header>
@@ -60,31 +77,31 @@ export default function SupportPage() {
       ) : tickets.length === 0 ? (
         <EmptyState
           icon={MessageSquare}
-          title="هنوز تیکتی ثبت نکرده‌اید"
-          description="اگر سوال یا مشکلی دارید، یک تیکت جدید بسازید تا تیم پشتیبانی بررسی کند."
+          title={t("support.empty")}
+          description={t("support.emptyDesc")}
         />
       ) : (
         <ul className="space-y-2">
-          {tickets.map((t) => (
-            <li key={t.id}>
+          {tickets.map((ticket) => (
+            <li key={ticket.id}>
               <Link
-                href={`/support/${t.publicId}`}
+                href={`/support/${ticket.publicId}`}
                 className="active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-bold">{t.subject}</span>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${SUPPORT_STATUS_TONE[t.status]}`}>
-                      {SUPPORT_STATUS_LABELS[t.status]}
+                    <span className="truncate font-bold">{ticket.subject}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${SUPPORT_STATUS_TONE[ticket.status]}`}>
+                      {t(SUPPORT_STATUS_KEY[ticket.status])}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{SUPPORT_CATEGORY_LABELS[t.category]}</span>
+                    <span>{t(SUPPORT_CAT_KEY[ticket.category])}</span>
                     <span className="flex items-center gap-1">
                       <MessageSquare className="h-3 w-3" />
-                      {t.messageCount}
+                      {ticket.messageCount}
                     </span>
-                    <span>{formatRelative(t.lastReplyAt)}</span>
+                    <span>{formatRelative(ticket.lastReplyAt)}</span>
                   </div>
                 </div>
                 <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />

@@ -61,6 +61,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 
 /** Renders the winner's private claim payload, shaped per prize kind. */
 function ClaimDetails({ win }: { win: Win }) {
+  const { t } = useI18n()
   const { claimData, giveaway, delivered, deliveryError } = win
 
   if (!delivered) {
@@ -69,8 +70,8 @@ function ClaimDetails({ win }: { win: Win }) {
         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
         <p className="leading-relaxed">
           {deliveryError
-            ? `در انتظار تحویل دستی: ${deliveryError}`
-            : "جایزه‌ی شما به‌زودی توسط تیم پشتیبانی تحویل داده می‌شود."}
+            ? t("wins.pendingManual", { error: deliveryError })
+            : t("wins.pendingAuto")}
         </p>
       </div>
     )
@@ -80,9 +81,7 @@ function ClaimDetails({ win }: { win: Win }) {
     return (
       <div className="mt-3 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">
         <Wallet className="h-4 w-4 text-success" />
-        <span>
-          مبلغ <b className="tabular-nums">{formatToman(Number(claimData.amount))} ت</b> به کیف پول شما واریز شد.
-        </span>
+        <span>{t("wins.walletCredited", { amount: formatToman(Number(claimData.amount)) })}</span>
       </div>
     )
   }
@@ -92,26 +91,26 @@ function ClaimDetails({ win }: { win: Win }) {
       <div className="mt-3 overflow-hidden rounded-lg border border-border bg-secondary/60">
         <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
           <Ticket className="h-4 w-4 text-primary" />
-          کد تخفیف شما
+          {t("wins.couponTitle")}
         </div>
-        <CopyRow label="کد" value={String(claimData.code)} />
+        <CopyRow label={t("payload.code")} value={String(claimData.code)} />
       </div>
     )
   }
 
   if (giveaway.prizeKind === "INVENTORY") {
     const rows: { label: string; value: unknown }[] = [
-      { label: "نام کاربری", value: claimData?.username },
-      { label: "رمز عبور", value: claimData?.password },
-      { label: "کلید لایسنس", value: claimData?.licenseKey },
-      { label: "توضیحات", value: claimData?.note },
+      { label: t("payload.username"), value: claimData?.username },
+      { label: t("payload.password"), value: claimData?.password },
+      { label: t("payload.licenseKey"), value: claimData?.licenseKey },
+      { label: t("payload.note"), value: claimData?.note },
     ].filter((r) => r.value)
     if (rows.length === 0) return null
     return (
       <div className="mt-3 overflow-hidden rounded-lg border border-border bg-secondary/60">
         <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
           <KeyRound className="h-4 w-4 text-primary" />
-          اطلاعات دریافت جایزه
+          {t("wins.claimTitle")}
         </div>
         <dl className="divide-y divide-border">
           {rows.map((r) => (
@@ -127,13 +126,14 @@ function ClaimDetails({ win }: { win: Win }) {
 
 export default function MyPrizesPage() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { data, isLoading } = useSWR<{ data: Win[] }>(user ? "/api/v1/giveaways/wins" : null, fetcher, {
     refreshInterval: 15000,
   })
   const wins = data?.data ?? []
 
   if (!user) {
-    return <SignInRequired description="برای مشاهده‌ی جوایز، ابتدا وارد حساب کاربری خود شوید." />
+    return <SignInRequired description={t("wins.signInRequired")} />
   }
 
   return (
@@ -142,13 +142,13 @@ export default function MyPrizesPage() {
         <header className="flex items-center justify-between gap-3">
           <h1 className="flex items-center gap-2 text-xl font-extrabold">
             <Trophy className="h-5 w-5 text-primary" />
-            جوایز من
+            {t("giveaways.myWins")}
           </h1>
           <Link
             href="/giveaways"
             className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
           >
-            همه قرعه‌کشی‌ها
+            {t("giveaways.all")}
             <ChevronLeft className="h-3.5 w-3.5" />
           </Link>
         </header>
@@ -164,9 +164,9 @@ export default function MyPrizesPage() {
         <FadeItem>
           <EmptyState
             icon={Gift}
-            title="هنوز در هیچ قرعه‌کشی‌ای برنده نشده‌اید"
-            description="در قرعه‌کشی‌های فعال شرکت کنید تا شانس بردن جوایز را داشته باشید."
-            actionLabel="مشاهده قرعه‌کشی‌های فعال"
+            title={t("wins.empty")}
+            description={t("wins.emptyDesc")}
+            actionLabel={t("wins.emptyAction")}
             actionHref="/giveaways"
           />
         </FadeItem>
@@ -196,7 +196,7 @@ export default function MyPrizesPage() {
                     <p className="mt-0.5 text-sm text-muted-foreground">{w.giveaway.prizeLabel}</p>
                     <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                       <Trophy className="h-3 w-3" />
-                      نفر {w.position} • {formatDateTime(w.createdAt)}
+                      {t("wins.position", { n: w.position })} • {formatDateTime(w.createdAt)}
                     </span>
                   </div>
                 </div>

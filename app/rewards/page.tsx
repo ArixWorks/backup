@@ -9,6 +9,7 @@ import { VipTierCard, type RewardsSummary } from "@/components/rewards/vip-tier-
 import { MissionsPanel, type Mission } from "@/components/rewards/missions-panel"
 import { BadgesGrid, type Badge } from "@/components/rewards/badges-grid"
 import { PointsHistory, type PointEntry } from "@/components/rewards/points-history"
+import { useI18n } from "@/components/i18n-provider"
 
 type RewardsData = {
   summary: RewardsSummary | null
@@ -19,6 +20,7 @@ type RewardsData = {
 
 export default function RewardsPage() {
   const { user } = useSession()
+  const { t } = useI18n()
   const { data, isLoading, mutate } = useSWR<{ data: RewardsData }>(
     user ? "/api/v1/rewards" : null,
     fetcher,
@@ -30,8 +32,8 @@ export default function RewardsPage() {
   return (
     <main className="mx-auto max-w-md px-4 pb-24 pt-5">
       <header className="mb-4">
-        <h1 className="text-xl font-extrabold text-foreground">باشگاه مشتریان</h1>
-        <p className="text-sm text-muted-foreground">امتیاز جمع کن، سطح بگیر و پاداش دریافت کن</p>
+        <h1 className="text-xl font-extrabold text-foreground">{t("rewards.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("rewards.subtitle")}</p>
       </header>
 
       {isLoading || !rewards?.summary ? (
@@ -46,9 +48,9 @@ export default function RewardsPage() {
 
           <Tabs defaultValue="missions">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="missions">مأموریت‌ها</TabsTrigger>
-              <TabsTrigger value="badges">دستاوردها</TabsTrigger>
-              <TabsTrigger value="history">تاریخچه</TabsTrigger>
+              <TabsTrigger value="missions">{t("rewards.tabMissions")}</TabsTrigger>
+              <TabsTrigger value="badges">{t("rewards.tabBadges")}</TabsTrigger>
+              <TabsTrigger value="history">{t("rewards.tabHistory")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="missions" className="mt-4">
@@ -56,7 +58,7 @@ export default function RewardsPage() {
                 <MissionsPanel missions={rewards.missions} onClaimed={() => mutate()} />
               ) : (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  در حال حاضر مأموریت فعالی وجود ندارد
+                  {t("rewards.noMissions")}
                 </p>
               )}
             </TabsContent>

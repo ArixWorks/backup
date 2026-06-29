@@ -260,6 +260,86 @@ export type MessageKey =
   | "wins.empty"
   | "wins.emptyDesc"
   | "wins.emptyAction"
+  | "watchlist.signInRequired"
+  | "watchlist.emptyDesc"
+  | "watchlist.flashProducts"
+  | "rewards.title"
+  | "rewards.subtitle"
+  | "rewards.tabMissions"
+  | "rewards.tabBadges"
+  | "rewards.tabHistory"
+  | "rewards.noMissions"
+  | "invite.title"
+  | "invite.subtitle"
+  | "invite.signInRequired"
+  | "invite.how"
+  | "invite.recent"
+  | "invite.s1.title"
+  | "invite.s1.desc"
+  | "invite.s2.title"
+  | "invite.s2.desc"
+  | "invite.s3.title"
+  | "invite.s3.desc"
+  | "reports.signInRequired"
+  | "reports.title"
+  | "reports.subtitle"
+  | "reports.empty"
+  | "reports.emptyDesc"
+  | "reports.emptyAction"
+  | "reports.card"
+  | "reports.reference"
+  | "support.signInRequired"
+  | "support.title"
+  | "support.subtitle"
+  | "support.empty"
+  | "support.emptyDesc"
+  | "supportStatus.OPEN"
+  | "supportStatus.ANSWERED"
+  | "supportStatus.PENDING"
+  | "supportStatus.CLOSED"
+  | "supportCat.GENERAL"
+  | "supportCat.PAYMENT"
+  | "supportCat.ORDER"
+  | "supportCat.REFUND"
+  | "supportCat.TECHNICAL"
+  | "depositStatus.PENDING"
+  | "depositStatus.APPROVED"
+  | "depositStatus.REJECTED"
+  | "refundStatus.PENDING"
+  | "refundStatus.APPROVED"
+  | "refundStatus.REJECTED"
+  | "refundStatus.PAID"
+  | "refunds.signInRequired"
+  | "refunds.title"
+  | "refunds.subtitle"
+  | "refunds.notice"
+  | "refunds.available"
+  | "refunds.amountLabel"
+  | "refunds.amountPlaceholder"
+  | "refunds.fullNameLabel"
+  | "refunds.fullNamePlaceholder"
+  | "refunds.nationalIdLabel"
+  | "refunds.nationalIdPlaceholder"
+  | "refunds.cardLabel"
+  | "refunds.ibanLabel"
+  | "refunds.nationalCardLabel"
+  | "refunds.nationalCardPick"
+  | "refunds.reasonLabel"
+  | "refunds.reasonPlaceholder"
+  | "refunds.submit"
+  | "refunds.submitting"
+  | "refunds.previous"
+  | "refunds.empty"
+  | "refunds.rejectReason"
+  | "refunds.card"
+  | "refunds.errMinAmount"
+  | "refunds.errOverBalance"
+  | "refunds.errFullName"
+  | "refunds.errNationalId"
+  | "refunds.errCard"
+  | "refunds.errFile"
+  | "refunds.success"
+  | "refunds.errSubmit"
 
 type Catalog = Record<MessageKey, string>
 
@@ -288,7 +368,7 @@ const fa: Catalog = {
   "tour.step": "مرحله {n} از {total}",
   "tour.next": "بعدی",
   "tour.start": "بزن بریم",
-  "tour.s1.title": "به فروشگاه خوش آمدید",
+  "tour.s1.title": "به فروشگاه خو�� آمدید",
   "tour.s1.body": "محصولات دیجیتال، حساب‌ها و کلیدها را مرور کنید. همه‌چیز مرتب و دسته‌بندی‌شده است.",
   "tour.s2.title": "موجودی خود را شارژ کنید",
   "tour.s2.body": "با کیف پول، ارز دیجیتال یا درگاه، موجودی اضافه کنید و سریع‌تر خرید کنید.",
@@ -518,6 +598,86 @@ const fa: Catalog = {
   "wins.empty": "هنوز در هیچ قرعه‌کشی‌ای برنده نشده‌اید",
   "wins.emptyDesc": "در قرعه‌کشی‌های فعال شرکت کنید تا شانس بردن جوایز را داشته باشید.",
   "wins.emptyAction": "مشاهده قرعه‌کشی‌های فعال",
+  "watchlist.signInRequired": "برای مشاهده لیست پیگیری، ابتدا وارد حساب کاربری خود شوید.",
+  "watchlist.emptyDesc": "مزایده‌های موردعلاقه‌تان را دنبال کنید تا هنگام شروع، باخبر شوید.",
+  "watchlist.flashProducts": "محصولات فروش فوری",
+  "rewards.title": "باشگاه مشتریان",
+  "rewards.subtitle": "امتیاز جمع کن، سطح بگیر و پاداش دریافت کن",
+  "rewards.tabMissions": "مأموریت‌ها",
+  "rewards.tabBadges": "دستاوردها",
+  "rewards.tabHistory": "تاریخچه",
+  "rewards.noMissions": "در حال حاضر مأموریت فعالی وجود ندارد",
+  "invite.title": "دعوت دوستان",
+  "invite.subtitle": "دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ از عضویت تا هر خرید آن‌ها.",
+  "invite.signInRequired": "برای دریافت لینک دعوت، ابتدا وارد حساب کاربری خود شوید.",
+  "invite.how": "چطور پاداش می‌گیرم؟",
+  "invite.recent": "دعوت‌های اخیر",
+  "invite.s1.title": "دوستت عضو می‌شود",
+  "invite.s1.desc": "وقتی دوستت با لینک تو وارد ربات شود و عضویت را کامل کند، پاداش اول را می‌گیری.",
+  "invite.s2.title": "اولین خرید دوستت",
+  "invite.s2.desc": "با نخستین خرید دوستت، هم تو و هم او پاداش ویژه‌ی خرید اول را دریافت می‌کنید.",
+  "invite.s3.title": "درآمد دائمی",
+  "invite.s3.desc": "از این پس بابت هر خرید دوستت، درصدی اعتبار به‌صورت همیشگی نصیب تو می‌شود.",
+  "reports.signInRequired": "برای مشاهده گزارش واریزها، ابتدا وارد حساب کاربری خود شوید.",
+  "reports.title": "گزارش واریزها",
+  "reports.subtitle": "تاریخچه درخواست‌های شارژ کیف پول و وضعیت بررسی آن‌ها.",
+  "reports.empty": "هنوز واریزی ثبت نشده است",
+  "reports.emptyDesc": "برای شارژ کیف پول از صفحه کیف پول اقدام کنید.",
+  "reports.emptyAction": "شارژ کیف پول",
+  "reports.card": "کارت",
+  "reports.reference": "کد پیگیری:",
+  "support.signInRequired": "برای استفاده از پشتیبانی، ابتدا وارد حساب کاربری خود شوید.",
+  "support.title": "پشتیبانی و تیکت‌ها",
+  "support.subtitle": "سوال یا مشکلی دارید؟ تیکت بزنید تا بررسی کنیم.",
+  "support.empty": "هنوز تیکتی ثبت نکرده‌اید",
+  "support.emptyDesc": "اگر سوال یا مشکلی دارید، یک تیکت جدید بسازید تا تیم پشتیبانی بررسی کند.",
+  "supportStatus.OPEN": "باز",
+  "supportStatus.ANSWERED": "پاسخ داده شد",
+  "supportStatus.PENDING": "در انتظار پاسخ",
+  "supportStatus.CLOSED": "بسته شده",
+  "supportCat.GENERAL": "عمومی",
+  "supportCat.PAYMENT": "پرداخت و کیف پول",
+  "supportCat.ORDER": "سفارش",
+  "supportCat.REFUND": "بازگشت وجه",
+  "supportCat.TECHNICAL": "مشکل فنی",
+  "depositStatus.PENDING": "در حال بررسی",
+  "depositStatus.APPROVED": "تأیید شده",
+  "depositStatus.REJECTED": "رد شده",
+  "refundStatus.PENDING": "در حال بررسی",
+  "refundStatus.APPROVED": "تأیید شده",
+  "refundStatus.REJECTED": "رد شده",
+  "refundStatus.PAID": "پرداخت شد",
+  "refunds.signInRequired": "برای ثبت درخواست بازگشت وجه، ابتدا وارد حساب کاربری خود شوید.",
+  "refunds.title": "بازگشت وجه",
+  "refunds.subtitle": "اگر تمایل به ادامه همکاری ندارید، می‌توانید موجودی کیف پول خود را به همان کارتی که با آن واریز کرده‌اید بازگردانید.",
+  "refunds.notice": "برای جلوگیری از سوءاستفاده، مبلغ فقط به کارتی بازگردانده می‌شود که قبلاً با آن واریز موفق داشته‌اید و مشخصات هویتی (کد ملی و تصویر کارت ملی) باید با صاحب کارت یکی باشد.",
+  "refunds.available": "موجودی قابل بازگشت",
+  "refunds.amountLabel": "مبلغ بازگشت (تومان)",
+  "refunds.amountPlaceholder": "مثلاً ۵۰٬۰۰۰",
+  "refunds.fullNameLabel": "نام و نام خانوادگی (مطابق کارت ملی)",
+  "refunds.fullNamePlaceholder": "نام کامل صاحب کارت",
+  "refunds.nationalIdLabel": "کد ملی",
+  "refunds.nationalIdPlaceholder": "۱۰ رقم",
+  "refunds.cardLabel": "شماره کارت بانکی مقصد",
+  "refunds.ibanLabel": "شماره شبا (اختیاری)",
+  "refunds.nationalCardLabel": "تصویر کارت ملی",
+  "refunds.nationalCardPick": "انتخاب تصویر کارت ملی",
+  "refunds.reasonLabel": "توضیحات (اختیاری)",
+  "refunds.reasonPlaceholder": "در صورت تمایل علت درخواست را بنویسید",
+  "refunds.submit": "ثبت درخواست بازگشت وجه",
+  "refunds.submitting": "در حال ثبت…",
+  "refunds.previous": "درخواست‌های قبلی",
+  "refunds.empty": "هنوز درخواستی ثبت نکرده‌اید.",
+  "refunds.rejectReason": "دلیل رد:",
+  "refunds.card": "کارت",
+  "refunds.errMinAmount": "حداقل مبلغ بازگشت ۱۰٬۰۰۰ تومان است",
+  "refunds.errOverBalance": "مبلغ بیشتر از موجودی قابل استفاده است",
+  "refunds.errFullName": "نام و نام خانوادگی را کامل وارد کنید",
+  "refunds.errNationalId": "کد ملی باید ۱۰ رقم باشد",
+  "refunds.errCard": "شماره کارت باید ۱۶ رقم باشد",
+  "refunds.errFile": "بارگذاری تصویر کارت ملی الزامی است",
+  "refunds.success": "درخواست بازگشت وجه ثبت شد",
+  "refunds.errSubmit": "خطا در ثبت درخواست",
 }
 
 const en: Catalog = {
@@ -775,6 +935,86 @@ const en: Catalog = {
   "wins.empty": "You haven't won any giveaway yet",
   "wins.emptyDesc": "Enter active giveaways for a chance to win prizes.",
   "wins.emptyAction": "View active giveaways",
+  "watchlist.signInRequired": "Sign in to view your watchlist.",
+  "watchlist.emptyDesc": "Follow your favorite auctions to be notified when they start.",
+  "watchlist.flashProducts": "Flash sale products",
+  "rewards.title": "Rewards club",
+  "rewards.subtitle": "Earn points, level up and get rewards",
+  "rewards.tabMissions": "Missions",
+  "rewards.tabBadges": "Achievements",
+  "rewards.tabHistory": "History",
+  "rewards.noMissions": "No active missions right now",
+  "invite.title": "Invite friends",
+  "invite.subtitle": "Invite your friends and earn rewards in three stages — from sign-up to every purchase.",
+  "invite.signInRequired": "Sign in to get your invite link.",
+  "invite.how": "How do I earn rewards?",
+  "invite.recent": "Recent invites",
+  "invite.s1.title": "Your friend signs up",
+  "invite.s1.desc": "When your friend joins the bot with your link and completes sign-up, you get the first reward.",
+  "invite.s2.title": "Your friend's first purchase",
+  "invite.s2.desc": "On your friend's first purchase, both of you receive a special first-purchase reward.",
+  "invite.s3.title": "Lifetime earnings",
+  "invite.s3.desc": "From then on, you earn a percentage of credit on every purchase your friend makes.",
+  "reports.signInRequired": "Sign in to view your deposit reports.",
+  "reports.title": "Deposit reports",
+  "reports.subtitle": "History of your wallet top-up requests and their review status.",
+  "reports.empty": "No deposits yet",
+  "reports.emptyDesc": "Head to the wallet page to top up your balance.",
+  "reports.emptyAction": "Top up wallet",
+  "reports.card": "Card",
+  "reports.reference": "Reference:",
+  "support.signInRequired": "Sign in to use support.",
+  "support.title": "Support & tickets",
+  "support.subtitle": "Got a question or issue? Open a ticket and we'll look into it.",
+  "support.empty": "No tickets yet",
+  "support.emptyDesc": "If you have a question or issue, create a new ticket for the support team to review.",
+  "supportStatus.OPEN": "Open",
+  "supportStatus.ANSWERED": "Answered",
+  "supportStatus.PENDING": "Awaiting reply",
+  "supportStatus.CLOSED": "Closed",
+  "supportCat.GENERAL": "General",
+  "supportCat.PAYMENT": "Payment & wallet",
+  "supportCat.ORDER": "Order",
+  "supportCat.REFUND": "Refund",
+  "supportCat.TECHNICAL": "Technical issue",
+  "depositStatus.PENDING": "Under review",
+  "depositStatus.APPROVED": "Approved",
+  "depositStatus.REJECTED": "Rejected",
+  "refundStatus.PENDING": "Under review",
+  "refundStatus.APPROVED": "Approved",
+  "refundStatus.REJECTED": "Rejected",
+  "refundStatus.PAID": "Paid",
+  "refunds.signInRequired": "Sign in to submit a refund request.",
+  "refunds.title": "Refund",
+  "refunds.subtitle": "If you no longer wish to continue, you can return your wallet balance to the same card you deposited from.",
+  "refunds.notice": "To prevent abuse, the amount is returned only to a card you've previously made a successful deposit with, and the identity details (national ID and ID card photo) must match the card holder.",
+  "refunds.available": "Refundable balance",
+  "refunds.amountLabel": "Refund amount (Toman)",
+  "refunds.amountPlaceholder": "e.g. 50,000",
+  "refunds.fullNameLabel": "Full name (as on national ID)",
+  "refunds.fullNamePlaceholder": "Card holder's full name",
+  "refunds.nationalIdLabel": "National ID",
+  "refunds.nationalIdPlaceholder": "10 digits",
+  "refunds.cardLabel": "Destination bank card number",
+  "refunds.ibanLabel": "IBAN (optional)",
+  "refunds.nationalCardLabel": "National ID card photo",
+  "refunds.nationalCardPick": "Choose national ID card photo",
+  "refunds.reasonLabel": "Notes (optional)",
+  "refunds.reasonPlaceholder": "Optionally write the reason for your request",
+  "refunds.submit": "Submit refund request",
+  "refunds.submitting": "Submitting…",
+  "refunds.previous": "Previous requests",
+  "refunds.empty": "You haven't submitted any request yet.",
+  "refunds.rejectReason": "Rejection reason:",
+  "refunds.card": "Card",
+  "refunds.errMinAmount": "The minimum refund amount is 10,000 Toman",
+  "refunds.errOverBalance": "The amount exceeds your available balance",
+  "refunds.errFullName": "Enter your full name",
+  "refunds.errNationalId": "National ID must be 10 digits",
+  "refunds.errCard": "Card number must be 16 digits",
+  "refunds.errFile": "Uploading the national ID card photo is required",
+  "refunds.success": "Refund request submitted",
+  "refunds.errSubmit": "Failed to submit request",
 }
 
 const ru: Catalog = {
@@ -1032,6 +1272,86 @@ const ru: Catalog = {
   "wins.empty": "Вы ещё не выиграли ни одного розыгрыша",
   "wins.emptyDesc": "Участвуйте в активных розыгрышах ради шанса на приз.",
   "wins.emptyAction": "Смотреть активные розыгрыши",
+  "watchlist.signInRequired": "Войдите, чтобы увидеть список отслеживания.",
+  "watchlist.emptyDesc": "Следите за любимыми аукционами, чтобы получить уведомление о старте.",
+  "watchlist.flashProducts": "Товары распродажи",
+  "rewards.title": "Клуб лояльности",
+  "rewards.subtitle": "Зарабатывайте баллы, повышайте уровень и получайте награды",
+  "rewards.tabMissions": "Задания",
+  "rewards.tabBadges": "Достижения",
+  "rewards.tabHistory": "История",
+  "rewards.noMissions": "Сейчас нет активных заданий",
+  "invite.title": "Пригласить друзей",
+  "invite.subtitle": "Приглашайте друзей и получайте награды на трёх этапах — от регистрации до каждой покупки.",
+  "invite.signInRequired": "Войдите, чтобы получить ссылку-приглашение.",
+  "invite.how": "Как я получаю награды?",
+  "invite.recent": "Недавние приглашения",
+  "invite.s1.title": "Ваш друг регистрируется",
+  "invite.s1.desc": "Когда друг переходит в бота по вашей ссылке и завершает регистрацию, вы получаете первую награду.",
+  "invite.s2.title": "Первая покупка друга",
+  "invite.s2.desc": "При первой покупке друга вы оба получаете особую награду за первую покупку.",
+  "invite.s3.title": "Постоянный доход",
+  "invite.s3.desc": "С этого момента вы получаете процент от каждой покупки вашего друга в виде кредита.",
+  "reports.signInRequired": "Войдите, чтобы увидеть отчёты о пополнениях.",
+  "reports.title": "Отчёты о пополнениях",
+  "reports.subtitle": "История ваших запросов на пополнение кошелька и их статус проверки.",
+  "reports.empty": "Пополнений пока нет",
+  "reports.emptyDesc": "Перейдите на страницу кошелька, чтобы пополнить баланс.",
+  "reports.emptyAction": "Пополнить кошелёк",
+  "reports.card": "Карта",
+  "reports.reference": "Код:",
+  "support.signInRequired": "Войдите, чтобы воспользоваться поддержкой.",
+  "support.title": "Поддержка и обращения",
+  "support.subtitle": "Есть вопрос или проблема? Создайте обращение, и мы разберёмся.",
+  "support.empty": "Обращений пока нет",
+  "support.emptyDesc": "Если у вас есть вопрос или проблема, создайте новое обращение для команды поддержки.",
+  "supportStatus.OPEN": "Открыто",
+  "supportStatus.ANSWERED": "Отвечено",
+  "supportStatus.PENDING": "Ожидает ответа",
+  "supportStatus.CLOSED": "Закрыто",
+  "supportCat.GENERAL": "Общее",
+  "supportCat.PAYMENT": "Оплата и кошелёк",
+  "supportCat.ORDER": "Заказ",
+  "supportCat.REFUND": "Возврат средств",
+  "supportCat.TECHNICAL": "Техническая проблема",
+  "depositStatus.PENDING": "На проверке",
+  "depositStatus.APPROVED": "Подтверждено",
+  "depositStatus.REJECTED": "Отклонено",
+  "refundStatus.PENDING": "На проверке",
+  "refundStatus.APPROVED": "Подтверждено",
+  "refundStatus.REJECTED": "Отклонено",
+  "refundStatus.PAID": "Выплачено",
+  "refunds.signInRequired": "Войдите, чтобы подать запрос на возврат.",
+  "refunds.title": "Возврат средств",
+  "refunds.subtitle": "Если вы не хотите продолжать, вы можете вернуть баланс кошелька на ту же карту, с которой пополняли.",
+  "refunds.notice": "Во избежание злоупотреблений сумма возвращается только на карту, с которой ранее было успешное пополнение, а данные (ИНН и фото удостоверения) должны совпадать с держателем карты.",
+  "refunds.available": "Доступно к возврату",
+  "refunds.amountLabel": "Сумма возврата (туманы)",
+  "refunds.amountPlaceholder": "напр. 50 000",
+  "refunds.fullNameLabel": "ФИО (как в удостоверении)",
+  "refunds.fullNamePlaceholder": "ФИО держателя карты",
+  "refunds.nationalIdLabel": "Идентификационный номер",
+  "refunds.nationalIdPlaceholder": "10 цифр",
+  "refunds.cardLabel": "Номер банковской карты получателя",
+  "refunds.ibanLabel": "IBAN (необязательно)",
+  "refunds.nationalCardLabel": "Фото удостоверения личности",
+  "refunds.nationalCardPick": "Выбрать фото удостоверения",
+  "refunds.reasonLabel": "Примечание (необязательно)",
+  "refunds.reasonPlaceholder": "При желании укажите причину запроса",
+  "refunds.submit": "Подать запрос на возврат",
+  "refunds.submitting": "Отправка…",
+  "refunds.previous": "Предыдущие запросы",
+  "refunds.empty": "Вы ещё не подавали запросов.",
+  "refunds.rejectReason": "Причина отклонения:",
+  "refunds.card": "Карта",
+  "refunds.errMinAmount": "Минимальная сумма возврата — 10 000 туманов",
+  "refunds.errOverBalance": "Сумма превышает доступный баланс",
+  "refunds.errFullName": "Введите ФИО полностью",
+  "refunds.errNationalId": "Идентификационный номер должен содержать 10 цифр",
+  "refunds.errCard": "Номер карты должен содержать 16 цифр",
+  "refunds.errFile": "Загрузка фото удостоверения обязательна",
+  "refunds.success": "Запрос на возврат отправлен",
+  "refunds.errSubmit": "Не удалось отправить запрос",
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
@@ -1290,6 +1610,86 @@ const hi: Catalog = {
   "wins.empty": "Aapne abhi tak koi giveaway nahi jeeta",
   "wins.emptyDesc": "Active giveaways mein hissa lein aur prizes jeetne ka mauka paayein.",
   "wins.emptyAction": "Active giveaways dekhein",
+  "watchlist.signInRequired": "Watchlist dekhne ke liye pehle sign in karein.",
+  "watchlist.emptyDesc": "Apni pasandida auctions ko follow karein taaki shuru hone par aapko pata chale.",
+  "watchlist.flashProducts": "Flash sale products",
+  "rewards.title": "Rewards club",
+  "rewards.subtitle": "Points kamayein, level badhayein aur rewards payein",
+  "rewards.tabMissions": "Missions",
+  "rewards.tabBadges": "Achievements",
+  "rewards.tabHistory": "History",
+  "rewards.noMissions": "Abhi koi active mission nahi hai",
+  "invite.title": "Doston ko invite karein",
+  "invite.subtitle": "Apne doston ko invite karein aur teen stages mein reward payein — sign-up se har purchase tak.",
+  "invite.signInRequired": "Invite link paane ke liye pehle sign in karein.",
+  "invite.how": "Main reward kaise kamaata hoon?",
+  "invite.recent": "Recent invites",
+  "invite.s1.title": "Aapka dost sign up karta hai",
+  "invite.s1.desc": "Jab aapka dost aapke link se bot mein aata hai aur sign-up poora karta hai, aapko pehla reward milta hai.",
+  "invite.s2.title": "Dost ki pehli purchase",
+  "invite.s2.desc": "Dost ki pehli purchase par aap dono ko special first-purchase reward milta hai.",
+  "invite.s3.title": "Lifetime kamai",
+  "invite.s3.desc": "Iske baad aapke dost ki har purchase par aapko credit ka ek percentage milta rahega.",
+  "reports.signInRequired": "Deposit reports dekhne ke liye pehle sign in karein.",
+  "reports.title": "Deposit reports",
+  "reports.subtitle": "Aapke wallet top-up requests ka history aur unka review status.",
+  "reports.empty": "Abhi tak koi deposit nahi",
+  "reports.emptyDesc": "Balance top-up karne ke liye wallet page par jayein.",
+  "reports.emptyAction": "Wallet top-up karein",
+  "reports.card": "Card",
+  "reports.reference": "Reference:",
+  "support.signInRequired": "Support use karne ke liye pehle sign in karein.",
+  "support.title": "Support aur tickets",
+  "support.subtitle": "Koi sawaal ya samasya hai? Ticket banayein, hum dekh lenge.",
+  "support.empty": "Abhi tak koi ticket nahi",
+  "support.emptyDesc": "Agar koi sawaal ya samasya hai, to support team ke review ke liye naya ticket banayein.",
+  "supportStatus.OPEN": "Open",
+  "supportStatus.ANSWERED": "Answered",
+  "supportStatus.PENDING": "Jawaab ka intezaar",
+  "supportStatus.CLOSED": "Closed",
+  "supportCat.GENERAL": "General",
+  "supportCat.PAYMENT": "Payment aur wallet",
+  "supportCat.ORDER": "Order",
+  "supportCat.REFUND": "Refund",
+  "supportCat.TECHNICAL": "Technical samasya",
+  "depositStatus.PENDING": "Review mein",
+  "depositStatus.APPROVED": "Approved",
+  "depositStatus.REJECTED": "Reject ho gaya",
+  "refundStatus.PENDING": "Review mein",
+  "refundStatus.APPROVED": "Approved",
+  "refundStatus.REJECTED": "Reject ho gaya",
+  "refundStatus.PAID": "Paid",
+  "refunds.signInRequired": "Refund request bhejne ke liye pehle sign in karein.",
+  "refunds.title": "Refund",
+  "refunds.subtitle": "Agar aap aage continue nahi karna chahte, to apna wallet balance usi card par wapas le sakte hain jisse deposit kiya tha.",
+  "refunds.notice": "Misuse rokne ke liye, amount sirf us card par return hota hai jisse pehle successful deposit hua ho, aur identity details (national ID aur ID card photo) card holder se match honi chahiye.",
+  "refunds.available": "Refundable balance",
+  "refunds.amountLabel": "Refund amount (Toman)",
+  "refunds.amountPlaceholder": "jaise 50,000",
+  "refunds.fullNameLabel": "Poora naam (national ID ke anusaar)",
+  "refunds.fullNamePlaceholder": "Card holder ka poora naam",
+  "refunds.nationalIdLabel": "National ID",
+  "refunds.nationalIdPlaceholder": "10 digits",
+  "refunds.cardLabel": "Destination bank card number",
+  "refunds.ibanLabel": "IBAN (optional)",
+  "refunds.nationalCardLabel": "National ID card photo",
+  "refunds.nationalCardPick": "National ID card photo chunein",
+  "refunds.reasonLabel": "Notes (optional)",
+  "refunds.reasonPlaceholder": "Chahein to request ka kaaran likhein",
+  "refunds.submit": "Refund request bhejein",
+  "refunds.submitting": "Bheja ja raha hai…",
+  "refunds.previous": "Pichhli requests",
+  "refunds.empty": "Aapne abhi tak koi request nahi bheji.",
+  "refunds.rejectReason": "Reject ka kaaran:",
+  "refunds.card": "Card",
+  "refunds.errMinAmount": "Minimum refund amount 10,000 Toman hai",
+  "refunds.errOverBalance": "Amount available balance se zyada hai",
+  "refunds.errFullName": "Apna poora naam darj karein",
+  "refunds.errNationalId": "National ID 10 digits ki honi chahiye",
+  "refunds.errCard": "Card number 16 digits ka hona chahiye",
+  "refunds.errFile": "National ID card photo upload karna zaroori hai",
+  "refunds.success": "Refund request bhej di gayi",
+  "refunds.errSubmit": "Request bhejne mein samasya",
 }
 
 export const MESSAGES: Record<Locale, Catalog> = { fa, en, ru, hi }
