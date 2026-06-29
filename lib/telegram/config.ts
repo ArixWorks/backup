@@ -128,8 +128,8 @@ export type BotConfig = {
 }
 
 export const DEFAULT_CONFIG: BotConfig = {
-  botName: "بات سوبیو",
-  brandName: "Bot Subio",
+  botName: "SubIO",
+  brandName: "SubIO",
   emoji: {
     wave: "👋",
     fire: "🔥",

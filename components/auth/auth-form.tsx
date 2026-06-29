@@ -76,7 +76,7 @@ export function AuthForm() {
         {/* Brand */}
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo />
-          <h1 className="text-balance text-xl font-extrabold text-foreground">{brandName}</h1>
+          <h1 className="sr-only">{brandName}</h1>
           <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
             {t("auth.tagline")}
           </p>
