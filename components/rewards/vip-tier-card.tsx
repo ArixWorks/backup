@@ -75,7 +75,7 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
         {summary.loginStreak > 1 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            {formatNumber(summary.loginStreak)} روز متوالی
+            {formatNumber(summary.loginStreak)} {t("vip.loginStreak")}
           </span>
         )}
       </div>
@@ -97,11 +97,11 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
       {/* Points + spend stat row */}
       <div className="relative z-[1] mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-border bg-background/50 p-3">
-          <p className="text-xs text-muted-foreground">امتیاز قابل استفاده</p>
+          <p className="text-xs text-muted-foreground">{t("vip.usablePoints")}</p>
           <p className="mt-0.5 text-xl font-extrabold text-primary">{formatNumber(summary.loyaltyPoints)}</p>
         </div>
         <div className="rounded-xl border border-border bg-background/50 p-3">
-          <p className="text-xs text-muted-foreground">مجموع خرید</p>
+          <p className="text-xs text-muted-foreground">{t("vip.totalSpend")}</p>
           <p className="mt-0.5 text-base font-bold text-foreground">{formatToman(summary.totalSpent)}</p>
         </div>
       </div>
@@ -111,7 +111,7 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
       {summary.nextTier ? (
         <div className="relative z-[1] mt-4">
           <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">پیشرفت تا سطح {summary.nextTierLabel}</span>
+            <span className="text-muted-foreground">{t("vip.progressTo", { tier: summary.nextTierLabel ?? "" })}</span>
             <span className="font-bold text-foreground">{formatNumber(overallPct)}%</span>
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
@@ -122,14 +122,14 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
-              امتیاز: {formatNumber(summary.lifetimePoints)} / {formatNumber(summary.nextThreshold?.points ?? 0)}
+              {t("vip.pointsProgress")}: {formatNumber(summary.lifetimePoints)} / {formatNumber(summary.nextThreshold?.points ?? 0)}
             </span>
-            <span>خرید: {formatNumber(spendPct)}%</span>
+            <span>{t("vip.spendProgress")}: {formatNumber(spendPct)}%</span>
           </div>
         </div>
       ) : (
         <p className="relative z-[1] mt-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-center text-sm font-bold text-primary">
-          به بالاترین سطح عضویت رسیده‌اید
+          {t("vip.maxTier")}
         </p>
       )}
     </div>

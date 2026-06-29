@@ -6,6 +6,7 @@ import * as Icons from "lucide-react"
 import { Check, Loader2 } from "lucide-react"
 import { apiPost, ApiError } from "@/lib/api-client"
 import { formatNumber } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
 
 export type Mission = {
   id: string
@@ -28,6 +29,7 @@ function MissionIcon({ name }: { name: string }) {
 }
 
 function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () => void }) {
+  const { t } = useI18n()
   const [claiming, setClaiming] = useState(false)
   const pct = Math.min(100, Math.round((mission.progress / mission.target) * 100))
 
@@ -35,10 +37,10 @@ function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () =>
     setClaiming(true)
     try {
       const res = await apiPost<{ points: number }>("/api/v1/rewards/claim", { missionId: mission.id })
-      toast.success(`${formatNumber(res.points)} امتیاز دریافت شد`)
+      toast.success(t("missions.pointsReceived", { points: formatNumber(res.points) }))
       onClaimed()
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "خطا در دریافت پاداش")
+      toast.error(e instanceof ApiError ? e.message : t("missions.errClaim"))
     } finally {
       setClaiming(false)
     }
@@ -76,7 +78,7 @@ function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () =>
           disabled={claiming}
           className="active:scale-press bg-gold inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60"
         >
-          {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : "دریافت"}
+          {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : t("missions.claim")}
         </button>
       )}
     </div>
@@ -84,6 +86,7 @@ function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () =>
 }
 
 export function MissionsPanel({ missions, onClaimed }: { missions: Mission[]; onClaimed: () => void }) {
+  const { t } = useI18n()
   const daily = missions.filter((m) => m.kind === "DAILY")
   const weekly = missions.filter((m) => m.kind === "WEEKLY")
 
@@ -91,7 +94,7 @@ export function MissionsPanel({ missions, onClaimed }: { missions: Mission[]; on
     <div className="space-y-5">
       {daily.length > 0 && (
         <section>
-          <h3 className="mb-2 text-sm font-bold text-foreground">مأموریت‌های روزانه</h3>
+          <h3 className="mb-2 text-sm font-bold text-foreground">{t("missions.daily")}</h3>
           <div className="space-y-2">
             {daily.map((m) => (
               <MissionRow key={m.id} mission={m} onClaimed={onClaimed} />
@@ -101,7 +104,7 @@ export function MissionsPanel({ missions, onClaimed }: { missions: Mission[]; on
       )}
       {weekly.length > 0 && (
         <section>
-          <h3 className="mb-2 text-sm font-bold text-foreground">مأموریت‌های هفتگی</h3>
+          <h3 className="mb-2 text-sm font-bold text-foreground">{t("missions.weekly")}</h3>
           <div className="space-y-2">
             {weekly.map((m) => (
               <MissionRow key={m.id} mission={m} onClaimed={onClaimed} />
