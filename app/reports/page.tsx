@@ -76,7 +76,7 @@ export default function ReportsPage() {
                     <ArrowDownLeft className="h-4 w-4" />
                   </span>
                   <div className="flex flex-col">
-                    <span className="tabular-nums text-base font-extrabold">{formatToman(d.amount)} ت</span>
+                    <span className="tabular-nums text-base font-extrabold">{formatToman(d.amount)} {t("common.toman")}</span>
                     <span className="text-xs text-muted-foreground">{formatDateTime(d.createdAt)}</span>
                   </div>
                 </div>

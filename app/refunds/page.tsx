@@ -165,7 +165,7 @@ export default function RefundsPage() {
           />
         </Field>
 
-        <Field label="شماره شبا (اختیاری)">
+        <Field label={t("refunds.ibanLabel")}>
           <Input
             inputMode="numeric"
             dir="ltr"
@@ -176,7 +176,7 @@ export default function RefundsPage() {
           />
         </Field>
 
-        <Field label="تصویر کارت ملی">
+        <Field label={t("refunds.nationalCardLabel")}>
           <input
             ref={fileRef}
             type="file"
@@ -190,22 +190,22 @@ export default function RefundsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-input bg-background px-3 py-4 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
           >
             {file ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Upload className="h-4 w-4" />}
-            <span className="truncate">{file ? file.name : "انتخاب تصویر کارت ملی"}</span>
+            <span className="truncate">{file ? file.name : t("refunds.nationalCardPick")}</span>
           </button>
         </Field>
 
-        <Field label="توضیحات (اختیاری)">
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="در صورت تمایل علت درخواست را بنویسید" />
+        <Field label={t("refunds.reasonLabel")}>
+          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={t("refunds.reasonPlaceholder")} />
         </Field>
 
         <Button onClick={submit} disabled={busy} className="w-full gap-2">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {busy ? "در حال ثبت…" : "ثبت درخواست بازگشت وجه"}
+          {busy ? t("refunds.submitting") : t("refunds.submit")}
         </Button>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-bold text-muted-foreground">درخواست‌های قبلی</h2>
+        <h2 className="text-sm font-bold text-muted-foreground">{t("refunds.previous")}</h2>
         {isLoading ? (
           <div className="space-y-2">
             {[0, 1].map((i) => (
@@ -215,25 +215,25 @@ export default function RefundsPage() {
         ) : refunds.length === 0 ? (
           <div className="flex items-center gap-2 rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
-            هنوز درخواستی ثبت نکرده‌اید.
+            {t("refunds.empty")}
           </div>
         ) : (
           <ul className="space-y-2">
             {refunds.map((r) => (
               <li key={r.id} className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="tabular-nums text-base font-extrabold">{formatToman(r.amount)} ت</span>
+                  <span className="tabular-nums text-base font-extrabold">{formatToman(r.amount)} {t("common.toman")}</span>
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${REFUND_STATUS_TONE[r.status]}`}>
-                    {REFUND_STATUS_LABELS[r.status]}
+                    {t(REFUND_STATUS_KEY[r.status])}
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                  <span dir="ltr">کارت •••• {r.cardLast4}</span>
+                  <span dir="ltr">{t("refunds.card")} •••• {r.cardLast4}</span>
                   <span>{formatDateTime(r.createdAt)}</span>
                 </div>
                 {r.rejectReason && (
                   <p className="mt-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    دلیل رد: {r.rejectReason}
+                    {t("refunds.rejectReason")} {r.rejectReason}
                   </p>
                 )}
               </li>

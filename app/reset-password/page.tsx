@@ -8,8 +8,10 @@ import { Logo } from "@/components/logo"
 import { Input } from "@/components/ui/input"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { apiPost, ApiError } from "@/lib/api-client"
+import { useI18n } from "@/components/i18n-provider"
 
 function ResetInner() {
+  const { t } = useI18n()
   const params = useSearchParams()
   const router = useRouter()
   const token = params.get("token") ?? ""

@@ -340,6 +340,90 @@ export type MessageKey =
   | "refunds.errFile"
   | "refunds.success"
   | "refunds.errSubmit"
+  | "ticket.errSend"
+  | "ticket.closedToast"
+  | "ticket.errClose"
+  | "ticket.back"
+  | "ticket.fallbackTitle"
+  | "ticket.category"
+  | "ticket.viewAttachment"
+  | "ticket.closedNotice"
+  | "ticket.replyPlaceholder"
+  | "ticket.attach"
+  | "ticket.removeAttach"
+  | "ticket.closeTicket"
+  | "ticket.send"
+  | "newTicket.errSubject"
+  | "newTicket.errMessage"
+  | "newTicket.success"
+  | "newTicket.errSubmit"
+  | "newTicket.button"
+  | "newTicket.title"
+  | "newTicket.category"
+  | "newTicket.subject"
+  | "newTicket.subjectPlaceholder"
+  | "newTicket.desc"
+  | "newTicket.descPlaceholder"
+  | "newTicket.attachOptional"
+  | "newTicket.sending"
+  | "newTicket.submit"
+  | "auth.genericError"
+  | "auth.backToLogin"
+  | "auth.forgotTitle"
+  | "auth.forgotDesc"
+  | "auth.forgotSentDesc"
+  | "auth.sendResetLink"
+  | "auth.resetTitle"
+  | "auth.resetRedirecting"
+  | "auth.resetInvalidLink"
+  | "auth.requestNewLink"
+  | "auth.newPasswordPlaceholder"
+  | "auth.confirmNewPlaceholder"
+  | "auth.saveNewPassword"
+  | "auth.errMinPassword"
+  | "auth.errPasswordMismatch"
+  | "auth.resetFailed"
+  | "verify.working"
+  | "verify.invalidLink"
+  | "verify.okTitle"
+  | "verify.okDesc"
+  | "verify.failedTitle"
+  | "verify.emailFailed"
+  | "verify.backToAccount"
+  | "acctEmail.title"
+  | "acctEmail.notSet"
+  | "acctEmail.verified"
+  | "acctEmail.unverified"
+  | "acctEmail.pending"
+  | "acctEmail.sentNotice"
+  | "acctEmail.sendFailed"
+  | "acctEmail.errMinPassword"
+  | "acctEmail.verifiedLocked"
+  | "acctEmail.choosePassword"
+  | "acctEmail.sendVerify"
+  | "acctEmail.resend"
+  | "acctEmail.change"
+  | "acctPwd.title"
+  | "acctPwd.subtitle"
+  | "acctPwd.change"
+  | "acctPwd.success"
+  | "acctPwd.errMin"
+  | "acctPwd.errMismatch"
+  | "acctPwd.failed"
+  | "acctPwd.currentPlaceholder"
+  | "acctPwd.newPlaceholder"
+  | "acctPwd.confirmPlaceholder"
+  | "acctPwd.save"
+  | "acctTg.title"
+  | "acctTg.connected"
+  | "acctTg.notConnected"
+  | "acctTg.connectedBadge"
+  | "acctTg.linkFailed"
+  | "acctTg.unlinkFailed"
+  | "acctTg.unlink"
+  | "acctTg.needOtherMethod"
+  | "acctTg.notAvailable"
+  | "acctTg.connectAccount"
 
 type Catalog = Record<MessageKey, string>
 
@@ -678,6 +762,90 @@ const fa: Catalog = {
   "refunds.errFile": "بارگذاری تصویر کارت ملی الزامی است",
   "refunds.success": "درخواست بازگشت وجه ثبت شد",
   "refunds.errSubmit": "خطا در ثبت درخواست",
+  "ticket.errSend": "خطا در ارسال پیام",
+  "ticket.closedToast": "تیکت بسته شد",
+  "ticket.errClose": "خطا در بستن تیکت",
+  "ticket.back": "بازگشت",
+  "ticket.fallbackTitle": "تیکت",
+  "ticket.category": "دسته‌بندی:",
+  "ticket.viewAttachment": "مشاهده پیوست",
+  "ticket.closedNotice": "این تیکت بسته شده است.",
+  "ticket.replyPlaceholder": "پاسخ خود را بنویسید…",
+  "ticket.attach": "پیوست",
+  "ticket.removeAttach": "حذف پیوست",
+  "ticket.closeTicket": "بستن تیکت",
+  "ticket.send": "ارسال",
+  "newTicket.errSubject": "موضوع را کامل‌تر بنویسید",
+  "newTicket.errMessage": "متن پیام بسیار کوتاه است",
+  "newTicket.success": "تیکت با موفقیت ثبت شد",
+  "newTicket.errSubmit": "خطا در ثبت تیکت",
+  "newTicket.button": "تیکت جدید",
+  "newTicket.title": "ثبت تیکت پشتیبانی",
+  "newTicket.category": "دسته‌بندی",
+  "newTicket.subject": "موضوع",
+  "newTicket.subjectPlaceholder": "مثلاً: مشکل در شارژ کیف پول",
+  "newTicket.desc": "شرح درخواست",
+  "newTicket.descPlaceholder": "جزئیات مشکل یا درخواست خود را بنویسید…",
+  "newTicket.attachOptional": "پیوست (اختیاری)",
+  "newTicket.sending": "در حال ارسال…",
+  "newTicket.submit": "ارسال تیکت",
+  "auth.genericError": "خطایی رخ داد",
+  "auth.backToLogin": "بازگشت به ورود",
+  "auth.forgotTitle": "بازیابی رمز عبور",
+  "auth.forgotDesc": "ایمیل حساب خود را وارد کنید تا لینک بازنشانی رمز عبور برایتان ارسال شود.",
+  "auth.forgotSentDesc": "اگر حسابی با این ایمیل وجود داشته باشد، لینک بازنشانی ارسال شد. صندوق ورودی خود را بررسی کنید.",
+  "auth.sendResetLink": "ارسال لینک بازنشانی",
+  "auth.resetTitle": "تنظیم رمز عبور جدید",
+  "auth.resetRedirecting": "در حال انتقال به صفحه ورود…",
+  "auth.resetInvalidLink": "لینک بازنشانی نامعتبر است.",
+  "auth.requestNewLink": "درخواست لینک جدید",
+  "auth.newPasswordPlaceholder": "رمز عبور جدید (حداقل ۸ کاراکتر)",
+  "auth.confirmNewPlaceholder": "تکرار رمز عبور جدید",
+  "auth.saveNewPassword": "ذخیره رمز عبور جدید",
+  "auth.errMinPassword": "رمز عبور باید حداقل ۸ کاراکتر باشد",
+  "auth.errPasswordMismatch": "تکرار رمز عبور مطابقت ندارد",
+  "auth.resetFailed": "بازنشانی رمز عبور ناموفق بود",
+  "verify.working": "در حال تأیید ایمیل…",
+  "verify.invalidLink": "لینک تأیید نامعتبر است.",
+  "verify.okTitle": "ایمیل شما تأیید شد",
+  "verify.okDesc": "اکنون می‌توانید با ایمیل و رمز عبور وارد شوید.",
+  "verify.failedTitle": "تأیید ناموفق بود",
+  "verify.emailFailed": "تأیید ایمیل ناموفق بود.",
+  "verify.backToAccount": "بازگشت به تنظیمات حساب",
+  "acctEmail.title": "ایمیل",
+  "acctEmail.notSet": "ثبت نشده",
+  "acctEmail.verified": "تأیید شده",
+  "acctEmail.unverified": "تأیید نشده",
+  "acctEmail.pending": "در انتظار تأیید: ",
+  "acctEmail.sentNotice": "ایمیل تأیید ارسال شد. صندوق ورودی خود را بررسی کنید.",
+  "acctEmail.sendFailed": "ارسال ایمیل تأیید ناموفق بود",
+  "acctEmail.errMinPassword": "رمز عبور باید حداقل ۸ کاراکتر باشد",
+  "acctEmail.verifiedLocked": "ایمیل شما تأیید شده و قابل تغییر نیست.",
+  "acctEmail.choosePassword": "یک رمز عبور انتخاب کنید (حداقل ۸ کاراکتر)",
+  "acctEmail.sendVerify": "ارسال ایمیل تأیید",
+  "acctEmail.resend": "ارسال مجدد ایمیل تأیید",
+  "acctEmail.change": "تغییر",
+  "acctPwd.title": "رمز عبور",
+  "acctPwd.subtitle": "تغییر رمز عبور حساب",
+  "acctPwd.change": "تغییر",
+  "acctPwd.success": "رمز عبور با موفقیت تغییر کرد.",
+  "acctPwd.errMin": "رمز عبور جدید باید حداقل ۸ کاراکتر باشد",
+  "acctPwd.errMismatch": "تکرار رمز عبور مطابقت ندارد",
+  "acctPwd.failed": "تغییر رمز عبور ناموفق بود",
+  "acctPwd.currentPlaceholder": "رمز عبور فعلی",
+  "acctPwd.newPlaceholder": "رمز عبور جدید (حداقل ۸ کاراکتر)",
+  "acctPwd.confirmPlaceholder": "تکرار رمز عبور جدید",
+  "acctPwd.save": "ذخیره رمز جدید",
+  "acctTg.title": "تلگرام",
+  "acctTg.connected": "متصل",
+  "acctTg.notConnected": "متصل نشده",
+  "acctTg.connectedBadge": "متصل",
+  "acctTg.linkFailed": "اتصال تلگرام ناموفق بود",
+  "acctTg.unlinkFailed": "قطع اتصال تلگرام ناموفق بود",
+  "acctTg.unlink": "قطع اتصال تلگرام",
+  "acctTg.needOtherMethod": "برای قطع اتصال تلگرام، ابتدا یک ایمیل تأییدشده و رمز عبور تنظیم کنید تا راه ورود دیگری داشته باشید.",
+  "acctTg.notAvailable": "اتصال تلگرام در این آدرس فعال نیست.",
+  "acctTg.connectAccount": "اتصال حساب تلگرام",
 }
 
 const en: Catalog = {
@@ -1015,6 +1183,90 @@ const en: Catalog = {
   "refunds.errFile": "Uploading the national ID card photo is required",
   "refunds.success": "Refund request submitted",
   "refunds.errSubmit": "Failed to submit request",
+  "ticket.errSend": "Failed to send message",
+  "ticket.closedToast": "Ticket closed",
+  "ticket.errClose": "Failed to close ticket",
+  "ticket.back": "Back",
+  "ticket.fallbackTitle": "Ticket",
+  "ticket.category": "Category:",
+  "ticket.viewAttachment": "View attachment",
+  "ticket.closedNotice": "This ticket is closed.",
+  "ticket.replyPlaceholder": "Write your reply…",
+  "ticket.attach": "Attach",
+  "ticket.removeAttach": "Remove attachment",
+  "ticket.closeTicket": "Close ticket",
+  "ticket.send": "Send",
+  "newTicket.errSubject": "Please write a more complete subject",
+  "newTicket.errMessage": "The message is too short",
+  "newTicket.success": "Ticket created successfully",
+  "newTicket.errSubmit": "Failed to create ticket",
+  "newTicket.button": "New ticket",
+  "newTicket.title": "Create support ticket",
+  "newTicket.category": "Category",
+  "newTicket.subject": "Subject",
+  "newTicket.subjectPlaceholder": "e.g. Issue topping up wallet",
+  "newTicket.desc": "Request details",
+  "newTicket.descPlaceholder": "Write the details of your issue or request…",
+  "newTicket.attachOptional": "Attachment (optional)",
+  "newTicket.sending": "Sending…",
+  "newTicket.submit": "Send ticket",
+  "auth.genericError": "Something went wrong",
+  "auth.backToLogin": "Back to login",
+  "auth.forgotTitle": "Reset password",
+  "auth.forgotDesc": "Enter your account email and we'll send you a password reset link.",
+  "auth.forgotSentDesc": "If an account exists with this email, a reset link has been sent. Check your inbox.",
+  "auth.sendResetLink": "Send reset link",
+  "auth.resetTitle": "Set a new password",
+  "auth.resetRedirecting": "Redirecting to login…",
+  "auth.resetInvalidLink": "This reset link is invalid.",
+  "auth.requestNewLink": "Request a new link",
+  "auth.newPasswordPlaceholder": "New password (at least 8 characters)",
+  "auth.confirmNewPlaceholder": "Confirm new password",
+  "auth.saveNewPassword": "Save new password",
+  "auth.errMinPassword": "Password must be at least 8 characters",
+  "auth.errPasswordMismatch": "Passwords do not match",
+  "auth.resetFailed": "Failed to reset password",
+  "verify.working": "Verifying email…",
+  "verify.invalidLink": "This verification link is invalid.",
+  "verify.okTitle": "Your email is verified",
+  "verify.okDesc": "You can now sign in with your email and password.",
+  "verify.failedTitle": "Verification failed",
+  "verify.emailFailed": "Email verification failed.",
+  "verify.backToAccount": "Back to account settings",
+  "acctEmail.title": "Email",
+  "acctEmail.notSet": "Not set",
+  "acctEmail.verified": "Verified",
+  "acctEmail.unverified": "Unverified",
+  "acctEmail.pending": "Awaiting confirmation: ",
+  "acctEmail.sentNotice": "Verification email sent. Check your inbox.",
+  "acctEmail.sendFailed": "Failed to send verification email",
+  "acctEmail.errMinPassword": "Password must be at least 8 characters",
+  "acctEmail.verifiedLocked": "Your email is verified and cannot be changed.",
+  "acctEmail.choosePassword": "Choose a password (at least 8 characters)",
+  "acctEmail.sendVerify": "Send verification email",
+  "acctEmail.resend": "Resend verification email",
+  "acctEmail.change": "Change",
+  "acctPwd.title": "Password",
+  "acctPwd.subtitle": "Change your account password",
+  "acctPwd.change": "Change",
+  "acctPwd.success": "Password changed successfully.",
+  "acctPwd.errMin": "New password must be at least 8 characters",
+  "acctPwd.errMismatch": "Passwords do not match",
+  "acctPwd.failed": "Failed to change password",
+  "acctPwd.currentPlaceholder": "Current password",
+  "acctPwd.newPlaceholder": "New password (at least 8 characters)",
+  "acctPwd.confirmPlaceholder": "Confirm new password",
+  "acctPwd.save": "Save new password",
+  "acctTg.title": "Telegram",
+  "acctTg.connected": "Connected",
+  "acctTg.notConnected": "Not connected",
+  "acctTg.connectedBadge": "Connected",
+  "acctTg.linkFailed": "Failed to link Telegram",
+  "acctTg.unlinkFailed": "Failed to unlink Telegram",
+  "acctTg.unlink": "Unlink Telegram",
+  "acctTg.needOtherMethod": "To unlink Telegram, first set a verified email and password so you have another way to sign in.",
+  "acctTg.notAvailable": "Telegram login is not available on this domain.",
+  "acctTg.connectAccount": "Connect Telegram account",
 }
 
 const ru: Catalog = {
@@ -1352,6 +1604,90 @@ const ru: Catalog = {
   "refunds.errFile": "Загрузка фото удостоверения обязательна",
   "refunds.success": "Запрос на возврат отправлен",
   "refunds.errSubmit": "Не удалось отправить запрос",
+  "ticket.errSend": "Не удалось отправить сообщение",
+  "ticket.closedToast": "Обращение закрыто",
+  "ticket.errClose": "Не удалось закрыть обращение",
+  "ticket.back": "Назад",
+  "ticket.fallbackTitle": "Обращение",
+  "ticket.category": "Категория:",
+  "ticket.viewAttachment": "Посмотреть вложение",
+  "ticket.closedNotice": "Это обращение закрыто.",
+  "ticket.replyPlaceholder": "Напишите ваш ответ…",
+  "ticket.attach": "Вложить",
+  "ticket.removeAttach": "Удалить вложение",
+  "ticket.closeTicket": "Закрыть обращение",
+  "ticket.send": "Отправить",
+  "newTicket.errSubject": "Укажите более полную тему",
+  "newTicket.errMessage": "Сообщение слишком короткое",
+  "newTicket.success": "Обращение успешно создано",
+  "newTicket.errSubmit": "Не удалось создать обращение",
+  "newTicket.button": "Новое обращение",
+  "newTicket.title": "Создать обращение в поддержку",
+  "newTicket.category": "Категория",
+  "newTicket.subject": "Тема",
+  "newTicket.subjectPlaceholder": "напр. Проблема с пополнением кошелька",
+  "newTicket.desc": "Детали запроса",
+  "newTicket.descPlaceholder": "Опишите детали вашей проблемы или запроса…",
+  "newTicket.attachOptional": "Вложение (необязательно)",
+  "newTicket.sending": "Отправка…",
+  "newTicket.submit": "Отправить обращение",
+  "auth.genericError": "Произошла ошибка",
+  "auth.backToLogin": "Назад ко входу",
+  "auth.forgotTitle": "Восстановление пароля",
+  "auth.forgotDesc": "Введите email вашего аккаунта, и мы отправим ссылку для сброса пароля.",
+  "auth.forgotSentDesc": "Если аккаунт с таким email существует, ссылка для сброса отправлена. Проверьте почту.",
+  "auth.sendResetLink": "Отправить ссылку для сброса",
+  "auth.resetTitle": "Задать новый пароль",
+  "auth.resetRedirecting": "Переход ко входу…",
+  "auth.resetInvalidLink": "Эта ссылка для сброса недействительна.",
+  "auth.requestNewLink": "Запросить новую ссылку",
+  "auth.newPasswordPlaceholder": "Новый пароль (не менее 8 символов)",
+  "auth.confirmNewPlaceholder": "Повторите новый пароль",
+  "auth.saveNewPassword": "Сохранить новый пароль",
+  "auth.errMinPassword": "Пароль должен содержать не менее 8 символов",
+  "auth.errPasswordMismatch": "Пароли не совпадают",
+  "auth.resetFailed": "Не удалось сбросить пароль",
+  "verify.working": "Проверка email…",
+  "verify.invalidLink": "Эта ссылка подтверждения недействительна.",
+  "verify.okTitle": "Ваш email подтверждён",
+  "verify.okDesc": "Теперь вы можете войти с email и паролем.",
+  "verify.failedTitle": "Подтверждение не удалось",
+  "verify.emailFailed": "Не удалось подтвердить email.",
+  "verify.backToAccount": "Назад к настройкам аккаунта",
+  "acctEmail.title": "Email",
+  "acctEmail.notSet": "Не указан",
+  "acctEmail.verified": "Подтверждён",
+  "acctEmail.unverified": "Не подтверждён",
+  "acctEmail.pending": "Ожидает подтверждения: ",
+  "acctEmail.sentNotice": "Письмо для подтверждения отправлено. Проверьте почту.",
+  "acctEmail.sendFailed": "Не удалось отправить письмо подтверждения",
+  "acctEmail.errMinPassword": "Пароль должен содержать не менее 8 символов",
+  "acctEmail.verifiedLocked": "Ваш email подтверждён и не может быть изменён.",
+  "acctEmail.choosePassword": "Выберите пароль (не менее 8 символов)",
+  "acctEmail.sendVerify": "Отправить письмо подтверждения",
+  "acctEmail.resend": "Отправить письмо повторно",
+  "acctEmail.change": "Изменить",
+  "acctPwd.title": "Пароль",
+  "acctPwd.subtitle": "Изменить пароль аккаунта",
+  "acctPwd.change": "Изменить",
+  "acctPwd.success": "Пароль успешно изменён.",
+  "acctPwd.errMin": "Новый пароль должен содержать не менее 8 символов",
+  "acctPwd.errMismatch": "Пароли не совпадают",
+  "acctPwd.failed": "Не удалось изменить пароль",
+  "acctPwd.currentPlaceholder": "Текущий пароль",
+  "acctPwd.newPlaceholder": "Новый пароль (не менее 8 символов)",
+  "acctPwd.confirmPlaceholder": "Повторите новый пароль",
+  "acctPwd.save": "Сохранить новый пароль",
+  "acctTg.title": "Telegram",
+  "acctTg.connected": "Подключён",
+  "acctTg.notConnected": "Не подключён",
+  "acctTg.connectedBadge": "Подключён",
+  "acctTg.linkFailed": "Не удалось подключить Telegram",
+  "acctTg.unlinkFailed": "Не удалось отключить Telegram",
+  "acctTg.unlink": "Отключить Telegram",
+  "acctTg.needOtherMethod": "Чтобы отключить Telegram, сначала задайте подтверждённый email и пароль, чтобы иметь другой способ входа.",
+  "acctTg.notAvailable": "Вход через Telegram недоступен на этом домене.",
+  "acctTg.connectAccount": "Подключить аккаунт Telegram",
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
@@ -1690,6 +2026,90 @@ const hi: Catalog = {
   "refunds.errFile": "National ID card photo upload karna zaroori hai",
   "refunds.success": "Refund request bhej di gayi",
   "refunds.errSubmit": "Request bhejne mein samasya",
+  "ticket.errSend": "Message bhejne mein samasya",
+  "ticket.closedToast": "Ticket band kar diya gaya",
+  "ticket.errClose": "Ticket band karne mein samasya",
+  "ticket.back": "Wapas",
+  "ticket.fallbackTitle": "Ticket",
+  "ticket.category": "Category:",
+  "ticket.viewAttachment": "Attachment dekhein",
+  "ticket.closedNotice": "Yeh ticket band ho chuka hai.",
+  "ticket.replyPlaceholder": "Apna jawaab likhein…",
+  "ticket.attach": "Attach",
+  "ticket.removeAttach": "Attachment hatayein",
+  "ticket.closeTicket": "Ticket band karein",
+  "ticket.send": "Bhejein",
+  "newTicket.errSubject": "Subject thoda aur poora likhein",
+  "newTicket.errMessage": "Message bahut chhota hai",
+  "newTicket.success": "Ticket safalta se ban gaya",
+  "newTicket.errSubmit": "Ticket banane mein samasya",
+  "newTicket.button": "Naya ticket",
+  "newTicket.title": "Support ticket banayein",
+  "newTicket.category": "Category",
+  "newTicket.subject": "Subject",
+  "newTicket.subjectPlaceholder": "jaise: Wallet top-up mein samasya",
+  "newTicket.desc": "Request details",
+  "newTicket.descPlaceholder": "Apni samasya ya request ki details likhein…",
+  "newTicket.attachOptional": "Attachment (optional)",
+  "newTicket.sending": "Bheja ja raha hai…",
+  "newTicket.submit": "Ticket bhejein",
+  "auth.genericError": "Kuch galat ho gaya",
+  "auth.backToLogin": "Login par wapas",
+  "auth.forgotTitle": "Password reset karein",
+  "auth.forgotDesc": "Apne account ka email darj karein, hum aapko password reset link bhejenge.",
+  "auth.forgotSentDesc": "Agar is email se koi account hai to reset link bhej diya gaya hai. Apna inbox check karein.",
+  "auth.sendResetLink": "Reset link bhejein",
+  "auth.resetTitle": "Naya password set karein",
+  "auth.resetRedirecting": "Login par le jaaya ja raha hai…",
+  "auth.resetInvalidLink": "Yeh reset link amaanya hai.",
+  "auth.requestNewLink": "Naya link maangein",
+  "auth.newPasswordPlaceholder": "Naya password (kam se kam 8 characters)",
+  "auth.confirmNewPlaceholder": "Naya password dobara",
+  "auth.saveNewPassword": "Naya password save karein",
+  "auth.errMinPassword": "Password kam se kam 8 characters ka hona chahiye",
+  "auth.errPasswordMismatch": "Password match nahi karte",
+  "auth.resetFailed": "Password reset nahi ho saka",
+  "verify.working": "Email verify ho raha hai…",
+  "verify.invalidLink": "Yeh verification link amaanya hai.",
+  "verify.okTitle": "Aapka email verify ho gaya",
+  "verify.okDesc": "Ab aap email aur password se sign in kar sakte hain.",
+  "verify.failedTitle": "Verification fail ho gaya",
+  "verify.emailFailed": "Email verification fail ho gaya.",
+  "verify.backToAccount": "Account settings par wapas",
+  "acctEmail.title": "Email",
+  "acctEmail.notSet": "Set nahi",
+  "acctEmail.verified": "Verified",
+  "acctEmail.unverified": "Unverified",
+  "acctEmail.pending": "Confirmation ka intzaar: ",
+  "acctEmail.sentNotice": "Verification email bhej diya gaya. Apna inbox check karein.",
+  "acctEmail.sendFailed": "Verification email bhejne mein samasya",
+  "acctEmail.errMinPassword": "Password kam se kam 8 characters ka hona chahiye",
+  "acctEmail.verifiedLocked": "Aapka email verified hai aur badla nahi ja sakta.",
+  "acctEmail.choosePassword": "Ek password chunein (kam se kam 8 characters)",
+  "acctEmail.sendVerify": "Verification email bhejein",
+  "acctEmail.resend": "Verification email dobara bhejein",
+  "acctEmail.change": "Badlein",
+  "acctPwd.title": "Password",
+  "acctPwd.subtitle": "Account ka password badlein",
+  "acctPwd.change": "Badlein",
+  "acctPwd.success": "Password safalta se badal gaya.",
+  "acctPwd.errMin": "Naya password kam se kam 8 characters ka hona chahiye",
+  "acctPwd.errMismatch": "Password match nahi karte",
+  "acctPwd.failed": "Password badalne mein samasya",
+  "acctPwd.currentPlaceholder": "Maujooda password",
+  "acctPwd.newPlaceholder": "Naya password (kam se kam 8 characters)",
+  "acctPwd.confirmPlaceholder": "Naya password dobara",
+  "acctPwd.save": "Naya password save karein",
+  "acctTg.title": "Telegram",
+  "acctTg.connected": "Connected",
+  "acctTg.notConnected": "Connected nahi",
+  "acctTg.connectedBadge": "Connected",
+  "acctTg.linkFailed": "Telegram link karne mein samasya",
+  "acctTg.unlinkFailed": "Telegram unlink karne mein samasya",
+  "acctTg.unlink": "Telegram unlink karein",
+  "acctTg.needOtherMethod": "Telegram unlink karne ke liye pehle ek verified email aur password set karein taki sign in ka doosra tareeka ho.",
+  "acctTg.notAvailable": "Is domain par Telegram login uplabdh nahi hai.",
+  "acctTg.connectAccount": "Telegram account connect karein",
 }
 
 export const MESSAGES: Record<Locale, Catalog> = { fa, en, ru, hi }

@@ -15,9 +15,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { apiPost, ApiError } from "@/lib/api-client"
 import { uploadFile } from "@/lib/upload-client"
-import { SUPPORT_CATEGORY_LABELS } from "@/lib/support-meta"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
+
+const CATEGORY_OPTIONS: { value: string; key: MessageKey }[] = [
+  { value: "GENERAL", key: "supportCat.GENERAL" },
+  { value: "PAYMENT", key: "supportCat.PAYMENT" },
+  { value: "ORDER", key: "supportCat.ORDER" },
+  { value: "REFUND", key: "supportCat.REFUND" },
+  { value: "TECHNICAL", key: "supportCat.TECHNICAL" },
+]
 
 export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [subject, setSubject] = useState("")
   const [category, setCategory] = useState("GENERAL")
@@ -34,19 +44,19 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
   }
 
   async function submit() {
-    if (subject.trim().length < 3) return toast.error("موضوع را کامل‌تر بنویسید")
-    if (message.trim().length < 5) return toast.error("متن پیام بسیار کوتاه است")
+    if (subject.trim().length < 3) return toast.error(t("newTicket.errSubject"))
+    if (message.trim().length < 5) return toast.error(t("newTicket.errMessage"))
     setBusy(true)
     try {
       let attachmentUrl: string | undefined
       if (file) attachmentUrl = await uploadFile(file, "tickets")
       await apiPost("/api/v1/support", { subject, category, message, attachmentUrl })
-      toast.success("تیکت با موفقیت ثبت شد")
+      toast.success(t("newTicket.success"))
       reset()
       setOpen(false)
       onCreated()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در ثبت تیکت")
+      toast.error(err instanceof ApiError ? err.message : t("newTicket.errSubmit"))
     } finally {
       setBusy(false)
     }
@@ -58,47 +68,47 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
         render={
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
-            تیکت جدید
+            {t("newTicket.button")}
           </Button>
         }
       />
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>ثبت تیکت پشتیبانی</DialogTitle>
+          <DialogTitle>{t("newTicket.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">دسته‌بندی</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("newTicket.category")}</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              {Object.entries(SUPPORT_CATEGORY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {t(opt.key)}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">موضوع</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("newTicket.subject")}</label>
             <Input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="مثلاً: مشکل در شارژ کیف پول"
+              placeholder={t("newTicket.subjectPlaceholder")}
               maxLength={120}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">شرح درخواست</label>
+            <label className="text-xs font-medium text-muted-foreground">{t("newTicket.desc")}</label>
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="جزئیات مشکل یا درخواست خود را بنویسید…"
+              placeholder={t("newTicket.descPlaceholder")}
               rows={4}
             />
           </div>
@@ -113,12 +123,12 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
             />
             <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => fileRef.current?.click()}>
               <Paperclip className="h-4 w-4" />
-              پیوست (اختیاری)
+              {t("newTicket.attachOptional")}
             </Button>
             {file && (
               <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                 <span className="truncate">{file.name}</span>
-                <button type="button" onClick={() => setFile(null)} aria-label="حذف پیوست">
+                <button type="button" onClick={() => setFile(null)} aria-label={t("ticket.removeAttach")}>
                   <X className="h-3.5 w-3.5" />
                 </button>
               </span>
@@ -127,7 +137,7 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
 
           <Button onClick={submit} disabled={busy} className="mt-1 gap-2">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busy ? "در حال ارسال…" : "ارسال تیکت"}
+            {busy ? t("newTicket.sending") : t("newTicket.submit")}
           </Button>
         </div>
       </DialogContent>
