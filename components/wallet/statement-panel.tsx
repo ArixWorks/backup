@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatMoney, formatDateTime } from "@/lib/format"
+import { useI18n } from "@/components/i18n-provider"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 type Txn = {
   id: string
@@ -26,32 +28,32 @@ type Txn = {
   createdAt: string
 }
 
-export const txnLabels: Record<string, string> = {
-  DEPOSIT: "افزایش موجودی",
-  WITHDRAWAL: "برداشت",
-  FREEZE: "مسدودسازی",
-  UNFREEZE: "آزادسازی",
-  PURCHASE: "کسر بابت خرید",
-  REFUND: "بازگشت وجه",
-  BID_LOCK: "قفل پیشنهاد",
-  BID_RELEASE: "آزادسازی پیشنهاد",
-  ADMIN_ADJUSTMENT: "تعدیل مدیر",
-  CASHBACK: "بازگشت نقدی",
-  REFERRAL_BONUS: "پاداش دعوت",
-  CONVERSION: "تبدیل ارز",
+export const txnLabelKeys: Record<string, MessageKey> = {
+  DEPOSIT: "txn.DEPOSIT",
+  WITHDRAWAL: "txn.WITHDRAWAL",
+  FREEZE: "txn.FREEZE",
+  UNFREEZE: "txn.UNFREEZE",
+  PURCHASE: "txn.PURCHASE",
+  REFUND: "txn.REFUND",
+  BID_LOCK: "txn.BID_LOCK",
+  BID_RELEASE: "txn.BID_RELEASE",
+  ADMIN_ADJUSTMENT: "txn.ADMIN_ADJUSTMENT",
+  CASHBACK: "txn.CASHBACK",
+  REFERRAL_BONUS: "txn.REFERRAL_BONUS",
+  CONVERSION: "txn.CONVERSION",
 }
 
 const POSITIVE = new Set(["DEPOSIT", "UNFREEZE", "REFUND", "CASHBACK", "REFERRAL_BONUS"])
 
-const FILTER_TYPES = [
-  { value: "ALL", label: "همه" },
-  { value: "DEPOSIT", label: "افزایش موجودی" },
-  { value: "WITHDRAWAL", label: "برداشت" },
-  { value: "PURCHASE", label: "خرید" },
-  { value: "REFUND", label: "بازگشت وجه" },
-  { value: "CASHBACK", label: "بازگشت نقدی" },
-  { value: "REFERRAL_BONUS", label: "پاداش دعوت" },
-  { value: "CONVERSION", label: "تبدیل ارز" },
+const FILTER_TYPES: { value: string; key: MessageKey }[] = [
+  { value: "ALL", key: "stmt.filterAll" },
+  { value: "DEPOSIT", key: "txn.DEPOSIT" },
+  { value: "WITHDRAWAL", key: "txn.WITHDRAWAL" },
+  { value: "PURCHASE", key: "stmt.purchase" },
+  { value: "REFUND", key: "txn.REFUND" },
+  { value: "CASHBACK", key: "txn.CASHBACK" },
+  { value: "REFERRAL_BONUS", key: "txn.REFERRAL_BONUS" },
+  { value: "CONVERSION", key: "txn.CONVERSION" },
 ]
 
 export function StatementPanel({

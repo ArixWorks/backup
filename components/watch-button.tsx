@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 
 export function WatchButton({
   auctionId,
@@ -17,25 +18,26 @@ export function WatchButton({
   className?: string
 }) {
   const { user } = useSession()
+  const { t } = useI18n()
   const [loading, setLoading] = useState(false)
   const key = user ? `/api/v1/auctions/${auctionId}/watch` : null
   const { data, mutate } = useSWR<{ ok: boolean; data: { watching: boolean } }>(key, fetcher)
   const watching = data?.data?.watching ?? false
 
   async function toggle() {
-    if (!user) return toast.error("ابتدا یک حساب کاربری انتخاب کنید")
+    if (!user) return toast.error(t("buy.loginFirst"))
     setLoading(true)
     try {
       if (watching) {
         await apiDelete(`/api/v1/auctions/${auctionId}/watch`)
-        toast.success("از لیست پیگیری حذف شد")
+        toast.success(t("watch.auctionRemoved"))
       } else {
         await apiPost(`/api/v1/auctions/${auctionId}/watch`)
-        toast.success("به لیست پیگیری اضافه شد؛ هنگام شروع مزایده باخبر می‌شوید")
+        toast.success(t("watch.auctionAdded"))
       }
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در به‌روزرسانی لیست پیگیری")
+      toast.error(err instanceof ApiError ? err.message : t("watch.errUpdate"))
     } finally {
       setLoading(false)
     }
@@ -56,7 +58,7 @@ export function WatchButton({
       ) : (
         <Bell className="h-4 w-4" />
       )}
-      {watching ? "در حال پیگیری" : "پیگیری مزایده"}
+      {watching ? t("watch.watching") : t("watch.watchAuction")}
     </Button>
   )
 }

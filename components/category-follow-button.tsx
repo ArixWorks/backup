@@ -7,6 +7,7 @@ import { Bell, BellRing, Loader2 } from "lucide-react"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Follow a product category to receive a (sound) notification whenever a new
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils"
  */
 export function CategoryFollowButton({ category }: { category: string }) {
   const { user } = useSession()
+  const { t } = useI18n()
   const [loading, setLoading] = useState(false)
   const enc = encodeURIComponent(category)
   const key = user && category ? `/api/v1/category-follow/${enc}` : null
@@ -22,19 +24,19 @@ export function CategoryFollowButton({ category }: { category: string }) {
   const following = data?.data?.following ?? false
 
   async function toggle() {
-    if (!user) return toast.error("ابتدا یک حساب کاربری انتخاب کنید")
+    if (!user) return toast.error(t("buy.loginFirst"))
     setLoading(true)
     try {
       if (following) {
         await apiDelete(`/api/v1/category-follow/${enc}`)
-        toast.success(`دنبال‌کردن دسته «${category}» لغو شد`)
+        toast.success(t("catFollow.unfollowed", { category }))
       } else {
         await apiPost(`/api/v1/category-follow/${enc}`)
-        toast.success(`از این پس محصولات جدید دسته «${category}» را اطلاع می‌دهیم`)
+        toast.success(t("catFollow.followed", { category }))
       }
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در به‌روزرسانی")
+      toast.error(err instanceof ApiError ? err.message : t("catFollow.errUpdate"))
     } finally {
       setLoading(false)
     }
@@ -62,7 +64,7 @@ export function CategoryFollowButton({ category }: { category: string }) {
       ) : (
         <Bell className="h-3.5 w-3.5" />
       )}
-      {following ? "دنبال می‌کنید" : "دنبال‌کردن دسته"}
+      {following ? t("catFollow.following") : t("catFollow.follow")}
     </button>
   )
 }

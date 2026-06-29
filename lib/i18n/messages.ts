@@ -432,6 +432,109 @@ export type MessageKey =
   | "signIn.title"
   | "signIn.defaultDesc"
   | "signIn.action"
+  | "watch.errUpdate"
+  | "watch.auctionRemoved"
+  | "watch.auctionAdded"
+  | "watch.watching"
+  | "watch.watchAuction"
+  | "watch.productCancelled"
+  | "watch.productAdded"
+  | "watch.productActive"
+  | "watch.notifyMe"
+  | "watchedProducts.empty"
+  | "watchedProducts.inStock"
+  | "catFollow.unfollowed"
+  | "catFollow.followed"
+  | "catFollow.errUpdate"
+  | "catFollow.following"
+  | "catFollow.follow"
+  | "notif.moreCount"
+  | "notif.view"
+  | "rewards.achievements"
+  | "rewards.earnedOf"
+  | "menu.notifications"
+  | "menu.notificationsDesc"
+  | "menu.wallet"
+  | "menu.walletDesc"
+  | "menu.reports"
+  | "menu.reportsDesc"
+  | "menu.support"
+  | "menu.supportDesc"
+  | "menu.refunds"
+  | "menu.refundsDesc"
+  | "menu.profile"
+  | "menu.profileDesc"
+  | "menu.account"
+  | "menu.accountDesc"
+  | "menu.admin"
+  | "menu.adminDesc"
+  | "menu.accountAria"
+  | "menu.title"
+  | "menu.unmuteAria"
+  | "menu.muteAria"
+  | "menu.mutedTitle"
+  | "menu.unmutedTitle"
+  | "referral.copied"
+  | "referral.copyFailed"
+  | "referral.shareText"
+  | "referral.shareTitle"
+  | "referral.title"
+  | "referral.desc"
+  | "referral.descEachPurchase"
+  | "referral.copyAria"
+  | "referral.sendTelegram"
+  | "referral.shareLink"
+  | "referral.statReferred"
+  | "referral.statActive"
+  | "referral.statEarned"
+  | "txn.DEPOSIT"
+  | "txn.WITHDRAWAL"
+  | "txn.FREEZE"
+  | "txn.UNFREEZE"
+  | "txn.PURCHASE"
+  | "txn.REFUND"
+  | "txn.BID_LOCK"
+  | "txn.BID_RELEASE"
+  | "txn.ADMIN_ADJUSTMENT"
+  | "txn.CASHBACK"
+  | "txn.REFERRAL_BONUS"
+  | "txn.CONVERSION"
+  | "stmt.filterAll"
+  | "stmt.purchase"
+  | "stmt.title"
+  | "stmt.filter"
+  | "stmt.searchPlaceholder"
+  | "stmt.txnType"
+  | "stmt.fromDate"
+  | "stmt.toDate"
+  | "stmt.foundCount"
+  | "stmt.empty"
+  | "wallet.selectCurrency"
+  | "wallet.frozenShort"
+  | "convert.enterAmount"
+  | "convert.sameCurrency"
+  | "convert.success"
+  | "convert.error"
+  | "convert.button"
+  | "convert.from"
+  | "convert.to"
+  | "convert.amountLabel"
+  | "convert.amountPlaceholder"
+  | "convert.rateUnavailable"
+  | "convert.approxReceive"
+  | "notifList.tabAll"
+  | "notifList.tabUnread"
+  | "notifList.tabArchived"
+  | "notifList.searchPlaceholder"
+  | "notifList.markAll"
+  | "notifList.emptySearch"
+  | "notifList.emptyArchived"
+  | "notifList.emptyUnread"
+  | "notifList.emptyAll"
+  | "notifList.emptyAllDesc"
+  | "notifList.restore"
+  | "notifList.delete"
+  | "notifList.archive"
 
 type Catalog = Record<MessageKey, string>
 
@@ -862,6 +965,109 @@ const fa: Catalog = {
   "signIn.title": "ورود لازم است",
   "signIn.defaultDesc": "برای ادامه، ابتدا وارد حساب کاربری خود شوید.",
   "signIn.action": "ورود به حساب",
+  "watch.errUpdate": "خطا در به‌روزرسانی لیست پیگیری",
+  "watch.auctionRemoved": "از لیست پیگیری حذف شد",
+  "watch.auctionAdded": "به لیست پیگیری اضافه شد؛ هنگام شروع مزایده باخبر می‌شوید",
+  "watch.watching": "در حال پیگیری",
+  "watch.watchAuction": "پیگیری مزایده",
+  "watch.productCancelled": "اطلاع‌رسانی موجودی لغو شد",
+  "watch.productAdded": "هنگام موجود شدن محصول به شما اطلاع می‌دهیم",
+  "watch.productActive": "اطلاع‌رسانی فعال است",
+  "watch.notifyMe": "به من اطلاع بده",
+  "watchedProducts.empty": "محصولی را برای اطلاع از موجودی دنبال نمی‌کنید.",
+  "watchedProducts.inStock": "موجود",
+  "catFollow.unfollowed": "دنبال‌کردن دسته «{category}» لغو شد",
+  "catFollow.followed": "از این پس محصولات جدید دسته «{category}» را اطلاع می‌دهیم",
+  "catFollow.errUpdate": "خطا در به‌روزرسانی",
+  "catFollow.following": "دنبال می‌کنید",
+  "catFollow.follow": "دنبال‌کردن دسته",
+  "notif.moreCount": "{body} (+{count} اعلان دیگر)",
+  "notif.view": "مشاهده",
+  "rewards.achievements": "دستاوردها",
+  "rewards.earnedOf": "{earned} از {total}",
+  "menu.notifications": "اعلان‌ها",
+  "menu.notificationsDesc": "آخرین رویدادها",
+  "menu.wallet": "کیف پول",
+  "menu.walletDesc": "موجودی و شارژ",
+  "menu.reports": "گزارش واریزها",
+  "menu.reportsDesc": "تاریخچه و وضعیت",
+  "menu.support": "تیکت و پشتیبانی",
+  "menu.supportDesc": "ثبت و پیگیری درخواست",
+  "menu.refunds": "درخواست بازگشت وجه",
+  "menu.refundsDesc": "عودت به کارت بانکی",
+  "menu.profile": "حساب کاربری",
+  "menu.profileDesc": "اطلاعات و تنظیمات",
+  "menu.account": "امنیت و ورود",
+  "menu.accountDesc": "ایمیل، رمز عبور، تلگرام",
+  "menu.admin": "پنل مدیریت",
+  "menu.adminDesc": "مدیریت فروشگاه",
+  "menu.accountAria": "حساب کاربری",
+  "menu.title": "منوی حساب کاربری",
+  "menu.unmuteAria": "روشن کردن صدای اعلان",
+  "menu.muteAria": "خاموش کردن صدای اعلان",
+  "menu.mutedTitle": "صدای اعلان خاموش است",
+  "menu.unmutedTitle": "صدای اعلان روشن است",
+  "referral.copied": "لینک دعوت کپی شد",
+  "referral.copyFailed": "کپی ناموفق بود",
+  "referral.shareText": "به جمع ما بپیوند و از مزایده‌ها و فروش ویژه بهره‌مند شو!",
+  "referral.shareTitle": "دعوت دوستان",
+  "referral.title": "دعوت دوستان",
+  "referral.desc": "لینک اختصاصی‌ات را به اشتراک بگذار. با هر دعوت موفق پاداش می‌گیری و از",
+  "referral.descEachPurchase": "هر خرید",
+  "referral.copyAria": "کپی لینک دعوت",
+  "referral.sendTelegram": "ارسال لینک در تلگرام",
+  "referral.shareLink": "اشتراک‌گذاری لینک دعوت",
+  "referral.statReferred": "دعوت‌شده",
+  "referral.statActive": "فعال",
+  "referral.statEarned": "درآمد (ت)",
+  "txn.DEPOSIT": "افزایش موجودی",
+  "txn.WITHDRAWAL": "برداشت",
+  "txn.FREEZE": "مسدودسازی",
+  "txn.UNFREEZE": "آزادسازی",
+  "txn.PURCHASE": "کسر بابت خرید",
+  "txn.REFUND": "بازگشت وجه",
+  "txn.BID_LOCK": "قفل پیشنهاد",
+  "txn.BID_RELEASE": "آزادسازی پیشنهاد",
+  "txn.ADMIN_ADJUSTMENT": "تعدیل مدیر",
+  "txn.CASHBACK": "بازگشت نقدی",
+  "txn.REFERRAL_BONUS": "پاداش دعوت",
+  "txn.CONVERSION": "تبدیل ارز",
+  "stmt.filterAll": "همه",
+  "stmt.purchase": "خرید",
+  "stmt.title": "صورت‌حساب",
+  "stmt.filter": "فیلتر",
+  "stmt.searchPlaceholder": "جستجو در توضیحات یا مرجع...",
+  "stmt.txnType": "نوع تراکنش",
+  "stmt.fromDate": "از تاریخ",
+  "stmt.toDate": "تا تاریخ",
+  "stmt.foundCount": "{count} تراکنش یافت شد",
+  "stmt.empty": "تراکنشی یافت نشد.",
+  "wallet.selectCurrency": "انتخاب ارز",
+  "wallet.frozenShort": "مسدودشده",
+  "convert.enterAmount": "مبلغ را وارد کنید",
+  "convert.sameCurrency": "ارز مبدأ و مقصد یکسان است",
+  "convert.success": "تبدیل ارز با موفقیت انجام شد",
+  "convert.error": "خطا در تبدیل ارز",
+  "convert.button": "تبدیل ارز",
+  "convert.from": "از",
+  "convert.to": "به",
+  "convert.amountLabel": "مبلغ ({symbol})",
+  "convert.amountPlaceholder": "مبلغ",
+  "convert.rateUnavailable": "نرخ تبدیل در دسترس نیست",
+  "convert.approxReceive": "دریافتی تقریبی",
+  "notifList.tabAll": "همه",
+  "notifList.tabUnread": "خوانده‌نشده",
+  "notifList.tabArchived": "بایگانی",
+  "notifList.searchPlaceholder": "جستجو در اعلان‌ها…",
+  "notifList.markAll": "خواندن همه",
+  "notifList.emptySearch": "اعلانی با این جستجو پیدا نشد",
+  "notifList.emptyArchived": "بایگانی شما خالی است",
+  "notifList.emptyUnread": "اعلان خوانده‌نشده‌ای ندارید",
+  "notifList.emptyAll": "هنوز اعلانی ندارید",
+  "notifList.emptyAllDesc": "وقتی خبری درباره سفارش‌ها، مزایده‌ها یا تراکنش‌ها باشد، اینجا نمایش داده می‌شود.",
+  "notifList.restore": "بازگردانی به صندوق",
+  "notifList.delete": "حذف",
+  "notifList.archive": "بایگانی",
 }
 
 const en: Catalog = {
@@ -1291,6 +1497,109 @@ const en: Catalog = {
   "signIn.title": "Sign-in required",
   "signIn.defaultDesc": "Please sign in to your account to continue.",
   "signIn.action": "Sign in to account",
+  "watch.errUpdate": "Failed to update watchlist",
+  "watch.auctionRemoved": "Removed from watchlist",
+  "watch.auctionAdded": "Added to watchlist; you'll be notified when the auction starts",
+  "watch.watching": "Watching",
+  "watch.watchAuction": "Watch auction",
+  "watch.productCancelled": "Stock alert cancelled",
+  "watch.productAdded": "We'll notify you when the product is back in stock",
+  "watch.productActive": "Alert is active",
+  "watch.notifyMe": "Notify me",
+  "watchedProducts.empty": "You aren't following any products for stock alerts.",
+  "watchedProducts.inStock": "In stock",
+  "catFollow.unfollowed": "Unfollowed the \u201c{category}\u201d category",
+  "catFollow.followed": "We'll now notify you about new products in \u201c{category}\u201d",
+  "catFollow.errUpdate": "Failed to update",
+  "catFollow.following": "Following",
+  "catFollow.follow": "Follow category",
+  "notif.moreCount": "{body} (+{count} more)",
+  "notif.view": "View",
+  "rewards.achievements": "Achievements",
+  "rewards.earnedOf": "{earned} of {total}",
+  "menu.notifications": "Notifications",
+  "menu.notificationsDesc": "Latest events",
+  "menu.wallet": "Wallet",
+  "menu.walletDesc": "Balance and top-up",
+  "menu.reports": "Deposit reports",
+  "menu.reportsDesc": "History and status",
+  "menu.support": "Tickets and support",
+  "menu.supportDesc": "Submit and track requests",
+  "menu.refunds": "Refund request",
+  "menu.refundsDesc": "Return to bank card",
+  "menu.profile": "Account",
+  "menu.profileDesc": "Info and settings",
+  "menu.account": "Security and login",
+  "menu.accountDesc": "Email, password, Telegram",
+  "menu.admin": "Admin panel",
+  "menu.adminDesc": "Manage the store",
+  "menu.accountAria": "Account",
+  "menu.title": "Account menu",
+  "menu.unmuteAria": "Turn on notification sound",
+  "menu.muteAria": "Turn off notification sound",
+  "menu.mutedTitle": "Notification sound is off",
+  "menu.unmutedTitle": "Notification sound is on",
+  "referral.copied": "Invite link copied",
+  "referral.copyFailed": "Copy failed",
+  "referral.shareText": "Join us and enjoy auctions and special sales!",
+  "referral.shareTitle": "Invite friends",
+  "referral.title": "Invite friends",
+  "referral.desc": "Share your personal link. Earn a reward for every successful invite, plus ongoing credit from",
+  "referral.descEachPurchase": "every purchase",
+  "referral.copyAria": "Copy invite link",
+  "referral.sendTelegram": "Send link on Telegram",
+  "referral.shareLink": "Share invite link",
+  "referral.statReferred": "Referred",
+  "referral.statActive": "Active",
+  "referral.statEarned": "Earned (T)",
+  "txn.DEPOSIT": "Top-up",
+  "txn.WITHDRAWAL": "Withdrawal",
+  "txn.FREEZE": "Freeze",
+  "txn.UNFREEZE": "Unfreeze",
+  "txn.PURCHASE": "Purchase deduction",
+  "txn.REFUND": "Refund",
+  "txn.BID_LOCK": "Bid lock",
+  "txn.BID_RELEASE": "Bid release",
+  "txn.ADMIN_ADJUSTMENT": "Admin adjustment",
+  "txn.CASHBACK": "Cashback",
+  "txn.REFERRAL_BONUS": "Referral bonus",
+  "txn.CONVERSION": "Currency conversion",
+  "stmt.filterAll": "All",
+  "stmt.purchase": "Purchase",
+  "stmt.title": "Statement",
+  "stmt.filter": "Filter",
+  "stmt.searchPlaceholder": "Search in notes or reference...",
+  "stmt.txnType": "Transaction type",
+  "stmt.fromDate": "From date",
+  "stmt.toDate": "To date",
+  "stmt.foundCount": "{count} transactions found",
+  "stmt.empty": "No transactions found.",
+  "wallet.selectCurrency": "Select currency",
+  "wallet.frozenShort": "Frozen",
+  "convert.enterAmount": "Enter an amount",
+  "convert.sameCurrency": "Source and target currency are the same",
+  "convert.success": "Currency converted successfully",
+  "convert.error": "Error converting currency",
+  "convert.button": "Convert currency",
+  "convert.from": "From",
+  "convert.to": "To",
+  "convert.amountLabel": "Amount ({symbol})",
+  "convert.amountPlaceholder": "Amount",
+  "convert.rateUnavailable": "Conversion rate unavailable",
+  "convert.approxReceive": "Approx. received",
+  "notifList.tabAll": "All",
+  "notifList.tabUnread": "Unread",
+  "notifList.tabArchived": "Archived",
+  "notifList.searchPlaceholder": "Search notifications…",
+  "notifList.markAll": "Mark all read",
+  "notifList.emptySearch": "No notifications match this search",
+  "notifList.emptyArchived": "Your archive is empty",
+  "notifList.emptyUnread": "You have no unread notifications",
+  "notifList.emptyAll": "You have no notifications yet",
+  "notifList.emptyAllDesc": "When there's news about orders, auctions, or transactions, it will appear here.",
+  "notifList.restore": "Restore to inbox",
+  "notifList.delete": "Delete",
+  "notifList.archive": "Archive",
 }
 
 const ru: Catalog = {
@@ -1506,7 +1815,7 @@ const ru: Catalog = {
   "account.title": "Настройки аккаунта и безопасности",
   "account.subtitle": "Управляйте способами входа и безопасностью аккаунта",
   "account.activeMethods": "Активные способы входа",
-  "account.noMethods": "Пока нет ни одного полного способа входа. Чтобы защитить аккаунт, подтвердите эл. почту или подключите Telegram.",
+  "account.noMethods": "Пока нет ни одного полного способа входа. Чтобы защ��тить аккаунт, подтвердите эл. почту или подключите Telegram.",
   "account.logoutAll": "Выйти на всех устройствах",
   "account.logoutAllDesc": "Это завершит все активные сессии на других устройствах, и вам нужно будет войти заново.",
   "account.logoutAllError": "Не удалось выйти на всех устройствах",
@@ -1533,7 +1842,7 @@ const ru: Catalog = {
   "adetail.reserveMet": "Резервная цена продавца достигнута",
   "adetail.reserveNotMet": "Резервная цена ещё не достигнута",
   "adetail.minIncrement": "Мин. шаг",
-  "adetail.winnersCount": "Победителей",
+  "adetail.winnersCount": "Победителе��",
   "adetail.endTime": "Время окончания",
   "wins.signInRequired": "Войдите, чтобы увидеть свои призы.",
   "wins.copied": "Скопировано",
@@ -1720,6 +2029,109 @@ const ru: Catalog = {
   "signIn.title": "Требуется вход",
   "signIn.defaultDesc": "Войдите в свой аккаунт, чтобы продолжить.",
   "signIn.action": "Войти в аккаунт",
+  "watch.errUpdate": "Не удалось обновить список отслеживания",
+  "watch.auctionRemoved": "Удалено из отслеживания",
+  "watch.auctionAdded": "Добавлено в отслеживание; вы получите уведомление о начале аукциона",
+  "watch.watching": "Отслеживается",
+  "watch.watchAuction": "Отслеживать аукцион",
+  "watch.productCancelled": "Уведомление о наличии отменено",
+  "watch.productAdded": "Мы уведомим вас, когда товар снова появится",
+  "watch.productActive": "Уведомление активно",
+  "watch.notifyMe": "Уведомить меня",
+  "watchedProducts.empty": "Вы не отслеживаете товары для уведомлений о наличии.",
+  "watchedProducts.inStock": "В наличии",
+  "catFollow.unfollowed": "Вы отписались от категории «{category}»",
+  "catFollow.followed": "Теперь мы будем уведомлять о новых товарах в «{category}»",
+  "catFollow.errUpdate": "Не удалось обновить",
+  "catFollow.following": "Вы подписаны",
+  "catFollow.follow": "Подписаться на категорию",
+  "notif.moreCount": "{body} (+{count} ещё)",
+  "notif.view": "Открыть",
+  "rewards.achievements": "Достижения",
+  "rewards.earnedOf": "{earned} из {total}",
+  "menu.notifications": "Уведомления",
+  "menu.notificationsDesc": "Последние события",
+  "menu.wallet": "Кошелёк",
+  "menu.walletDesc": "Баланс и пополнение",
+  "menu.reports": "Отчёты о пополнениях",
+  "menu.reportsDesc": "История и статус",
+  "menu.support": "Тикеты и поддержка",
+  "menu.supportDesc": "Создание и отслеживание запросов",
+  "menu.refunds": "Запрос на возврат",
+  "menu.refundsDesc": "Возврат на банковскую карту",
+  "menu.profile": "Аккаунт",
+  "menu.profileDesc": "Данные и настройки",
+  "menu.account": "Безопасность и вход",
+  "menu.accountDesc": "Email, пароль, Telegram",
+  "menu.admin": "Панель администратора",
+  "menu.adminDesc": "Управление магазином",
+  "menu.accountAria": "Аккаунт",
+  "menu.title": "Меню аккаунта",
+  "menu.unmuteAria": "Включить звук уведомлений",
+  "menu.muteAria": "Выключить звук уведомлений",
+  "menu.mutedTitle": "Звук уведомлений выключен",
+  "menu.unmutedTitle": "Звук уведомлений включён",
+  "referral.copied": "Ссылка-приглашение скопирована",
+  "referral.copyFailed": "Не удалось скопировать",
+  "referral.shareText": "Присоединяйся к нам и участвуй в аукционах и специальных распродажах!",
+  "referral.shareTitle": "Пригласить друзей",
+  "referral.title": "Пригласить друзей",
+  "referral.desc": "Поделитесь персональной ссылкой. Получайте награду за каждое успешное приглашение, а также постоянный кредит с",
+  "referral.descEachPurchase": "каждой покупки",
+  "referral.copyAria": "Скопировать ссылку-приглашение",
+  "referral.sendTelegram": "Отправить ссылку в Telegram",
+  "referral.shareLink": "Поделиться ссылкой-приглашением",
+  "referral.statReferred": "Приглашено",
+  "referral.statActive": "Активные",
+  "referral.statEarned": "Заработано (Т)",
+  "txn.DEPOSIT": "Пополнение",
+  "txn.WITHDRAWAL": "Вывод",
+  "txn.FREEZE": "Заморозка",
+  "txn.UNFREEZE": "Разморозка",
+  "txn.PURCHASE": "Списание за покупку",
+  "txn.REFUND": "Возврат",
+  "txn.BID_LOCK": "Блокировка ставки",
+  "txn.BID_RELEASE": "Разблокировка ставки",
+  "txn.ADMIN_ADJUSTMENT": "Корректировка администратора",
+  "txn.CASHBACK": "Кэшбэк",
+  "txn.REFERRAL_BONUS": "Реферальный бонус",
+  "txn.CONVERSION": "Конвертация валюты",
+  "stmt.filterAll": "Все",
+  "stmt.purchase": "Покупка",
+  "stmt.title": "Выписка",
+  "stmt.filter": "Фильтр",
+  "stmt.searchPlaceholder": "Поиск по примечаниям или ссылке...",
+  "stmt.txnType": "Тип транзакции",
+  "stmt.fromDate": "С даты",
+  "stmt.toDate": "По дату",
+  "stmt.foundCount": "Найдено транзакций: {count}",
+  "stmt.empty": "Транзакции не найдены.",
+  "wallet.selectCurrency": "Выбрать валюту",
+  "wallet.frozenShort": "Заморожено",
+  "convert.enterAmount": "Введите сумму",
+  "convert.sameCurrency": "Исходная и целевая валюты совпадают",
+  "convert.success": "Валюта успешно конвертирована",
+  "convert.error": "Ошибка конвертации валюты",
+  "convert.button": "Конвертировать валюту",
+  "convert.from": "Из",
+  "convert.to": "В",
+  "convert.amountLabel": "Сумма ({symbol})",
+  "convert.amountPlaceholder": "Сумма",
+  "convert.rateUnavailable": "Курс конвертации недоступен",
+  "convert.approxReceive": "Примерно получите",
+  "notifList.tabAll": "Все",
+  "notifList.tabUnread": "Непрочитанные",
+  "notifList.tabArchived": "Архив",
+  "notifList.searchPlaceholder": "Поиск уведомлений…",
+  "notifList.markAll": "Прочитать все",
+  "notifList.emptySearch": "Уведомления по этому запросу не найдены",
+  "notifList.emptyArchived": "Ваш архив пуст",
+  "notifList.emptyUnread": "У вас нет непрочитанных уведомлений",
+  "notifList.emptyAll": "У вас пока нет уведомлений",
+  "notifList.emptyAllDesc": "Когда появятся новости о заказах, аукционах или транзакциях, они отобразятся здесь.",
+  "notifList.restore": "Вернуть во входящие",
+  "notifList.delete": "Удалить",
+  "notifList.archive": "Архивировать",
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
@@ -2150,6 +2562,109 @@ const hi: Catalog = {
   "signIn.title": "Sign-in zaroori hai",
   "signIn.defaultDesc": "Aage badhne ke liye apne account mein sign in karein.",
   "signIn.action": "Account mein sign in karein",
+  "watch.errUpdate": "Watchlist update karne mein samasya",
+  "watch.auctionRemoved": "Watchlist se hata diya gaya",
+  "watch.auctionAdded": "Watchlist mein add ho gaya; auction shuru hone par aapko notify karenge",
+  "watch.watching": "Watch ho raha hai",
+  "watch.watchAuction": "Auction watch karein",
+  "watch.productCancelled": "Stock alert cancel ho gaya",
+  "watch.productAdded": "Product wapas stock mein aane par aapko notify karenge",
+  "watch.productActive": "Alert active hai",
+  "watch.notifyMe": "Mujhe notify karein",
+  "watchedProducts.empty": "Aap kisi product ko stock alert ke liye follow nahi kar rahe.",
+  "watchedProducts.inStock": "Stock mein",
+  "catFollow.unfollowed": "\u201c{category}\u201d category unfollow kar di gayi",
+  "catFollow.followed": "Ab hum \u201c{category}\u201d ke naye products ke baare mein notify karenge",
+  "catFollow.errUpdate": "Update karne mein samasya",
+  "catFollow.following": "Follow kar rahe hain",
+  "catFollow.follow": "Category follow karein",
+  "notif.moreCount": "{body} (+{count} aur)",
+  "notif.view": "Dekhein",
+  "rewards.achievements": "Achievements",
+  "rewards.earnedOf": "{total} mein se {earned}",
+  "menu.notifications": "Notifications",
+  "menu.notificationsDesc": "Latest events",
+  "menu.wallet": "Wallet",
+  "menu.walletDesc": "Balance aur top-up",
+  "menu.reports": "Deposit reports",
+  "menu.reportsDesc": "History aur status",
+  "menu.support": "Tickets aur support",
+  "menu.supportDesc": "Requests darj aur track karein",
+  "menu.refunds": "Refund request",
+  "menu.refundsDesc": "Bank card par wapas",
+  "menu.profile": "Account",
+  "menu.profileDesc": "Info aur settings",
+  "menu.account": "Security aur login",
+  "menu.accountDesc": "Email, password, Telegram",
+  "menu.admin": "Admin panel",
+  "menu.adminDesc": "Store manage karein",
+  "menu.accountAria": "Account",
+  "menu.title": "Account menu",
+  "menu.unmuteAria": "Notification sound on karein",
+  "menu.muteAria": "Notification sound off karein",
+  "menu.mutedTitle": "Notification sound off hai",
+  "menu.unmutedTitle": "Notification sound on hai",
+  "referral.copied": "Invite link copy ho gaya",
+  "referral.copyFailed": "Copy nahi hua",
+  "referral.shareText": "Hamare saath judein aur auctions aur special sales ka laabh uthayein!",
+  "referral.shareTitle": "Doston ko invite karein",
+  "referral.title": "Doston ko invite karein",
+  "referral.desc": "Apni personal link share karein. Har successful invite par reward paayein, aur",
+  "referral.descEachPurchase": "har purchase",
+  "referral.copyAria": "Invite link copy karein",
+  "referral.sendTelegram": "Telegram par link bhejein",
+  "referral.shareLink": "Invite link share karein",
+  "referral.statReferred": "Invite kiye",
+  "referral.statActive": "Active",
+  "referral.statEarned": "Kamaaya (T)",
+  "txn.DEPOSIT": "Top-up",
+  "txn.WITHDRAWAL": "Withdrawal",
+  "txn.FREEZE": "Freeze",
+  "txn.UNFREEZE": "Unfreeze",
+  "txn.PURCHASE": "Purchase deduction",
+  "txn.REFUND": "Refund",
+  "txn.BID_LOCK": "Bid lock",
+  "txn.BID_RELEASE": "Bid release",
+  "txn.ADMIN_ADJUSTMENT": "Admin adjustment",
+  "txn.CASHBACK": "Cashback",
+  "txn.REFERRAL_BONUS": "Referral bonus",
+  "txn.CONVERSION": "Currency conversion",
+  "stmt.filterAll": "Sab",
+  "stmt.purchase": "Purchase",
+  "stmt.title": "Statement",
+  "stmt.filter": "Filter",
+  "stmt.searchPlaceholder": "Notes ya reference mein search karein...",
+  "stmt.txnType": "Transaction type",
+  "stmt.fromDate": "From date",
+  "stmt.toDate": "To date",
+  "stmt.foundCount": "{count} transactions mile",
+  "stmt.empty": "Koi transaction nahi mila.",
+  "wallet.selectCurrency": "Currency select karein",
+  "wallet.frozenShort": "Frozen",
+  "convert.enterAmount": "Amount darj karein",
+  "convert.sameCurrency": "Source aur target currency same hai",
+  "convert.success": "Currency safaltapoorvak convert ho gayi",
+  "convert.error": "Currency convert karne mein error",
+  "convert.button": "Currency convert karein",
+  "convert.from": "Se",
+  "convert.to": "Tak",
+  "convert.amountLabel": "Amount ({symbol})",
+  "convert.amountPlaceholder": "Amount",
+  "convert.rateUnavailable": "Conversion rate uplabdh nahi",
+  "convert.approxReceive": "Lagbhag milega",
+  "notifList.tabAll": "Sab",
+  "notifList.tabUnread": "Unread",
+  "notifList.tabArchived": "Archived",
+  "notifList.searchPlaceholder": "Notifications mein search karein…",
+  "notifList.markAll": "Sab read karein",
+  "notifList.emptySearch": "Is search se koi notification nahi mila",
+  "notifList.emptyArchived": "Aapka archive khaali hai",
+  "notifList.emptyUnread": "Aapke paas koi unread notification nahi",
+  "notifList.emptyAll": "Aapke paas abhi koi notification nahi",
+  "notifList.emptyAllDesc": "Jab orders, auctions ya transactions ke baare mein koi news hogi, to yahan dikhega.",
+  "notifList.restore": "Inbox mein wapas laayein",
+  "notifList.delete": "Delete",
+  "notifList.archive": "Archive",
 }
 
 export const MESSAGES: Record<Locale, Catalog> = { fa, en, ru, hi }

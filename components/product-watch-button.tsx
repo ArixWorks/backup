@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { cn } from "@/lib/utils"
+import { useI18n } from "@/components/i18n-provider"
 
 /**
  * Subscribe to a flash product's back-in-stock alert. Shown when the product is
@@ -21,25 +22,26 @@ export function ProductWatchButton({
   className?: string
 }) {
   const { user } = useSession()
+  const { t } = useI18n()
   const [loading, setLoading] = useState(false)
   const key = user ? `/api/v1/product-watch/${productId}` : null
   const { data, mutate } = useSWR<{ ok: boolean; data: { watching: boolean } }>(key, fetcher)
   const watching = data?.data?.watching ?? false
 
   async function toggle() {
-    if (!user) return toast.error("ابتدا یک حساب کاربری انتخاب کنید")
+    if (!user) return toast.error(t("buy.loginFirst"))
     setLoading(true)
     try {
       if (watching) {
         await apiDelete(`/api/v1/product-watch/${productId}`)
-        toast.success("اطلاع‌رسانی موجودی لغو شد")
+        toast.success(t("watch.productCancelled"))
       } else {
         await apiPost(`/api/v1/product-watch/${productId}`)
-        toast.success("هنگام موجود شدن محصول به شما اطلاع می‌دهیم")
+        toast.success(t("watch.productAdded"))
       }
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در به‌روزرسانی اطلاع‌رسانی")
+      toast.error(err instanceof ApiError ? err.message : t("watch.errUpdate"))
     } finally {
       setLoading(false)
     }
@@ -60,7 +62,7 @@ export function ProductWatchButton({
       ) : (
         <Bell className="h-4 w-4" />
       )}
-      {watching ? "اطلاع‌رسانی فعال است" : "به من اطلاع بده"}
+      {watching ? t("watch.productActive") : t("watch.notifyMe")}
     </Button>
   )
 }

@@ -18,7 +18,7 @@ interface WatchedProduct {
 }
 
 export function WatchedProducts() {
-  const { priceValue, currency } = useI18n()
+  const { priceValue, currency, t } = useI18n()
   const { data, isLoading } = useSWR<{ data: WatchedProduct[] }>(
     "/api/v1/product-watch",
     fetcher,
@@ -39,7 +39,7 @@ export function WatchedProducts() {
   if (products.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-        محصولی را برای اطلاع از موجودی دنبال نمی‌کنید.
+        {t("watchedProducts.empty")}
       </div>
     )
   }
@@ -75,7 +75,7 @@ export function WatchedProducts() {
                 }
               >
                 {inStock ? <PackageCheck className="h-3.5 w-3.5" /> : <PackageX className="h-3.5 w-3.5" />}
-                {inStock ? "موجود" : "ناموجود"}
+                {inStock ? t("watchedProducts.inStock") : t("flash.soldOut")}
               </span>
             </Link>
           </li>
