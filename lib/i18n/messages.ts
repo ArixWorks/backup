@@ -172,6 +172,13 @@ export type MessageKey =
   | "profile.role"
   | "profile.notLinked"
   | "profile.language"
+  | "profile.motion"
+  | "motion.choose"
+  | "motion.auto"
+  | "motion.cinematic"
+  | "motion.balanced"
+  | "motion.minimal"
+  | "motion.hint"
   | "join.title"
   | "join.subtitle"
   | "join.notJoined"
@@ -746,7 +753,7 @@ const fa: Catalog = {
   "coupon.discount": "تخفیف",
   "coupon.invalid": "کد تخفیف نامعتبر است.",
   "coupon.expired": "این کد تخفیف منقضی شده است.",
-  "coupon.notStarted": "این کد تخفیف هنوز فعال نشده است.",
+  "coupon.notStarted": "این کد تخفیف هنو�� فعال نشده است.",
   "coupon.minOrder": "مبلغ سفارش برای این کد کافی نیست.",
   "coupon.exhausted": "ظرفیت این کد تخفیف تکمیل شده است.",
   "coupon.userLimit": "شما قبلاً از این کد استفاده کرده‌اید.",
@@ -784,6 +791,13 @@ const fa: Catalog = {
   "profile.role": "نقش",
   "profile.notLinked": "متصل نشده",
   "profile.language": "زبان",
+  "profile.motion": "کیفیت جلوه‌ها",
+  "motion.choose": "انتخاب کیفیت جلوه‌ها",
+  "motion.auto": "خودکار",
+  "motion.cinematic": "سینمایی",
+  "motion.balanced": "متعادل",
+  "motion.minimal": "حداقلی",
+  "motion.hint": "حالت خودکار بر اساس توان دستگاه شما بهترین جلوه‌ها را انتخاب می‌کند.",
   "join.title": "فقط برای اعضا",
   "join.subtitle": "برای استفاده از {brand} روی هر کانال بزن و عضو شو؛ بعد از بازگشت، تیک سبز روشن می‌شود.",
   "join.notJoined": "هنوز عضو نشده‌اید — د��باره امتحان کن",
@@ -954,7 +968,7 @@ const fa: Catalog = {
   "refunds.errSubmit": "خطا در ثبت درخواست",
   "ticket.errSend": "خطا در ارسال پیام",
   "ticket.closedToast": "تیکت بسته شد",
-  "ticket.errClose": "خطا در بستن تیکت",
+  "ticket.errClose": "خطا در بستن ت��کت",
   "ticket.back": "بازگشت",
   "ticket.fallbackTitle": "تیکت",
   "ticket.category": "دسته‌بندی:",
@@ -1395,6 +1409,13 @@ const en: Catalog = {
   "profile.role": "Role",
   "profile.notLinked": "Not linked",
   "profile.language": "Language",
+  "profile.motion": "Motion quality",
+  "motion.choose": "Choose motion quality",
+  "motion.auto": "Auto",
+  "motion.cinematic": "Cinematic",
+  "motion.balanced": "Balanced",
+  "motion.minimal": "Minimal",
+  "motion.hint": "Auto picks the best effects for your device's performance.",
   "join.title": "Members only",
   "join.subtitle": "To use {brand}, tap each channel and join; the green tick lights up when you return.",
   "join.notJoined": "Not joined yet — try again",
@@ -2006,6 +2027,13 @@ const ru: Catalog = {
   "profile.role": "Роль",
   "profile.notLinked": "Не привязан",
   "profile.language": "Язык",
+  "profile.motion": "Качество анимаций",
+  "motion.choose": "Выбрать качество анимаций",
+  "motion.auto": "Авто",
+  "motion.cinematic": "Кинематографичное",
+  "motion.balanced": "Сбалансированное",
+  "motion.minimal": "Минимальное",
+  "motion.hint": "В режиме «Авто» эффекты подбираются под производительность устройства.",
   "join.title": "Только для участников",
   "join.subtitle": "Чтобы пользоваться {brand}, нажмите на каждый канал и подпишитесь; при возврате загорится зелёная галочка.",
   "join.notJoined": "Ещё не подписаны — попробуйте снова",
@@ -2166,7 +2194,7 @@ const ru: Catalog = {
   "refunds.empty": "Вы ещё не подавали запросов.",
   "refunds.rejectReason": "Причина отклонения:",
   "refunds.card": "Карта",
-  "refunds.errMinAmount": "Минимальная сумма возврата — 10 000 туманов",
+  "refunds.errMinAmount": "Минимал��ная сумма возврата — 10 000 туманов",
   "refunds.errOverBalance": "Сумма превышает доступный баланс",
   "refunds.errFullName": "Введите ФИО полностью",
   "refunds.errNationalId": "Идентификационный номер должен содержать 10 цифр",
@@ -2380,14 +2408,14 @@ const ru: Catalog = {
   "gw.startsUntil": "Начнётся через",
   "gw.drawn": "Разыгран",
   "gw.drawUntil": "Розыгрыш через",
-  "gwd.entered": "Вы участвуете в розыгрыше",
+  "gwd.entered": "Вы участвуете в розыг��ыше",
   "gwd.joinChannelsFirst": "Сначала подпишитесь на требуемые каналы",
   "gwd.errEnter": "Ошибка участия в розыгрыше",
   "gwd.startRegUntil": "Регистрация начнётся через",
   "gwd.participants": "Участники",
   "gwd.prize": "Приз",
   "gwd.mustJoin": "Вы должны подписаться на эти каналы",
-  "gwd.afterJoinRetry": "После подписки нажмите «Участвовать» снова",
+  "gwd.afterJoinRetry": "После подписки нажмите «Уча��твовать» снова",
   "gwd.winners": "Победители",
   "gwd.noWinners": "Победители ещё не объявлены",
   "gwd.alreadyEntered": "Вы уже участвуете",
@@ -2618,6 +2646,13 @@ const hi: Catalog = {
   "profile.role": "Role",
   "profile.notLinked": "Link nahi hai",
   "profile.language": "Bhasha",
+  "profile.motion": "Motion quality",
+  "motion.choose": "Motion quality chunein",
+  "motion.auto": "Auto",
+  "motion.cinematic": "Cinematic",
+  "motion.balanced": "Balanced",
+  "motion.minimal": "Minimal",
+  "motion.hint": "Auto aapke device ki performance ke hisaab se best effects chunta hai.",
   "join.title": "Sirf members ke liye",
   "join.subtitle": "{brand} use karne ke liye har channel par tap karke join karein; wapas aane par green tick on ho jaayega.",
   "join.notJoined": "Abhi join nahi kiya — phir se try karein",

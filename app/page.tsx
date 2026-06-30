@@ -13,6 +13,8 @@ import { RecommendedRail } from "@/components/recommended-rail"
 import { Stagger, FadeItem, Pressable, Tilt } from "@/components/motion"
 import { Button } from "@/components/ui/button"
 import { MembershipBadge } from "@/components/membership-badge"
+import { EmptyState } from "@/components/empty-state"
+import { CardListSkeleton } from "@/components/loading-skeleton"
 
 const quickActions: { href: string; label: MessageKey; icon: typeof Gavel }[] = [
   { href: "/auctions", label: "nav.auctions", icon: Gavel },
@@ -138,9 +140,9 @@ export default function HomePage() {
           viewAll={t("common.viewAll")}
         >
           {auctionLoading ? (
-            <CardSkeletons />
+            <CardListSkeleton />
           ) : liveAuctions.length === 0 ? (
-            <Empty text={t("home.noAuctions")} />
+            <EmptyState compact icon={Gavel} title={t("home.noAuctions")} />
           ) : (
             <div className="space-y-3">
               {liveAuctions.slice(0, 3).map((a) => (
@@ -162,9 +164,9 @@ export default function HomePage() {
           viewAll={t("common.viewAll")}
         >
           {flashLoading ? (
-            <CardSkeletons />
+            <CardListSkeleton />
           ) : flashSales.length === 0 ? (
-            <Empty text={t("home.noFlash")} />
+            <EmptyState compact icon={Zap} title={t("home.noFlash")} />
           ) : (
             <div className="space-y-3">
               {flashSales.slice(0, 3).map((s) => (
@@ -215,20 +217,4 @@ function Section({
   )
 }
 
-function CardSkeletons() {
-  return (
-    <div className="space-y-3">
-      {[0, 1].map((i) => (
-        <div key={i} className="shimmer card-premium h-64 w-full rounded-2xl border border-border" />
-      ))}
-    </div>
-  )
-}
 
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="card-premium rounded-2xl border border-dashed border-border/80 p-8 text-center text-sm text-muted-foreground">
-      {text}
-    </div>
-  )
-}

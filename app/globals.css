@@ -185,6 +185,47 @@
   --shadow-gold: var(--shadow-accent);
 }
 
+/* ============================================================================
+   EXPERIENCE LAYERS (special moments only)
+   Subio has ONE signature identity: Dark + Gold. Aurora is no longer a whole-app
+   theme — it is a *scoped accent treatment* applied to a single subtree (a banner,
+   modal, onboarding step, giveaway/win celebration, premium card, seasonal event).
+   It only re-maps the accent gradient + glow tokens locally, so the cinematic
+   utilities (.text-gold, .bg-gold, .gold-border, .sheen, .elevate-gold) render in
+   the special palette WITHOUT changing the app background/foreground/identity.
+   Add future limited-edition events as additional .experience-* classes here. */
+@layer components {
+  .experience-aurora {
+    --accent-1: oklch(0.64 0.2 288);
+    --accent-2: oklch(0.82 0.13 198);
+    --accent-deep: oklch(0.5 0.19 290);
+    --primary: oklch(0.66 0.19 288);
+    --primary-foreground: oklch(0.98 0.01 285);
+    --ring: oklch(0.66 0.19 288);
+    --shadow-accent: 0 10px 40px -10px oklch(0.64 0.2 288 / 0.5);
+    --halo-2: oklch(0.78 0.13 198);
+    --gold-1: var(--accent-1);
+    --gold-2: var(--accent-2);
+    --gold-deep: var(--accent-deep);
+    --shadow-gold: var(--shadow-accent);
+  }
+
+  /* Celebration palette (wins, achievements, giveaway results): warm festive
+     gold→rose. Same scoping contract as aurora. */
+  .experience-celebrate {
+    --accent-1: oklch(0.83 0.16 86);
+    --accent-2: oklch(0.74 0.18 18);
+    --accent-deep: oklch(0.6 0.16 40);
+    --primary: oklch(0.83 0.155 86);
+    --shadow-accent: 0 12px 44px -10px oklch(0.78 0.17 40 / 0.5);
+    --halo-2: oklch(0.74 0.18 18);
+    --gold-1: var(--accent-1);
+    --gold-2: var(--accent-2);
+    --gold-deep: var(--accent-deep);
+    --shadow-gold: var(--shadow-accent);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -602,4 +643,56 @@
   .active\:scale-press:active {
     transform: scale(0.97);
   }
+}
+
+/* ============================================================================
+   ADAPTIVE MOTION TIERS
+   <html data-motion="cinematic|balanced|minimal"> is set at runtime by
+   MotionProvider (auto-detected from device capability + a live FPS guard, with
+   an optional user override and OS Reduce-Motion respect). The default (no attr)
+   behaves as "cinematic" so SSR never under-animates a capable device.
+
+   Contract:
+   - cinematic: every ambient + decorative effect runs (full experience).
+   - balanced:  drop the most GPU-expensive continuous loops (3D globe/orbit,
+                particle twinkle/bubbles, flag wind, slow pans, ambient float)
+                but keep lightweight brand cues (sheen, shimmer, glow) and all
+                interaction transitions.
+   - minimal:   silence every decorative loop and collapse transition timings so
+                low-end devices / dropped frame rates stay perfectly responsive.
+                (OS Reduce-Motion maps here too.)
+   These rules are decoration-only; layout, interactions and business logic are
+   never affected, satisfying the no-regression rule. */
+
+/* Balanced: trim the heaviest ambient loops, keep the signature touches. */
+[data-motion='balanced'] .animate-globe,
+[data-motion='balanced'] .animate-orbit,
+[data-motion='balanced'] .animate-orbit-rev,
+[data-motion='balanced'] .animate-twinkle,
+[data-motion='balanced'] .animate-flag,
+[data-motion='balanced'] .animate-flag-wind,
+[data-motion='balanced'] .animate-bubble,
+[data-motion='balanced'] .animate-float {
+  animation: none !important;
+}
+
+/* Minimal: silence all decorative loops and shorten interaction timings. */
+[data-motion='minimal'] {
+  --duration-fast: 80ms;
+  --duration-base: 120ms;
+  --duration-slow: 160ms;
+}
+[data-motion='minimal'] .sheen::after,
+[data-motion='minimal'] .shimmer::after,
+[data-motion='minimal'] .animate-float,
+[data-motion='minimal'] .animate-globe,
+[data-motion='minimal'] .animate-orbit,
+[data-motion='minimal'] .animate-orbit-rev,
+[data-motion='minimal'] .animate-twinkle,
+[data-motion='minimal'] .animate-flag,
+[data-motion='minimal'] .animate-flag-wind,
+[data-motion='minimal'] .animate-glow,
+[data-motion='minimal'] .animate-bubble,
+[data-motion='minimal'] .cta-sweep {
+  animation: none !important;
 }

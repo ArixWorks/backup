@@ -24,6 +24,7 @@ export function EmptyState({
   actionLabel,
   actionHref,
   onAction,
+  compact = false,
   className,
 }: {
   icon: LucideIcon
@@ -33,6 +34,8 @@ export function EmptyState({
   actionLabel?: string
   actionHref?: string
   onAction?: () => void
+  /** Tighter padding + smaller icon for in-section/in-rail empties. */
+  compact?: boolean
   className?: string
 }) {
   const reduce = useReducedMotion()
@@ -59,18 +62,34 @@ export function EmptyState({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "flex flex-col items-center justify-center gap-4 px-6 py-14 text-center",
+        "flex flex-col items-center justify-center text-center",
+        compact
+          ? "card-premium gap-3 rounded-2xl border border-dashed border-border/80 px-6 py-9"
+          : "gap-4 px-6 py-14",
         className,
       )}
     >
-      <div className="relative flex size-20 items-center justify-center">
+      <div
+        className={cn(
+          "relative flex items-center justify-center",
+          compact ? "size-14" : "size-20",
+        )}
+      >
         {/* Soft accent halo behind the icon. */}
         <span
           aria-hidden
           className="absolute inset-0 rounded-full bg-primary/12 blur-md"
         />
-        <span className="relative flex size-20 items-center justify-center rounded-3xl border border-primary/20 bg-card/70 ring-1 ring-inset ring-foreground/5">
-          <Icon className="size-8 text-primary" strokeWidth={1.75} />
+        <span
+          className={cn(
+            "relative flex items-center justify-center rounded-3xl border border-primary/20 bg-card/70 ring-1 ring-inset ring-foreground/5",
+            compact ? "size-14" : "size-20",
+          )}
+        >
+          <Icon
+            className={cn("text-primary", compact ? "size-6" : "size-8")}
+            strokeWidth={1.75}
+          />
         </span>
       </div>
 

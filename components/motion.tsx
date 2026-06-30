@@ -10,6 +10,7 @@ import {
   useTransform,
 } from "motion/react"
 import { useEffect, useRef, type ReactNode } from "react"
+import { useMotionTier } from "@/components/motion-provider"
 
 /**
  * Staggered container — children using <FadeItem> reveal one after another.
@@ -105,6 +106,7 @@ export function Tilt({
   scale?: number
 }) {
   const reduce = useReducedMotion()
+  const tier = useMotionTier()
   const rx = useMotionValue(0)
   const ry = useMotionValue(0)
   const sc = useMotionValue(1)
@@ -120,7 +122,10 @@ export function Tilt({
       `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.35), rgba(255,255,255,0) 55%)`,
   )
 
-  if (reduce) return <div className={className}>{children}</div>
+  // Pointer-tracked 3D tilt is the most GPU-heavy hover effect, so it only runs
+  // at the cinematic tier (and never under reduced motion). Lower tiers render
+  // a flat, static surface — identical layout, no interaction cost.
+  if (reduce || tier !== "cinematic") return <div className={className}>{children}</div>
 
   return (
     <motion.div
@@ -218,11 +223,12 @@ export function Reveal({
   as?: "div" | "section" | "li" | "article"
 }) {
   const reduce = useReducedMotion()
+  const tier = useMotionTier()
   const ref = useRef<HTMLDivElement>(null)
   const inView = useInView(ref, { once, margin: "-12% 0px -12% 0px" })
   const MotionTag = motion[as] as typeof motion.div
 
-  if (reduce) {
+  if (reduce || tier === "minimal") {
     const Tag = as
     return (
       <Tag ref={ref as never} className={className}>
@@ -260,6 +266,7 @@ export function Parallax({
   speed?: number
 }) {
   const reduce = useReducedMotion()
+  const tier = useMotionTier()
   const ref = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -267,7 +274,9 @@ export function Parallax({
   })
   const y = useTransform(scrollYProgress, [0, 1], [speed, -speed])
 
-  if (reduce) return <div className={className}>{children}</div>
+  // Scroll-linked parallax recomputes on every scroll frame; reserve it for the
+  // cinematic tier so balanced/minimal devices keep a jank-free scroll.
+  if (reduce || tier !== "cinematic") return <div className={className}>{children}</div>
 
   return (
     <div ref={ref} className={className}>
@@ -282,6 +291,7 @@ export function Parallax({
  */
 export function ScrollProgress({ className }: { className?: string }) {
   const reduce = useReducedMotion()
+  const tier = useMotionTier()
   const { scrollYProgress } = useScroll()
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 120,
@@ -289,7 +299,7 @@ export function ScrollProgress({ className }: { className?: string }) {
     restDelta: 0.001,
   })
 
-  if (reduce) return null
+  if (reduce || tier === "minimal") return null
 
   return (
     <motion.div

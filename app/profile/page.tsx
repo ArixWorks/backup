@@ -1,12 +1,13 @@
 "use client"
 
-import { Mail, Send, ShieldCheck, User as UserIcon, Wallet } from "lucide-react"
+import { Gauge, Languages, Mail, Send, ShieldCheck, User as UserIcon, Wallet } from "lucide-react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { MotionQualitySwitcher } from "@/components/motion-quality-switcher"
 
 export default function ProfilePage() {
   const { user, logout } = useSession()
@@ -76,11 +77,19 @@ export default function ProfilePage() {
           label={t("profile.role")}
           value={user.role}
         />
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Languages className="h-4 w-4" />
             {t("profile.language")}
           </span>
           <LanguageSwitcher />
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Gauge className="h-4 w-4" />
+            {t("profile.motion")}
+          </span>
+          <MotionQualitySwitcher />
         </div>
       </div>
 

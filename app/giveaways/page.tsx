@@ -7,6 +7,7 @@ import { fetcher } from "@/lib/api-client"
 import { useI18n } from "@/components/i18n-provider"
 import { GiveawayCard, type GiveawaySummary } from "@/components/giveaway-card"
 import { EmptyState } from "@/components/empty-state"
+import { CardSkeleton } from "@/components/loading-skeleton"
 import { Stagger, FadeItem } from "@/components/motion"
 
 export default function GiveawaysPage() {
@@ -46,7 +47,7 @@ export default function GiveawaysPage() {
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {[0, 1].map((i) => (
-            <div key={i} className="shimmer card-premium h-72 w-full rounded-2xl border border-border" />
+            <CardSkeleton key={i} />
           ))}
         </div>
       ) : giveaways.length === 0 ? (
