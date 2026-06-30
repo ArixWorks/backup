@@ -8,22 +8,28 @@ import { ForbiddenError } from "@/lib/core/errors"
  * uses SameSite=None.
  */
 export function assertSameOrigin(req: Request): void {
-  // Allowed hosts: the direct Host plus any proxy-forwarded host. Behind a
-  // reverse proxy / preview iframe the browser's Origin matches the original
-  // (forwarded) host while the server's Host header is the internal one — both
-  // are legitimately same-origin, so we accept either.
-  const allowedHosts = new Set(
-    [req.headers.get("host"), req.headers.get("x-forwarded-host")].filter((h): h is string => !!h),
-  )
-  if (allowedHosts.size === 0) throw new ForbiddenError("درخواست نامعتبر")
+  // Primary signal: the browser-set `Sec-Fetch-Site` header. It is a forbidden
+  // header name, so cross-site form/script submissions cannot forge it. Only
+  // "cross-site" is dangerous — "same-origin", "same-site" and "none" (direct
+  // navigation) are all legitimate. This is correct behind reverse proxies /
+  // preview iframes, where the server's Host (e.g. localhost:3000) never
+  // matches the public Origin the browser reports.
+  const secFetchSite = req.headers.get("sec-fetch-site")
+  if (secFetchSite) {
+    if (secFetchSite === "cross-site") throw new ForbiddenError("درخواست از مبدأ نامعتبر")
+    return
+  }
 
-  const origin = req.headers.get("origin")
-  const referer = req.headers.get("referer")
-  const source = origin || referer
+  // Fallback for legacy clients without Sec-Fetch-Site: compare the
+  // Origin/Referer host against our own Host / forwarded host.
+  const source = req.headers.get("origin") || req.headers.get("referer")
   // No Origin/Referer (e.g. some same-origin navigations) — allow, the cookie
   // SameSite policy still applies.
   if (!source) return
 
+  const allowedHosts = new Set(
+    [req.headers.get("host"), req.headers.get("x-forwarded-host")].filter((h): h is string => !!h),
+  )
   try {
     const url = new URL(source)
     if (!allowedHosts.has(url.host)) throw new ForbiddenError("درخواست از مبدأ نامعتبر")

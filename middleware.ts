@@ -26,6 +26,36 @@ function isExempt(pathname: string): boolean {
   return CSRF_EXEMPT_PREFIXES.some((p) => pathname.startsWith(p))
 }
 
+/**
+ * Decide whether a state-changing request originates from a foreign site.
+ *
+ * Primary signal: the `Sec-Fetch-Site` header. Browsers set it automatically
+ * and it is a forbidden header name, so cross-site form/script submissions
+ * cannot forge it. Only the literal value "cross-site" is dangerous;
+ * "same-origin", "same-site" and "none" (direct navigation) are all legitimate.
+ * This works correctly behind reverse proxies / preview iframes where the
+ * server's Host header (e.g. localhost:3000) never matches the public Origin.
+ *
+ * Fallback (legacy clients without Sec-Fetch-Site): compare the Origin/Referer
+ * host against our own Host / forwarded host.
+ */
+function isCrossSiteRequest(req: NextRequest): boolean {
+  const secFetchSite = req.headers.get("sec-fetch-site")
+  if (secFetchSite) return secFetchSite === "cross-site"
+
+  const source = req.headers.get("origin") || req.headers.get("referer")
+  if (!source) return false // no Origin/Referer — rely on SameSite cookie policy
+
+  const allowedHosts = new Set(
+    [req.headers.get("host"), req.headers.get("x-forwarded-host")].filter((h): h is string => !!h),
+  )
+  try {
+    return !allowedHosts.has(new URL(source).host)
+  } catch {
+    return true
+  }
+}
+
 export function middleware(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl
 
@@ -33,39 +63,11 @@ export function middleware(req: NextRequest): NextResponse {
     return NextResponse.next()
   }
 
-  const source = req.headers.get("origin") || req.headers.get("referer")
-
-  console.log("[v0] CSRF check", {
-    pathname,
-    method: req.method,
-    host: req.headers.get("host"),
-    xForwardedHost: req.headers.get("x-forwarded-host"),
-    origin: req.headers.get("origin"),
-    referer: req.headers.get("referer"),
-  })
-
-  // Allowed hosts: the direct Host plus any proxy-forwarded host. Behind a
-  // reverse proxy / preview iframe the browser's Origin matches the original
-  // (forwarded) host, while the server's Host header is the internal one — both
-  // are legitimately same-origin, so we accept either.
-  const allowedHosts = new Set(
-    [req.headers.get("host"), req.headers.get("x-forwarded-host")].filter((h): h is string => !!h),
-  )
-
-  // A present Origin/Referer that disagrees with every allowed host is cross-site.
-  if (allowedHosts.size > 0 && source) {
-    let originHost: string | null = null
-    try {
-      originHost = new URL(source).host
-    } catch {
-      originHost = null
-    }
-    if (!originHost || !allowedHosts.has(originHost)) {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "درخواست از مبدأ نامعتبر" } },
-        { status: 403 },
-      )
-    }
+  if (isCrossSiteRequest(req)) {
+    return NextResponse.json(
+      { ok: false, error: { code: "FORBIDDEN", message: "درخواست از مبدأ نامعتبر" } },
+      { status: 403 },
+    )
   }
 
   return NextResponse.next()
