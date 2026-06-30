@@ -33,20 +33,25 @@ export function middleware(req: NextRequest): NextResponse {
     return NextResponse.next()
   }
 
-  const host = req.headers.get("host")
   const source = req.headers.get("origin") || req.headers.get("referer")
 
-  // A present Origin/Referer that disagrees with Host is a cross-site request.
-  if (host && source) {
+  // Allowed hosts: the direct Host plus any proxy-forwarded host. Behind a
+  // reverse proxy / preview iframe the browser's Origin matches the original
+  // (forwarded) host, while the server's Host header is the internal one — both
+  // are legitimately same-origin, so we accept either.
+  const allowedHosts = new Set(
+    [req.headers.get("host"), req.headers.get("x-forwarded-host")].filter((h): h is string => !!h),
+  )
+
+  // A present Origin/Referer that disagrees with every allowed host is cross-site.
+  if (allowedHosts.size > 0 && source) {
+    let originHost: string | null = null
     try {
-      const url = new URL(source)
-      if (url.host !== host) {
-        return NextResponse.json(
-          { ok: false, error: { code: "FORBIDDEN", message: "درخواست از مبدأ نامعتبر" } },
-          { status: 403 },
-        )
-      }
+      originHost = new URL(source).host
     } catch {
+      originHost = null
+    }
+    if (!originHost || !allowedHosts.has(originHost)) {
       return NextResponse.json(
         { ok: false, error: { code: "FORBIDDEN", message: "درخواست از مبدأ نامعتبر" } },
         { status: 403 },

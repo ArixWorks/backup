@@ -8,8 +8,14 @@ import { ForbiddenError } from "@/lib/core/errors"
  * uses SameSite=None.
  */
 export function assertSameOrigin(req: Request): void {
-  const host = req.headers.get("host")
-  if (!host) throw new ForbiddenError("درخواست نامعتبر")
+  // Allowed hosts: the direct Host plus any proxy-forwarded host. Behind a
+  // reverse proxy / preview iframe the browser's Origin matches the original
+  // (forwarded) host while the server's Host header is the internal one — both
+  // are legitimately same-origin, so we accept either.
+  const allowedHosts = new Set(
+    [req.headers.get("host"), req.headers.get("x-forwarded-host")].filter((h): h is string => !!h),
+  )
+  if (allowedHosts.size === 0) throw new ForbiddenError("درخواست نامعتبر")
 
   const origin = req.headers.get("origin")
   const referer = req.headers.get("referer")
@@ -20,7 +26,7 @@ export function assertSameOrigin(req: Request): void {
 
   try {
     const url = new URL(source)
-    if (url.host !== host) throw new ForbiddenError("درخواست از مبدأ نامعتبر")
+    if (!allowedHosts.has(url.host)) throw new ForbiddenError("درخواست از مبدأ نامعتبر")
   } catch {
     throw new ForbiddenError("درخواست از مبدأ نامعتبر")
   }
