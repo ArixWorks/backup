@@ -8,6 +8,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { GiveawayCard, type GiveawaySummary } from "@/components/giveaway-card"
 import { EmptyState } from "@/components/empty-state"
 import { CardSkeleton } from "@/components/loading-skeleton"
+import { PageHeader } from "@/components/page-header"
 import { Stagger, FadeItem } from "@/components/motion"
 
 export default function GiveawaysPage() {
@@ -25,12 +26,11 @@ export default function GiveawaysPage() {
   return (
     <Stagger className="space-y-6">
       <FadeItem>
-        <header className="space-y-1">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="flex items-center gap-2 text-xl font-extrabold">
-              <Gift className="h-5 w-5 text-primary" />
-              {t("giveaways.title")}
-            </h1>
+        <PageHeader
+          icon={Gift}
+          title={t("giveaways.title")}
+          description={t("giveaways.subtitle")}
+          action={
             <Link
               href="/giveaways/wins"
               className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-secondary/70"
@@ -39,9 +39,8 @@ export default function GiveawaysPage() {
               {t("giveaways.myWins")}
               <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
             </Link>
-          </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">{t("giveaways.subtitle")}</p>
-        </header>
+          }
+        />
       </FadeItem>
 
       {isLoading ? (

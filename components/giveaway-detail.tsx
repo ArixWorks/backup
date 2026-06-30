@@ -120,9 +120,9 @@ export function GiveawayDetail({
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-5">
               <StatusBadge status={giveaway.status} />
-              <h1 className="mt-2 text-balance text-2xl font-extrabold leading-tight">{giveaway.title}</h1>
+              <h1 dir="auto" className="mt-2 text-balance text-2xl font-extrabold leading-tight">{giveaway.title}</h1>
               {giveaway.subtitle && (
-                <p className="mt-1 text-sm text-muted-foreground">{giveaway.subtitle}</p>
+                <p dir="auto" className="mt-1 text-sm text-muted-foreground">{giveaway.subtitle}</p>
               )}
             </div>
           </div>
@@ -161,7 +161,7 @@ export function GiveawayDetail({
           </span>
           <div className="min-w-0">
             <span className="text-[11px] text-muted-foreground">{t("gwd.prize")}</span>
-            <p className="truncate font-bold leading-6">{giveaway.prizeLabel}</p>
+            <p dir="auto" className="truncate font-bold leading-6">{giveaway.prizeLabel}</p>
           </div>
           <span className="mr-auto shrink-0 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-gold">
             {t("gw.winnersCount", { count: giveaway.winnersCount })}
@@ -173,7 +173,7 @@ export function GiveawayDetail({
       {giveaway.description && (
         <FadeItem>
           <div className="card-premium rounded-2xl border border-border p-4">
-            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+            <p dir="auto" className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
               {giveaway.description}
             </p>
           </div>
@@ -255,7 +255,7 @@ export function GiveawayDetail({
                       {w.position}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate font-bold leading-5">{w.name}</p>
+                      <p dir="auto" className="truncate font-bold leading-5">{w.name}</p>
                       {w.username && <p className="truncate text-xs text-muted-foreground">{w.username}</p>}
                     </div>
                     <Trophy className="mr-auto h-4 w-4 shrink-0 text-primary" />
@@ -351,7 +351,7 @@ function EntryCta({
 function StatusBadge({ status }: { status: string }) {
   const { t } = useI18n()
   const map: Record<string, { labelKey: MessageKey; cls: string; pulse?: boolean }> = {
-    ACTIVE: { labelKey: "gwStatus.ACTIVE", cls: "bg-destructive text-white", pulse: true },
+    ACTIVE: { labelKey: "gwStatus.ACTIVE", cls: "bg-destructive text-destructive-foreground", pulse: true },
     SCHEDULED: { labelKey: "gwStatus.SCHEDULED", cls: "bg-primary/90 text-primary-foreground" },
     PAUSED: { labelKey: "gwStatus.PAUSED", cls: "bg-secondary text-muted-foreground" },
     LOCKED: { labelKey: "gwStatus.LOCKED", cls: "bg-secondary text-muted-foreground" },
@@ -363,7 +363,7 @@ function StatusBadge({ status }: { status: string }) {
   const cls = m?.cls ?? "bg-secondary text-muted-foreground"
   return (
     <span className={"inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium " + cls}>
-      {m?.pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />}
+      {m?.pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive-foreground" />}
       {label}
     </span>
   )

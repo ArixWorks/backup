@@ -1,8 +1,11 @@
 "use client"
 
 import useSWR from "swr"
+import { Crown } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
+import { SignInRequired } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { VipTierCard, type RewardsSummary } from "@/components/rewards/vip-tier-card"
@@ -29,12 +32,13 @@ export default function RewardsPage() {
 
   const rewards = data?.data
 
+  if (!user) {
+    return <SignInRequired description={t("rewards.subtitle")} />
+  }
+
   return (
-    <main className="mx-auto max-w-md px-4 pb-24 pt-5">
-      <header className="mb-4">
-        <h1 className="text-xl font-extrabold text-foreground">{t("rewards.title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("rewards.subtitle")}</p>
-      </header>
+    <div className="space-y-5">
+      <PageHeader icon={Crown} title={t("rewards.title")} description={t("rewards.subtitle")} />
 
       {isLoading || !rewards?.summary ? (
         <div className="space-y-4">
@@ -73,6 +77,6 @@ export default function RewardsPage() {
           </Tabs>
         </div>
       )}
-    </main>
+    </div>
   )
 }

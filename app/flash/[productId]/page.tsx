@@ -174,11 +174,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
             <div className="flex flex-wrap items-center gap-2">
               <DeliveryBadge type={p.deliveryType} />
-              {p.category && (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                  {p.category}
-                </span>
-              )}
+              {p.category && <Badge variant="secondary">{p.category}</Badge>}
             </div>
 
             {p.ratingCount > 0 && (

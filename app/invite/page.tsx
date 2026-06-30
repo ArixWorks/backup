@@ -7,6 +7,7 @@ import { ReferralActivity, type ReferralItem } from "@/components/invite/referra
 import { useSession } from "@/hooks/use-session"
 import { fetcher } from "@/lib/api-client"
 import { SignInRequired } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -31,15 +32,7 @@ export default function InvitePage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-extrabold">
-          <Gift className="h-5 w-5 text-primary" />
-          {t("invite.title")}
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {t("invite.subtitle")}
-        </p>
-      </header>
+      <PageHeader icon={Gift} title={t("invite.title")} description={t("invite.subtitle")} />
 
       {!user ? (
         <SignInRequired description={t("invite.signInRequired")} />
