@@ -10,6 +10,7 @@ import { BidPanel } from "@/components/bid-panel"
 import { WatchButton } from "@/components/watch-button"
 import { Countdown } from "@/components/countdown"
 import { DeliveryBadge } from "@/components/delivery-badge"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatRelative, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
@@ -65,9 +66,21 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
   if (isLoading || !a) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Skeleton className="h-96 w-full rounded-xl" />
-        <Skeleton className="h-96 w-full rounded-xl" />
+      <div className="space-y-6" role="status" aria-busy="true">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="space-y-6">
+            <Skeleton className="aspect-[16/9] w-full rounded-2xl" />
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-32 rounded-full" />
+              <Skeleton className="h-7 w-3/4 rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </div>
+          <Skeleton className="h-96 w-full rounded-2xl" />
+        </div>
+        <span className="sr-only">Loading…</span>
       </div>
     )
   }
@@ -85,7 +98,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         {/* Left: media + info + history */}
         <div className="space-y-6">
-          <div className="relative aspect-[16/9] overflow-hidden rounded-xl border border-border bg-muted">
+          <div className="card-premium relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-muted">
             {a.coverImage && (
               <Image
                 src={a.coverImage || "/placeholder.svg"}
@@ -96,10 +109,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 priority
               />
             )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/70 via-transparent to-transparent" />
             <div className="absolute right-3 top-3 flex gap-2">
-              <span className="rounded-full bg-background/80 px-3 py-1 text-xs font-medium backdrop-blur">
+              <Badge
+                variant="secondary"
+                className="border border-border/60 bg-background/80 backdrop-blur"
+              >
                 {statusLabels[a.status] ? t(statusLabels[a.status]) : a.status}
-              </span>
+              </Badge>
             </div>
             <div className="absolute bottom-3 left-3">
               <DeliveryBadge type={a.deliveryType} />
@@ -109,21 +126,21 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {a.category && (
-                <span className="rounded-full bg-secondary px-2 py-0.5">{a.category}</span>
+                <Badge variant="secondary">{a.category}</Badge>
               )}
               <span className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" />
                 {t("adetail.bids", { n: formatNumber(a.bidCount) })}
               </span>
             </div>
-            <h1 className="text-2xl font-extrabold leading-tight">{a.title}</h1>
+            <h1 dir="auto" className="text-balance text-2xl font-extrabold leading-tight">{a.title}</h1>
             {a.description && (
-              <p className="leading-relaxed text-muted-foreground">{a.description}</p>
+              <p dir="auto" className="text-pretty leading-relaxed text-muted-foreground">{a.description}</p>
             )}
           </div>
 
           {/* Bid history */}
-          <div className="rounded-xl border border-border bg-card">
+          <div className="card-premium overflow-hidden rounded-2xl border border-border">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-sm font-bold">
               <Gavel className="h-4 w-4 text-primary" />
               {t("adetail.bidHistory")}
@@ -165,7 +182,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Right: price + countdown + bid panel */}
         <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+          <div className="card-premium space-y-4 rounded-2xl border border-border p-5">
             <div>
               <span className="text-xs text-muted-foreground">
                 {a.bidCount > 0 ? t("adetail.topBidNow") : t("adetail.basePrice")}

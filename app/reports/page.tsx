@@ -5,6 +5,7 @@ import { ReceiptText, ArrowDownLeft } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
 import { DEPOSIT_STATUS_TONE } from "@/lib/support-meta"
@@ -44,13 +45,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-extrabold">
-          <ReceiptText className="h-5 w-5 text-primary" />
-          {t("reports.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t("reports.subtitle")}</p>
-      </header>
+      <PageHeader icon={ReceiptText} title={t("reports.title")} description={t("reports.subtitle")} />
 
       {isLoading ? (
         <div className="space-y-2">

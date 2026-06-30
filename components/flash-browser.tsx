@@ -6,8 +6,9 @@ import { Search, SearchX, X, Zap } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
 import { EmptyState } from "@/components/empty-state"
-import { Skeleton } from "@/components/ui/skeleton"
+import { CardSkeleton } from "@/components/loading-skeleton"
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -18,7 +19,6 @@ import {
 } from "@/components/ui/select"
 import { useI18n } from "@/components/i18n-provider"
 import { CategoryFollowButton } from "@/components/category-follow-button"
-import { cn } from "@/lib/utils"
 
 type Category = { category: string; count: number }
 type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
@@ -137,7 +137,7 @@ export function FlashBrowser() {
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
+            <CardSkeleton key={i} />
           ))}
         </div>
       ) : sales.length === 0 ? (
@@ -173,27 +173,4 @@ export function FlashBrowser() {
   )
 }
 
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/40",
-      )}
-    >
-      {children}
-    </button>
-  )
-}
+

@@ -12,18 +12,32 @@ import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { ScrollProgress } from "@/components/motion"
 
 /**
+ * Standalone authentication / account-recovery routes. These render bare
+ * (no storefront chrome, no AuthGate) because they're either for signed-out
+ * users (login, forgot/reset password) or opened from an email link in a
+ * fresh browser (email verification). They own their full-screen layout via
+ * AuthShell.
+ */
+const BARE_ROUTES = new Set([
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/account/verify-email",
+])
+
+/**
  * Renders the storefront chrome (compact header + bottom tab bar) for the
- * Telegram Mini App experience. The login page renders bare (no chrome, no
- * gate); admin routes bring their own AdminShell and handle their own auth.
+ * Telegram Mini App experience. Auth/recovery routes render bare (no chrome,
+ * no gate); admin routes bring their own AdminShell and handle their own auth.
  * Everything else sits behind the AuthGate so only the signed-in user's own
  * data is ever shown.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdmin = pathname?.startsWith("/admin")
-  const isLogin = pathname === "/login"
+  const isBare = pathname ? BARE_ROUTES.has(pathname) : false
 
-  if (isLogin) return <>{children}</>
+  if (isBare) return <>{children}</>
   if (isAdmin) return <>{children}</>
 
   return (

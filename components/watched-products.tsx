@@ -5,7 +5,7 @@ import Image from "next/image"
 import useSWR from "swr"
 import { PackageCheck, PackageX } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
-import { Skeleton } from "@/components/ui/skeleton"
+import { RowListSkeleton } from "@/components/loading-skeleton"
 import { useI18n } from "@/components/i18n-provider"
 
 interface WatchedProduct {
@@ -27,13 +27,7 @@ export function WatchedProducts() {
   const products = data?.data ?? []
 
   if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {[0, 1].map((i) => (
-          <Skeleton key={i} className="h-20 w-full rounded-2xl" />
-        ))}
-      </div>
-    )
+    return <RowListSkeleton count={2} />
   }
 
   if (products.length === 0) {

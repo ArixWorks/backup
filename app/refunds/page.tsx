@@ -1,12 +1,13 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useId, cloneElement, isValidElement } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
 import { Undo2, Loader2, Upload, ShieldCheck, Info, CheckCircle2 } from "lucide-react"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { SignInRequired } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -106,15 +107,7 @@ export default function RefundsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-extrabold">
-          <Undo2 className="h-5 w-5 text-primary" />
-          {t("refunds.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground text-pretty">
-          {t("refunds.subtitle")}
-        </p>
-      </header>
+      <PageHeader icon={Undo2} title={t("refunds.title")} description={t("refunds.subtitle")} />
 
       <div className="flex items-start gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs leading-relaxed text-muted-foreground">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -246,10 +239,17 @@ export default function RefundsPage() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId()
+  // Associate the label with a single labelable control. When the field wraps
+  // multiple nodes (e.g. the file picker's hidden input + button), the control
+  // carries its own accessible name, so we render without an htmlFor binding.
+  const single = isValidElement<{ id?: string }>(children) ? children : null
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      {children}
+      <label htmlFor={single ? id : undefined} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </label>
+      {single ? cloneElement(single, { id }) : children}
     </div>
   )
 }

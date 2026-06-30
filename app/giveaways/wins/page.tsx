@@ -8,6 +8,7 @@ import { Trophy, Gift, Copy, Wallet, Ticket, KeyRound, Clock, ChevronLeft } from
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
 import { Stagger, FadeItem } from "@/components/motion"
@@ -139,19 +140,19 @@ export default function MyPrizesPage() {
   return (
     <Stagger className="space-y-5">
       <FadeItem>
-        <header className="flex items-center justify-between gap-3">
-          <h1 className="flex items-center gap-2 text-xl font-extrabold">
-            <Trophy className="h-5 w-5 text-primary" />
-            {t("giveaways.myWins")}
-          </h1>
-          <Link
-            href="/giveaways"
-            className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
-          >
-            {t("giveaways.all")}
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </Link>
-        </header>
+        <PageHeader
+          icon={Trophy}
+          title={t("giveaways.myWins")}
+          action={
+            <Link
+              href="/giveaways"
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+            >
+              {t("giveaways.all")}
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Link>
+          }
+        />
       </FadeItem>
 
       {isLoading ? (
@@ -190,10 +191,10 @@ export default function MyPrizesPage() {
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/giveaways/${w.giveaway.slug}`} className="font-bold leading-tight hover:text-primary">
+                    <Link href={`/giveaways/${w.giveaway.slug}`} dir="auto" className="font-bold leading-tight hover:text-primary">
                       {w.giveaway.title}
                     </Link>
-                    <p className="mt-0.5 text-sm text-muted-foreground">{w.giveaway.prizeLabel}</p>
+                    <p dir="auto" className="mt-0.5 text-sm text-muted-foreground">{w.giveaway.prizeLabel}</p>
                     <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
                       <Trophy className="h-3 w-3" />
                       {t("wins.position", { n: w.position })} • {formatDateTime(w.createdAt)}

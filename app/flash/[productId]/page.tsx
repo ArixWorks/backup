@@ -14,6 +14,7 @@ import { DeliveryBadge } from "@/components/delivery-badge"
 import { ReviewsSection } from "@/components/reviews-section"
 import { StarRating } from "@/components/star-rating"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/i18n-provider"
 import { Reveal } from "@/components/motion"
@@ -56,9 +57,19 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
   if (isLoading) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Skeleton className="h-80 w-full rounded-2xl" />
-        <Skeleton className="h-80 w-full rounded-2xl" />
+      <div className="space-y-6" role="status" aria-busy="true">
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <div className="space-y-6">
+            <Skeleton className="aspect-square w-full rounded-2xl sm:aspect-[4/3]" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24 rounded-full" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
+          </div>
+          <Skeleton className="h-80 w-full rounded-2xl" />
+        </div>
+        <span className="sr-only">Loading…</span>
       </div>
     )
   }
@@ -104,7 +115,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
           {p.description && (
             <section className="space-y-2">
               <h2 className="text-sm font-bold">{t("detail.description")}</h2>
-              <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
+              <p dir="auto" className="whitespace-pre-line leading-relaxed text-muted-foreground">
                 {p.description}
               </p>
             </section>
@@ -149,7 +160,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
         <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           <div className="gold-border surface-glow space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5">
             <div className="flex items-start justify-between gap-2">
-              <h1 className="text-xl font-extrabold leading-tight text-balance">{p.title}</h1>
+              <h1 dir="auto" className="text-xl font-extrabold leading-tight text-balance">{p.title}</h1>
               <Button
                 variant="ghost"
                 size="icon"
@@ -163,11 +174,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
             <div className="flex flex-wrap items-center gap-2">
               <DeliveryBadge type={p.deliveryType} />
-              {p.category && (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                  {p.category}
-                </span>
-              )}
+              {p.category && <Badge variant="secondary">{p.category}</Badge>}
             </div>
 
             {p.ratingCount > 0 && (

@@ -7,6 +7,7 @@ import Link from "next/link"
 import { fetcher } from "@/lib/api-client"
 import { EmptyState } from "@/components/empty-state"
 import { GiveawayDetail, type GiveawayDetailData } from "@/components/giveaway-detail"
+import { CardSkeleton } from "@/components/loading-skeleton"
 import { Stagger, FadeItem } from "@/components/motion"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -34,7 +35,7 @@ export default function GiveawayLandingPage({ params }: { params: Promise<{ slug
       </FadeItem>
 
       {isLoading ? (
-        <div className="shimmer card-premium h-96 w-full rounded-2xl border border-border" />
+        <CardSkeleton className="h-96" />
       ) : !giveaway ? (
         <FadeItem>
           <EmptyState

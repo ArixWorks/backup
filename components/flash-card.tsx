@@ -78,7 +78,7 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <Link href={`/flash/${sale.id}`} className="line-clamp-1 font-bold leading-6 hover:text-primary">
+          <Link href={`/flash/${sale.id}`} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
             {sale.title}
           </Link>
           {!!sale.soldDisplay && sale.soldDisplay > 0 && (
@@ -88,7 +88,7 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
           )}
         </div>
         {sale.description && (
-          <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{sale.description}</p>
+          <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">{sale.description}</p>
         )}
         {sale.links && sale.links.length > 0 && (
           <div className="flex flex-wrap gap-1.5">

@@ -4,6 +4,8 @@ import { useState } from "react"
 import useSWR from "swr"
 import { ShieldCheck, LogOut, Loader2, Send, KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { PageHeader } from "@/components/page-header"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { EmailSection } from "@/components/account/email-section"
 import { PasswordSection } from "@/components/account/password-section"
@@ -52,14 +54,8 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <ShieldCheck className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-extrabold">{t("account.title")}</h1>
-          <p className="text-xs text-muted-foreground">{t("account.subtitle")}</p>
-        </div>
-      </header>
+    <div className="space-y-5">
+      <PageHeader icon={ShieldCheck} title={t("account.title")} description={t("account.subtitle")} />
 
       {/* Active login methods summary */}
       <section className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
@@ -67,17 +63,14 @@ export default function AccountPage() {
         {state.methods.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {state.methods.map((m) => (
-              <span
-                key={m}
-                className="flex items-center gap-1 rounded-full bg-card px-3 py-1 text-xs font-semibold text-foreground"
-              >
+              <Badge key={m} variant="secondary" className="gap-1">
                 {m === "telegram" ? (
                   <Send className="h-3.5 w-3.5 text-[#229ED9]" />
                 ) : (
                   <KeyRound className="h-3.5 w-3.5 text-primary" />
                 )}
                 {methodLabels[m] ? t(methodLabels[m]) : m}
-              </span>
+              </Badge>
             ))}
           </div>
         ) : (

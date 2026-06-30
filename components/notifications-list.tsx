@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { fetcher, apiPost, apiDelete } from "@/lib/api-client"
-import { Skeleton } from "@/components/ui/skeleton"
+import { RowListSkeleton } from "@/components/loading-skeleton"
 import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/empty-state"
 import { formatRelative } from "@/lib/format"
@@ -218,11 +218,7 @@ export function NotificationsList() {
 
       {/* List */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-2xl" />
-          ))}
-        </div>
+        <RowListSkeleton count={4} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={search.trim() ? Search : tab === "archived" ? Archive : tab === "unread" ? CheckCheck : Bell}

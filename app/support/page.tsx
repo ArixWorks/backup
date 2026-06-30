@@ -6,6 +6,7 @@ import { LifeBuoy, ChevronLeft, MessageSquare } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
+import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { NewTicketDialog } from "@/components/support/new-ticket-dialog"
 import { formatRelative } from "@/lib/format"
@@ -57,16 +58,12 @@ export default function SupportPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex items-center justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <h1 className="flex items-center gap-2 text-xl font-extrabold">
-            <LifeBuoy className="h-5 w-5 text-primary" />
-            {t("support.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t("support.subtitle")}</p>
-        </div>
-        <NewTicketDialog onCreated={() => mutate()} />
-      </header>
+      <PageHeader
+        icon={LifeBuoy}
+        title={t("support.title")}
+        description={t("support.subtitle")}
+        action={<NewTicketDialog onCreated={() => mutate()} />}
+      />
 
       {isLoading ? (
         <div className="space-y-2">
@@ -90,7 +87,7 @@ export default function SupportPage() {
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-bold">{ticket.subject}</span>
+                    <span dir="auto" className="truncate font-bold">{ticket.subject}</span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${SUPPORT_STATUS_TONE[ticket.status]}`}>
                       {t(SUPPORT_STATUS_KEY[ticket.status])}
                     </span>

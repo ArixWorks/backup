@@ -113,7 +113,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
         >
           <ArrowRight className="h-4 w-4" />
         </Link>
-        <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold">
+        <h1 dir="auto" className="min-w-0 flex-1 truncate text-lg font-extrabold">
           {ticket?.subject ?? t("ticket.fallbackTitle")}
         </h1>
         {ticket && (
@@ -152,7 +152,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
                       : "border-border bg-card"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-pretty">{m.body}</p>
+                  <p dir="auto" className="whitespace-pre-wrap text-sm leading-relaxed text-pretty">{m.body}</p>
                   {m.attachmentUrl && (
                     <a
                       href={m.attachmentUrl}
@@ -183,6 +183,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 rows={3}
+                aria-label={t("ticket.replyPlaceholder")}
                 placeholder={t("ticket.replyPlaceholder")}
               />
               <input

@@ -4,7 +4,7 @@ import useSWR from "swr"
 import { Sparkles } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { FlashCard, type FlashSale } from "@/components/flash-card"
-import { Skeleton } from "@/components/ui/skeleton"
+import { CardSkeleton } from "@/components/loading-skeleton"
 import { Stagger, FadeItem } from "@/components/motion"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -34,7 +34,7 @@ export function RecommendedRail({ limit = 6 }: { limit?: number }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
+            <CardSkeleton key={i} />
           ))}
         </div>
       </section>

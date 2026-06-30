@@ -1,12 +1,14 @@
 "use client"
 
-import { Mail, Send, ShieldCheck, User as UserIcon, Wallet } from "lucide-react"
+import { Gauge, Languages, Mail, Send, ShieldCheck, User as UserIcon, Wallet } from "lucide-react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
+import { PageHeader } from "@/components/page-header"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { MotionQualitySwitcher } from "@/components/motion-quality-switcher"
 
 export default function ProfilePage() {
   const { user, logout } = useSession()
@@ -18,10 +20,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="flex items-center gap-2 text-xl font-extrabold">
-        <UserIcon className="h-5 w-5 text-primary" />
-        {t("profile.title")}
-      </h1>
+      <PageHeader icon={UserIcon} title={t("profile.title")} />
 
       {/* Identity card */}
       <div className="surface-glow flex items-center gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-5">
@@ -32,7 +31,7 @@ export default function ProfilePage() {
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <div className="truncate text-lg font-extrabold text-foreground">
+          <div dir="auto" className="truncate text-lg font-extrabold text-foreground">
             {user.displayName}
           </div>
           {user.alias && (
@@ -76,11 +75,19 @@ export default function ProfilePage() {
           label={t("profile.role")}
           value={user.role}
         />
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Languages className="h-4 w-4" />
             {t("profile.language")}
           </span>
           <LanguageSwitcher />
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Gauge className="h-4 w-4" />
+            {t("profile.motion")}
+          </span>
+          <MotionQualitySwitcher />
         </div>
       </div>
 
