@@ -17,14 +17,25 @@ import {
   Volume2,
   VolumeX,
   ChevronLeft,
+  ChevronDown,
+  Crown,
+  Medal,
+  Award,
+  Trophy,
+  Gem,
 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { CONTROL_SURFACE } from "@/components/header/control-button"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import { fetcher } from "@/lib/api-client"
+import { TIER_META, tierLabelKey, type Tier } from "@/lib/tiers"
 import { isNotifMuted, setNotifMuted, playNotificationChime, primeAudio } from "@/lib/notification-sound"
 import { cn } from "@/lib/utils"
+
+/** Map a tier's logical glyph name to its lucide icon component. */
+const TIER_GLYPH = { User, Medal, Award, Trophy, Gem, Crown } as const
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -76,6 +87,11 @@ export function ProfileMenu() {
 
   const isStaff = user.role === "ADMIN"
 
+  const tier: Tier = user.membership?.tier ?? "STANDARD"
+  const tierMeta = TIER_META[tier]
+  const TierGlyph = TIER_GLYPH[tierMeta.glyph]
+  const tierLabel = t(tierLabelKey(tier) as Parameters<typeof t>[0])
+
   const items: Item[] = [
     { href: "/notifications", label: t("menu.notifications"), desc: t("menu.notificationsDesc"), icon: Bell, badge: unread },
     { href: "/wallet", label: t("menu.wallet"), desc: t("menu.walletDesc"), icon: Wallet, tone: "primary" },
@@ -103,19 +119,42 @@ export function ProfileMenu() {
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger
         aria-label={t("menu.accountAria")}
-        className="active:scale-press relative rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
+        className={cn(CONTROL_SURFACE, "h-10 gap-2 px-1 min-[480px]:pl-1 min-[480px]:pr-3")}
       >
-        <Avatar size="default" className="h-9 w-9 ring-1 ring-primary/30">
-          {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
-          <AvatarFallback className="bg-primary/15 text-sm font-bold text-primary">
-            {initials(user.displayName)}
-          </AvatarFallback>
-        </Avatar>
-        {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-background">
-            {unread > 9 ? "9+" : unread}
+        {/* Avatar with a luxe gold ring + a tier glyph micro-badge. */}
+        <span className="relative shrink-0">
+          <Avatar size="default" className="h-8 w-8 ring-1 ring-primary/40">
+            {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
+            <AvatarFallback className="bg-primary/15 text-sm font-bold text-primary">
+              {initials(user.displayName)}
+            </AvatarFallback>
+          </Avatar>
+          <span
+            className={cn(
+              "absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-card",
+              tierMeta.chip,
+            )}
+          >
+            <TierGlyph className="h-2.5 w-2.5" />
           </span>
-        )}
+          {unread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground ring-2 ring-card">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </span>
+
+        {/* Name + tier — revealed once there's horizontal room. */}
+        <span className="hidden min-w-0 flex-col items-start min-[480px]:flex">
+          <span className="max-w-[7.5rem] truncate text-sm font-bold leading-tight text-foreground">
+            {user.displayName}
+          </span>
+          <span className={cn("flex items-center gap-1 text-[11px] font-semibold leading-tight", tierMeta.text)}>
+            <TierGlyph className="h-3 w-3" />
+            {tierLabel}
+          </span>
+        </span>
+        <ChevronDown className="hidden h-4 w-4 shrink-0 text-muted-foreground min-[480px]:inline" />
       </DialogPrimitive.Trigger>
 
       <DialogPrimitive.Portal>
