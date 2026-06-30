@@ -5,7 +5,7 @@ import { Gavel } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { EmptyState } from "@/components/empty-state"
-import { Skeleton } from "@/components/ui/skeleton"
+import { CardListSkeleton } from "@/components/loading-skeleton"
 import { useI18n } from "@/components/i18n-provider"
 
 export default function AuctionsPage() {
@@ -28,11 +28,7 @@ export default function AuctionsPage() {
       </header>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-2xl" />
-          ))}
-        </div>
+        <CardListSkeleton count={3} />
       ) : auctions.length === 0 ? (
         <EmptyState
           icon={Gavel}

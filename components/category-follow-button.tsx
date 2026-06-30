@@ -7,6 +7,7 @@ import { Bell, BellRing, Loader2 } from "lucide-react"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { cn } from "@/lib/utils"
+import { chipBase } from "@/components/ui/chip"
 import { useI18n } from "@/components/i18n-provider"
 
 /**
@@ -51,9 +52,10 @@ export function CategoryFollowButton({ category }: { category: string }) {
       disabled={loading}
       aria-pressed={following}
       className={cn(
-        "active:scale-press inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors",
+        chipBase,
+        "font-bold",
         following
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "border-primary bg-primary text-primary-foreground shadow-[var(--shadow-accent)]"
           : "border-border bg-secondary/50 text-muted-foreground hover:text-foreground",
       )}
     >

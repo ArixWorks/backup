@@ -6,7 +6,7 @@ import { fetcher } from "@/lib/api-client"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { WatchedProducts } from "@/components/watched-products"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
-import { Skeleton } from "@/components/ui/skeleton"
+import { CardListSkeleton } from "@/components/loading-skeleton"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -43,11 +43,7 @@ export default function WatchlistPage() {
               {t("auctions.title")}
             </h2>
             {isLoading ? (
-              <div className="space-y-3">
-                {[0, 1].map((i) => (
-                  <Skeleton key={i} className="h-64 w-full rounded-2xl" />
-                ))}
-              </div>
+              <CardListSkeleton count={2} />
             ) : auctions.length === 0 ? (
               <EmptyState
                 icon={BellRing}
