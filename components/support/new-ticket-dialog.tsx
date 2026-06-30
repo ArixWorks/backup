@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useId, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Loader2, Paperclip, Plus, X } from "lucide-react"
 import {
@@ -35,6 +35,9 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const categoryId = useId()
+  const subjectId = useId()
+  const messageId = useId()
 
   function reset() {
     setSubject("")
@@ -79,8 +82,9 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
 
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">{t("newTicket.category")}</label>
+            <label htmlFor={categoryId} className="text-xs font-medium text-muted-foreground">{t("newTicket.category")}</label>
             <select
+              id={categoryId}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -94,8 +98,9 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">{t("newTicket.subject")}</label>
+            <label htmlFor={subjectId} className="text-xs font-medium text-muted-foreground">{t("newTicket.subject")}</label>
             <Input
+              id={subjectId}
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder={t("newTicket.subjectPlaceholder")}
@@ -104,8 +109,9 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">{t("newTicket.desc")}</label>
+            <label htmlFor={messageId} className="text-xs font-medium text-muted-foreground">{t("newTicket.desc")}</label>
             <Textarea
+              id={messageId}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={t("newTicket.descPlaceholder")}
