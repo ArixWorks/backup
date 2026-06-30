@@ -6,6 +6,7 @@ import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { Badge } from "@/components/ui/badge"
+import { PageHeader } from "@/components/page-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
@@ -92,10 +93,7 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="flex items-center gap-2 text-xl font-extrabold">
-        <Package className="h-5 w-5 text-primary" />
-        {t("orders.title")}
-      </h1>
+      <PageHeader icon={Package} title={t("orders.title")} />
 
       {isLoading ? (
         <div className="space-y-3">
@@ -127,7 +125,7 @@ export default function OrdersPage() {
                       )}
                     </span>
                     <div>
-                      <h3 className="font-bold">{o.title}</h3>
+                      <h3 dir="auto" className="font-bold">{o.title}</h3>
                       <span className="text-xs text-muted-foreground">
                         {t("orders.codeLabel")} {o.publicId} • {formatDateTime(o.createdAt)}
                       </span>

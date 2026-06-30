@@ -66,7 +66,7 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-1 font-bold leading-6">{auction.title}</h3>
+          <h3 dir="auto" className="line-clamp-1 font-bold leading-6">{auction.title}</h3>
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
             {formatNumber(auction.bidCount)}

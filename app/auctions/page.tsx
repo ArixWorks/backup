@@ -6,6 +6,7 @@ import { fetcher } from "@/lib/api-client"
 import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { EmptyState } from "@/components/empty-state"
 import { CardListSkeleton } from "@/components/loading-skeleton"
+import { PageHeader } from "@/components/page-header"
 import { useI18n } from "@/components/i18n-provider"
 
 export default function AuctionsPage() {
@@ -17,15 +18,7 @@ export default function AuctionsPage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-extrabold">
-          <Gavel className="h-5 w-5 text-primary" />
-          {t("auctions.title")}
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {t("auctions.subtitle")}
-        </p>
-      </header>
+      <PageHeader icon={Gavel} title={t("auctions.title")} description={t("auctions.subtitle")} />
 
       {isLoading ? (
         <CardListSkeleton count={3} />

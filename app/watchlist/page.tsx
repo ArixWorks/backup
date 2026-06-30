@@ -7,6 +7,7 @@ import { AuctionCard, type AuctionSummary } from "@/components/auction-card"
 import { WatchedProducts } from "@/components/watched-products"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
 import { CardListSkeleton } from "@/components/loading-skeleton"
+import { PageHeader } from "@/components/page-header"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -22,15 +23,7 @@ export default function WatchlistPage() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-extrabold">
-          <BellRing className="h-5 w-5 text-primary" />
-          {t("watchlist.title")}
-        </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {t("watchlist.subtitle")}
-        </p>
-      </header>
+      <PageHeader icon={BellRing} title={t("watchlist.title")} description={t("watchlist.subtitle")} />
 
       {!user ? (
         <SignInRequired description={t("watchlist.signInRequired")} />
