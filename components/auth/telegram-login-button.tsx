@@ -53,7 +53,11 @@ export function TelegramLoginButton({
     let elapsed = 0
     const interval = window.setInterval(() => {
       elapsed += 400
-      if (container.querySelector("iframe")) {
+      const iframe = container.querySelector("iframe")
+      if (iframe) {
+        // The Telegram widget injects this iframe; give it an accessible name
+        // so it doesn't trip WCAG "frames must have a title".
+        if (!iframe.getAttribute("title")) iframe.setAttribute("title", t("auth.telegramBtn"))
         setStatus("ready")
         window.clearInterval(interval)
       } else if (elapsed >= 5000) {
@@ -67,7 +71,7 @@ export function TelegramLoginButton({
       delete (window as unknown as Record<string, unknown>)[name]
       if (container) container.innerHTML = ""
     }
-  }, [botUsername, onAuth])
+  }, [botUsername, onAuth, t])
 
   return (
     <div className="w-full">

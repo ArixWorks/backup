@@ -88,7 +88,7 @@ export function ForcePasswordChange() {
             onChange={(e) => setConfirm(e.target.value)}
             required
           />
-          <Button type="submit" disabled={busy} className="mt-1 w-full">
+          <Button type="submit" variant="gold" size="lg" disabled={busy} className="mt-1 w-full">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("forcePwd.save")}
           </Button>
         </form>

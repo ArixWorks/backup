@@ -5,17 +5,17 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
 import { ShieldCheck, Send, Loader2 } from "lucide-react"
-import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
 import { TelegramLoginButton } from "@/components/auth/telegram-login-button"
+import { AuthShell } from "@/components/auth/auth-shell"
 
 type PublicConfig = { data: { brandName?: string; botUsername?: string } }
 
 export function AuthForm() {
-  const { t, dir } = useI18n()
+  const { t } = useI18n()
   const router = useRouter()
   const { mutate } = useSWRConfig()
   const { data: cfg } = useSWR<PublicConfig>("/api/v1/public/config", fetcher)
@@ -71,19 +71,33 @@ export function AuthForm() {
   const privacyPoints = [t("auth.privacy1"), t("auth.privacy2"), t("auth.privacy3"), t("auth.privacy4")]
 
   return (
-    <div className="w-full max-w-md" dir={dir}>
-      <div className="glass rounded-3xl border border-primary/15 p-6 shadow-2xl sm:p-8">
-        {/* Brand */}
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Logo />
-          <h1 className="sr-only">{brandName}</h1>
-          <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
-            {t("auth.tagline")}
-          </p>
+    <AuthShell
+      srHeading={brandName}
+      description={t("auth.tagline")}
+      footer={
+        <div className="glass mt-4 rounded-2xl border border-primary/10 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <h2 className="text-xs font-bold uppercase tracking-wide text-primary">
+              {t("auth.privacyTitle")}
+            </h2>
+          </div>
+          <ul className="flex flex-col gap-2.5">
+            {privacyPoints.map((point, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground"
+              >
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span className="text-pretty">{point}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-
-        {/* Telegram login */}
-        <div className="mt-6 flex flex-col items-center gap-2">
+      }
+    >
+      {/* Telegram login */}
+      <div className="flex flex-col items-center gap-2">
           {botUsername ? (
             <TelegramLoginButton botUsername={botUsername} onAuth={onTelegramAuth} />
           ) : (
@@ -165,25 +179,6 @@ export function AuthForm() {
             </Link>
           )}
         </form>
-      </div>
-
-      {/* Privacy & security */}
-      <div className="glass mt-4 rounded-2xl border border-primary/10 p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          <h2 className="text-xs font-bold uppercase tracking-wide text-primary">
-            {t("auth.privacyTitle")}
-          </h2>
-        </div>
-        <ul className="flex flex-col gap-2.5">
-          {privacyPoints.map((point, i) => (
-            <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span className="text-pretty">{point}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    </AuthShell>
   )
 }

@@ -4,10 +4,10 @@ import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { BadgeCheck, XCircle, Loader2 } from "lucide-react"
-import { Logo } from "@/components/logo"
 import { buttonVariants } from "@/components/ui/button"
 import { apiPost, ApiError } from "@/lib/api-client"
 import { useI18n } from "@/components/i18n-provider"
+import { AuthShell } from "@/components/auth/auth-shell"
 
 function VerifyInner() {
   const { t } = useI18n()
@@ -35,45 +35,39 @@ function VerifyInner() {
   }, [token])
 
   return (
-    <div className="flex min-h-dvh items-center justify-center p-4">
-      <div className="glass w-full max-w-md rounded-3xl border border-primary/15 p-8 text-center">
-        <div className="flex justify-center">
-          <Logo />
+    <AuthShell contentClassName="text-center">
+      {status === "working" && (
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">{t("verify.working")}</p>
         </div>
+      )}
 
-        {status === "working" && (
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">{t("verify.working")}</p>
-          </div>
-        )}
+      {status === "ok" && (
+        <div className="flex flex-col items-center gap-3">
+          <BadgeCheck className="h-12 w-12 text-primary" />
+          <h1 className="text-lg font-extrabold text-foreground">{t("verify.okTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("verify.okDesc")}</p>
+          <Link href="/account" className={buttonVariants({ variant: "gold", className: "mt-2 w-full" })}>
+            {t("verify.backToAccount")}
+          </Link>
+        </div>
+      )}
 
-        {status === "ok" && (
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <BadgeCheck className="h-12 w-12 text-primary" />
-            <h1 className="text-lg font-extrabold text-foreground">{t("verify.okTitle")}</h1>
-            <p className="text-sm text-muted-foreground">{t("verify.okDesc")}</p>
-            <Link href="/account" className={buttonVariants({ className: "mt-2 w-full" })}>
-              {t("verify.backToAccount")}
-            </Link>
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <XCircle className="h-12 w-12 text-destructive" />
-            <h1 className="text-lg font-extrabold text-foreground">{t("verify.failedTitle")}</h1>
-            <p className="text-sm text-muted-foreground">{message}</p>
-            <Link
-              href="/account"
-              className={buttonVariants({ variant: "outline", className: "mt-2 w-full" })}
-            >
-              {t("verify.backToAccount")}
-            </Link>
-          </div>
-        )}
-      </div>
-    </div>
+      {status === "error" && (
+        <div className="flex flex-col items-center gap-3">
+          <XCircle className="h-12 w-12 text-destructive" />
+          <h1 className="text-lg font-extrabold text-foreground">{t("verify.failedTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{message}</p>
+          <Link
+            href="/account"
+            className={buttonVariants({ variant: "outline", className: "mt-2 w-full" })}
+          >
+            {t("verify.backToAccount")}
+          </Link>
+        </div>
+      )}
+    </AuthShell>
   )
 }
 
