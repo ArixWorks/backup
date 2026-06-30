@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic"
 const channelSchema = z.object({
   id: z.string().trim().min(1),
   title: z.string().trim().min(1),
-  url: z.string().trim().min(1),
+  // URL is optional: required-channel membership is keyed off `id`. When present
+  // it must be a valid URL; an empty value is allowed (no public join link).
+  url: z.string().trim().url().or(z.literal("")).optional(),
 })
 
 const updateSchema = z.object({

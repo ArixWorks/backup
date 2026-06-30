@@ -114,7 +114,13 @@ export function GiveawayForm({
 
   function buildPayload(status?: "DRAFT" | "SCHEDULED") {
     const channels = form.requiredChannels
-      .map((c) => ({ id: c.id.trim(), title: c.title.trim(), url: c.url.trim() }))
+      .map((c) => {
+        const url = c.url.trim()
+        // Accept bare links (e.g. "t.me/channel") by prefixing a scheme so the
+        // value is a valid URL; an empty URL is allowed (no public join link).
+        const normalizedUrl = url && !/^https?:\/\//i.test(url) ? `https://${url}` : url
+        return { id: c.id.trim(), title: c.title.trim(), url: normalizedUrl }
+      })
       .filter((c) => c.id && c.title)
     return {
       title: form.title.trim(),
@@ -151,6 +157,12 @@ export function GiveawayForm({
     if (form.prizeKind === "WALLET" && !form.prizeAmount) return "مبلغ جایزه‌ی کیف پول الزامی است"
     if (form.prizeKind === "COUPON" && !form.couponValue) return "مقدار کوپن الزامی است"
     if (form.prizeKind === "INVENTORY" && !form.prizeProductId) return "انتخاب محصول جایزه الزامی است"
+    for (const c of form.requiredChannels) {
+      const hasAny = c.id.trim() || c.title.trim() || c.url.trim()
+      if (hasAny && (!c.id.trim() || !c.title.trim())) {
+        return "برای هر کانال اجباری، شناسه و نام نمایشی الزامی است (آدرس اختیاری است)"
+      }
+    }
     return null
   }
 
