@@ -56,7 +56,7 @@ export function SiteHeader() {
         {/* Subtle top-lit gradient for premium depth. */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.06] to-transparent" />
 
-        <div className="relative mx-auto flex h-16 w-full max-w-xl items-center justify-between gap-2 px-4 px-safe">
+        <div className="relative mx-auto flex h-16 w-full max-w-xl items-center justify-between gap-2 px-5 px-safe">
           {/* Start — account */}
           <ProfileMenu />
 
