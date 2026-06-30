@@ -35,6 +35,15 @@ export function middleware(req: NextRequest): NextResponse {
 
   const source = req.headers.get("origin") || req.headers.get("referer")
 
+  console.log("[v0] CSRF check", {
+    pathname,
+    method: req.method,
+    host: req.headers.get("host"),
+    xForwardedHost: req.headers.get("x-forwarded-host"),
+    origin: req.headers.get("origin"),
+    referer: req.headers.get("referer"),
+  })
+
   // Allowed hosts: the direct Host plus any proxy-forwarded host. Behind a
   // reverse proxy / preview iframe the browser's Origin matches the original
   // (forwarded) host, while the server's Host header is the internal one — both
