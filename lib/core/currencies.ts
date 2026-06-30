@@ -24,6 +24,7 @@ export const DEFAULT_CURRENCIES: CurrencySeed[] = [
   { code: "IRT", name: "تومان", symbol: "تومان", decimals: 0, isBase: true, displayOrder: 0 },
   { code: "USD", name: "دلار آمریکا", symbol: "$", decimals: 2, isBase: false, displayOrder: 1 },
   { code: "USDT", name: "تتر", symbol: "₮", decimals: 2, isBase: false, displayOrder: 2 },
+  { code: "TON", name: "تون", symbol: "TON", decimals: 2, isBase: false, displayOrder: 3 },
 ]
 
 /**
@@ -40,6 +41,12 @@ const INITIAL_RATES: Array<{ from: string; to: string; rate: bigint }> = [
   { from: "IRT", to: "USDT", rate: 142857n },
   { from: "USD", to: "USDT", rate: RATE_SCALE },
   { from: "USDT", to: "USD", rate: RATE_SCALE },
+  // 1 TON ≈ $5 ⇒ 1 TON minor (cent) = 5 USD cents ⇒ rate 5×1e8.
+  { from: "TON", to: "USD", rate: 5n * RATE_SCALE },
+  { from: "USD", to: "TON", rate: RATE_SCALE / 5n },
+  // 1 TON ≈ 350,000 IRT ⇒ 1 TON cent = 3,500 Toman ⇒ rate 3500×1e8.
+  { from: "TON", to: "IRT", rate: 3_500n * RATE_SCALE },
+  { from: "IRT", to: "TON", rate: RATE_SCALE / 3_500n },
 ]
 
 /** Idempotently upsert the supported currencies. */

@@ -10,9 +10,11 @@ export const dynamic = "force-dynamic"
 
 const schema = z.object({
   amount: z.union([z.string(), z.number()]),
+  method: z.enum(["CARD", "TON", "USDT"]).optional(),
   cardLast4: z.string().optional(),
   reference: z.string().optional(),
   note: z.string().optional(),
+  receiptUrl: z.string().url().optional(),
 })
 
 export const GET = route(async () => {
@@ -37,9 +39,11 @@ export const POST = route(async (req: Request) => {
       createDepositRequest({
         userId: user.id,
         amount: BigInt(body.amount),
+        method: body.method,
         cardLast4: body.cardLast4,
         reference: body.reference,
         note: body.note,
+        receiptUrl: body.receiptUrl,
       }),
   )
 })

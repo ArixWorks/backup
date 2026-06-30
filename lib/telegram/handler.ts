@@ -10,6 +10,7 @@ import {
   editMessageText,
   answerCallbackQuery,
   inlineKeyboard,
+  answerPreCheckoutQuery,
 } from "./api"
 import {
   mainMenu,
@@ -44,7 +45,7 @@ import {
   MembershipRequiredError,
 } from "@/lib/core/giveaway"
 import { purchaseFixed, priceFor } from "@/lib/core/flash-sale"
-import { createDepositRequest, createWithdrawalRequest } from "@/lib/core/finance"
+import { createDepositRequest, createWithdrawalRequest, approveStarsDeposit } from "@/lib/core/finance"
 import { formatToman } from "@/lib/format"
 import { formatPrice } from "@/lib/i18n/currency"
 import { tgLangToLocale, type Locale } from "@/lib/i18n/locales"
@@ -59,14 +60,32 @@ type TgFrom = {
   language_code?: string
   is_premium?: boolean
 }
-type TgMessage = { message_id: number; chat: TgChat; from?: TgFrom; text?: string }
+type TgSuccessfulPayment = {
+  currency: string
+  total_amount: number
+  invoice_payload: string
+  telegram_payment_charge_id: string
+}
+type TgMessage = {
+  message_id: number
+  chat: TgChat
+  from?: TgFrom
+  text?: string
+  successful_payment?: TgSuccessfulPayment
+}
 type TgCallback = {
   id: string
   from: TgFrom
   message?: { message_id: number; chat: TgChat }
   data?: string
 }
-export type TgUpdate = { update_id?: number; message?: TgMessage; callback_query?: TgCallback }
+type TgPreCheckout = { id: string; from: TgFrom; currency: string; total_amount: number; invoice_payload: string }
+export type TgUpdate = {
+  update_id?: number
+  message?: TgMessage
+  callback_query?: TgCallback
+  pre_checkout_query?: TgPreCheckout
+}
 
 // --- helpers -----------------------------------------------------------------
 
@@ -1010,10 +1029,34 @@ async function setLanguage(chatId: number, user: User, messageId: number | undef
   await showWelcome(chatId, updated, false)
 }
 
+/** Approve a Stars pre-checkout (we already reserved the deposit on invoice). */
+async function handlePreCheckout(q: TgPreCheckout) {
+  // Only accept payloads we actually issued; otherwise decline cleanly.
+  const exists = await prisma.depositRequest.findFirst({
+    where: { starsPayload: q.invoice_payload, method: "STARS" },
+    select: { id: true },
+  })
+  await answerPreCheckoutQuery(q.id, !!exists, "این فاکتور معتبر نیست").catch(() => {})
+}
+
+/** Credit the wallet once Telegram confirms the Stars payment succeeded. */
+async function handleSuccessfulPayment(msg: TgMessage) {
+  const sp = msg.successful_payment
+  if (!sp) return
+  try {
+    await approveStarsDeposit(sp.invoice_payload, sp.telegram_payment_charge_id)
+    await sendMessage(msg.chat.id, "✅ پرداخت با استارز با موفقیت انجام شد و موجودی کیف پول شما افزایش یافت.")
+  } catch (e) {
+    console.log("[v0] stars payment credit error:", (e as Error).message)
+  }
+}
+
 /** Top-level dispatch with error isolation so the webhook always 200s. */
 export async function handleUpdate(update: TgUpdate) {
   try {
-    if (update.message) await handleMessage(update.message)
+    if (update.pre_checkout_query) await handlePreCheckout(update.pre_checkout_query)
+    else if (update.message?.successful_payment) await handleSuccessfulPayment(update.message)
+    else if (update.message) await handleMessage(update.message)
     else if (update.callback_query) await handleCallback(update.callback_query)
   } catch (e) {
     console.log("[v0] bot handleUpdate error:", (e as Error).message)

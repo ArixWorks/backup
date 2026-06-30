@@ -117,6 +117,14 @@ enum DepositStatus {
   PENDING
   APPROVED
   REJECTED
+  EXPIRED
+}
+
+enum DepositMethod {
+  CARD
+  TON
+  USDT
+  STARS
 }
 
 enum WithdrawalStatus {
@@ -767,9 +775,26 @@ model DepositRequest {
   publicId     String        @unique
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount       BigInt
+  amount       BigInt // wallet credit in IRT base minor units
   status       DepositStatus @default(PENDING)
-  // User-supplied proof of a card-to-card transfer.
+  method       DepositMethod @default(CARD)
+
+  // What the user actually pays (IRT / USDT / TON / XTR).
+  payCurrency String @default("IRT")
+  payAmount   BigInt @default(0) // unique amount in payCurrency minor units
+  payAddress  String? // destination snapshot (card no / wallet address / UID)
+  payNetwork  String? // e.g. BEP20 / TRC20 / TON
+  payTag      String? // unique transfer-note code (card/UID flows)
+  rateUsed    BigInt? // IRT<->pay rate snapshot (x1e8)
+
+  expiresAt     DateTime? // now + 15 min (informational countdown)
+  paidClaimedAt DateTime? // set when user taps "I've paid"
+
+  // Telegram Stars idempotency
+  starsPayload  String?
+  starsChargeId String? @unique
+
+  // User-supplied proof of a card-to-card / crypto transfer.
   cardLast4    String?
   reference    String? // tracking / receipt number
   receiptUrl   String?
@@ -782,6 +807,7 @@ model DepositRequest {
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+  @@index([method, status])
 }
 
 model WithdrawalRequest {
