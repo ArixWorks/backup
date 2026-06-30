@@ -1,7 +1,12 @@
 import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
-import { getProductAdmin, updateFlashProduct, setProductVisibility } from "@/lib/core/admin-catalog"
+import {
+  getProductAdmin,
+  updateFlashProduct,
+  setProductVisibility,
+  updateProductMedia,
+} from "@/lib/core/admin-catalog"
 
 export const dynamic = "force-dynamic"
 
@@ -13,6 +18,7 @@ const schema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   coverImage: z.string().optional(),
+  gallery: z.array(z.string()).optional(),
   price: money.optional(),
   stock: z.number().int().min(0).optional(),
   purchaseLimit: z.number().int().positive().nullable().optional(),
@@ -38,6 +44,12 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   if (typeof body.hidden === "boolean" && Object.keys(body).length === 1) {
     await setProductVisibility(id, body.hidden, admin.id)
     return { ok: true }
+  }
+
+  // Media-only updates (cover/gallery) work for any product, including auctions.
+  const keys = Object.keys(body)
+  if (keys.length > 0 && keys.every((k) => k === "coverImage" || k === "gallery")) {
+    return updateProductMedia(id, { coverImage: body.coverImage, gallery: body.gallery }, admin.id)
   }
 
   return updateFlashProduct(
