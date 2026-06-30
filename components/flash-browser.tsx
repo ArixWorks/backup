@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state"
 import { CardSkeleton } from "@/components/loading-skeleton"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
+import { DragScroll } from "@/components/ui/drag-scroll"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -104,9 +105,9 @@ export function FlashBrowser() {
         </Select>
       </div>
 
-      {/* Category chips */}
+      {/* Category chips — drag/swipe to browse, no visible scrollbar */}
       {categories.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <DragScroll aria-label={t("search.all")}>
           <Chip active={category === ""} onClick={() => setCategory("")}>
             {t("search.all")}
           </Chip>
@@ -120,7 +121,7 @@ export function FlashBrowser() {
               <span className="text-[10px] opacity-70">{num(c.count)}</span>
             </Chip>
           ))}
-        </div>
+        </DragScroll>
       )}
 
       {/* Follow the selected category for new-product alerts */}

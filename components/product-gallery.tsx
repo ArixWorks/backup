@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { DragScroll } from "@/components/ui/drag-scroll"
 
 /**
  * Image gallery for the product detail page: a large primary image with a
@@ -26,7 +27,7 @@ export function ProductGallery({ images, alt }: { images: string[]; alt: string 
         />
       </div>
       {list.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <DragScroll>
           {list.map((src, i) => (
             <button
               key={i}
@@ -47,7 +48,7 @@ export function ProductGallery({ images, alt }: { images: string[]; alt: string 
               />
             </button>
           ))}
-        </div>
+        </DragScroll>
       )}
     </div>
   )
