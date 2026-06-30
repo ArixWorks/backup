@@ -4,7 +4,7 @@ import useSWR from "swr"
 import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Plus, Gavel, XCircle, ExternalLink } from "lucide-react"
+import { Plus, Gavel, XCircle, ExternalLink, ImageIcon } from "lucide-react"
 import { fetcher, apiPost } from "@/lib/api-client"
 import { formatToman, formatNumber, formatDateTime } from "@/lib/format"
 import { Card } from "@/components/ui/card"
@@ -127,6 +127,13 @@ export default function AdminAuctionsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <Link
+                    href={`/admin/products/${p.id}`}
+                    className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
+                  >
+                    <ImageIcon className="h-3.5 w-3.5" />
+                    تصاویر
+                  </Link>
                   <Link
                     href={`/auctions/${a.id}`}
                     className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
