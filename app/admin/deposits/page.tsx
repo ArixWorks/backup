@@ -3,9 +3,9 @@
 import { useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { Banknote, Check, X, Loader2 } from "lucide-react"
+import { Banknote, Check, X, Loader2, ExternalLink } from "lucide-react"
 import { fetcher, apiPost, ApiError } from "@/lib/api-client"
-import { formatToman, formatDateTime } from "@/lib/format"
+import { formatToman, formatMoney, formatDateTime } from "@/lib/format"
 import { StatusPill } from "@/components/admin/status-pill"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -22,19 +22,38 @@ type Deposit = {
   id: string
   publicId: string
   amount: number
+  method: "CARD" | "TON" | "USDT" | "STARS"
+  payCurrency: string
+  payAmount: number
+  payAddress: string | null
+  payNetwork: string | null
+  payTag: string | null
   status: string
   cardLast4: string | null
   reference: string | null
+  receiptUrl: string | null
   note: string | null
   rejectReason: string | null
+  paidClaimedAt: string | null
+  expiresAt: string | null
   createdAt: string
   user: { displayName: string; alias: string }
 }
+
+const METHOD_LABEL: Record<string, string> = {
+  CARD: "کارت به کارت",
+  USDT: "تتر USDT",
+  TON: "تون TON",
+  STARS: "استارز",
+}
+
+const PAY_DECIMALS: Record<string, number> = { IRT: 0, USDT: 2, TON: 2, XTR: 0 }
 
 const filters = [
   { key: "PENDING", label: "در انتظار" },
   { key: "APPROVED", label: "تأییدشده" },
   { key: "REJECTED", label: "ردشده" },
+  { key: "EXPIRED", label: "منقضی" },
 ] as const
 
 export default function DepositsPage() {
@@ -78,7 +97,7 @@ export default function DepositsPage() {
     <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Banknote className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-extrabold">تأیید واریز کارت‌به‌کارت</h1>
+        <h1 className="text-2xl font-extrabold">تأیید واریز و شارژ کیف پول</h1>
       </div>
 
       <div className="flex gap-1 rounded-lg border border-border bg-card p-1 text-sm">
@@ -111,8 +130,10 @@ export default function DepositsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="text-right">کاربر</TableHead>
-                <TableHead className="text-right">مبلغ</TableHead>
-                <TableHead className="text-right">کارت / پیگیری</TableHead>
+                <TableHead className="text-right">روش</TableHead>
+                <TableHead className="text-right">مبلغ کیف پول</TableHead>
+                <TableHead className="text-right">مبلغ پرداختی</TableHead>
+                <TableHead className="text-right">مقصد / رسید</TableHead>
                 <TableHead className="text-right">تاریخ</TableHead>
                 <TableHead className="text-right">وضعیت</TableHead>
                 <TableHead className="text-left">اقدام</TableHead>
@@ -125,13 +146,44 @@ export default function DepositsPage() {
                     <div className="font-medium">{d.user.displayName}</div>
                     <div className="text-xs text-muted-foreground">{d.user.alias}</div>
                   </TableCell>
+                  <TableCell className="text-xs">
+                    <span className="rounded-md bg-secondary/60 px-2 py-1 font-medium">
+                      {METHOD_LABEL[d.method] ?? d.method}
+                    </span>
+                  </TableCell>
                   <TableCell className="tabular-nums font-bold">{formatToman(d.amount)} ت</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {d.cardLast4 ? `**** ${d.cardLast4}` : "—"}
-                    {d.reference ? ` · ${d.reference}` : ""}
+                  <TableCell className="tabular-nums text-sm">
+                    {formatMoney(d.payAmount, PAY_DECIMALS[d.payCurrency] ?? 2)}{" "}
+                    <span className="text-xs text-muted-foreground">{d.payCurrency}</span>
+                  </TableCell>
+                  <TableCell className="max-w-[180px] text-xs text-muted-foreground">
+                    {d.payAddress && (
+                      <div className="truncate font-mono" title={d.payAddress}>
+                        {d.payAddress}
+                      </div>
+                    )}
+                    {d.payTag && <div>کد: {d.payTag}</div>}
+                    {d.payNetwork && <div>{d.payNetwork}</div>}
+                    {d.cardLast4 && <div>**** {d.cardLast4}</div>}
+                    {d.reference && <div>{d.reference}</div>}
+                    {d.receiptUrl && (
+                      <a
+                        href={d.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        مشاهده رسید
+                      </a>
+                    )}
+                    {!d.payAddress && !d.payTag && !d.cardLast4 && !d.receiptUrl && "—"}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {formatDateTime(d.createdAt)}
+                    {d.paidClaimedAt && (
+                      <div className="text-success">کاربر پرداخت را اعلام کرد</div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <StatusPill status={d.status} />

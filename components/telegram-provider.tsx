@@ -64,6 +64,7 @@ type TelegramWebApp = {
   disableVerticalSwipes?: () => void
   enableClosingConfirmation?: () => void
   openTelegramLink?: (url: string) => void
+  openInvoice?: (url: string, callback?: (status: string) => void) => void
   setHeaderColor?: (color: string) => void
   setBackgroundColor?: (color: string) => void
   onEvent?: (event: string, handler: () => void) => void
