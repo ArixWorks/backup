@@ -239,10 +239,16 @@
   html,
   body {
     font-family: var(--font-sans), 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
-    /* Kill horizontal scroll inside the narrow Telegram Mini App webview. */
+    /* Kill horizontal scroll inside the narrow Telegram Mini App webview.
+       `clip` (not `hidden`) so html/body never become scroll containers — that
+       silently breaks `position: sticky` descendants like the app header. */
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    /* Keep overflow-y explicitly `visible` so `clip` is NOT downgraded to
+       `hidden` (the cross-axis rule): that keeps the page scrolling on the
+       window without making html/body a scroll container that kills sticky. */
+    overflow-x: clip;
+    overflow-y: visible;
   }
   body {
     @apply bg-background text-foreground;
