@@ -162,7 +162,7 @@ export function AddFundsSheet({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="bottom-0 left-1/2 top-auto max-h-[92vh] w-full max-w-md translate-x-[-50%] translate-y-0 overflow-y-auto rounded-b-none rounded-t-3xl p-0 data-open:slide-in-from-bottom-4"
+        className="bottom-0 left-1/2 top-auto max-h-[92vh] w-full max-w-md translate-x-[-50%] translate-y-0 overflow-x-hidden overflow-y-auto rounded-b-none rounded-t-3xl p-0 data-open:slide-in-from-bottom-4"
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           {step !== "amount" && (
@@ -511,16 +511,20 @@ function CopyRow({
     <button
       type="button"
       onClick={onCopy}
-      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-start"
+      className="flex w-full items-start justify-between gap-3 rounded-xl border border-border bg-card p-3 text-start"
     >
-      <span className="min-w-0">
+      <span className="block min-w-0 flex-1">
         <span className="block text-xs text-muted-foreground">{label}</span>
-        <span className={`block truncate text-sm font-bold ${mono ? "font-mono" : ""}`}>{value}</span>
+        <span
+          className={`block break-all text-sm font-bold leading-snug ${mono ? "font-mono" : ""}`}
+        >
+          {value}
+        </span>
       </span>
       {copied ? (
-        <Check className="h-4 w-4 shrink-0 text-success" />
+        <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
       ) : (
-        <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <Copy className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       )}
     </button>
   )
