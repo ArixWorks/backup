@@ -48,8 +48,8 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
         <div className="absolute right-3 top-3 flex items-center gap-1.5">
           {live && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[11px] font-medium text-white">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[11px] font-medium text-destructive-foreground">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive-foreground" />
               {t("auctions.live")}
             </span>
           )}

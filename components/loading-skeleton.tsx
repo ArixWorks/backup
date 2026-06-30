@@ -60,3 +60,47 @@ export function CardListSkeleton({
     </div>
   )
 }
+
+/**
+ * The canonical loading placeholder for compact LIST ROWS (notifications,
+ * watched products, orders, prizes) — a full-width rounded block. `h` lets
+ * each surface match its real row height so there's no layout shift.
+ */
+export function RowSkeleton({
+  h = "h-20",
+  className,
+}: {
+  h?: string
+  className?: string
+}) {
+  return (
+    <Skeleton className={cn("w-full rounded-2xl", h, className)} aria-hidden />
+  )
+}
+
+/**
+ * A vertical stack of {@link RowSkeleton}s for list loading states.
+ */
+export function RowListSkeleton({
+  count = 4,
+  h = "h-20",
+  className,
+}: {
+  count?: number
+  h?: string
+  className?: string
+}) {
+  return (
+    <div
+      className={cn("space-y-3", className)}
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <RowSkeleton key={i} h={h} />
+      ))}
+      <span className="sr-only">Loading…</span>
+    </div>
+  )
+}
