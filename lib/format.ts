@@ -43,11 +43,28 @@ export function formatRelative(date: string | Date): string {
   return rtf.format(Math.round(diff / day), 'day')
 }
 
+/** All human-facing timestamps are shown in Tehran local time. */
+export const TEHRAN_TZ = 'Asia/Tehran'
+
 export function formatDateTime(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return new Intl.DateTimeFormat('fa-IR', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: TEHRAN_TZ,
+  }).format(d)
+}
+
+/** Format a date+time in Tehran time for an arbitrary locale (used by the bot). */
+export function formatDateTimeLocale(
+  date: string | Date,
+  locale: string,
+): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: TEHRAN_TZ,
   }).format(d)
 }
 

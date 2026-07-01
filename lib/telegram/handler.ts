@@ -46,7 +46,7 @@ import {
 } from "@/lib/core/giveaway"
 import { purchaseFixed, priceFor } from "@/lib/core/flash-sale"
 import { createDepositRequest, createWithdrawalRequest, approveStarsDeposit } from "@/lib/core/finance"
-import { formatToman } from "@/lib/format"
+import { formatToman, formatDateTimeLocale } from "@/lib/format"
 import { formatPrice } from "@/lib/i18n/currency"
 import { tgLangToLocale, type Locale } from "@/lib/i18n/locales"
 import type { BotConfig } from "./config"
@@ -436,9 +436,9 @@ function giveawayCardMarkup(
 
 function giveawayCaption(gw: Awaited<ReturnType<typeof getPublicGiveaway>>, locale: Locale) {
   const L = gwLabels(locale)
-  const draw = new Date(gw.drawAt).toLocaleString(
+  const draw = formatDateTimeLocale(
+    gw.drawAt,
     locale === "fa" ? "fa-IR" : locale === "ru" ? "ru-RU" : locale === "hi" ? "hi-IN" : "en-US",
-    { dateStyle: "medium", timeStyle: "short" },
   )
   const lines = [
     `🎁 <b>${esc(gw.title)}</b>`,
