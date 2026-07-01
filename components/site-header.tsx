@@ -20,7 +20,15 @@ export function SiteHeader() {
 
   return (
     <header className="glass sticky top-0 z-40 pt-safe">
-      <div className="mx-auto flex h-16 w-full max-w-xl items-center justify-between gap-3 px-5 px-safe">
+      <div
+        className="mx-auto flex h-16 w-full max-w-xl items-center justify-between gap-3"
+        style={{
+          // Base 20px gutter PLUS any device safe-area inset, so the header
+          // never hugs the screen edges on phones without a side notch.
+          paddingLeft: "calc(max(env(safe-area-inset-left), var(--tg-safe-left, 0px)) + 1.25rem)",
+          paddingRight: "calc(max(env(safe-area-inset-right), var(--tg-safe-right, 0px)) + 1.25rem)",
+        }}
+      >
         {/* Brand */}
         <Link
           href="/"
