@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { CheckIcon, InfoIcon, TriangleAlertIcon, XIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -13,19 +13,29 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       icons={{
         success: (
-          <CircleCheckIcon className="size-4" />
+          <span className="cn-toast-badge" data-badge="success">
+            <CheckIcon className="size-4" strokeWidth={3} />
+          </span>
         ),
         info: (
-          <InfoIcon className="size-4" />
+          <span className="cn-toast-badge" data-badge="info">
+            <InfoIcon className="size-4" strokeWidth={2.5} />
+          </span>
         ),
         warning: (
-          <TriangleAlertIcon className="size-4" />
+          <span className="cn-toast-badge" data-badge="warning">
+            <TriangleAlertIcon className="size-4" strokeWidth={2.5} />
+          </span>
         ),
         error: (
-          <OctagonXIcon className="size-4" />
+          <span className="cn-toast-badge" data-badge="error">
+            <XIcon className="size-4" strokeWidth={3} />
+          </span>
         ),
         loading: (
-          <Loader2Icon className="size-4 animate-spin" />
+          <span className="cn-toast-badge" data-badge="loading">
+            <Loader2Icon className="size-4 animate-spin" strokeWidth={2.5} />
+          </span>
         ),
       }}
       style={

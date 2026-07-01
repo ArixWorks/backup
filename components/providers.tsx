@@ -14,7 +14,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <ReferralCapture />
           {children}
         </TelegramProvider>
-        <Toaster position="top-center" richColors theme="dark" />
+        <Toaster
+          position="top-center"
+          theme="dark"
+          expand
+          gap={12}
+          offset={{ top: "calc(max(env(safe-area-inset-top), var(--tg-safe-top, 0px)) + 18px)" }}
+          mobileOffset={{ top: "calc(max(env(safe-area-inset-top), var(--tg-safe-top, 0px)) + 14px)" }}
+        />
       </MotionProvider>
     </I18nProvider>
   )

@@ -702,3 +702,143 @@
 [data-motion='minimal'] .cta-sweep {
   animation: none !important;
 }
+
+/* ============================================================================
+   TOAST / NOTIFICATION SYSTEM (sonner)
+   RTL Persian glassmorphism cards with a 3D pop-in, per-type accent glow, and
+   circular status badges. The toaster container respects the device safe-area
+   (iOS notch / Telegram fullscreen controls) so toasts never hide under the
+   phone status bar. Offsets are also passed via the <Toaster> props.
+   ============================================================================ */
+[data-sonner-toaster] {
+  --toast-safe-top: calc(max(env(safe-area-inset-top), var(--tg-safe-top, 0px)) + 14px);
+  font-family: var(--font-sans), 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+}
+[data-sonner-toaster][data-y-position='top'] {
+  top: var(--toast-safe-top) !important;
+}
+
+/* The card itself. */
+.cn-toast[data-sonner-toast] {
+  direction: rtl;
+  width: 100%;
+  border-radius: 1.15rem;
+  padding: 0.95rem 1rem;
+  gap: 0.7rem;
+  color: var(--popover-foreground);
+  background:
+    linear-gradient(145deg, oklch(1 0 0 / 0.06), oklch(1 0 0 / 0.01)),
+    color-mix(in oklab, var(--popover) 78%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid oklch(1 0 0 / 0.1);
+  box-shadow:
+    0 1px 0 0 oklch(1 0 0 / 0.08) inset,
+    0 20px 45px -18px oklch(0 0 0 / 0.7),
+    0 8px 20px -12px oklch(0 0 0 / 0.5);
+  overflow: hidden;
+}
+
+/* Accent rail + colored glow driven by the toast type. */
+.cn-toast[data-sonner-toast]::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0;
+  width: 4px;
+  background: var(--cn-accent, var(--primary));
+  box-shadow: 0 0 18px 1px var(--cn-accent, var(--primary));
+}
+.cn-toast[data-sonner-toast][data-type='success'] { --cn-accent: var(--success); }
+.cn-toast[data-sonner-toast][data-type='error'] { --cn-accent: var(--destructive); }
+.cn-toast[data-sonner-toast][data-type='warning'] { --cn-accent: var(--warning); }
+.cn-toast[data-sonner-toast][data-type='info'] { --cn-accent: var(--chart-3); }
+.cn-toast[data-sonner-toast][data-type='loading'] { --cn-accent: var(--primary); }
+.cn-toast[data-sonner-toast] {
+  border-color: color-mix(in oklab, var(--cn-accent, var(--primary)) 30%, oklch(1 0 0 / 0.1));
+}
+
+/* Typography. */
+.cn-toast[data-sonner-toast] [data-title] {
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+.cn-toast[data-sonner-toast] [data-description] {
+  font-size: 0.83rem;
+  line-height: 1.6;
+  color: color-mix(in oklab, var(--popover-foreground) 72%, transparent);
+}
+
+/* Circular status badge (holds the tick / cross / etc). */
+.cn-toast[data-sonner-toast] [data-icon] {
+  width: auto;
+  height: auto;
+  margin: 0;
+}
+.cn-toast-badge {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: var(--popover);
+  background: var(--cn-badge, var(--primary));
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--cn-badge, var(--primary)) 20%, transparent),
+    0 6px 14px -4px color-mix(in oklab, var(--cn-badge, var(--primary)) 60%, transparent);
+  transform-origin: center;
+  animation: cn-badge-pop 0.5s cubic-bezier(0.22, 1.4, 0.4, 1) both;
+}
+.cn-toast-badge[data-badge='success'] { --cn-badge: var(--success); }
+.cn-toast-badge[data-badge='error'] { --cn-badge: var(--destructive); }
+.cn-toast-badge[data-badge='warning'] { --cn-badge: var(--warning); }
+.cn-toast-badge[data-badge='info'] { --cn-badge: var(--chart-3); }
+.cn-toast-badge[data-badge='loading'] { --cn-badge: var(--primary); }
+
+/* Close button. */
+.cn-toast[data-sonner-toast] [data-close-button] {
+  inset-inline-end: auto;
+  inset-inline-start: 0;
+  transform: translate(-35%, -35%);
+  background: var(--popover);
+  border-color: oklch(1 0 0 / 0.14);
+  color: var(--popover-foreground);
+}
+
+/* 3D pop-in: rotateX perspective flip layered on top of sonner's own opacity
+   transition. Sonner drives stacking transforms, so we scope our keyframe to
+   mount and keep it transform-safe by animating a wrapper feel via the card. */
+@media (prefers-reduced-motion: no-preference) {
+  .cn-toast[data-sonner-toast][data-mounted='true'] {
+    animation: cn-toast-pop 0.5s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  }
+}
+
+@keyframes cn-toast-pop {
+  0% {
+    opacity: 0;
+    transform: perspective(700px) translateY(-16px) rotateX(-32deg) scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: perspective(700px) translateY(0) rotateX(4deg) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(700px) translateY(0) rotateX(0) scale(1);
+  }
+}
+
+@keyframes cn-badge-pop {
+  0% { transform: scale(0) rotate(-45deg); }
+  70% { transform: scale(1.18) rotate(6deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* Honor the app's reduced-motion tier. */
+[data-motion='minimal'] .cn-toast[data-sonner-toast][data-mounted='true'],
+[data-motion='minimal'] .cn-toast-badge {
+  animation: none !important;
+}
