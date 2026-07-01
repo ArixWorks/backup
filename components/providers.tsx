@@ -17,6 +17,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <Toaster
           position="top-center"
           theme="dark"
+          dir="auto"
           expand
           gap={12}
           offset={{ top: "calc(max(env(safe-area-inset-top), var(--tg-safe-top, 0px)) + 18px)" }}
