@@ -90,9 +90,9 @@ export async function POST(req: Request) {
     { command: "help", description: "راهنما" },
   ])
   if (cfg.features.miniApp) {
-    await setChatMenuButton(cfg.buttons.openApp.replace(/^[^\p{L}\d]+/u, "").trim() || "اپ", base).catch(
-      () => {},
-    )
+    // Use a short Latin label ("WebSite") for the chat menu button: long Persian
+    // phrases render badly and overflow into the message field on some phones.
+    await setChatMenuButton("WebSite", base).catch(() => {})
   }
 
   const info = await getWebhookInfo().catch(() => null)
