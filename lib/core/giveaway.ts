@@ -267,7 +267,7 @@ export async function setGiveawayLifecycle(
   switch (action) {
     case "publish": {
       if (g.status !== "DRAFT" && g.status !== "SCHEDULED") {
-        throw new ValidationError("این قرعه‌کشی قبلاً منت��ر شده است")
+        throw new ValidationError("این قرعه‌کشی قبلا�� منت��ر شده است")
       }
       data.status = now >= g.startAt && now < g.endAt ? "ACTIVE" : "SCHEDULED"
       break
@@ -308,6 +308,7 @@ export async function setGiveawayLifecycle(
 }
 
 export async function listGiveaways() {
+  await reconcileDueGiveaways()
   const rows = await prisma.giveaway.findMany({
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { entries: true, winners: true } } },
@@ -316,6 +317,7 @@ export async function listGiveaways() {
 }
 
 export async function getGiveawayById(id: string) {
+  await reconcileDueGiveaways()
   const g = await prisma.giveaway.findUnique({
     where: { id },
     include: {
@@ -399,7 +401,29 @@ export async function getGiveawayExport(
 // Public reads
 // ---------------------------------------------------------------------------
 
+/**
+ * Lazily advance time-based giveaway status so the UI stays correct even when
+ * the cron tick hasn't run yet (preview environments, or between ticks). Only
+ * performs the safe, side-effect-free transitions:
+ *   SCHEDULED -> ACTIVE  (once startAt passes and still before endAt)
+ *   ACTIVE/SCHEDULED/PAUSED -> LOCKED (once endAt passes)
+ * Pre-draw alerts and auto-draw remain cron-only (they have side effects).
+ * Cheap: two `updateMany`s that no-op when nothing is due.
+ */
+export async function reconcileDueGiveaways(): Promise<void> {
+  const now = new Date()
+  await prisma.giveaway.updateMany({
+    where: { status: "SCHEDULED", startAt: { lte: now }, endAt: { gt: now } },
+    data: { status: "ACTIVE" },
+  })
+  await prisma.giveaway.updateMany({
+    where: { status: { in: ["ACTIVE", "SCHEDULED", "PAUSED"] }, endAt: { lte: now } },
+    data: { status: "LOCKED" },
+  })
+}
+
 export async function listPublicGiveaways() {
+  await reconcileDueGiveaways()
   const rows = await prisma.giveaway.findMany({
     where: {
       visibility: "PUBLIC",
@@ -413,6 +437,7 @@ export async function listPublicGiveaways() {
 
 /** Public detail by slug, with masked winners and live counts. */
 export async function getPublicGiveaway(slug: string, userId?: string) {
+  await reconcileDueGiveaways()
   const g = await prisma.giveaway.findUnique({
     where: { slug },
     include: {

@@ -103,7 +103,10 @@ export function GiveawayCard({ giveaway }: { giveaway: GiveawaySummary }) {
               {isFinished ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
-                <Countdown target={isScheduled ? giveaway.startAt : giveaway.drawAt} />
+                <Countdown
+                  target={isScheduled ? giveaway.startAt : giveaway.drawAt}
+                  completedLabel={isScheduled ? t("gwStatus.ACTIVE") : undefined}
+                />
               )}
             </div>
           </div>

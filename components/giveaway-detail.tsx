@@ -141,6 +141,7 @@ export function GiveawayDetail({
               <Countdown
                 target={isScheduled ? giveaway.startAt : giveaway.drawAt}
                 onComplete={onChange}
+                completedLabel={isScheduled ? t("gwStatus.ACTIVE") : undefined}
                 className="text-lg font-extrabold text-gold"
               />
             </div>
