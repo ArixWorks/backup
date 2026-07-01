@@ -405,7 +405,7 @@ export function BotEditor() {
             </h3>
             <p className="mb-4 text-xs text-muted-foreground leading-relaxed">
               برای هر کلید می‌توانید یک شناسه ایموجی اختصاصی پرمیوم وارد کنید. در صورت وجود، به‌جای ایموجی استاندارد و به‌صورت کاملاً متحرک نمایش داده می‌شود.
-              شناسه را از طریق فوروارد پیام حاوی ایموجی به ربات‌هایی مثل @idstickerbot دریاف�� کنید.
+              شناسه را از طریق فوروارد پیام حاوی ایموجی به ربات‌هایی مثل @idstickerbot دریافت کنید.
             </p>
             <div className="grid gap-3">
               {Object.keys(config.emoji).map((key) => {

@@ -40,7 +40,7 @@ function formatTelegram(p: DispatchPayload): string {
   if (p.metric) {
     lines.push(`📊 معیار: <code>${escapeHtml(p.metric)}</code>${p.value != null ? ` = <b>${formatNum(p.value)}</b>` : ""}`)
   }
-  lines.push(`🕐 ${new Date().toLocaleString("fa-IR")}`)
+  lines.push(`🕐 ${new Date().toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}`)
   return lines.join("\n")
 }
 
@@ -86,7 +86,7 @@ async function dispatchEmail(p: DispatchPayload) {
     </h2>
     <p>${escapeHtml(p.message)}</p>
     ${p.metric ? `<p><strong>معیار:</strong> ${escapeHtml(p.metric)}${p.value != null ? ` = ${formatNum(p.value)}` : ""}</p>` : ""}
-    <p style="color:#888;font-size:12px">${new Date().toLocaleString("fa-IR")}</p>
+    <p style="color:#888;font-size:12px">${new Date().toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })}</p>
   `
   await Promise.all(
     recipients.map((to) => sendEmail({ to, subject, html }).catch(() => ({ sent: false }))),

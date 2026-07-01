@@ -28,6 +28,30 @@ export async function getProductAdmin(id: string) {
   return product
 }
 
+/**
+ * Update only the media of any product (works for both fixed-price and auction
+ * products, unlike updateFlashProduct which requires a FixedSale). Pass a field
+ * to change it; omit to leave it untouched.
+ */
+export async function updateProductMedia(
+  productId: string,
+  input: { coverImage?: string | null; gallery?: string[] },
+  adminId: string,
+) {
+  const product = await prisma.product.findUnique({ where: { id: productId } })
+  if (!product) throw new NotFoundError("محصول یافت نشد")
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      coverImage: input.coverImage !== undefined ? input.coverImage || null : undefined,
+      gallery: input.gallery !== undefined ? input.gallery.filter(Boolean).slice(0, 12) : undefined,
+    },
+    include: { fixedSale: true, auction: true },
+  })
+  await audit({ actorId: adminId, action: "product.media.update", entity: "product", entityId: productId })
+  return updated
+}
+
 // --- Flash-sale (fixed price) product ---------------------------------------
 
 export interface ProductLinkInput {

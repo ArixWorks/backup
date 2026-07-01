@@ -1,39 +1,203 @@
+import type { DepositMethod, DepositStatus } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { secureSlug } from "@/lib/id"
 import { ConflictError, NotFoundError, ValidationError } from "./errors"
 import { deposit, freeze, getBalances, mutateWallet, unfreeze, ensureWallet } from "./wallet"
 import { serializableTx } from "./ledger"
 import { audit } from "./audit"
+import { getRate, RATE_SCALE } from "./currencies"
+import { getPaymentConfig } from "./settings"
 import { notifyDepositApproved, notifyWithdrawApproved } from "@/lib/telegram/notify"
 import { createNotification } from "./notifications"
 import { sendDepositApprovedEmail, sendDepositRejectedEmail } from "@/lib/email"
 import { formatToman } from "@/lib/format"
 
+/** How long a top-up request stays "live" with a payable amount/countdown. */
+export const DEPOSIT_TTL_MS = 15 * 60 * 1000
+
+/** Star price in USD cents (1 Star ≈ $0.02). Used to size Stars invoices. */
+const STAR_USD_CENTS = 2
+
 // --- Deposits ----------------------------------------------------------------
 
 export interface CreateDepositInput {
   userId: string
-  amount: bigint
+  amount: bigint // wallet credit in IRT base minor units (Toman)
+  method?: DepositMethod // CARD (default) | TON | USDT | STARS
   cardLast4?: string
   reference?: string
   note?: string
+  receiptUrl?: string
 }
 
-/** User submits a card-to-card deposit request awaiting admin approval. */
-export async function createDepositRequest(input: CreateDepositInput) {
-  if (input.amount < 10000n) throw new ValidationError("حداقل مبلغ واریز ۱۰٬۰۰۰ تومان است")
+/** A short uppercase code the user references in their transfer note. */
+function uniqueTag(): string {
+  return secureSlug("").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() || "TX0000"
+}
+
+/**
+ * Convert an IRT amount into another currency's minor units, then nudge the
+ * trailing two digits to a unique value so each pending crypto deposit has a
+ * distinct amount the admin can match against on-chain.
+ */
+async function convertWithUniqueTail(amountIrt: bigint, to: string): Promise<{ payAmount: bigint; rate: bigint }> {
+  const rate = await getRate("IRT", to)
+  if (!rate || rate <= 0n) throw new ValidationError("نرخ تبدیل ارز در دسترس نیست")
+  const converted = (amountIrt * rate) / RATE_SCALE
+  if (converted <= 0n) throw new ValidationError("مبلغ واریز برای این روش بسیار کم است")
+  // Replace the last two minor digits (cents) with a unique 1..99 tail.
+  const uniqueCents = BigInt(1 + Math.floor(Math.random() * 98))
+  const payAmount = (converted / 100n) * 100n + uniqueCents
+  return { payAmount, rate }
+}
+
+export interface DepositInstructions {
+  id: string
+  publicId: string
+  method: DepositMethod
+  amount: bigint
+  payCurrency: string
+  payAmount: bigint
+  payAddress: string | null
+  payNetwork: string | null
+  payTag: string | null
+  expiresAt: Date | null
+  status: string
+}
+
+/**
+ * Create a top-up request for any method. Wallet credit (`amount`) is always in
+ * IRT; the user pays in `payCurrency`. Crypto methods get a unique amount + a
+ * 15-minute countdown; cards get a unique transfer-note code. STARS requests
+ * carry a star count and are credited by the Telegram webhook.
+ */
+export async function createDepositRequest(input: CreateDepositInput): Promise<DepositInstructions> {
+  const method: DepositMethod = input.method ?? "CARD"
+  const cfg = await getPaymentConfig()
+  const minIrt = BigInt(cfg.minToman)
+  if (input.amount < minIrt) {
+    throw new ValidationError(`حداقل مبلغ واریز ${formatToman(minIrt)} تومان است`)
+  }
+  const slot = cfg.methods.find((m) => m.method === method)
+  if (!slot || !slot.enabled) throw new ValidationError("این روش پرداخت در دسترس نیست")
+
+  let payCurrency = "IRT"
+  let payAmount = input.amount
+  let payAddress: string | null = slot.address
+  let payNetwork: string | null = slot.network ?? null
+  let payTag: string | null = null
+  let rateUsed: bigint | null = null
+  let expiresAt: Date | null = new Date(Date.now() + DEPOSIT_TTL_MS)
+
+  if (method === "USDT" || method === "TON") {
+    payCurrency = method === "USDT" ? "USDT" : "TON"
+    const { payAmount: pa, rate } = await convertWithUniqueTail(input.amount, payCurrency)
+    payAmount = pa
+    rateUsed = rate
+  } else if (method === "STARS") {
+    payCurrency = "XTR"
+    const usdRate = await getRate("IRT", "USD")
+    if (!usdRate || usdRate <= 0n) throw new ValidationError("نرخ تبدیل ارز در دسترس نیست")
+    const usdCents = (input.amount * usdRate) / RATE_SCALE
+    const stars = usdCents / BigInt(STAR_USD_CENTS)
+    payAmount = stars > 0n ? stars : 1n
+    rateUsed = usdRate
+    payAddress = null
+    payNetwork = null
+    expiresAt = null // Stars invoices manage their own lifetime
+  } else {
+    // CARD: pay the exact IRT amount, reference a unique transfer-note code.
+    payTag = uniqueTag()
+    payAddress = slot.address
+  }
+
   const req = await prisma.depositRequest.create({
     data: {
       publicId: secureSlug("dep"),
       userId: input.userId,
       amount: input.amount,
+      method,
+      payCurrency,
+      payAmount,
+      payAddress,
+      payNetwork,
+      payTag,
+      rateUsed,
+      expiresAt,
       cardLast4: input.cardLast4,
       reference: input.reference,
       note: input.note,
+      receiptUrl: input.receiptUrl,
     },
   })
-  await audit({ actorId: input.userId, action: "deposit.request", entity: "deposit", entityId: req.id, meta: { amount: input.amount.toString() } })
-  return req
+  await audit({
+    actorId: input.userId,
+    action: "deposit.request",
+    entity: "deposit",
+    entityId: req.id,
+    meta: { amount: input.amount.toString(), method, payAmount: payAmount.toString(), payCurrency },
+  })
+  return {
+    id: req.id,
+    publicId: req.publicId,
+    method: req.method,
+    amount: req.amount,
+    payCurrency: req.payCurrency,
+    payAmount: req.payAmount,
+    payAddress: req.payAddress,
+    payNetwork: req.payNetwork,
+    payTag: req.payTag,
+    expiresAt: req.expiresAt,
+    status: req.status,
+  }
+}
+
+/** User attaches a receipt screenshot and/or marks the transfer as sent. */
+export async function claimDepositPaid(depositId: string, userId: string, receiptUrl?: string) {
+  const req = await prisma.depositRequest.findUnique({ where: { id: depositId } })
+  if (!req || req.userId !== userId) throw new NotFoundError("درخواست واریز یافت نشد")
+  if (req.status !== "PENDING") throw new ConflictError("این درخواست قابل ویرایش نیست")
+  const updated = await prisma.depositRequest.update({
+    where: { id: req.id },
+    data: {
+      paidClaimedAt: new Date(),
+      receiptUrl: receiptUrl ?? req.receiptUrl,
+    },
+  })
+  await audit({ actorId: userId, action: "deposit.claimPaid", entity: "deposit", entityId: req.id })
+  return updated
+}
+
+/**
+ * Credit a Telegram Stars deposit when `successful_payment` arrives. Idempotent
+ * on the Telegram charge id so repeated webhooks never double-credit.
+ */
+export async function approveStarsDeposit(payload: string, chargeId: string) {
+  const { updated, credited } = await serializableTx(async (tx) => {
+    const req = await tx.depositRequest.findFirst({ where: { starsPayload: payload, method: "STARS" } })
+    if (!req) throw new NotFoundError("درخواست واریز یافت نشد")
+    if (req.starsChargeId || req.status === "APPROVED") return { updated: req, credited: false }
+
+    await ensureWallet(req.userId, tx)
+    await deposit(req.userId, req.amount, tx, { type: "deposit", id: req.id })
+    const updated = await tx.depositRequest.update({
+      where: { id: req.id },
+      data: { status: "APPROVED", starsChargeId: chargeId, reviewedAt: new Date() },
+    })
+    await audit({ actorId: req.userId, action: "deposit.stars.approve", entity: "deposit", entityId: req.id, meta: { chargeId } }, tx)
+    return { updated, credited: true }
+  })
+  if (credited) {
+    await notifyDepositApproved(updated.userId, updated.amount).catch(() => {})
+    await createNotification({
+      userId: updated.userId,
+      type: "DEPOSIT_APPROVED",
+      title: "واریز تأیید شد",
+      body: `مبلغ ${formatToman(updated.amount)} تومان به کیف پول شما اضافه شد.`,
+      href: "/wallet",
+    }).catch(() => {})
+  }
+  return updated
 }
 
 /** Admin approves a deposit: credit wallet atomically and mark approved. */
@@ -182,13 +346,22 @@ export async function rejectWithdrawal(withdrawalId: string, adminId: string, re
 
 // --- Listings ----------------------------------------------------------------
 
-export async function listDeposits(status?: "PENDING" | "APPROVED" | "REJECTED") {
+export async function listDeposits(status?: DepositStatus) {
   return prisma.depositRequest.findMany({
     where: status ? { status } : undefined,
     orderBy: { createdAt: "desc" },
     take: 200,
     include: { user: { select: { displayName: true, alias: true } } },
   })
+}
+
+/** Mark stale, unclaimed crypto/card requests EXPIRED (cron-friendly, no credit). */
+export async function expireStaleDeposits() {
+  const res = await prisma.depositRequest.updateMany({
+    where: { status: "PENDING", paidClaimedAt: null, expiresAt: { lt: new Date() } },
+    data: { status: "EXPIRED" },
+  })
+  return res.count
 }
 
 export async function listWithdrawals(status?: "PENDING" | "APPROVED" | "REJECTED" | "PAID") {

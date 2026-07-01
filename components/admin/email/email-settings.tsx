@@ -186,7 +186,7 @@ export function EmailSettings() {
       <Card className="flex flex-col gap-4 p-4">
         <p className="text-sm font-semibold">تنظیمات ارسال</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Field label="نرخ در د��یقه">
+          <Field label="نرخ در دقیقه">
             <Input
               type="number"
               value={form.ratePerMinute}

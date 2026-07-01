@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { LinksEditor } from "@/components/admin/links-editor"
+import { ImageUpload } from "@/components/admin/image-upload"
+import { tehranInputToUtcISO } from "@/lib/format"
 
 type DeliveryType = "MANUAL" | "AUTOMATIC"
 
@@ -129,8 +131,8 @@ export default function NewProductPage() {
               reservePrice: reservePrice ? Number(reservePrice) : null,
               buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
               quantity: Number(quantity || 1),
-              startTime: new Date(startTime).toISOString(),
-              endTime: new Date(endTime).toISOString(),
+              startTime: tehranInputToUtcISO(startTime),
+              endTime: tehranInputToUtcISO(endTime),
             }
       const res = await apiPost<{ data: { id: string } }>("/api/v1/admin/products", payload)
       toast.success("محصول ساخته شد")
@@ -172,14 +174,12 @@ export default function NewProductPage() {
               placeholder="توضیح کوتاه درباره محصول"
             />
           </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="دسته‌بندی">
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="هوش مصنوعی" />
-            </Field>
-            <Field label="آدرس تصویر کاور" hint="مسیر داخلی مثل ‎/products/x.png">
-              <Input value={coverImage} onChange={(e) => setCoverImage(e.target.value)} dir="ltr" placeholder="/products/example.png" />
-            </Field>
-          </div>
+          <Field label="دسته‌بندی">
+            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="هوش مصنوعی" />
+          </Field>
+          <Field label="تصویر کاور" hint="پس از انتخاب، تصویر را در نسبت ۱۶:۹ برش بزنید">
+            <ImageUpload value={coverImage} onChange={setCoverImage} folder="products" aspect="aspect-video" />
+          </Field>
           <Field label="نوع تحویل" hint="تحویل خودکار از مخزن موجودی انجام می‌شود">
             <Select value={deliveryType} onValueChange={(v) => setDeliveryType(v as DeliveryType)}>
               <SelectTrigger>

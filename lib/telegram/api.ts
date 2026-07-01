@@ -187,6 +187,53 @@ export async function answerCallbackQuery(id: string, text?: string, showAlert =
   return call("answerCallbackQuery", { callback_query_id: id, text, show_alert: showAlert })
 }
 
+/**
+ * Create a Telegram Stars invoice link (currency XTR). `prices` amounts are in
+ * the smallest currency unit — for Stars that is the whole star count. Returns
+ * an invoice URL that a Mini App opens via `WebApp.openInvoice(url)`.
+ */
+export async function createInvoiceLink(params: {
+  title: string
+  description: string
+  payload: string
+  stars: number
+}): Promise<string> {
+  return call<string>("createInvoiceLink", {
+    title: params.title,
+    description: params.description,
+    payload: params.payload,
+    currency: "XTR",
+    prices: [{ label: params.title, amount: params.stars }],
+  })
+}
+
+/** Send a Stars invoice directly to a chat (bot flow). Returns the message. */
+export async function sendInvoice(params: {
+  chatId: string | number
+  title: string
+  description: string
+  payload: string
+  stars: number
+}) {
+  return call("sendInvoice", {
+    chat_id: params.chatId,
+    title: params.title,
+    description: params.description,
+    payload: params.payload,
+    currency: "XTR",
+    prices: [{ label: params.title, amount: params.stars }],
+  })
+}
+
+/** Approve/decline a pre_checkout_query. Must be answered within 10 seconds. */
+export async function answerPreCheckoutQuery(id: string, ok: boolean, errorMessage?: string) {
+  return call("answerPreCheckoutQuery", {
+    pre_checkout_query_id: id,
+    ok,
+    error_message: ok ? undefined : errorMessage,
+  })
+}
+
 export type ChatMemberStatus =
   | "creator"
   | "administrator"
@@ -210,7 +257,7 @@ export async function setWebhook(url: string, secret: string) {
   return call("setWebhook", {
     url,
     secret_token: secret,
-    allowed_updates: ["message", "callback_query"],
+    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
     drop_pending_updates: true,
   })
 }

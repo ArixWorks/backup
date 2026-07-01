@@ -44,6 +44,19 @@ export const SETTING_KEYS = {
   tierDiscountDiamond: "tier.discount.diamond",
   tierDiscountVip: "tier.discount.vip",
 
+  // --- Top-up payment methods (admin-configured) ---
+  payCardEnabled: "pay.card.enabled", // "true" | "false"
+  payCardNumber: "pay.card.number", // 16-digit card number for card-to-card
+  payCardHolder: "pay.card.holder", // card holder full name
+  payCardBank: "pay.card.bank", // bank name (display only)
+  payUsdtEnabled: "pay.usdt.enabled",
+  payUsdtAddress: "pay.usdt.address",
+  payUsdtNetwork: "pay.usdt.network", // BEP20 / TRC20
+  payTonEnabled: "pay.ton.enabled",
+  payTonAddress: "pay.ton.address",
+  payStarsEnabled: "pay.stars.enabled",
+  payMinToman: "pay.min.toman", // minimum top-up amount in Toman
+
   // --- Appearance ---
   themeActive: "theme.active", // one of THEME_IDS, applied to <html data-theme>
 
@@ -132,6 +145,19 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.tierDiscountDiamond]: "5",
   [SETTING_KEYS.tierDiscountVip]: "10",
 
+  // Top-up methods: card on by default, crypto/stars off until admin configures.
+  [SETTING_KEYS.payCardEnabled]: "true",
+  [SETTING_KEYS.payCardNumber]: "",
+  [SETTING_KEYS.payCardHolder]: "",
+  [SETTING_KEYS.payCardBank]: "",
+  [SETTING_KEYS.payUsdtEnabled]: "false",
+  [SETTING_KEYS.payUsdtAddress]: "",
+  [SETTING_KEYS.payUsdtNetwork]: "BEP20",
+  [SETTING_KEYS.payTonEnabled]: "false",
+  [SETTING_KEYS.payTonAddress]: "",
+  [SETTING_KEYS.payStarsEnabled]: "false",
+  [SETTING_KEYS.payMinToman]: "10000",
+
   [SETTING_KEYS.themeActive]: DEFAULT_THEME,
 
   // Daily backup: enabled, sent to the owner's chat at 00:00 Asia/Tehran.
@@ -202,4 +228,54 @@ export function toBool(value: string): boolean {
 export async function getActiveTheme(db: Db = prisma): Promise<ThemeId> {
   const value = await getSetting(SETTING_KEYS.themeActive, db)
   return isThemeId(value) ? value : DEFAULT_THEME
+}
+
+export interface PaymentMethodConfig {
+  method: "CARD" | "TON" | "USDT" | "STARS"
+  enabled: boolean
+  address: string | null // card number / wallet address (null for stars)
+  holder?: string | null // card holder
+  bank?: string | null
+  network?: string | null // BEP20 / TRC20 / TON
+}
+
+export interface PaymentConfig {
+  minToman: number
+  methods: PaymentMethodConfig[]
+}
+
+/**
+ * Active top-up methods + their destination details. A method is only
+ * "available" when enabled AND it has the data it needs (card number / address).
+ */
+export async function getPaymentConfig(): Promise<PaymentConfig> {
+  const s = await getAllSettings()
+  const minToman = toNumber(s[SETTING_KEYS.payMinToman], 10000)
+  const methods: PaymentMethodConfig[] = [
+    {
+      method: "CARD",
+      enabled: toBool(s[SETTING_KEYS.payCardEnabled]) && !!s[SETTING_KEYS.payCardNumber],
+      address: s[SETTING_KEYS.payCardNumber] || null,
+      holder: s[SETTING_KEYS.payCardHolder] || null,
+      bank: s[SETTING_KEYS.payCardBank] || null,
+    },
+    {
+      method: "USDT",
+      enabled: toBool(s[SETTING_KEYS.payUsdtEnabled]) && !!s[SETTING_KEYS.payUsdtAddress],
+      address: s[SETTING_KEYS.payUsdtAddress] || null,
+      network: s[SETTING_KEYS.payUsdtNetwork] || "BEP20",
+    },
+    {
+      method: "TON",
+      enabled: toBool(s[SETTING_KEYS.payTonEnabled]) && !!s[SETTING_KEYS.payTonAddress],
+      address: s[SETTING_KEYS.payTonAddress] || null,
+      network: "TON",
+    },
+    {
+      method: "STARS",
+      enabled: toBool(s[SETTING_KEYS.payStarsEnabled]),
+      address: null,
+    },
+  ]
+  return { minToman, methods }
 }

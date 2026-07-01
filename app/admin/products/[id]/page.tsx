@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LinksEditor } from "@/components/admin/links-editor"
+import { ImageUpload } from "@/components/admin/image-upload"
 
 type ProductLink = { label: string; url: string }
 
@@ -35,6 +36,8 @@ type Product = {
   deliveryType: string
   hidden: boolean
   active: boolean
+  coverImage: string | null
+  gallery: string[]
   links?: ProductLink[] | null
   fixedSale: FixedSale | null
 }
@@ -79,6 +82,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
+          <MediaEditor
+            id={id}
+            coverImage={product.coverImage}
+            gallery={product.gallery ?? []}
+            onSaved={mutate}
+          />
+
           {product.saleMode === "FIXED_PRICE" && product.fixedSale && (
             <FlashEditor
               id={id}
@@ -97,6 +107,95 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function MediaEditor({
+  id,
+  coverImage,
+  gallery,
+  onSaved,
+}: {
+  id: string
+  coverImage: string | null
+  gallery: string[]
+  onSaved: () => void
+}) {
+  const [cover, setCover] = useState(coverImage ?? "")
+  const [items, setItems] = useState<string[]>(gallery)
+  const [saving, setSaving] = useState(false)
+
+  async function patch(body: Record<string, unknown>) {
+    setSaving(true)
+    try {
+      const r = await fetch(`/api/v1/admin/products/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      if (!r.ok) throw new ApiError((await r.json())?.error?.message ?? "خطا", "ERR", r.status)
+      toast.success("تصویر ذخیره شد")
+      onSaved()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در ذخیره تصویر")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function saveCover(url: string) {
+    setCover(url)
+    void patch({ coverImage: url })
+  }
+
+  function saveGallery(next: string[]) {
+    setItems(next)
+    void patch({ gallery: next })
+  }
+
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold">تصاویر محصول</h2>
+        {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>تصویر کاور</Label>
+        <p className="text-[11px] text-muted-foreground">با کلیک روی کادر، تصویر را انتخاب و در نسبت ۱۶:۹ برش بزنید.</p>
+        <ImageUpload value={cover} onChange={saveCover} folder="products" aspect="aspect-video" />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>گالری تصاویر</Label>
+        <p className="text-[11px] text-muted-foreground">تصاویر بیشتری برای نمایش در صفحه محصول اضافه کنید (اختیاری).</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {items.map((url, i) => (
+            <ImageUpload
+              key={`${url}-${i}`}
+              value={url}
+              folder="products"
+              aspect="aspect-video"
+              onChange={(v) =>
+                v
+                  ? saveGallery(items.map((it, idx) => (idx === i ? v : it)))
+                  : saveGallery(items.filter((_, idx) => idx !== i))
+              }
+            />
+          ))}
+          {items.length < 12 && (
+            <ImageUpload
+              key={`add-${items.length}`}
+              value=""
+              folder="products"
+              aspect="aspect-video"
+              onChange={(v) => v && saveGallery([...items, v])}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

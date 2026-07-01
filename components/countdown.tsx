@@ -10,11 +10,14 @@ export function Countdown({
   onComplete,
   className,
   prefix,
+  completedLabel,
 }: {
   target: string | Date
   onComplete?: () => void
   className?: string
   prefix?: string
+  /** Text shown when the countdown reaches zero. Defaults to "ended". */
+  completedLabel?: string
 }) {
   const { t } = useI18n()
   const [ms, setMs] = useState(() => msUntil(target))
@@ -45,7 +48,7 @@ export function Countdown({
       dir="ltr"
     >
       {prefix}
-      {ms <= 0 ? t("common.ended") : formatCountdown(ms)}
+      {ms <= 0 ? (completedLabel ?? t("common.ended")) : formatCountdown(ms)}
     </span>
   )
 }

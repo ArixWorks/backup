@@ -35,6 +35,18 @@ const KEYS = {
   tierDiscountGold: "tier.discount.gold",
   tierDiscountDiamond: "tier.discount.diamond",
   tierDiscountVip: "tier.discount.vip",
+  // Top-up payment methods
+  payMinToman: "pay.min.toman",
+  payCardEnabled: "pay.card.enabled",
+  payCardNumber: "pay.card.number",
+  payCardHolder: "pay.card.holder",
+  payCardBank: "pay.card.bank",
+  payUsdtEnabled: "pay.usdt.enabled",
+  payUsdtAddress: "pay.usdt.address",
+  payUsdtNetwork: "pay.usdt.network",
+  payTonEnabled: "pay.ton.enabled",
+  payTonAddress: "pay.ton.address",
+  payStarsEnabled: "pay.stars.enabled",
 } as const
 
 // Earned tiers configured in the admin tier table (VIP discount is separate).
@@ -89,6 +101,119 @@ export default function AdminSettingsPage() {
       </div>
 
       <AppearancePicker />
+
+      <div className="flex items-center gap-2 pt-1">
+        <Settings2 className="h-5 w-5 text-primary" />
+        <h2 className="text-xl font-extrabold">روش‌های شارژ کیف پول</h2>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-64 w-full rounded-xl" />
+      ) : (
+        <div className="max-w-xl space-y-5 rounded-xl border border-border bg-card p-5">
+          <Field label="حداقل مبلغ شارژ (تومان)" hint="کمترین مبلغی که کاربر می‌تواند شارژ کند">
+            <Input
+              type="number"
+              value={form[KEYS.payMinToman] ?? ""}
+              onChange={(e) => set(KEYS.payMinToman, e.target.value)}
+              placeholder="10000"
+            />
+          </Field>
+
+          {/* Card to card */}
+          <div className="space-y-3 rounded-lg border border-border bg-secondary/40 p-3">
+            <Toggle
+              label="کارت به کارت"
+              hint="پرداخت ریالی و تأیید دستی توسط ادمین"
+              checked={form[KEYS.payCardEnabled] === "true"}
+              onChange={(v) => set(KEYS.payCardEnabled, v)}
+            />
+            <Field label="شماره کارت">
+              <Input
+                inputMode="numeric"
+                value={form[KEYS.payCardNumber] ?? ""}
+                onChange={(e) => set(KEYS.payCardNumber, e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="6037xxxxxxxxxxxx"
+                className="font-mono"
+              />
+            </Field>
+            <Field label="نام صاحب کارت">
+              <Input
+                value={form[KEYS.payCardHolder] ?? ""}
+                onChange={(e) => set(KEYS.payCardHolder, e.target.value)}
+                placeholder="نام و نام خانوادگی"
+              />
+            </Field>
+            <Field label="نام بانک">
+              <Input
+                value={form[KEYS.payCardBank] ?? ""}
+                onChange={(e) => set(KEYS.payCardBank, e.target.value)}
+                placeholder="مثلاً ملت"
+              />
+            </Field>
+          </div>
+
+          {/* USDT */}
+          <div className="space-y-3 rounded-lg border border-border bg-secondary/40 p-3">
+            <Toggle
+              label="تتر (USDT)"
+              hint="مبلغ یکتا + تأیید دستی ادمین"
+              checked={form[KEYS.payUsdtEnabled] === "true"}
+              onChange={(v) => set(KEYS.payUsdtEnabled, v)}
+            />
+            <Field label="آدرس ولت USDT">
+              <Input
+                value={form[KEYS.payUsdtAddress] ?? ""}
+                onChange={(e) => set(KEYS.payUsdtAddress, e.target.value)}
+                placeholder="0x... یا T..."
+                className="font-mono"
+              />
+            </Field>
+            <Field label="شبکه" hint="مثلاً BEP20 یا TRC20">
+              <Input
+                value={form[KEYS.payUsdtNetwork] ?? ""}
+                onChange={(e) => set(KEYS.payUsdtNetwork, e.target.value)}
+                placeholder="BEP20"
+              />
+            </Field>
+          </div>
+
+          {/* TON */}
+          <div className="space-y-3 rounded-lg border border-border bg-secondary/40 p-3">
+            <Toggle
+              label="تون (TON)"
+              hint="مبلغ یکتا + تأیید دستی ادمین"
+              checked={form[KEYS.payTonEnabled] === "true"}
+              onChange={(v) => set(KEYS.payTonEnabled, v)}
+            />
+            <Field label="آدرس ولت TON">
+              <Input
+                value={form[KEYS.payTonAddress] ?? ""}
+                onChange={(e) => set(KEYS.payTonAddress, e.target.value)}
+                placeholder="UQ..."
+                className="font-mono"
+              />
+            </Field>
+          </div>
+
+          {/* Telegram Stars */}
+          <div className="rounded-lg border border-border bg-secondary/40 p-3">
+            <Toggle
+              label="تلگرام استارز"
+              hint="پرداخت رسمی و خودکار داخل تلگرام"
+              checked={form[KEYS.payStarsEnabled] === "true"}
+              onChange={(v) => set(KEYS.payStarsEnabled, v)}
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={save} disabled={saving} className="gap-1.5">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              ذخیره
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 pt-1">
         <Settings2 className="h-5 w-5 text-primary" />
@@ -280,6 +405,33 @@ export default function AdminSettingsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <div>
+        <div className="font-bold">{label}</div>
+        {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+      </div>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+        className="h-5 w-5 accent-primary"
+      />
+    </label>
   )
 }
 

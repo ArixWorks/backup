@@ -518,6 +518,42 @@ export type MessageKey =
   | "stmt.empty"
   | "wallet.selectCurrency"
   | "wallet.frozenShort"
+  | "wallet.addFunds"
+  | "wallet.yourBalance"
+  | "wallet.recentActivity"
+  | "wallet.noActivity"
+  | "wallet.chooseAmount"
+  | "wallet.chooseMethod"
+  | "wallet.amountTomanLabel"
+  | "wallet.amountUsdLabel"
+  | "wallet.methodCard"
+  | "wallet.methodCardSub"
+  | "wallet.methodUsdt"
+  | "wallet.methodTon"
+  | "wallet.methodStars"
+  | "wallet.methodStarsSub"
+  | "wallet.methodUnavailable"
+  | "wallet.continue"
+  | "wallet.sendExactly"
+  | "wallet.toAddress"
+  | "wallet.toCard"
+  | "wallet.cardHolder"
+  | "wallet.network"
+  | "wallet.transferNote"
+  | "wallet.copy"
+  | "wallet.copied"
+  | "wallet.uploadReceipt"
+  | "wallet.receiptUploaded"
+  | "wallet.iPaid"
+  | "wallet.cryptoWarning"
+  | "wallet.expiresIn"
+  | "wallet.expired"
+  | "wallet.pendingReview"
+  | "wallet.payWithStars"
+  | "wallet.starsAmount"
+  | "wallet.depositCreated"
+  | "wallet.uploading"
+  | "wallet.back"
   | "convert.enterAmount"
   | "convert.sameCurrency"
   | "convert.success"
@@ -1137,6 +1173,42 @@ const fa: Catalog = {
   "stmt.empty": "تراکنشی یافت نشد.",
   "wallet.selectCurrency": "انتخاب ارز",
   "wallet.frozenShort": "مسدودشده",
+  "wallet.addFunds": "افزایش موجودی",
+  "wallet.yourBalance": "موجودی شما",
+  "wallet.recentActivity": "فعالیت‌های اخیر",
+  "wallet.noActivity": "هنوز فعالیتی ثبت نشده است",
+  "wallet.chooseAmount": "مبلغ را انتخاب کنید",
+  "wallet.chooseMethod": "روش پرداخت را انتخاب کنید",
+  "wallet.amountTomanLabel": "مبلغ (تومان)",
+  "wallet.amountUsdLabel": "مبلغ (دلار)",
+  "wallet.methodCard": "کارت به کارت",
+  "wallet.methodCardSub": "پرداخت ریالی",
+  "wallet.methodUsdt": "تتر (USDT)",
+  "wallet.methodTon": "تون (TON)",
+  "wallet.methodStars": "تلگرام استارز",
+  "wallet.methodStarsSub": "پرداخت آنی در تلگرام",
+  "wallet.methodUnavailable": "این روش در حال حاضر در دسترس نیست",
+  "wallet.continue": "ادامه",
+  "wallet.sendExactly": "دقیقاً این مبلغ را ارسال کنید",
+  "wallet.toAddress": "به این آدرس",
+  "wallet.toCard": "به این کارت",
+  "wallet.cardHolder": "به نام",
+  "wallet.network": "شبکه",
+  "wallet.transferNote": "کد پیگیری (در توضیحات واریز بنویسید)",
+  "wallet.copy": "کپی",
+  "wallet.copied": "کپی شد",
+  "wallet.uploadReceipt": "بارگذاری رسید پرداخت",
+  "wallet.receiptUploaded": "رسید بارگذاری شد",
+  "wallet.iPaid": "پرداخت کردم",
+  "wallet.cryptoWarning": "حتماً دقیقاً همین مبلغ را ارسال کنید تا تراکنش شما به‌درستی شناسایی شود.",
+  "wallet.expiresIn": "زمان باقی‌مانده",
+  "wallet.expired": "زمان این درخواست به پایان رسید",
+  "wallet.pendingReview": "در حال بررسی توسط مدیر",
+  "wallet.payWithStars": "پرداخت با استارز",
+  "wallet.starsAmount": "{n} استارز",
+  "wallet.depositCreated": "درخواست واریز ثبت شد",
+  "wallet.uploading": "در حال بارگذاری…",
+  "wallet.back": "بازگشت",
   "convert.enterAmount": "مبلغ را وارد کنید",
   "convert.sameCurrency": "ارز مبدأ و مقصد یکسان است",
   "convert.success": "تبدیل ارز با موفقیت انجام شد",
@@ -1155,7 +1227,7 @@ const fa: Catalog = {
   "notifList.markAll": "خواندن همه",
   "notifList.emptySearch": "اعلانی با این جستجو پیدا نشد",
   "notifList.emptyArchived": "بایگانی شما خالی است",
-  "notifList.emptyUnread": "اعلان خوانده‌نشده‌ای ندارید",
+  "notifList.emptyUnread": "اعلان خوانده‌نشده‌ای نداری",
   "notifList.emptyAll": "هنوز اعلانی ندارید",
   "notifList.emptyAllDesc": "وقتی خبری درباره سفارش‌ها، مزایده‌ها یا تراکنش‌ها باشد، اینجا نمایش داده می‌شود.",
   "notifList.restore": "بازگردانی به صندوق",
@@ -1755,6 +1827,42 @@ const en: Catalog = {
   "stmt.empty": "No transactions found.",
   "wallet.selectCurrency": "Select currency",
   "wallet.frozenShort": "Frozen",
+  "wallet.addFunds": "Add funds",
+  "wallet.yourBalance": "Your balance",
+  "wallet.recentActivity": "Recent activity",
+  "wallet.noActivity": "No activity yet",
+  "wallet.chooseAmount": "Choose an amount",
+  "wallet.chooseMethod": "Choose a payment method",
+  "wallet.amountTomanLabel": "Amount (Toman)",
+  "wallet.amountUsdLabel": "Amount (USD)",
+  "wallet.methodCard": "Card transfer",
+  "wallet.methodCardSub": "Pay in Toman",
+  "wallet.methodUsdt": "Tether (USDT)",
+  "wallet.methodTon": "Toncoin (TON)",
+  "wallet.methodStars": "Telegram Stars",
+  "wallet.methodStarsSub": "Instant in-app payment",
+  "wallet.methodUnavailable": "This method is currently unavailable",
+  "wallet.continue": "Continue",
+  "wallet.sendExactly": "Send exactly this amount",
+  "wallet.toAddress": "To this address",
+  "wallet.toCard": "To this card",
+  "wallet.cardHolder": "Holder",
+  "wallet.network": "Network",
+  "wallet.transferNote": "Reference code (add to transfer note)",
+  "wallet.copy": "Copy",
+  "wallet.copied": "Copied",
+  "wallet.uploadReceipt": "Upload payment receipt",
+  "wallet.receiptUploaded": "Receipt uploaded",
+  "wallet.iPaid": "I've paid",
+  "wallet.cryptoWarning": "Send the exact amount so your transfer can be matched correctly.",
+  "wallet.expiresIn": "Time left",
+  "wallet.expired": "This request has expired",
+  "wallet.pendingReview": "Pending admin review",
+  "wallet.payWithStars": "Pay with Stars",
+  "wallet.starsAmount": "{n} Stars",
+  "wallet.depositCreated": "Top-up request created",
+  "wallet.uploading": "Uploading…",
+  "wallet.back": "Back",
   "convert.enterAmount": "Enter an amount",
   "convert.sameCurrency": "Source and target currency are the same",
   "convert.success": "Currency converted successfully",
@@ -2373,6 +2481,42 @@ const ru: Catalog = {
   "stmt.empty": "Транзакции не найдены.",
   "wallet.selectCurrency": "Выбрать валюту",
   "wallet.frozenShort": "Заморожено",
+  "wallet.addFunds": "Пополнить",
+  "wallet.yourBalance": "Ваш баланс",
+  "wallet.recentActivity": "Последние операции",
+  "wallet.noActivity": "Пока нет операций",
+  "wallet.chooseAmount": "Выберите сумму",
+  "wallet.chooseMethod": "Выберите способ оплаты",
+  "wallet.amountTomanLabel": "Сумма (томан)",
+  "wallet.amountUsdLabel": "Сумма (USD)",
+  "wallet.methodCard": "Перевод на карту",
+  "wallet.methodCardSub": "Оплата в томанах",
+  "wallet.methodUsdt": "Tether (USDT)",
+  "wallet.methodTon": "Toncoin (TON)",
+  "wallet.methodStars": "Telegram Stars",
+  "wallet.methodStarsSub": "Мгновенная оплата",
+  "wallet.methodUnavailable": "Этот способ сейчас недоступен",
+  "wallet.continue": "Продолжить",
+  "wallet.sendExactly": "Отправьте точную сумму",
+  "wallet.toAddress": "На этот адрес",
+  "wallet.toCard": "На эту карту",
+  "wallet.cardHolder": "Владелец",
+  "wallet.network": "Сеть",
+  "wallet.transferNote": "Код перевода (укажите в примечании)",
+  "wallet.copy": "Копировать",
+  "wallet.copied": "Скопировано",
+  "wallet.uploadReceipt": "Загрузить квитанцию",
+  "wallet.receiptUploaded": "Квитанция загружена",
+  "wallet.iPaid": "Я оплатил",
+  "wallet.cryptoWarning": "Отправьте точную сумму, чтобы перевод можно было сопоставить.",
+  "wallet.expiresIn": "Осталось времени",
+  "wallet.expired": "Срок запроса истёк",
+  "wallet.pendingReview": "На проверке у администратора",
+  "wallet.payWithStars": "Оплатить звёздами",
+  "wallet.starsAmount": "{n} звёзд",
+  "wallet.depositCreated": "Запрос на пополнение создан",
+  "wallet.uploading": "Загрузка…",
+  "wallet.back": "Назад",
   "convert.enterAmount": "Введите сумму",
   "convert.sameCurrency": "Исходная и целевая валюты совпадают",
   "convert.success": "Валюта успешно конвертирована",
@@ -2992,6 +3136,42 @@ const hi: Catalog = {
   "stmt.empty": "Koi transaction nahi mila.",
   "wallet.selectCurrency": "Currency select karein",
   "wallet.frozenShort": "Frozen",
+  "wallet.addFunds": "Funds add karein",
+  "wallet.yourBalance": "Aapka balance",
+  "wallet.recentActivity": "Recent activity",
+  "wallet.noActivity": "Abhi koi activity nahin",
+  "wallet.chooseAmount": "Amount chunein",
+  "wallet.chooseMethod": "Payment method chunein",
+  "wallet.amountTomanLabel": "Amount (Toman)",
+  "wallet.amountUsdLabel": "Amount (USD)",
+  "wallet.methodCard": "Card transfer",
+  "wallet.methodCardSub": "Toman mein pay karein",
+  "wallet.methodUsdt": "Tether (USDT)",
+  "wallet.methodTon": "Toncoin (TON)",
+  "wallet.methodStars": "Telegram Stars",
+  "wallet.methodStarsSub": "Instant in-app payment",
+  "wallet.methodUnavailable": "Yeh method abhi available nahin hai",
+  "wallet.continue": "Continue",
+  "wallet.sendExactly": "Bilkul yahi amount bhejein",
+  "wallet.toAddress": "Is address par",
+  "wallet.toCard": "Is card par",
+  "wallet.cardHolder": "Holder",
+  "wallet.network": "Network",
+  "wallet.transferNote": "Reference code (transfer note mein likhein)",
+  "wallet.copy": "Copy",
+  "wallet.copied": "Copy ho gaya",
+  "wallet.uploadReceipt": "Receipt upload karein",
+  "wallet.receiptUploaded": "Receipt upload ho gaya",
+  "wallet.iPaid": "Maine pay kar diya",
+  "wallet.cryptoWarning": "Exact amount bhejein taaki aapka transfer match ho sake.",
+  "wallet.expiresIn": "Bacha hua time",
+  "wallet.expired": "Yeh request expire ho gaya",
+  "wallet.pendingReview": "Admin review pending",
+  "wallet.payWithStars": "Stars se pay karein",
+  "wallet.starsAmount": "{n} Stars",
+  "wallet.depositCreated": "Top-up request ban gaya",
+  "wallet.uploading": "Upload ho raha hai…",
+  "wallet.back": "Back",
   "convert.enterAmount": "Amount darj karein",
   "convert.sameCurrency": "Source aur target currency same hai",
   "convert.success": "Currency safaltapoorvak convert ho gayi",

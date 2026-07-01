@@ -10,6 +10,7 @@ import {
   editMessageText,
   answerCallbackQuery,
   inlineKeyboard,
+  answerPreCheckoutQuery,
 } from "./api"
 import {
   mainMenu,
@@ -44,8 +45,8 @@ import {
   MembershipRequiredError,
 } from "@/lib/core/giveaway"
 import { purchaseFixed, priceFor } from "@/lib/core/flash-sale"
-import { createDepositRequest, createWithdrawalRequest } from "@/lib/core/finance"
-import { formatToman } from "@/lib/format"
+import { createDepositRequest, createWithdrawalRequest, approveStarsDeposit } from "@/lib/core/finance"
+import { formatToman, formatDateTimeLocale } from "@/lib/format"
 import { formatPrice } from "@/lib/i18n/currency"
 import { tgLangToLocale, type Locale } from "@/lib/i18n/locales"
 import type { BotConfig } from "./config"
@@ -59,14 +60,32 @@ type TgFrom = {
   language_code?: string
   is_premium?: boolean
 }
-type TgMessage = { message_id: number; chat: TgChat; from?: TgFrom; text?: string }
+type TgSuccessfulPayment = {
+  currency: string
+  total_amount: number
+  invoice_payload: string
+  telegram_payment_charge_id: string
+}
+type TgMessage = {
+  message_id: number
+  chat: TgChat
+  from?: TgFrom
+  text?: string
+  successful_payment?: TgSuccessfulPayment
+}
 type TgCallback = {
   id: string
   from: TgFrom
   message?: { message_id: number; chat: TgChat }
   data?: string
 }
-export type TgUpdate = { update_id?: number; message?: TgMessage; callback_query?: TgCallback }
+type TgPreCheckout = { id: string; from: TgFrom; currency: string; total_amount: number; invoice_payload: string }
+export type TgUpdate = {
+  update_id?: number
+  message?: TgMessage
+  callback_query?: TgCallback
+  pre_checkout_query?: TgPreCheckout
+}
 
 // --- helpers -----------------------------------------------------------------
 
@@ -373,13 +392,13 @@ function gwLabels(locale: Locale) {
         drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप शामिल हैं",
         open: "ऐप में खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
         ended: "यह गिववे समाप्त हो गया", retry: "✅ मैंने जॉइन किया — पुनः प्रयास",
-        entrySaved: "हो गया! आप शामिल हैं। शुभकाम��ाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",
+        entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",
       }
     default:
       return {
         prize: "جایزه", winners: "برندگان", participants: "شرکت‌کنندگان",
         drawAt: "زمان قرعه‌کشی", enter: "🎉 شرکت در قرعه‌کشی", entered: "✅ شما ثبت‌نام کرده‌اید",
-        open: "مشاهده در اپ", results: "�� مشاهده نتایج", join: "ابتدا در کانال‌ها عضو شوید",
+        open: "مشاهده در اپ", results: "🏆 مشاهده نتایج", join: "ابتدا در کانال‌ها عضو شوید",
         ended: "این قرعه‌کشی به پایان رسیده است", retry: "✅ عضو شدم — تلاش مجدد",
         entrySaved: "ثبت شد! شرکت شما با موفقیت انجام شد. موفق باشید 🍀",
         joinNeeded: "در کانال‌های الزامی عضو شو و سپس دوباره تلاش کن.",
@@ -417,9 +436,9 @@ function giveawayCardMarkup(
 
 function giveawayCaption(gw: Awaited<ReturnType<typeof getPublicGiveaway>>, locale: Locale) {
   const L = gwLabels(locale)
-  const draw = new Date(gw.drawAt).toLocaleString(
+  const draw = formatDateTimeLocale(
+    gw.drawAt,
     locale === "fa" ? "fa-IR" : locale === "ru" ? "ru-RU" : locale === "hi" ? "hi-IN" : "en-US",
-    { dateStyle: "medium", timeStyle: "short" },
   )
   const lines = [
     `🎁 <b>${esc(gw.title)}</b>`,
@@ -1010,10 +1029,34 @@ async function setLanguage(chatId: number, user: User, messageId: number | undef
   await showWelcome(chatId, updated, false)
 }
 
+/** Approve a Stars pre-checkout (we already reserved the deposit on invoice). */
+async function handlePreCheckout(q: TgPreCheckout) {
+  // Only accept payloads we actually issued; otherwise decline cleanly.
+  const exists = await prisma.depositRequest.findFirst({
+    where: { starsPayload: q.invoice_payload, method: "STARS" },
+    select: { id: true },
+  })
+  await answerPreCheckoutQuery(q.id, !!exists, "این فاکتور معتبر نیست").catch(() => {})
+}
+
+/** Credit the wallet once Telegram confirms the Stars payment succeeded. */
+async function handleSuccessfulPayment(msg: TgMessage) {
+  const sp = msg.successful_payment
+  if (!sp) return
+  try {
+    await approveStarsDeposit(sp.invoice_payload, sp.telegram_payment_charge_id)
+    await sendMessage(msg.chat.id, "✅ پرداخت با استارز با موفقیت انجام شد و موجودی کیف پول شما افزایش یافت.")
+  } catch (e) {
+    console.log("[v0] stars payment credit error:", (e as Error).message)
+  }
+}
+
 /** Top-level dispatch with error isolation so the webhook always 200s. */
 export async function handleUpdate(update: TgUpdate) {
   try {
-    if (update.message) await handleMessage(update.message)
+    if (update.pre_checkout_query) await handlePreCheckout(update.pre_checkout_query)
+    else if (update.message?.successful_payment) await handleSuccessfulPayment(update.message)
+    else if (update.message) await handleMessage(update.message)
     else if (update.callback_query) await handleCallback(update.callback_query)
   } catch (e) {
     console.log("[v0] bot handleUpdate error:", (e as Error).message)

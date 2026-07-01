@@ -1,15 +1,15 @@
+import type { DepositStatus } from "@prisma/client"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { listDeposits } from "@/lib/core/finance"
 
 export const dynamic = "force-dynamic"
 
+const STATUSES = new Set(["PENDING", "APPROVED", "REJECTED", "EXPIRED"])
+
 export const GET = route(async (req: Request) => {
   await requireAdmin()
-  const status = new URL(req.url).searchParams.get("status") as
-    | "PENDING"
-    | "APPROVED"
-    | "REJECTED"
-    | null
-  return listDeposits(status ?? undefined)
+  const raw = new URL(req.url).searchParams.get("status")
+  const status = raw && STATUSES.has(raw) ? (raw as DepositStatus) : undefined
+  return listDeposits(status)
 })

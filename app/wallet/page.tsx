@@ -3,14 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { toast } from "sonner"
-import { Loader2, Plus, Crown, ChevronLeft } from "lucide-react"
-import { fetcher, apiPost, ApiError } from "@/lib/api-client"
+import { Plus, Crown, ChevronLeft } from "lucide-react"
+import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import { SignInRequired } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { ReferralCard } from "@/components/referral-card"
 import {
   BalancesPanel,
@@ -18,6 +16,7 @@ import {
   type CurrencyMeta,
 } from "@/components/wallet/balances-panel"
 import { StatementPanel } from "@/components/wallet/statement-panel"
+import { AddFundsSheet } from "@/components/wallet/add-funds-sheet"
 
 type WalletData = {
   balances: { totalBalance: number; frozenBalance: number; availableBalance: number }
@@ -35,8 +34,7 @@ export default function WalletPage() {
   )
 
   const [selected, setSelected] = useState("IRT")
-  const [amount, setAmount] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
 
   const currencies = data?.data.currencies ?? [
     { code: "IRT", name: t("common.toman"), symbol: t("common.toman"), decimals: 0 },
@@ -44,22 +42,9 @@ export default function WalletPage() {
   const balances = data?.data.allBalances ?? []
   const selectedMeta = currencies.find((c) => c.code === selected) ?? currencies[0]
 
-  async function topup() {
-    const value = Number(amount)
-    if (!Number.isFinite(value) || value < 10000) {
-      return toast.error(t("wallet.minTopup"))
-    }
-    setLoading(true)
-    try {
-      await apiPost("/api/v1/wallet/topup", { amount: value })
-      toast.success(t("wallet.topupSuccess"))
-      setAmount("")
-      await Promise.all([mutate(), refresh()])
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("wallet.topupError"))
-    } finally {
-      setLoading(false)
-    }
+  function refreshAll() {
+    mutate()
+    refresh()
   }
 
   if (!user) {
@@ -74,36 +59,16 @@ export default function WalletPage() {
         loading={isLoading}
         selected={selected}
         onSelect={setSelected}
-        onChanged={() => {
-          mutate()
-          refresh()
-        }}
+        onChanged={refreshAll}
       />
 
-      {selected === "IRT" && (
-        <div className="card-premium rounded-2xl border border-border p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-bold">
-            <Plus className="h-4 w-4 text-primary" />
-            {t("wallet.topupDemo")}
-          </h2>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              inputMode="numeric"
-              placeholder={t("wallet.amountPlaceholder")}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
-              className="tabular-nums"
-            />
-            <Button onClick={topup} disabled={loading} className="gap-2 sm:w-40">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              {t("wallet.charge")}
-            </Button>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t("wallet.demoNote")}
-          </p>
-        </div>
-      )}
+      <Button
+        onClick={() => setAddOpen(true)}
+        className="h-14 w-full gap-2 rounded-2xl text-base font-bold shadow-sm"
+      >
+        <Plus className="h-5 w-5" />
+        {t("wallet.addFunds")}
+      </Button>
 
       <Link
         href="/rewards"
@@ -116,7 +81,7 @@ export default function WalletPage() {
           <p className="font-bold text-foreground">{t("wallet.rewardsTitle")}</p>
           <p className="text-xs text-muted-foreground">{t("wallet.rewardsSubtitle")}</p>
         </div>
-        <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" />
+        <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground rtl:rotate-180" />
       </Link>
 
       <ReferralCard />
@@ -126,6 +91,8 @@ export default function WalletPage() {
         decimals={selectedMeta?.decimals ?? 0}
         symbol={selectedMeta?.symbol ?? ""}
       />
+
+      <AddFundsSheet open={addOpen} onOpenChange={setAddOpen} onChanged={refreshAll} />
     </div>
   )
 }
