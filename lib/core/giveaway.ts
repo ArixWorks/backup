@@ -11,6 +11,7 @@ import { earnPoints, progressMission, awardBadge } from "./gamification"
 import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { getChatMember } from "@/lib/telegram/api"
+import { tehranInputToUtc } from "@/lib/format"
 
 type Tx = Prisma.TransactionClient
 
@@ -135,9 +136,9 @@ function validateCommon(input: Pick<GiveawayInput, "winnersCount" | "prizeKind" 
 }
 
 export async function createGiveaway(input: GiveawayInput, actorId: string) {
-  const startAt = new Date(input.startAt)
-  const endAt = new Date(input.endAt)
-  const drawAt = new Date(input.drawAt)
+  const startAt = tehranInputToUtc(input.startAt)
+  const endAt = tehranInputToUtc(input.endAt)
+  const drawAt = tehranInputToUtc(input.drawAt)
   validateWindow(startAt, endAt, drawAt)
   validateCommon(input)
 
@@ -200,9 +201,9 @@ export async function updateGiveaway(id: string, input: Partial<GiveawayInput>, 
   if (input.winnersCount !== undefined) data.winnersCount = Math.round(input.winnersCount)
   if (input.requiredChannels !== undefined)
     data.requiredChannels = (input.requiredChannels ?? []) as unknown as Prisma.InputJsonValue
-  if (input.startAt !== undefined) data.startAt = new Date(input.startAt)
-  if (input.endAt !== undefined) data.endAt = new Date(input.endAt)
-  if (input.drawAt !== undefined) data.drawAt = new Date(input.drawAt)
+  if (input.startAt !== undefined) data.startAt = tehranInputToUtc(input.startAt)
+  if (input.endAt !== undefined) data.endAt = tehranInputToUtc(input.endAt)
+  if (input.drawAt !== undefined) data.drawAt = tehranInputToUtc(input.drawAt)
   if (input.timezone !== undefined) data.timezone = input.timezone || "Asia/Tehran"
   if (input.visibility !== undefined) data.visibility = input.visibility
   if (input.autoDraw !== undefined) data.autoDraw = input.autoDraw

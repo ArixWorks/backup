@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
+import { tehranInputToUtcISO } from "@/lib/format"
 
 type DeliveryType = "MANUAL" | "AUTOMATIC"
 
@@ -130,8 +131,8 @@ export default function NewProductPage() {
               reservePrice: reservePrice ? Number(reservePrice) : null,
               buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
               quantity: Number(quantity || 1),
-              startTime: new Date(startTime).toISOString(),
-              endTime: new Date(endTime).toISOString(),
+              startTime: tehranInputToUtcISO(startTime),
+              endTime: tehranInputToUtcISO(endTime),
             }
       const res = await apiPost<{ data: { id: string } }>("/api/v1/admin/products", payload)
       toast.success("محصول ساخته شد")

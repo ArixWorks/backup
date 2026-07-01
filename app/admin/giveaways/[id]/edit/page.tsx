@@ -7,15 +7,10 @@ import { ChevronRight, Gift } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { GiveawayForm, emptyGiveaway, type GiveawayFormValues } from "@/components/admin/giveaway-form"
+import { utcToTehranInput } from "@/lib/format"
 
-// Convert an ISO timestamp into the value format expected by datetime-local.
-function toLocalInput(iso: string | null | undefined): string {
-  if (!iso) return ""
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ""
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+// datetime-local values are edited in Tehran time regardless of the admin's device.
+const toLocalInput = utcToTehranInput
 
 type DetailGiveaway = {
   title: string

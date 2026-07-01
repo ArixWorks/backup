@@ -1,6 +1,7 @@
 import type { Prisma, Coupon } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { NotFoundError, ValidationError } from "./errors"
+import { tehranInputToUtc } from "@/lib/format"
 
 type Tx = Prisma.TransactionClient | typeof prisma
 
@@ -112,8 +113,8 @@ export async function createCoupon(input: CouponInput) {
       perUserLimit: input.perUserLimit ?? null,
       totalLimit: input.totalLimit ?? null,
       active: input.active ?? true,
-      startsAt: input.startsAt ? new Date(input.startsAt) : null,
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+      startsAt: input.startsAt ? tehranInputToUtc(input.startsAt) : null,
+      expiresAt: input.expiresAt ? tehranInputToUtc(input.expiresAt) : null,
     },
   })
 }
@@ -132,9 +133,9 @@ export async function updateCoupon(id: string, input: Partial<CouponInput>) {
   if (input.perUserLimit !== undefined) data.perUserLimit = input.perUserLimit
   if (input.totalLimit !== undefined) data.totalLimit = input.totalLimit
   if (input.active !== undefined) data.active = input.active
-  if (input.startsAt !== undefined) data.startsAt = input.startsAt ? new Date(input.startsAt) : null
+  if (input.startsAt !== undefined) data.startsAt = input.startsAt ? tehranInputToUtc(input.startsAt) : null
   if (input.expiresAt !== undefined)
-    data.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null
+    data.expiresAt = input.expiresAt ? tehranInputToUtc(input.expiresAt) : null
 
   return prisma.coupon.update({ where: { id }, data })
 }
