@@ -712,7 +712,14 @@
    ============================================================================ */
 [data-sonner-toaster] {
   --toast-safe-top: calc(max(env(safe-area-inset-top), var(--tg-safe-top, 0px)) + 14px);
-  font-family: var(--font-sans), 'Vazirmatn', ui-sans-serif, system-ui, sans-serif;
+  /* Sonner ships its own font-family on the toaster at equal specificity, so we
+     force ours (Vazirmatn / app sans) to guarantee the Persian face is used. */
+  font-family: var(--font-sans), 'Vazirmatn', ui-sans-serif, system-ui, sans-serif !important;
+  /* Neutralize sonner's default icon margin vars; our badge handles its own spacing. */
+  --toast-icon-margin-start: 0px;
+  --toast-icon-margin-end: 0px;
+  --toast-svg-margin-start: 0px;
+  --toast-svg-margin-end: 0px;
 }
 [data-sonner-toaster][data-y-position='top'] {
   top: var(--toast-safe-top) !important;
@@ -775,17 +782,29 @@
   color: color-mix(in oklab, var(--popover-foreground) 72%, transparent);
 }
 
-/* Keep the badge at a fixed size and let the text column take the rest, so the
-   title never slides underneath the icon. */
+/* Sonner defaults the icon slot to a fixed 16x16 box (with justify-content:
+   flex-start), so our 32px badge overflows and lands on top of the text. We
+   override with matching specificity + !important so the badge gets its own
+   column that never collides with the title. */
+.cn-toast[data-sonner-toast][data-styled='true'] [data-icon],
 .cn-toast[data-sonner-toast] [data-icon] {
-  width: auto;
-  height: auto;
-  margin: 0;
-  flex: 0 0 auto;
+  width: 2rem !important;
+  height: 2rem !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  align-self: center;
+  justify-content: center;
 }
+/* Text column takes the remaining space and is allowed to shrink/wrap. */
+.cn-toast[data-sonner-toast][data-styled='true'] [data-content],
 .cn-toast[data-sonner-toast] [data-content] {
   flex: 1 1 auto;
   min-width: 0;
+}
+.cn-toast[data-sonner-toast] [data-title],
+.cn-toast[data-sonner-toast] [data-description] {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .cn-toast-badge {
   display: grid;
