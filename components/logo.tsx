@@ -10,14 +10,20 @@ import { cn } from "@/lib/utils"
  */
 export function Logo({ className }: { className?: string }) {
   return (
-    <div dir="ltr" className={cn("flex items-center gap-2.5", className)}>
-      <BrandMark className="h-9 w-9" />
-      <span className="flex flex-col justify-center">
-        <span className="text-[1.3rem] font-extrabold leading-[1.05] tracking-tight">
+    // No forced direction: the lockup follows the page direction, so the badge
+    // sits on the reading-start side (right in RTL/Persian, left in LTR/English)
+    // while the wordmark keeps its Latin glyphs rendering left-to-right.
+    <div className={cn("flex items-center gap-2.5", className)}>
+      <BrandMark className="h-9 w-9 shrink-0" />
+      <span className="flex flex-col justify-center items-start text-start leading-none">
+        <span dir="ltr" className="text-[1.3rem] font-extrabold leading-[1.05] tracking-tight">
           <span className="text-foreground">Sub</span>
           <span className="text-gold">IO</span>
         </span>
-        <span className="text-[0.5rem] font-semibold uppercase leading-none tracking-[0.26em] text-muted-foreground">
+        <span
+          dir="ltr"
+          className="mt-[0.15em] text-[0.5rem] font-semibold uppercase leading-none tracking-[0.26em] text-muted-foreground"
+        >
           Marketplace
         </span>
       </span>
