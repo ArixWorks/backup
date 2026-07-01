@@ -92,11 +92,12 @@ export function ImageCropper({
   }, [aspect])
 
   useEffect(() => {
+    if (!mounted) return
     measure()
     const ro = new ResizeObserver(measure)
     if (stageRef.current) ro.observe(stageRef.current)
     return () => ro.disconnect()
-  }, [measure])
+  }, [measure, mounted])
 
   // Rotated natural dimensions of the source.
   const natural = useMemo(() => {
