@@ -266,10 +266,15 @@ export async function setGiveawayLifecycle(
 
   switch (action) {
     case "publish": {
-      if (g.status !== "DRAFT" && g.status !== "SCHEDULED") {
-        throw new ValidationError("این قرعه‌کشی قبلاً منتشر شده است")
+      // Publishing is idempotent: a DRAFT/SCHEDULED giveaway is (re)published and
+      // its live status recomputed from the current window. An already-published
+      // giveaway (ACTIVE/PAUSED/LOCKED) is treated as a successful no-op so admins
+      // can freely edit and re-save its details without hitting an error.
+      if (g.status === "DRAFT" || g.status === "SCHEDULED") {
+        data.status = now >= g.startAt && now < g.endAt ? "ACTIVE" : "SCHEDULED"
+      } else {
+        return g
       }
-      data.status = now >= g.startAt && now < g.endAt ? "ACTIVE" : "SCHEDULED"
       break
     }
     case "pause":
