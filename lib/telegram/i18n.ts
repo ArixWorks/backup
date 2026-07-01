@@ -140,7 +140,7 @@ const hi: PartialTexts = {
   depositPrompt:
     "{card} *वॉलेट टॉप अप*\n\nराशि तोमान में भेजें (जैसे 500000)।\nफिर आपकी रसीद की समीक्षा होगी {check}",
   depositReceived:
-    "{check} *{amount}* टॉप-अप अनुरोध दर्ज हुआ।\nएडमिन की मंज़ूरी के बाद वॉलेट ��्रेडिट होगा {sparkles}",
+    "{check} *{amount}* टॉप-अप अनुरोध दर्ज हुआ।\nएडमिन की मंज़ूरी के बाद वॉलेट क्रेडिट होगा {sparkles}",
   withdrawPrompt: "{money} *निकासी*\n\nनिकासी की राशि तोमान में भेजें।",
   withdrawReceived:
     "{check} *{amount}* निकासी अनुरोध दर्ज हुआ।\nसमीक्षा के बाद भुगतान होगा {sparkles}",

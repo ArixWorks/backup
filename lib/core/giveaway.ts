@@ -267,7 +267,7 @@ export async function setGiveawayLifecycle(
   switch (action) {
     case "publish": {
       if (g.status !== "DRAFT" && g.status !== "SCHEDULED") {
-        throw new ValidationError("این قرعه‌کشی قبلا�� منت��ر شده است")
+        throw new ValidationError("این قرعه‌کشی قبلاً منتشر شده است")
       }
       data.status = now >= g.startAt && now < g.endAt ? "ACTIVE" : "SCHEDULED"
       break
