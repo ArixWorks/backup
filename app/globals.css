@@ -871,3 +871,21 @@
 [data-motion='minimal'] .cn-toast-badge {
   animation: none !important;
 }
+
+/* ── Global scrollbar hiding ───────────────────────────────────────────────
+   Hide every scrollbar site-wide for a native mobile feel while keeping full
+   scroll behavior via touch, trackpad, and wheel. Unlayered + !important so it
+   wins over any component-level scrollbar styling. */
+html,
+body,
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* legacy Edge/IE */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important; /* Chrome, Safari, Edge */
+}
