@@ -1,4 +1,5 @@
 import { route } from "@/lib/api/handler"
+import { requireCronAuth } from "@/lib/api/cron-auth"
 import { runCollection } from "@/lib/monitoring/collect"
 import { withCron } from "@/lib/monitoring/instrument"
 import { touchHeartbeat } from "@/lib/monitoring/heartbeat"
@@ -16,14 +17,8 @@ export const runtime = "nodejs"
  * On Vercel, add it to vercel.json crons (min 1/min).
  */
 export const POST = route(async (req: Request) => {
-  const secret = process.env.CRON_SECRET
-  if (secret) {
-    const auth = req.headers.get("authorization")
-    if (auth !== `Bearer ${secret}`) {
-      const { ForbiddenError } = await import("@/lib/core/errors")
-      throw new ForbiddenError("Invalid cron secret")
-    }
-  }
+  // Fail-closed auth (see lib/api/cron-auth.ts).
+  requireCronAuth(req)
   // Run the collection, then record a heartbeat whose meta carries the real
   // cron duration / failure count. The collector reads this meta to emit the
   // `app.cron.duration` and `app.cron.failures` metrics, and the health probe

@@ -1,4 +1,5 @@
 import { route } from "@/lib/api/handler"
+import { requireCronAuth } from "@/lib/api/cron-auth"
 import { activateDueAuctions, tickDueAuctions, notifyEndingSoonAuctions } from "@/lib/core/auction"
 import { tickGiveaways } from "@/lib/core/giveaway"
 import { collectStartNotifications } from "@/lib/core/watchlist"
@@ -11,14 +12,9 @@ import { touchHeartbeat } from "@/lib/monitoring/heartbeat"
 // Scheduled worker entry point: activate scheduled auctions and finalize ended
 // ones. Wire this to a cron (Vercel Cron, or a BullMQ/Redis worker self-hosted).
 export const POST = route(async (req: Request) => {
-  const secret = process.env.CRON_SECRET
-  if (secret) {
-    const auth = req.headers.get("authorization")
-    if (auth !== `Bearer ${secret}`) {
-      const { ForbiddenError } = await import("@/lib/core/errors")
-      throw new ForbiddenError("Invalid cron secret")
-    }
-  }
+  // Fail-closed auth: in production a missing/invalid CRON_SECRET rejects the
+  // request (this endpoint runs backups, finalizes auctions and drains email).
+  requireCronAuth(req)
   // Record a liveness heartbeat so the Operations Center can detect a stalled
   // scheduler (no tick within the expected interval => cron service DOWN). The
   // meta carries the real run duration so `app.cron.duration` stays populated
