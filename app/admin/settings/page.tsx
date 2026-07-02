@@ -7,11 +7,17 @@ import { Settings2, Loader2, Save } from "lucide-react"
 import { fetcher, apiPatch, ApiError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AppearancePicker } from "@/components/admin/appearance-picker"
 
 // Mirror of SETTING_KEYS on the server (lib/core/settings.ts).
 const KEYS = {
+  // Maintenance mode
+  maintenanceEnabled: "maintenance.enabled",
+  maintenanceTitle: "maintenance.title",
+  maintenanceMessage: "maintenance.message",
+  maintenanceSupportUrl: "maintenance.supportUrl",
   cashbackEnabled: "cashback.enabled",
   cashbackPercent: "cashback.percent",
   referralEnabled: "referral.enabled",
@@ -99,6 +105,66 @@ export default function AdminSettingsPage() {
         <Settings2 className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-extrabold">تنظیمات</h1>
       </div>
+
+      {/* Maintenance mode — blocks non-admins on both the bot and the web/Mini App */}
+      <div className="flex items-center gap-2 pt-1">
+        <Settings2 className="h-5 w-5 text-primary" />
+        <h2 className="text-xl font-extrabold">حالت تعمیر و نگهداری</h2>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-56 w-full rounded-xl" />
+      ) : (
+        <div
+          className={`max-w-xl space-y-5 rounded-xl border p-5 transition-colors ${
+            form[KEYS.maintenanceEnabled] === "true"
+              ? "border-primary/60 bg-primary/5"
+              : "border-border bg-card"
+          }`}
+        >
+          <Toggle
+            label="فعال‌سازی حالت تعمیر"
+            hint="با فعال شدن، همه کاربران عادی در ربات و وب‌اپ پیام «در حال بروزرسانی» می‌بینند. ادمین اصلی همچنان دسترسی کامل دارد."
+            checked={form[KEYS.maintenanceEnabled] === "true"}
+            onChange={(v) => set(KEYS.maintenanceEnabled, v)}
+          />
+
+          <Field label="عنوان پیام" hint="سرتیتر کوتاه صفحه بروزرسانی">
+            <Input
+              value={form[KEYS.maintenanceTitle] ?? ""}
+              onChange={(e) => set(KEYS.maintenanceTitle, e.target.value)}
+              placeholder="به‌زودی برمی‌گردیم"
+            />
+          </Field>
+
+          <Field label="متن پیام" hint="توضیحی که به کاربران نمایش داده می‌شود">
+            <Textarea
+              rows={4}
+              value={form[KEYS.maintenanceMessage] ?? ""}
+              onChange={(e) => set(KEYS.maintenanceMessage, e.target.value)}
+              placeholder="در حال ارتقای سیستم برای تجربه‌ای بهتر هستیم. لطفاً کمی بعد دوباره سر بزنید."
+            />
+          </Field>
+
+          <Field label="لینک پشتیبانی (اختیاری)" hint="مثلاً https://t.me/YourSupport — روی دکمه پشتیبانی نمایش داده می‌شود">
+            <Input
+              inputMode="url"
+              value={form[KEYS.maintenanceSupportUrl] ?? ""}
+              onChange={(e) => set(KEYS.maintenanceSupportUrl, e.target.value)}
+              placeholder="https://t.me/YourSupport"
+              className="font-mono"
+              dir="ltr"
+            />
+          </Field>
+
+          <div className="flex justify-end">
+            <Button onClick={save} disabled={saving} className="gap-1.5">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              ذخیره
+            </Button>
+          </div>
+        </div>
+      )}
 
       <AppearancePicker />
 
@@ -355,7 +421,7 @@ export default function AdminSettingsPage() {
               <div key={row.id} className="rounded-lg border border-border bg-secondary/40 p-3">
                 <div className="mb-2.5 text-sm font-bold">{row.label}</div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Field label="امتیاز لازم" hint="امتیاز مادام‌العمر">
+                  <Field label="��متیاز لازم" hint="امتیاز مادام‌العمر">
                     <Input
                       type="number"
                       value={form[KEYS[row.points]] ?? ""}
