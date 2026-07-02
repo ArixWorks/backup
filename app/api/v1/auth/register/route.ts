@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       emailVerified: false,
       lastLoginMethod: "password",
       displayName: body.displayName?.trim() || email.split("@")[0],
-      alias: `Bidder#${randomBytes(2).toString("hex")}`,
+      alias: `Subio#${randomBytes(2).toString("hex")}`,
       wallets: { create: { currency: "IRT", totalBalance: 0n } },
     },
   })

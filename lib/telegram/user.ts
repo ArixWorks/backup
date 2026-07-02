@@ -91,7 +91,7 @@ export async function resolveTelegramUser(tg: TgIdentity) {
     })
   }
 
-  const alias = `Bidder#${randomBytes(2).toString("hex")}`
+  const alias = `Subio#${randomBytes(2).toString("hex")}`
   return prisma.user.create({
     data: {
       telegramId,
