@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { uploadedFileUrl } from "@/lib/api/file-url"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
@@ -14,7 +15,7 @@ const schema = z.object({
   cardLast4: z.string().optional(),
   reference: z.string().optional(),
   note: z.string().optional(),
-  receiptUrl: z.string().url().optional(),
+  receiptUrl: uploadedFileUrl.optional(),
 })
 
 export const GET = route(async () => {

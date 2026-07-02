@@ -14,20 +14,26 @@ const DEFAULT_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 type Payload = { uid: string; exp: number; ver?: number }
 
 /**
- * Resolve the signing secret. Prefers AUTH_SECRET; falls back to deriving a
- * stable key from the bot token so the app keeps working before the user adds
- * a dedicated secret. Throws only if nothing usable exists.
+ * Resolve the signing secret. In production a dedicated AUTH_SECRET (or
+ * SESSION_SECRET) is REQUIRED — falling back to the bot token would mean a
+ * bot-token leak also compromises every user session. In development we still
+ * fall back to the bot token so local setups keep working.
  */
 function secret(): string {
-  const s =
-    process.env.AUTH_SECRET ||
-    process.env.SESSION_SECRET ||
-    process.env.TELEGRAM_BOT_TOKEN ||
-    process.env.BOT_TOKEN
-  if (!s) {
+  const dedicated = process.env.AUTH_SECRET || process.env.SESSION_SECRET
+  if (dedicated) return dedicated
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET must be set in production (generate one with: openssl rand -base64 32)",
+    )
+  }
+
+  const fallback = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN
+  if (!fallback) {
     throw new Error("AUTH_SECRET is not set and no bot token is available to derive a key from")
   }
-  return s
+  return fallback
 }
 
 function b64url(buf: Buffer | string): string {
