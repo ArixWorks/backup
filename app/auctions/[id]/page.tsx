@@ -254,9 +254,8 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 icon={<Calendar className="h-3.5 w-3.5" />}
                 label={t("adetail.endTime")}
                 value={formatDateTime(a.endTime)}
-                  small
-                />
-              )}
+                small
+              />
             </dl>
 
             {a.hasReserve && (
