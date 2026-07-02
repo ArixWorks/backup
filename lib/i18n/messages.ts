@@ -254,6 +254,12 @@ export type MessageKey =
   | "adetail.minIncrement"
   | "adetail.winnersCount"
   | "adetail.endTime"
+  | "adetail.days"
+  | "adetail.hours"
+  | "adetail.mins"
+  | "adetail.secs"
+  | "adetail.buyNowStat"
+  | "adetail.overview"
   | "wins.signInRequired"
   | "wins.copied"
   | "wins.copyFailed"
@@ -909,6 +915,12 @@ const fa: Catalog = {
   "adetail.minIncrement": "حداقل افزایش",
   "adetail.winnersCount": "تعداد برنده",
   "adetail.endTime": "زمان پایان",
+  "adetail.days": "روز",
+  "adetail.hours": "ساعت",
+  "adetail.mins": "دقیقه",
+  "adetail.secs": "ثانیه",
+  "adetail.buyNowStat": "خرید فوری",
+  "adetail.overview": "توضیحات",
   "wins.signInRequired": "برای مشاهده‌ی جوایز، ابتدا وارد حساب کاربری خود شوید.",
   "wins.copied": "کپی شد",
   "wins.copyFailed": "کپی ناموفق بود",
@@ -1106,7 +1118,7 @@ const fa: Catalog = {
   "watchedProducts.empty": "محصولی را برای اطلاع از موجودی دنبال نمی‌کنید.",
   "watchedProducts.inStock": "موجود",
   "catFollow.unfollowed": "دنبال‌کردن دسته «{category}» لغو شد",
-  "catFollow.followed": "از این پس محصولات جدید دسته «{category}» را اطلاع می‌دهیم",
+  "catFollow.followed": "از این پس محصولات جدید دسته «{category}» را ��طلاع می‌دهیم",
   "catFollow.errUpdate": "خطا در به‌روزرسانی",
   "catFollow.following": "دنبال می‌کنید",
   "catFollow.follow": "دنبال‌کردن دسته",
@@ -1563,6 +1575,12 @@ const en: Catalog = {
   "adetail.minIncrement": "Min. increment",
   "adetail.winnersCount": "Winners",
   "adetail.endTime": "End time",
+  "adetail.days": "days",
+  "adetail.hours": "hrs",
+  "adetail.mins": "min",
+  "adetail.secs": "sec",
+  "adetail.buyNowStat": "Buy now",
+  "adetail.overview": "Overview",
   "wins.signInRequired": "Sign in to view your prizes.",
   "wins.copied": "Copied",
   "wins.copyFailed": "Copy failed",
@@ -2000,7 +2018,7 @@ const ru: Catalog = {
   "tour.s3.title": "Купите товар",
   "tour.s3.body": "Нажмите на товар, чтобы увидеть детали и оплатить. Доставка мгновенная.",
   "tour.s4.title": "Участвуйте в аукционах",
-  "tour.s4.body": "Делайте ставки на особые товары и выигрывайте по лучшей цене — уникальная возможность.",
+  "tour.s4.body": "Делайте ставки на особые товары и выигрывайте по лучшей цене — уникальная возм��жность.",
   "tour.s5.title": "Ничего не пропустите",
   "tour.s5.body": "Получайте уведомления о пополнениях и розыгрышах и будьте на шаг впереди.",
   "success.title": "Всё готово!",
@@ -2217,6 +2235,12 @@ const ru: Catalog = {
   "adetail.minIncrement": "Мин. шаг",
   "adetail.winnersCount": "Победителей",
   "adetail.endTime": "Время окончания",
+  "adetail.days": "дн",
+  "adetail.hours": "ч",
+  "adetail.mins": "мин",
+  "adetail.secs": "сек",
+  "adetail.buyNowStat": "Купить сейчас",
+  "adetail.overview": "Описание",
   "wins.signInRequired": "Войдите, чтобы увидеть свои призы.",
   "wins.copied": "Скопировано",
   "wins.copyFailed": "Не удалось скопировать",
@@ -2229,7 +2253,7 @@ const ru: Catalog = {
   "wins.position": "Место {n}",
   "wins.empty": "Вы ещё не выиграли ни одного розыгрыша",
   "wins.emptyDesc": "Участвуйте в активных розыгрышах ради шанса на приз.",
-  "wins.emptyAction": "Смотреть активные розыгрыши",
+  "wins.emptyAction": "Смотреть активные розыг��ыши",
   "watchlist.signInRequired": "Войдите, чтобы увидеть список отслеживания.",
   "watchlist.emptyDesc": "Следите за любимыми аукционами, чтобы получить уведомление о старте.",
   "watchlist.flashProducts": "Товары распродажи",
@@ -2428,7 +2452,7 @@ const ru: Catalog = {
   "menu.walletDesc": "Баланс и пополнение",
   "menu.reports": "Отчёты о пополнениях",
   "menu.reportsDesc": "История и статус",
-  "menu.support": "Тикеты и поддержка",
+  "menu.support": "Тикеты �� поддержка",
   "menu.supportDesc": "Создание и отслеживание запросов",
   "menu.refunds": "Запрос на возврат",
   "menu.refundsDesc": "Возврат на банковскую карту",
@@ -2872,6 +2896,12 @@ const hi: Catalog = {
   "adetail.minIncrement": "Min. increment",
   "adetail.winnersCount": "Winners",
   "adetail.endTime": "End time",
+  "adetail.days": "din",
+  "adetail.hours": "ghante",
+  "adetail.mins": "min",
+  "adetail.secs": "sec",
+  "adetail.buyNowStat": "Abhi khareedein",
+  "adetail.overview": "Vivaran",
   "wins.signInRequired": "Apne prizes dekhne ke liye sign in karein.",
   "wins.copied": "Copy ho gaya",
   "wins.copyFailed": "Copy nahi ho saka",
