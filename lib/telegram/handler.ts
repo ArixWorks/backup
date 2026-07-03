@@ -16,6 +16,7 @@ import {
   sendInvoice,
   getFile,
   downloadTelegramFile,
+  botConfigured,
 } from "./api"
 import {
   mainMenu,
@@ -44,7 +45,18 @@ import {
 import { checkMemberships, clearMembershipCache, forcedJoinActive } from "./membership"
 import { resolveTelegramUser, isAdminTelegram } from "./user"
 import { getMaintenance } from "@/lib/core/settings"
-import { setPending, getPending, clearPending, setCanvas, getCanvas, type PendingAction, type BotPayMethod } from "./state"
+import {
+  setPending,
+  getPending,
+  clearPending,
+  setCanvas,
+  getCanvas,
+  setOrderDraft,
+  getOrderDraft,
+  clearOrderDraft,
+  type PendingAction,
+  type BotPayMethod,
+} from "./state"
 import { getBalances } from "@/lib/core/wallet"
 import { effectiveTier, tierLabelFor, TIER_EMOJI } from "@/lib/tiers"
 import {
@@ -91,7 +103,12 @@ import {
   MembershipRequiredError,
 } from "@/lib/core/giveaway"
 import { purchaseFixed, priceFor } from "@/lib/core/flash-sale"
-import { createDepositRequest, createWithdrawalRequest, approveStarsDeposit } from "@/lib/core/finance"
+import {
+  createDepositRequest,
+  createWithdrawalRequest,
+  approveStarsDeposit,
+  claimDepositPaid,
+} from "@/lib/core/finance"
 import { formatToman, formatDateTimeLocale } from "@/lib/format"
 import { formatPrice } from "@/lib/i18n/currency"
 import { tgLangToLocale, type Locale } from "@/lib/i18n/locales"
@@ -777,7 +794,7 @@ async function handleMessage(msg: TgMessage) {
       const productId = payload.slice(2)
       const product = await getFlashProduct(productId)
       if (product) {
-        await sendProductCard(chatId, locale, product)
+        await showFlashDetail(chatId, locale, productId, 0)
         return
       }
     }
@@ -809,11 +826,18 @@ async function handleMessage(msg: TgMessage) {
   // Forced-join guard: blocks access (and shows the join screen) if they left.
   if (!(await ensureAccess(chatId, user, userLocale))) return
 
-  // Pending conversation flows (deposit/withdraw/quantity entry).
+  // Pending conversation flows (deposit/withdraw/quantity/bid/coupon/support).
   const pending = await getPending(chatId)
-  if (pending && !text.startsWith("/")) {
-    await handlePendingInput(chatId, user, pending, text)
-    return
+  if (pending) {
+    // A receipt upload arrives as a photo message (no text).
+    if (msg.photo?.length && pending.kind === "awaiting_deposit_receipt") {
+      await handleReceiptPhoto(chatId, user, pending, msg.photo)
+      return
+    }
+    if (text && !text.startsWith("/")) {
+      await handlePendingInput(chatId, user, pending, text)
+      return
+    }
   }
 
   switch (text.split(" ")[0]) {
@@ -829,6 +853,14 @@ async function handleMessage(msg: TgMessage) {
       return showAuctions(chatId, localeOf(c, user))
     case "/watchlist":
       return showWatchlist(chatId, user)
+    case "/profile":
+      return showProfile(chatId, user)
+    case "/rewards":
+      return showRewards(chatId, user)
+    case "/notifications":
+      return showNotifications(chatId, user)
+    case "/support":
+      return showSupport(chatId, user)
     case "/language":
       return showLanguage(chatId, localeOf(c, user))
     case "/app": {
@@ -851,46 +883,66 @@ async function handleMessage(msg: TgMessage) {
 async function handlePendingInput(
   chatId: number,
   user: User,
-  pending: { kind: string; productId?: string },
+  pending: PendingAction,
   text: string,
 ) {
   const c = await cfg()
   const locale = localeOf(c, user)
 
-  // Quantity entry for the interactive buy flow.
-  if (pending.kind === "awaiting_quantity") {
-    await handleQuantityInput(chatId, user, locale, pending.productId!, text)
-    return
-  }
-
-  const amount = parseAmount(text)
-  if (amount == null) {
-    await sendMessage(chatId, `${emo(c, "warning")} 500000`)
-    return
-  }
-  await clearPending(chatId)
-  try {
-    if (pending.kind === "awaiting_deposit_amount") {
-      await createDepositRequest({ userId: user.id, amount, note: "Telegram bot" })
-      const { html } = t(c, locale, "depositReceived", { amount: fa(amount) })
-      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
-    } else if (pending.kind === "awaiting_withdraw_amount") {
-      await createWithdrawalRequest({ userId: user.id, amount, note: "Telegram bot" })
-      const { html } = t(c, locale, "withdrawReceived", { amount: fa(amount) })
-      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+  switch (pending.kind) {
+    case "awaiting_quantity":
+      return handleQuantityInput(chatId, user, locale, pending.productId, text, pending.couponCode)
+    case "awaiting_bid_amount":
+      return handleBidInput(chatId, user, locale, pending.auctionId, text)
+    case "awaiting_coupon_code":
+      return handleCouponInput(chatId, user, locale, pending.productId, text)
+    case "awaiting_support_subject":
+      return handleSupportSubject(chatId, user, locale, text)
+    case "awaiting_support_message":
+      return handleSupportMessage(chatId, user, locale, pending.subject, text)
+    case "awaiting_ticket_reply":
+      return handleTicketReply(chatId, user, locale, pending.ticketId, text)
+    case "awaiting_deposit_receipt": {
+      const L = walletLabels(locale)
+      await sendMessage(chatId, `${emo(c, "warning")} ${esc(L.receiptPhotoOnly)}`)
+      return
     }
-  } catch (e) {
-    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+    case "awaiting_deposit_amount":
+    case "awaiting_withdraw_amount": {
+      const amount = parseAmount(text)
+      if (amount == null) {
+        await sendMessage(chatId, `${emo(c, "warning")} 500000`)
+        return
+      }
+      await clearPending(chatId)
+      try {
+        if (pending.kind === "awaiting_deposit_amount") {
+          await startDepositForMethod(chatId, user, locale, pending.method, amount)
+        } else {
+          await createWithdrawalRequest({ userId: user.id, amount, note: "Telegram bot" })
+          const { html } = t(c, locale, "withdrawReceived", { amount: fa(amount) })
+          await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+        }
+      } catch (e) {
+        await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+      }
+      return
+    }
   }
 }
 
-/** Validate the quantity, then present the payment-method keyboard. */
+/**
+ * Validate the quantity, persist an order draft (product + qty + optional
+ * coupon), then present the payment-method chooser. The draft keeps the coupon
+ * out of the callback data (which would be unsafe / length-limited).
+ */
 async function handleQuantityInput(
   chatId: number,
   user: User,
   locale: Locale,
   productId: string,
   text: string,
+  couponCode?: string,
 ) {
   const c = await cfg()
   const product = await getFlashProduct(productId)
@@ -908,12 +960,29 @@ async function handleQuantityInput(
     return
   }
   await clearPending(chatId)
+  await setOrderDraft(chatId, { productId, qty, couponCode })
+
+  // Preview total, applying the coupon when it validates for this subtotal.
   const { totalPrice } = priceFor(product, qty)
+  let payable = totalPrice
+  if (couponCode) {
+    try {
+      const { preview } = await evaluateCoupon(prisma, couponCode, totalPrice, user.id)
+      payable = preview.finalTotal
+    } catch {
+      /* coupon no longer valid at this subtotal — fall back to full total */
+    }
+  }
+  const L = botLabels(locale)
+  const couponLine = couponCode ? `\n🏷️ ${esc(L.couponApplied)}: <code>${esc(couponCode)}</code>` : ""
   const { html } = t(c, locale, "selectPayment", {
     orderTitle: `${product.title} ×${qty}`,
-    total: price(c, locale, totalPrice),
+    total: price(c, locale, payable),
   })
-  await sendMessage(chatId, html, { replyMarkup: paymentKeyboard(c, productId, qty, locale) })
+  const methods = await enabledPayMethods()
+  await sendMessage(chatId, `${html}${couponLine}`, {
+    replyMarkup: orderPayKeyboard(c, productId, qty, methods, locale),
+  })
 }
 
 function parseQuantity(text: string): number | null {

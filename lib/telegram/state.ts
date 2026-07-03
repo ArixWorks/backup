@@ -68,3 +68,30 @@ export async function getPending(chatId: string | number): Promise<PendingAction
 export async function clearPending(chatId: string | number) {
   await cache.del(key(chatId))
 }
+
+/**
+ * A short-lived pending flash-sale order (product + quantity + optional coupon)
+ * kept between the quantity/coupon step and the payment-method choice, so the
+ * pay buttons stay short (`opay:<method>`) and can carry a coupon code that
+ * would be unsafe to encode in callback data.
+ */
+export type OrderDraft = { productId: string; qty: number; couponCode?: string }
+const draftKey = (chatId: string | number) => `tgdraft:${chatId}`
+
+export async function setOrderDraft(chatId: string | number, draft: OrderDraft) {
+  await cache.set(draftKey(chatId), JSON.stringify(draft), TTL)
+}
+
+export async function getOrderDraft(chatId: string | number): Promise<OrderDraft | null> {
+  const raw = await cache.get(draftKey(chatId))
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as OrderDraft
+  } catch {
+    return null
+  }
+}
+
+export async function clearOrderDraft(chatId: string | number) {
+  await cache.del(draftKey(chatId))
+}
