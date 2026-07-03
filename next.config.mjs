@@ -24,9 +24,6 @@ const securityHeaders = [
 const nextConfig = {
   // Produces a self-contained server bundle for the Docker image (no effect on dev).
   output: 'standalone',
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

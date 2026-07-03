@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { uploadedFileUrl } from "@/lib/api/file-url"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { closeTicket, getTicket, replyToTicket } from "@/lib/core/support"
@@ -9,7 +10,7 @@ type Ctx = { params: Promise<{ publicId: string }> }
 
 const replySchema = z.object({
   message: z.string(),
-  attachmentUrl: z.string().url().optional(),
+  attachmentUrl: uploadedFileUrl.optional(),
 })
 
 export const GET = route(async (_req: Request, ctx: Ctx) => {

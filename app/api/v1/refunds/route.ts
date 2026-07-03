@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { uploadedFileUrl } from "@/lib/api/file-url"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { createRefundRequest, listRefunds } from "@/lib/core/refunds"
@@ -9,7 +10,7 @@ const schema = z.object({
   amount: z.union([z.string(), z.number()]),
   fullName: z.string(),
   nationalId: z.string(),
-  nationalCardUrl: z.string().url(),
+  nationalCardUrl: uploadedFileUrl,
   cardNumber: z.string(),
   iban: z.string().optional(),
   reason: z.string().optional(),

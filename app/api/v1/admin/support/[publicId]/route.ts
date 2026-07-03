@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { uploadedFileUrl } from "@/lib/api/file-url"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { getTicketAdmin, staffReply } from "@/lib/core/support"
@@ -9,7 +10,7 @@ type Ctx = { params: Promise<{ publicId: string }> }
 
 const replySchema = z.object({
   message: z.string(),
-  attachmentUrl: z.string().url().optional(),
+  attachmentUrl: uploadedFileUrl.optional(),
   close: z.boolean().optional(),
 })
 

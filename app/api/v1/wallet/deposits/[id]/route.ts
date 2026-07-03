@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { uploadedFileUrl } from "@/lib/api/file-url"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { claimDepositPaid } from "@/lib/core/finance"
@@ -7,7 +8,7 @@ import { rateLimitBy } from "@/lib/api/rate-limit"
 export const dynamic = "force-dynamic"
 
 const schema = z.object({
-  receiptUrl: z.string().url().optional(),
+  receiptUrl: uploadedFileUrl.optional(),
 })
 
 /** User marks a deposit as paid and/or attaches a receipt screenshot. */
