@@ -52,6 +52,9 @@ export async function POST(req: Request) {
     })
   }
 
-  await createSession(user.id)
+  // Embed the user's current tokenVersion so accounts whose version was bumped
+  // (e.g. the owner via create-admin, or "log out of all sessions") get a valid
+  // session instead of one getCurrentUser instantly rejects.
+  await createSession(user.id, user.tokenVersion ?? 0)
   return NextResponse.json({ ok: true, data: { id: user.id } })
 }

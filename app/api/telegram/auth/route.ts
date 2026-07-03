@@ -71,8 +71,12 @@ export async function POST(req: Request) {
     }),
   })
   // Signed session token (cannot be forged by editing the cookie). sameSite
-  // "none" keeps it working inside the Telegram Mini App iframe.
-  res.cookies.set(SESSION_COOKIE, signSession(user.id), {
+  // "none" keeps it working inside the Telegram Mini App iframe. The user's
+  // current tokenVersion MUST be embedded — otherwise any account whose version
+  // was bumped (e.g. the owner via create-admin, or anyone who used "log out of
+  // all sessions") would get a token that getCurrentUser instantly rejects,
+  // leaving the Mini App stuck on an infinite loader.
+  res.cookies.set(SESSION_COOKIE, signSession(user.id, user.tokenVersion ?? 0), {
     httpOnly: true,
     sameSite: "none",
     secure: true,
