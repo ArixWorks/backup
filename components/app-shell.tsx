@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/bottom-nav"
 import { SupportFab } from "@/components/support-fab"
 import { NotificationWatcher } from "@/components/notification-watcher"
 import { AuthGate } from "@/components/auth/auth-gate"
+import { MaintenanceGate } from "@/components/maintenance-gate"
 import { ForcePasswordChange } from "@/components/auth/force-password-change"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
 import { ScrollProgress } from "@/components/motion"
@@ -42,26 +43,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGate>
-      <ScrollProgress />
-      <NotificationWatcher />
-      <ForcePasswordChange />
-      <OnboardingFlow />
-      <SiteHeader />
-      <main className="mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-xl px-4 pb-28 pt-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-      <SupportFab />
-      <BottomNav />
+      <MaintenanceGate>
+        <ScrollProgress />
+        <NotificationWatcher />
+        <ForcePasswordChange />
+        <OnboardingFlow />
+        <SiteHeader />
+        <main className="mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-xl px-4 pb-28 pt-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+        <SupportFab />
+        <BottomNav />
+      </MaintenanceGate>
     </AuthGate>
   )
 }

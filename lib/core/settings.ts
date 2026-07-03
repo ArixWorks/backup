@@ -81,6 +81,14 @@ export const SETTING_KEYS = {
   emailMaxAttempts: "email.maxAttempts", // default retry ceiling per job
   emailOpenTracking: "email.openTracking", // request open tracking from provider
   emailClickTracking: "email.clickTracking", // request click tracking from provider
+
+  // --- Maintenance mode ---
+  // When enabled, regular users are blocked (bot + web/Mini App) and shown a
+  // friendly "under maintenance" notice. Admins are never affected.
+  maintenanceEnabled: "maintenance.enabled", // "true" | "false"
+  maintenanceTitle: "maintenance.title", // short headline
+  maintenanceMessage: "maintenance.message", // body text shown to users
+  maintenanceSupportUrl: "maintenance.supportUrl", // optional support link (t.me/...)
 } as const
 
 /** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
@@ -183,6 +191,13 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.emailMaxAttempts]: "5",
   [SETTING_KEYS.emailOpenTracking]: "true",
   [SETTING_KEYS.emailClickTracking]: "true",
+
+  // Maintenance: off by default with a professional, reassuring notice.
+  [SETTING_KEYS.maintenanceEnabled]: "false",
+  [SETTING_KEYS.maintenanceTitle]: "به‌زودی برمی‌گردیم",
+  [SETTING_KEYS.maintenanceMessage]:
+    "در حال ارتقای سیستم برای ارائه تجربه‌ای سریع‌تر و بهتر هستیم. لطفاً چند دقیقه دیگر دوباره سر بزنید. از صبر و همراهی شما سپاسگزاریم.",
+  [SETTING_KEYS.maintenanceSupportUrl]: "",
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
@@ -278,4 +293,31 @@ export async function getPaymentConfig(): Promise<PaymentConfig> {
     },
   ]
   return { minToman, methods }
+}
+
+export interface MaintenanceConfig {
+  enabled: boolean
+  title: string
+  message: string
+  supportUrl: string
+}
+
+/**
+ * Current maintenance state, shared by the web app, Mini App and bot. When
+ * `enabled` is true, regular users are blocked and shown this notice; admins
+ * are always allowed through (the gate is applied by callers, not here).
+ */
+export async function getMaintenance(db: Db = prisma): Promise<MaintenanceConfig> {
+  const [enabled, title, message, supportUrl] = await Promise.all([
+    getSetting(SETTING_KEYS.maintenanceEnabled, db),
+    getSetting(SETTING_KEYS.maintenanceTitle, db),
+    getSetting(SETTING_KEYS.maintenanceMessage, db),
+    getSetting(SETTING_KEYS.maintenanceSupportUrl, db),
+  ])
+  return {
+    enabled: toBool(enabled),
+    title: title || DEFAULTS[SETTING_KEYS.maintenanceTitle],
+    message: message || DEFAULTS[SETTING_KEYS.maintenanceMessage],
+    supportUrl: supportUrl.trim(),
+  }
 }

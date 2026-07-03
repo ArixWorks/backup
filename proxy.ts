@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 /**
- * Edge middleware — global CSRF defense for the API.
+ * Edge proxy (formerly middleware) — global CSRF defense for the API.
  *
  * Every state-changing API request (POST/PUT/PATCH/DELETE) must originate from
  * our own site: we compare the request Origin against the Host. Combined with
@@ -26,7 +26,7 @@ function isExempt(pathname: string): boolean {
   return CSRF_EXEMPT_PREFIXES.some((p) => pathname.startsWith(p))
 }
 
-export function middleware(req: NextRequest): NextResponse {
+export function proxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl
 
   if (!MUTATING.has(req.method) || isExempt(pathname)) {

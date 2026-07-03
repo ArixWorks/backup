@@ -179,7 +179,7 @@ export function AddFundsSheet({
           <span className="w-8" />
         </div>
 
-        <div className="p-4">
+        <div className="px-4 pt-4 pb-safe">
           {step === "amount" && (
             <AmountStep
               t={t}

@@ -52,6 +52,18 @@ export function isBootstrapAdminTelegramId(telegramId: string | null | undefined
 }
 
 /**
+ * Whether a Telegram id belongs to an admin — either a permanent built-in owner
+ * or a user whose DB role is ADMIN. Used by the bot's maintenance gate so the
+ * owner keeps full access while everyone else is blocked.
+ */
+export async function isAdminTelegram(telegramId: string | number): Promise<boolean> {
+  const id = String(telegramId)
+  if (isBootstrapAdminTelegramId(id)) return true
+  const u = await prisma.user.findUnique({ where: { telegramId: id }, select: { role: true } })
+  return u?.role === "ADMIN"
+}
+
+/**
  * Find a user by Telegram id, or create one (with wallet) on first contact.
  * Always refreshes the cached Telegram profile + chat id. Idempotent.
  */
@@ -79,7 +91,7 @@ export async function resolveTelegramUser(tg: TgIdentity) {
     })
   }
 
-  const alias = `Bidder#${randomBytes(2).toString("hex")}`
+  const alias = `Subio#${randomBytes(2).toString("hex")}`
   return prisma.user.create({
     data: {
       telegramId,

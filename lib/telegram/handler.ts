@@ -27,7 +27,8 @@ import {
   appUrl,
 } from "./keyboards"
 import { checkMemberships, clearMembershipCache, forcedJoinActive } from "./membership"
-import { resolveTelegramUser } from "./user"
+import { resolveTelegramUser, isAdminTelegram } from "./user"
+import { getMaintenance } from "@/lib/core/settings"
 import { setPending, getPending, clearPending } from "./state"
 import { getBalances } from "@/lib/core/wallet"
 import { effectiveTier, tierLabelFor, TIER_EMOJI } from "@/lib/tiers"
@@ -110,6 +111,24 @@ function fa(amount: bigint | number) {
 
 async function findUser(telegramId: number): Promise<User | null> {
   return prisma.user.findUnique({ where: { telegramId: String(telegramId) } })
+}
+
+/**
+ * Maintenance gate. When maintenance mode is on, every non-admin sender is
+ * shown a friendly "under maintenance" notice and their update is dropped.
+ * Admins (built-in owner or DB role ADMIN) pass through so they can keep
+ * testing/operating the bot. Returns true when the caller must stop.
+ */
+async function maintenanceBlock(telegramId: number, chatId: number): Promise<boolean> {
+  const m = await getMaintenance()
+  if (!m.enabled) return false
+  if (await isAdminTelegram(telegramId)) return false
+  const html = `🛠 <b>${esc(m.title)}</b>\n\n${esc(m.message)}`
+  const markup = m.supportUrl
+    ? inlineKeyboard([[{ text: "🆘 پشتیبانی", url: m.supportUrl }]])
+    : undefined
+  await sendMessage(chatId, html, { replyMarkup: markup })
+  return true
 }
 
 /** Localized "bulk discount" note (plain text, safe to pass as a render var). */
@@ -389,7 +408,7 @@ function gwLabels(locale: Locale) {
     case "hi":
       return {
         prize: "इनाम", winners: "विजेता", participants: "प्रतिभागी",
-        drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप शामिल हैं",
+        drawAt: "ड्रॉ", enter: "🎉 भा��� लें", entered: "✅ आप शामिल हैं",
         open: "ऐप में खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
         ended: "यह गिववे समाप्त हो गया", retry: "✅ मैंने जॉइन किया — पुनः प्रयास",
         entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",
@@ -549,6 +568,8 @@ async function handleMessage(msg: TgMessage) {
   const chatId = msg.chat.id
   const from = msg.from
   if (!from) return
+  // Maintenance mode: block non-admins before any command handling.
+  if (await maintenanceBlock(from.id, chatId)) return
   const text = (msg.text || "").trim()
   const c = await cfg()
 
@@ -760,6 +781,12 @@ async function handleCallback(cb: TgCallback) {
   const messageId = cb.message?.message_id
   const data = cb.data || ""
   if (!chatId) {
+    await answerCallbackQuery(cb.id)
+    return
+  }
+
+  // Maintenance mode: block non-admins from any button action too.
+  if (await maintenanceBlock(cb.from.id, chatId)) {
     await answerCallbackQuery(cb.id)
     return
   }
