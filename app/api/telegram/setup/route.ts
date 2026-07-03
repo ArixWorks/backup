@@ -86,6 +86,10 @@ export async function POST(req: Request) {
     { command: "flash", description: "فروش فوری" },
     { command: "auctions", description: "مزایده‌ها" },
     { command: "watchlist", description: "لیست پیگیری" },
+    { command: "profile", description: "پروفایل من" },
+    { command: "rewards", description: "جوایز و ماموریت‌ها" },
+    { command: "notifications", description: "اعلان‌ها" },
+    { command: "support", description: "پشتیبانی" },
     { command: "app", description: "باز کردن اپ" },
     { command: "help", description: "راهنما" },
   ])

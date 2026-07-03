@@ -8,15 +8,20 @@ import {
   sendMessage,
   sendPhoto,
   editMessageText,
+  editMessageCaption,
+  editMessageMedia,
   answerCallbackQuery,
   inlineKeyboard,
   answerPreCheckoutQuery,
+  sendInvoice,
+  getFile,
+  downloadTelegramFile,
+  botConfigured,
 } from "./api"
 import {
   mainMenu,
   walletMenu,
   backButton,
-  productCardKeyboard,
   paymentKeyboard,
   languageKeyboard,
   forcedJoinKeyboard,
@@ -25,19 +30,71 @@ import {
   referralKeyboard,
   referralDeepLink,
   appUrl,
+  listKeyboard,
+  flashDetailKeyboard,
+  auctionDetailKeyboard,
+  depositMethodKeyboard,
+  depositInstructionsKeyboard,
+  orderPayKeyboard,
+  notificationsKeyboard,
+  rewardsKeyboard,
+  supportKeyboard,
+  ticketThreadKeyboard,
+  type ListItem,
 } from "./keyboards"
 import { checkMemberships, clearMembershipCache, forcedJoinActive } from "./membership"
 import { resolveTelegramUser, isAdminTelegram } from "./user"
 import { getMaintenance } from "@/lib/core/settings"
-import { setPending, getPending, clearPending } from "./state"
+import {
+  setPending,
+  getPending,
+  clearPending,
+  setCanvas,
+  getCanvas,
+  setOrderDraft,
+  getOrderDraft,
+  clearOrderDraft,
+  type PendingAction,
+  type BotPayMethod,
+} from "./state"
 import { getBalances } from "@/lib/core/wallet"
 import { effectiveTier, tierLabelFor, TIER_EMOJI } from "@/lib/tiers"
-import { tierDiscountPercent } from "@/lib/core/gamification"
+import {
+  tierDiscountPercent,
+  getGamificationSummary,
+  listMissionsForUser,
+  listBadgesForUser,
+  claimMission,
+  recordDailyLogin,
+} from "@/lib/core/gamification"
 import { attachReferral, rewardReferralJoin, getReferralStats } from "@/lib/core/rewards"
 import { notifyReferralJoined } from "./notify"
-import { getOrdersForUser, listAuctions, getFlashProduct, type FlashSaleSummary } from "@/lib/core/catalog"
+import {
+  getOrdersForUser,
+  listAuctions,
+  getFlashProduct,
+  getFlashDetail,
+  getAuctionDetail,
+} from "@/lib/core/catalog"
 import { listFlashSales } from "@/lib/core/catalog"
-import { listWatchlist } from "@/lib/core/watchlist"
+import { listWatchlist, isWatching, addToWatchlist, removeFromWatchlist } from "@/lib/core/watchlist"
+import { placeBid, buyNow } from "@/lib/core/auction"
+import { evaluateCoupon } from "@/lib/core/coupons"
+import {
+  listNotifications,
+  markRead,
+  markAllRead,
+  unreadCount,
+} from "@/lib/core/notifications"
+import {
+  createTicket,
+  listTickets,
+  getTicket,
+  replyToTicket,
+  closeTicket,
+} from "@/lib/core/support"
+import { getPaymentConfig } from "@/lib/core/settings"
+import { put } from "@vercel/blob"
 import {
   getPublicGiveaway,
   enterGiveaway,
@@ -46,7 +103,12 @@ import {
   MembershipRequiredError,
 } from "@/lib/core/giveaway"
 import { purchaseFixed, priceFor } from "@/lib/core/flash-sale"
-import { createDepositRequest, createWithdrawalRequest, approveStarsDeposit } from "@/lib/core/finance"
+import {
+  createDepositRequest,
+  createWithdrawalRequest,
+  approveStarsDeposit,
+  claimDepositPaid,
+} from "@/lib/core/finance"
 import { formatToman, formatDateTimeLocale } from "@/lib/format"
 import { formatPrice } from "@/lib/i18n/currency"
 import { tgLangToLocale, type Locale } from "@/lib/i18n/locales"
@@ -67,11 +129,14 @@ type TgSuccessfulPayment = {
   invoice_payload: string
   telegram_payment_charge_id: string
 }
+type TgPhotoSize = { file_id: string; file_unique_id?: string; file_size?: number; width?: number; height?: number }
 type TgMessage = {
   message_id: number
   chat: TgChat
   from?: TgFrom
   text?: string
+  caption?: string
+  photo?: TgPhotoSize[]
   successful_payment?: TgSuccessfulPayment
 }
 type TgCallback = {
@@ -175,18 +240,85 @@ function linksHtml(links: { label: string; url: string }[]): string {
   )
 }
 
+/** Fallback banner shown on the editable canvas for text-only sections. */
+const BANNER_PATH = "/bot/banner.png"
+/** Items per page in the in-chat browse lists. */
+const PAGE_SIZE = 6
+/** Telegram photo caption hard limit is 1024 chars; keep a safe margin. */
+const CAPTION_MAX = 1000
+
+/** Clamp a caption to Telegram's photo-caption limit (keeps closing bold sane). */
+function clampCaption(html: string): string {
+  if (html.length <= CAPTION_MAX) return html
+  return html.slice(0, CAPTION_MAX - 1) + "…"
+}
+
+/**
+ * Render the single editable "canvas" message. Every browsable/section view
+ * goes through here so we edit ONE message in place instead of spamming a new
+ * message per item:
+ *  - a text-only section uses the brand banner as the photo;
+ *  - an item detail passes the item's cover image.
+ * When editing, we swap only the caption if the photo is unchanged, else swap
+ * the media. Falls back to sending a fresh canvas if no edit target exists or an
+ * edit fails (e.g. the message is too old / was deleted).
+ */
+async function renderCanvas(
+  chatId: number,
+  opts: { photo?: string | null; caption: string; markup?: object; editId?: number },
+): Promise<number | undefined> {
+  const img = absImage(opts.photo) || absImage(BANNER_PATH)
+  const caption = clampCaption(opts.caption)
+
+  if (opts.editId && img) {
+    const cur = await getCanvas(chatId)
+    try {
+      if (cur && cur.id === opts.editId && cur.photo === img) {
+        await editMessageCaption(chatId, opts.editId, caption, { replyMarkup: opts.markup })
+      } else {
+        await editMessageMedia(chatId, opts.editId, img, caption, { replyMarkup: opts.markup })
+        await setCanvas(chatId, opts.editId, img)
+      }
+      return opts.editId
+    } catch {
+      // fall through to sending a fresh canvas
+    }
+  }
+
+  if (img) {
+    const msg = (await sendPhoto(chatId, img, caption, { replyMarkup: opts.markup }).catch(
+      () => null,
+    )) as { message_id?: number } | null
+    const id = msg?.message_id
+    if (id) await setCanvas(chatId, id, img)
+    return id
+  }
+  const msg = (await sendMessage(chatId, caption, { replyMarkup: opts.markup })) as {
+    message_id?: number
+  }
+  return msg?.message_id
+}
+
+/** Enabled deposit/top-up methods, in a stable display order. */
+async function enabledPayMethods(): Promise<BotPayMethod[]> {
+  const cfg = await getPaymentConfig()
+  const order: BotPayMethod[] = ["CARD", "TON", "USDT", "STARS"]
+  return order.filter((m) => cfg.methods.find((s) => s.method === m)?.enabled)
+}
+
 // --- command + view renderers ------------------------------------------------
 
 async function showHome(chatId: number, user: User, opts: { edit?: number } = {}) {
   const c = await cfg()
   const locale = localeOf(c, user)
   const { html } = t(c, locale, "menuPrompt", { name: user.displayName })
-  const markup = mainMenu(c, locale)
-  if (opts.edit) {
-    await editMessageText(chatId, opts.edit, html, { replyMarkup: markup })
-  } else {
-    await sendMessage(chatId, html, { replyMarkup: markup })
-  }
+  const unread = c.features.notificationsInbox ? await unreadCount(user.id).catch(() => 0) : 0
+  await renderCanvas(chatId, {
+    photo: BANNER_PATH,
+    caption: html,
+    markup: mainMenu(c, locale, unread),
+    editId: opts.edit,
+  })
 }
 
 async function showWelcome(chatId: number, user: User, isNew: boolean) {
@@ -194,7 +326,8 @@ async function showWelcome(chatId: number, user: User, isNew: boolean) {
   const locale = localeOf(c, user)
   const key = isNew ? "welcome" : "welcomeBack"
   const { html } = t(c, locale, key, { name: user.displayName, brand: c.brandName })
-  await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+  const unread = c.features.notificationsInbox ? await unreadCount(user.id).catch(() => 0) : 0
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: mainMenu(c, locale, unread) })
 }
 
 /**
@@ -239,8 +372,7 @@ async function showReferral(chatId: number, user: User, editId?: number) {
     .replace(/<[^>]+>/g, "")
     .slice(0, 120)
   const markup = referralKeyboard(c, stats.code, shareText || c.brandName, locale)
-  if (editId) await editMessageText(chatId, editId, html, { replyMarkup: markup })
-  else await sendMessage(chatId, html, { replyMarkup: markup })
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup, editId })
 }
 
 async function showWallet(chatId: number, user: User, editId?: number) {
@@ -260,8 +392,7 @@ async function showWallet(chatId: number, user: User, editId?: number) {
   if (discount > 0) tierLine += ` · ${esc(String(discount))}%`
   const body = `${html}${tierLine}`
   const markup = walletMenu(c, locale)
-  if (editId) await editMessageText(chatId, editId, body, { replyMarkup: markup })
-  else await sendMessage(chatId, body, { replyMarkup: markup })
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: body, markup, editId })
 }
 
 async function showOrders(chatId: number, user: User, editId?: number) {
@@ -270,8 +401,7 @@ async function showOrders(chatId: number, user: User, editId?: number) {
   const orders = (await getOrdersForUser(user.id)).slice(0, 8)
   if (orders.length === 0) {
     const { html } = t(c, locale, "ordersEmpty")
-    if (editId) await editMessageText(chatId, editId, html, { replyMarkup: backButton(c, locale) })
-    else await sendMessage(chatId, html, { replyMarkup: backButton(c, locale) })
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: backButton(c, locale), editId })
     return
   }
   const header = t(c, locale, "ordersHeader")
@@ -280,82 +410,133 @@ async function showOrders(chatId: number, user: User, editId?: number) {
     return `${status} <b>${esc(o.title)}</b>\n   ${esc(price(c, locale, o.amount))} · ${esc(o.publicId)}`
   })
   const body = `${header.html}\n\n${lines.join("\n\n")}`
-  if (editId) await editMessageText(chatId, editId, body, { replyMarkup: backButton(c, locale) })
-  else await sendMessage(chatId, body, { replyMarkup: backButton(c, locale) })
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: body, markup: backButton(c, locale), editId })
 }
 
-async function showFlash(chatId: number, locale: Locale, editId?: number) {
+/** Localized labels for the auction detail card. */
+function aucLabels(locale: Locale) {
+  switch (locale) {
+    case "en":
+      return { price: "Current price", next: "Min next bid", buyNow: "Buy now", ends: "Ends", bids: "Bids", scheduled: "Starts", ended: "Auction ended", reserveNo: "Reserve not met" }
+    case "ru":
+      return { price: "Текущая цена", next: "Мин. ставка", buyNow: "Купить сейчас", ends: "Окончание", bids: "Ставки", scheduled: "Старт", ended: "Аукцион завершён", reserveNo: "Резерв не достигнут" }
+    case "hi":
+      return { price: "मौजूदा कीमत", next: "न्यूनतम अगली बोली", buyNow: "अभी खरीदें", ends: "समाप्ति", bids: "बोलियाँ", scheduled: "शुरू", ended: "नीलामी समाप्त", reserveNo: "रिज़र्व पूरा नहीं" }
+    default:
+      return { price: "قیمت فعلی", next: "حداقل پیشنهاد بعدی", buyNow: "خرید فوری", ends: "پایان", bids: "پیشنهادها", scheduled: "شروع", ended: "مزایده پایان یافت", reserveNo: "به حد رزرو نرسیده" }
+  }
+}
+
+function localeTag(locale: Locale): string {
+  return locale === "fa" ? "fa-IR" : locale === "ru" ? "ru-RU" : locale === "hi" ? "hi-IN" : "en-US"
+}
+
+/** Flash-sale browse list on the editable canvas (buttons, no per-item spam). */
+async function showFlash(chatId: number, locale: Locale, editId?: number, page = 0) {
   const c = await cfg()
-  const items = (await listFlashSales()).filter((p) => p.stock > 0).slice(0, 6)
-  if (items.length === 0) {
+  const all = (await listFlashSales()).filter((p) => p.stock > 0)
+  if (all.length === 0) {
     const { html } = t(c, locale, "flashEmpty")
-    if (editId) await editMessageText(chatId, editId, html, { replyMarkup: backButton(c, locale) })
-    else await sendMessage(chatId, html, { replyMarkup: backButton(c, locale) })
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: backButton(c, locale), editId })
     return
   }
-  const header = t(c, locale, "flashHeader")
-  if (editId) await editMessageText(chatId, editId, header.html, { replyMarkup: backButton(c, locale) })
-  else await sendMessage(chatId, header.html, { replyMarkup: backButton(c, locale) })
-
-  // Send each product as its own card with a Buy-now button.
-  for (const p of items) {
-    await sendProductCard(chatId, locale, p)
-  }
+  const start = page * PAGE_SIZE
+  const items = all.slice(start, start + PAGE_SIZE)
+  const header = t(c, locale, "flashHeader").html
+  const lines = items.map(
+    (p) => `${emo(c, "fire")} <b>${esc(p.title)}</b> — ${esc(price(c, locale, p.price))}`,
+  )
+  const listItems: ListItem[] = items.map((p) => ({
+    id: p.id,
+    label: `${p.title} — ${plain(price(c, locale, p.price))}`.slice(0, 60),
+  }))
+  const markup = listKeyboard(c, "flash", listItems, page, start + PAGE_SIZE < all.length, locale)
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${header}\n\n${lines.join("\n")}`, markup, editId })
 }
 
-/** Render a single product card (used by flash list and buy deep links). */
-async function sendProductCard(chatId: number, locale: Locale, p: FlashSaleSummary) {
+/** Flash-sale product detail on the canvas (swaps in the item cover image). */
+async function showFlashDetail(chatId: number, locale: Locale, productId: string, page: number, editId?: number) {
   const c = await cfg()
-  const bulk =
-    p.bulkMinQty && p.bulkDiscountPercent ? bulkNote(locale, p.bulkDiscountPercent, p.bulkMinQty) : ""
+  const p = await getFlashDetail(productId)
+  if (!p) {
+    const { html } = t(c, locale, "flashEmpty")
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: backButton(c, locale), editId })
+    return
+  }
+  const bulk = p.bulkMinQty && p.bulkDiscountPercent ? bulkNote(locale, p.bulkDiscountPercent, p.bulkMinQty) : ""
   const { html } = t(c, locale, "productCard", {
     title: p.title,
     price: price(c, locale, p.price),
     stock: p.stock,
     sold: p.soldDisplay,
     bulk,
-    links: "", // appended as HTML below (anchors can't pass through escaping)
+    links: "",
   })
-  const caption = html + linksHtml(p.links)
-  const markup = productCardKeyboard(c, p.id, locale)
-  const img = absImage(p.coverImage)
-  if (img) {
-    await sendPhoto(chatId, img, caption, { replyMarkup: markup }).catch(async () => {
-      await sendMessage(chatId, caption, { replyMarkup: markup })
-    })
-  } else {
-    await sendMessage(chatId, caption, { replyMarkup: markup })
+  let caption = html + linksHtml(p.links)
+  if (p.ratingCount > 0 && p.ratingAvg != null) {
+    caption += `\n${emo(c, "star")} ${esc(String(p.ratingAvg))} (${esc(String(p.ratingCount))})`
   }
+  const markup = flashDetailKeyboard(c, p.id, page, locale)
+  await renderCanvas(chatId, { photo: p.coverImage || BANNER_PATH, caption, markup, editId })
 }
 
-async function showAuctions(chatId: number, locale: Locale, editId?: number) {
+/** Auction browse list on the editable canvas. */
+async function showAuctions(chatId: number, locale: Locale, editId?: number, page = 0) {
   const c = await cfg()
-  const items = (await listAuctions())
-    .filter((a) => a.status === "ACTIVE" || a.status === "SCHEDULED")
-    .slice(0, 6)
-  if (items.length === 0) {
+  const all = (await listAuctions()).filter((a) => a.status === "ACTIVE" || a.status === "SCHEDULED")
+  if (all.length === 0) {
     const empty = `${emo(c, "gavel")} —`
-    if (editId) await editMessageText(chatId, editId, empty, { replyMarkup: backButton(c, locale) })
-    else await sendMessage(chatId, empty, { replyMarkup: backButton(c, locale) })
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: empty, markup: backButton(c, locale), editId })
     return
   }
-  const header = `${emo(c, "gavel")} <b>${esc(t(c, locale, "watchlistHeader").html ? "" : "")}</b>`
-  const title = `${emo(c, "gavel")} <b>Auctions</b>`
-  if (editId) await editMessageText(chatId, editId, title, { replyMarkup: backButton(c, locale) })
-  else await sendMessage(chatId, title, { replyMarkup: backButton(c, locale) })
-  void header
-  for (const a of items) {
-    const caption = `${emo(c, "gavel")} <b>${esc(a.title)}</b>\n${emo(c, "money")} ${esc(price(c, locale, a.currentPrice))}\n${emo(c, "chart")} ${esc(a.bidCount)}`
-  const markup = auctionButton(c, a.id, locale)
-  const img = absImage(a.coverImage)
-  if (img) {
-    await sendPhoto(chatId, img, caption, { replyMarkup: markup }).catch(async () => {
-        await sendMessage(chatId, caption, { replyMarkup: markup })
-      })
-    } else {
-      await sendMessage(chatId, caption, { replyMarkup: markup })
-    }
+  const start = page * PAGE_SIZE
+  const items = all.slice(start, start + PAGE_SIZE)
+  const header = `${emo(c, "gavel")} <b>${esc(c.brandName)}</b>`
+  const lines = items.map(
+    (a) => `${emo(c, "gavel")} <b>${esc(a.title)}</b> — ${esc(price(c, locale, a.currentPrice))} · ${esc(String(a.bidCount))}`,
+  )
+  const listItems: ListItem[] = items.map((a) => ({
+    id: a.id,
+    label: `${a.title} — ${plain(price(c, locale, a.currentPrice))}`.slice(0, 60),
+  }))
+  const markup = listKeyboard(c, "auc", listItems, page, start + PAGE_SIZE < all.length, locale)
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${header}\n\n${lines.join("\n")}`, markup, editId })
+}
+
+/** Auction detail on the canvas with in-chat bid / buy-now / watch actions. */
+async function showAuctionDetail(chatId: number, user: User, auctionId: string, page: number, editId?: number) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  let a: Awaited<ReturnType<typeof getAuctionDetail>>
+  try {
+    a = await getAuctionDetail(auctionId)
+  } catch {
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${emo(c, "cross")} —`, markup: backButton(c, locale), editId })
+    return
   }
+  const L = aucLabels(locale)
+  const active = a.status === "ACTIVE"
+  const watching = await isWatching(user.id, auctionId).catch(() => false)
+  const ends = formatDateTimeLocale(a.endTime, localeTag(locale))
+  const lines = [
+    `${emo(c, "gavel")} <b>${esc(a.title)}</b>`,
+    "",
+    `${emo(c, "money")} ${esc(L.price)}: <b>${esc(price(c, locale, a.currentPrice))}</b>`,
+  ]
+  if (active) lines.push(`${emo(c, "chart")} ${esc(L.next)}: <b>${esc(price(c, locale, a.minNextBid))}</b>`)
+  if (a.buyNowPrice) lines.push(`${emo(c, "cart")} ${esc(L.buyNow)}: <b>${esc(price(c, locale, a.buyNowPrice))}</b>`)
+  lines.push(`${emo(c, "clock")} ${esc(L.ends)}: ${esc(ends)}`)
+  lines.push(`${emo(c, "eye")} ${esc(L.bids)}: ${esc(String(a.bidCount))}`)
+  if (a.hasReserve && !a.reserveMet) lines.push(`${emo(c, "warning")} ${esc(L.reserveNo)}`)
+  if (!active && a.status !== "SCHEDULED") lines.push(`\n${emo(c, "cross")} ${esc(L.ended)}`)
+  const markup = auctionDetailKeyboard(
+    c,
+    a.id,
+    page,
+    { canBuyNow: Boolean(a.buyNowPrice), watching, active },
+    locale,
+  )
+  await renderCanvas(chatId, { photo: a.coverImage || BANNER_PATH, caption: lines.join("\n"), markup, editId })
 }
 
 async function showWatchlist(chatId: number, user: User, editId?: number) {
@@ -613,7 +794,7 @@ async function handleMessage(msg: TgMessage) {
       const productId = payload.slice(2)
       const product = await getFlashProduct(productId)
       if (product) {
-        await sendProductCard(chatId, locale, product)
+        await showFlashDetail(chatId, locale, productId, 0)
         return
       }
     }
@@ -645,11 +826,18 @@ async function handleMessage(msg: TgMessage) {
   // Forced-join guard: blocks access (and shows the join screen) if they left.
   if (!(await ensureAccess(chatId, user, userLocale))) return
 
-  // Pending conversation flows (deposit/withdraw/quantity entry).
+  // Pending conversation flows (deposit/withdraw/quantity/bid/coupon/support).
   const pending = await getPending(chatId)
-  if (pending && !text.startsWith("/")) {
-    await handlePendingInput(chatId, user, pending, text)
-    return
+  if (pending) {
+    // A receipt upload arrives as a photo message (no text).
+    if (msg.photo?.length && pending.kind === "awaiting_deposit_receipt") {
+      await handleReceiptPhoto(chatId, user, pending, msg.photo)
+      return
+    }
+    if (text && !text.startsWith("/")) {
+      await handlePendingInput(chatId, user, pending, text)
+      return
+    }
   }
 
   switch (text.split(" ")[0]) {
@@ -665,6 +853,14 @@ async function handleMessage(msg: TgMessage) {
       return showAuctions(chatId, localeOf(c, user))
     case "/watchlist":
       return showWatchlist(chatId, user)
+    case "/profile":
+      return showProfile(chatId, user)
+    case "/rewards":
+      return showRewards(chatId, user)
+    case "/notifications":
+      return showNotifications(chatId, user)
+    case "/support":
+      return showSupport(chatId, user)
     case "/language":
       return showLanguage(chatId, localeOf(c, user))
     case "/app": {
@@ -687,46 +883,66 @@ async function handleMessage(msg: TgMessage) {
 async function handlePendingInput(
   chatId: number,
   user: User,
-  pending: { kind: string; productId?: string },
+  pending: PendingAction,
   text: string,
 ) {
   const c = await cfg()
   const locale = localeOf(c, user)
 
-  // Quantity entry for the interactive buy flow.
-  if (pending.kind === "awaiting_quantity") {
-    await handleQuantityInput(chatId, user, locale, pending.productId!, text)
-    return
-  }
-
-  const amount = parseAmount(text)
-  if (amount == null) {
-    await sendMessage(chatId, `${emo(c, "warning")} 500000`)
-    return
-  }
-  await clearPending(chatId)
-  try {
-    if (pending.kind === "awaiting_deposit_amount") {
-      await createDepositRequest({ userId: user.id, amount, note: "Telegram bot" })
-      const { html } = t(c, locale, "depositReceived", { amount: fa(amount) })
-      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
-    } else if (pending.kind === "awaiting_withdraw_amount") {
-      await createWithdrawalRequest({ userId: user.id, amount, note: "Telegram bot" })
-      const { html } = t(c, locale, "withdrawReceived", { amount: fa(amount) })
-      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+  switch (pending.kind) {
+    case "awaiting_quantity":
+      return handleQuantityInput(chatId, user, locale, pending.productId, text, pending.couponCode)
+    case "awaiting_bid_amount":
+      return handleBidInput(chatId, user, locale, pending.auctionId, text)
+    case "awaiting_coupon_code":
+      return handleCouponInput(chatId, user, locale, pending.productId, text)
+    case "awaiting_support_subject":
+      return handleSupportSubject(chatId, user, locale, text)
+    case "awaiting_support_message":
+      return handleSupportMessage(chatId, user, locale, pending.subject, text)
+    case "awaiting_ticket_reply":
+      return handleTicketReply(chatId, user, locale, pending.ticketId, text)
+    case "awaiting_deposit_receipt": {
+      const L = secLabels(locale)
+      await sendMessage(chatId, `${emo(c, "warning")} ${esc(L.receiptPhotoOnly)}`)
+      return
     }
-  } catch (e) {
-    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+    case "awaiting_deposit_amount":
+    case "awaiting_withdraw_amount": {
+      const amount = parseAmount(text)
+      if (amount == null) {
+        await sendMessage(chatId, `${emo(c, "warning")} 500000`)
+        return
+      }
+      await clearPending(chatId)
+      try {
+        if (pending.kind === "awaiting_deposit_amount") {
+          await startDepositForMethod(chatId, user, locale, pending.method, amount)
+        } else {
+          await createWithdrawalRequest({ userId: user.id, amount, note: "Telegram bot" })
+          const { html } = t(c, locale, "withdrawReceived", { amount: fa(amount) })
+          await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+        }
+      } catch (e) {
+        await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+      }
+      return
+    }
   }
 }
 
-/** Validate the quantity, then present the payment-method keyboard. */
+/**
+ * Validate the quantity, persist an order draft (product + qty + optional
+ * coupon), then present the payment-method chooser. The draft keeps the coupon
+ * out of the callback data (which would be unsafe / length-limited).
+ */
 async function handleQuantityInput(
   chatId: number,
   user: User,
   locale: Locale,
   productId: string,
   text: string,
+  couponCode?: string,
 ) {
   const c = await cfg()
   const product = await getFlashProduct(productId)
@@ -744,12 +960,29 @@ async function handleQuantityInput(
     return
   }
   await clearPending(chatId)
+  await setOrderDraft(chatId, { productId, qty, couponCode })
+
+  // Preview total, applying the coupon when it validates for this subtotal.
   const { totalPrice } = priceFor(product, qty)
+  let payable = totalPrice
+  if (couponCode) {
+    try {
+      const { preview } = await evaluateCoupon(prisma, couponCode, totalPrice, user.id)
+      payable = preview.finalTotal
+    } catch {
+      /* coupon no longer valid at this subtotal — fall back to full total */
+    }
+  }
+  const L = secLabels(locale)
+  const couponLine = couponCode ? `\n🏷️ ${esc(L.couponApplied)}: <code>${esc(couponCode)}</code>` : ""
   const { html } = t(c, locale, "selectPayment", {
     orderTitle: `${product.title} ×${qty}`,
-    total: price(c, locale, totalPrice),
+    total: price(c, locale, payable),
   })
-  await sendMessage(chatId, html, { replyMarkup: paymentKeyboard(c, productId, qty, locale) })
+  const methods = await enabledPayMethods()
+  await sendMessage(chatId, `${html}${couponLine}`, {
+    replyMarkup: orderPayKeyboard(c, productId, qty, methods, locale),
+  })
 }
 
 function parseQuantity(text: string): number | null {
@@ -772,6 +1005,438 @@ function parseAmount(text: string): bigint | null {
     return v > 0n ? v : null
   } catch {
     return null
+  }
+}
+
+// --- profile / rewards / notifications / support / deposits ------------------
+
+interface SecLabelBag {
+  profileTitle: string; points: string; tier: string; streak: string; spent: string; referrals: string
+  rewardsTitle: string; noMissions: string; claim: string; claimedOk: string; claimFail: string
+  notifTitle: string; notifEmpty: string; allRead: string
+  supportTitle: string; supportEmpty: string; subjectPrompt: string; messagePrompt: string
+  subjectShort: string; ticketCreated: string; ticketReplied: string; ticketNotFound: string
+  stOpen: string; stPending: string; stClosed: string
+  couponApplied: string; couponOk: string; couponInvalid: string; couponNoProduct: string
+  bidPrompt: string; bidInvalid: string; bidPlaced: string; buyNowDone: string
+  watchOn: string; watchOff: string
+  depositChoose: string; depInstrTitle: string; depAmount: string; depAddress: string
+  depNetwork: string; depTag: string; depNote: string; toman: string
+  receiptPrompt: string; receiptSaved: string; receiptPhotoOnly: string
+  paidClaimed: string; paidClaimedShort: string; methodUnavailable: string
+  starsInvoiceTitle: string; starsInvoiceDesc: string
+}
+
+/** One localized label bag for every bot-only section not covered by `t()`. */
+function secLabels(locale: Locale): SecLabelBag {
+  const dict: Record<Locale, SecLabelBag> = {
+    fa: {
+      profileTitle: "پروفایل من", points: "امتیاز", tier: "سطح", streak: "روزهای پیاپی", spent: "مجموع خرید", referrals: "دعوت‌های موفق",
+      rewardsTitle: "جوایز و ماموریت‌ها", noMissions: "ماموریتی فعال نیست.", claim: "دریافت جایزه", claimedOk: "جایزه دریافت شد!", claimFail: "قابل دریافت نیست",
+      notifTitle: "اعلان‌ها", notifEmpty: "اعلانی ندارید.", allRead: "همه خوانده شد",
+      supportTitle: "پشتیبانی", supportEmpty: "تیکتی ندارید.", subjectPrompt: "موضوع تیکت را بنویسید:", messagePrompt: "متن پیام خود را بنویسید:",
+      subjectShort: "موضوع باید حداقل ۳ نویسه باشد.", ticketCreated: "تیکت ثبت شد:", ticketReplied: "پاسخ شما ثبت شد.", ticketNotFound: "تیکت یافت نشد.",
+      stOpen: "باز", stPending: "در انتظار", stClosed: "بسته",
+      couponApplied: "کد تخفیف", couponOk: "کد تخفیف اعمال شد.", couponInvalid: "کد تخفیف معتبر نیست.", couponNoProduct: "ابتدا یک محصول را باز کنید.",
+      bidPrompt: "مبلغ پیشنهاد خود را وارد کنید. حداقل:", bidInvalid: "مبلغ معتبر وارد کنید.", bidPlaced: "پیشنهاد شما ثبت شد.", buyNowDone: "با خرید فوری خریداری شد!",
+      watchOn: "به لیست علاقه‌مندی افزوده شد.", watchOff: "از لیست علاقه‌مندی حذف شد.",
+      depositChoose: "روش واریز را انتخاب کنید:", depInstrTitle: "راهنمای پرداخت", depAmount: "مبلغ", depAddress: "مقصد",
+      depNetwork: "شبکه", depTag: "کد پیگیری", depNote: "پس از پرداخت روی «پرداخت کردم» بزنید یا رسید را ارسال کنید.", toman: "تومان",
+      receiptPrompt: "لطفاً تصویر رسید پرداخت را ارسال کنید.", receiptSaved: "رسید دریافت شد. به‌زودی بررسی می‌شود.", receiptPhotoOnly: "لطفاً یک تصویر (عکس) ارسال کنید.",
+      paidClaimed: "سپاس! پرداخت شما بررسی و کیف پول شارژ می‌شود.", paidClaimedShort: "ثبت شد", methodUnavailable: "این روش پرداخت در دسترس نیست",
+      starsInvoiceTitle: "شارژ کیف پول", starsInvoiceDesc: "افزایش موجودی به میزان",
+    },
+    en: {
+      profileTitle: "My profile", points: "Points", tier: "Tier", streak: "Streak", spent: "Total spent", referrals: "Referrals",
+      rewardsTitle: "Rewards & missions", noMissions: "No active missions.", claim: "Claim", claimedOk: "Reward claimed!", claimFail: "Not claimable",
+      notifTitle: "Notifications", notifEmpty: "No notifications.", allRead: "All read",
+      supportTitle: "Support", supportEmpty: "No tickets yet.", subjectPrompt: "Enter the ticket subject:", messagePrompt: "Enter your message:",
+      subjectShort: "Subject must be at least 3 characters.", ticketCreated: "Ticket created:", ticketReplied: "Your reply was posted.", ticketNotFound: "Ticket not found.",
+      stOpen: "Open", stPending: "Pending", stClosed: "Closed",
+      couponApplied: "Coupon", couponOk: "Coupon applied.", couponInvalid: "This coupon isn't valid.", couponNoProduct: "Open a product first.",
+      bidPrompt: "Enter your bid amount. Minimum:", bidInvalid: "Enter a valid amount.", bidPlaced: "Your bid was placed.", buyNowDone: "Purchased via Buy Now!",
+      watchOn: "Added to your watchlist.", watchOff: "Removed from your watchlist.",
+      depositChoose: "Choose a top-up method:", depInstrTitle: "Payment instructions", depAmount: "Amount", depAddress: "Destination",
+      depNetwork: "Network", depTag: "Reference", depNote: "After paying, tap “I paid” or send the receipt.", toman: "Toman",
+      receiptPrompt: "Please send a photo of your payment receipt.", receiptSaved: "Receipt received. We'll verify it shortly.", receiptPhotoOnly: "Please send a photo.",
+      paidClaimed: "Thanks! We'll verify your payment and credit your wallet.", paidClaimedShort: "Noted", methodUnavailable: "This payment method is unavailable",
+      starsInvoiceTitle: "Wallet top-up", starsInvoiceDesc: "Add balance of",
+    },
+    ru: {
+      profileTitle: "Мой профиль", points: "Баллы", tier: "Уровень", streak: "Серия", spent: "Всего потрачено", referrals: "Приглашения",
+      rewardsTitle: "Награды и задания", noMissions: "Нет активных заданий.", claim: "Получить", claimedOk: "Награда получена!", claimFail: "Недоступно",
+      notifTitle: "Уведомления", notifEmpty: "Нет уведомлений.", allRead: "Всё прочитано",
+      supportTitle: "Поддержка", supportEmpty: "Пока нет обращений.", subjectPrompt: "Введите тему обращения:", messagePrompt: "Введите сообщение:",
+      subjectShort: "Тема должна быть не короче 3 символов.", ticketCreated: "Обращение создано:", ticketReplied: "Ваш ответ отправлен.", ticketNotFound: "Обращение не найдено.",
+      stOpen: "Открыт", stPending: "В ожидании", stClosed: "Закрыт",
+      couponApplied: "Купон", couponOk: "Купон применён.", couponInvalid: "Купон недействителен.", couponNoProduct: "Сначала откройте товар.",
+      bidPrompt: "Введите сумму ставки. Минимум:", bidInvalid: "Введите корректную сумму.", bidPlaced: "Ставка принята.", buyNowDone: "Куплено через «Купить сейчас»!",
+      watchOn: "Добавлено в избранное.", watchOff: "Удалено из избранного.",
+      depositChoose: "Выберите способ пополнения:", depInstrTitle: "Инструкция по оплате", depAmount: "Сумма", depAddress: "Получатель",
+      depNetwork: "Сеть", depTag: "Код", depNote: "После оплаты нажмите «Я оплатил» или пришлите чек.", toman: "Томан",
+      receiptPrompt: "Пришлите фото чека об оплате.", receiptSaved: "Чек получен. Скоро проверим.", receiptPhotoOnly: "Пришлите, пожалуйста, фото.",
+      paidClaimed: "Спасибо! Мы проверим оплату и пополним кошелёк.", paidClaimedShort: "Принято", methodUnavailable: "Этот способ оплаты недоступен",
+      starsInvoiceTitle: "Пополнение кошелька", starsInvoiceDesc: "Пополнить на",
+    },
+    hi: {
+      profileTitle: "मेरी प्रोफ़ाइल", points: "अंक", tier: "स्तर", streak: "लगातार दिन", spent: "कुल खर्च", referrals: "रेफ़रल",
+      rewardsTitle: "पुरस्कार और मिशन", noMissions: "कोई सक्रिय मिशन नहीं।", claim: "प्राप्त करें", claimedOk: "पुरस्कार मिल गया!", claimFail: "उपलब्ध नहीं",
+      notifTitle: "सूचनाएँ", notifEmpty: "कोई सूचना नहीं।", allRead: "सब पढ़ा गया",
+      supportTitle: "सहायता", supportEmpty: "अभी कोई टिकट नहीं।", subjectPrompt: "टिकट का विषय लिखें:", messagePrompt: "अपना संदेश लिखें:",
+      subjectShort: "विषय कम से कम 3 अक्षर का हो।", ticketCreated: "टिकट बन गया:", ticketReplied: "आपका उत्तर भेजा गया।", ticketNotFound: "टिकट नहीं मिला।",
+      stOpen: "खुला", stPending: "लंबित", stClosed: "बंद",
+      couponApplied: "कूपन", couponOk: "कूपन लागू हुआ।", couponInvalid: "यह कूपन मान्य नहीं है।", couponNoProduct: "पहले कोई उत्पाद खोलें।",
+      bidPrompt: "अपनी बोली राशि दर्ज करें। न्यूनतम:", bidInvalid: "मान्य राशि दर्ज करें।", bidPlaced: "आपकी बोली दर्ज हुई।", buyNowDone: "अभी खरीदें से खरीदा गया!",
+      watchOn: "वॉचलिस्ट में जोड़ा गया।", watchOff: "वॉचलिस्ट से हटाया गया।",
+      depositChoose: "टॉप-अप विधि चुनें:", depInstrTitle: "भुगतान निर्देश", depAmount: "राशि", depAddress: "गंतव्य",
+      depNetwork: "नेटवर्क", depTag: "संदर्भ", depNote: "भुगतान के बाद “मैंने भुगतान किया” दबाएँ या रसीद भेजें।", toman: "तोमान",
+      receiptPrompt: "कृपया भुगतान रसीद की फ़ोटो भेजें।", receiptSaved: "रसीद मिल गई। हम जल्द जाँचेंगे।", receiptPhotoOnly: "कृपया एक फ़ोटो भेजें।",
+      paidClaimed: "धन्यवाद! हम भुगतान जाँचकर वॉलेट में जोड़ देंगे।", paidClaimedShort: "दर्ज", methodUnavailable: "यह भुगतान विधि उपलब्ध नहीं है",
+      starsInvoiceTitle: "वॉलेट टॉप-अप", starsInvoiceDesc: "इतनी राशि जोड़ें",
+    },
+  }
+  return dict[locale] ?? dict.fa
+}
+
+/** Localized label for a support-ticket status. */
+function ticketStatusLabel(L: SecLabelBag, status: string): string {
+  return status === "CLOSED" ? L.stClosed : status === "PENDING" ? L.stPending : L.stOpen
+}
+
+/** Profile card: points, tier, login streak, spend and referral totals. */
+async function showProfile(chatId: number, user: User, editId?: number) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const L = secLabels(locale)
+  await recordDailyLogin(user.id).catch(() => {})
+  const [summary, refs] = await Promise.all([
+    getGamificationSummary(user.id),
+    getReferralStats(user.id).catch(() => null),
+  ])
+  const tier = effectiveTier(user)
+  const lines = [
+    `${emo(c, "trophy")} <b>${esc(L.profileTitle)}</b>`,
+    "",
+    `${emo(c, "star")} ${esc(L.points)}: <b>${esc(fa(summary?.loyaltyPoints ?? 0))}</b>`,
+    `${TIER_EMOJI[tier]} ${esc(L.tier)}: <b>${esc(tierLabelFor(tier, locale))}</b>`,
+    `${emo(c, "fire")} ${esc(L.streak)}: <b>${esc(fa(summary?.loginStreak ?? 0))}</b>`,
+    `${emo(c, "cart")} ${esc(L.spent)}: <b>${esc(price(c, locale, BigInt(summary?.totalSpent ?? "0")))}</b>`,
+  ]
+  if (refs) lines.push(`${emo(c, "gift")} ${esc(L.referrals)}: <b>${esc(fa(refs.joinedReferred))}</b>`)
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: lines.join("\n"), markup: backButton(c, locale), editId })
+}
+
+/** Rewards screen: points balance, mission progress and claimable rewards. */
+async function showRewards(chatId: number, user: User, editId?: number) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const L = secLabels(locale)
+  const [summary, missions] = await Promise.all([
+    getGamificationSummary(user.id),
+    listMissionsForUser(user.id),
+  ])
+  const header = `${emo(c, "gift")} <b>${esc(L.rewardsTitle)}</b>`
+  const pts = `${emo(c, "star")} ${esc(L.points)}: <b>${esc(fa(summary?.loyaltyPoints ?? 0))}</b>`
+  const missionLines = missions.slice(0, 8).map((m) => {
+    const state = m.claimed ? "✅" : m.completed ? "🎁" : `${fa(m.progress)}/${fa(m.target)}`
+    return `• <b>${esc(m.title)}</b> — ${esc(state)} (+${esc(fa(m.rewardPoints))})`
+  })
+  const claimable: ListItem[] = missions
+    .filter((m) => m.completed && !m.claimed)
+    .map((m) => ({ id: m.id, label: `${L.claim}: ${m.title}`.slice(0, 60) }))
+  const body = missionLines.length ? missionLines.join("\n") : esc(L.noMissions)
+  await renderCanvas(chatId, {
+    photo: BANNER_PATH,
+    caption: `${header}\n${pts}\n\n${body}`,
+    markup: rewardsKeyboard(c, claimable, locale),
+    editId,
+  })
+}
+
+/** Notifications inbox on the canvas, paginated with a mark-all-read action. */
+async function showNotifications(chatId: number, user: User, editId?: number, page = 0) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const L = secLabels(locale)
+  const { items, unread } = await listNotifications(user.id, { limit: 100 })
+  const header = `${emo(c, "bell")} <b>${esc(L.notifTitle)}</b>`
+  if (items.length === 0) {
+    await renderCanvas(chatId, {
+      photo: BANNER_PATH,
+      caption: `${header}\n\n${esc(L.notifEmpty)}`,
+      markup: backButton(c, locale),
+      editId,
+    })
+    return
+  }
+  const start = page * PAGE_SIZE
+  const pageItems = items.slice(start, start + PAGE_SIZE)
+  const lines = pageItems.map(
+    (n) => `${n.read ? "▫️" : "🔵"} <b>${esc(n.title)}</b>\n   ${esc(n.body.slice(0, 80))}`,
+  )
+  const listItems: ListItem[] = pageItems.map((n) => ({
+    id: n.id,
+    label: `${n.read ? "" : "🔵 "}${n.title}`.slice(0, 60),
+  }))
+  const markup = notificationsKeyboard(c, listItems, page, start + PAGE_SIZE < items.length, unread > 0, locale)
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${header}\n\n${lines.join("\n")}`, markup, editId })
+}
+
+/** Support home: ticket list + New-ticket action. */
+async function showSupport(chatId: number, user: User, editId?: number) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const L = secLabels(locale)
+  const tickets = await listTickets(user.id)
+  const header = `${emo(c, "bell")} <b>${esc(L.supportTitle)}</b>`
+  const body = tickets.length
+    ? tickets
+        .slice(0, 20)
+        .map((tk) => `• <b>${esc(tk.subject)}</b> — ${esc(ticketStatusLabel(L, tk.status))}`)
+        .join("\n")
+    : esc(L.supportEmpty)
+  const items: ListItem[] = tickets.slice(0, 20).map((tk) => ({
+    id: tk.publicId,
+    label: `${tk.subject} · ${ticketStatusLabel(L, tk.status)}`.slice(0, 60),
+  }))
+  await renderCanvas(chatId, {
+    photo: BANNER_PATH,
+    caption: `${header}\n\n${body}`,
+    markup: supportKeyboard(c, items, locale),
+    editId,
+  })
+}
+
+/** A single support ticket thread with reply/close actions. */
+async function showTicketThread(chatId: number, user: User, publicId: string, editId?: number) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const L = secLabels(locale)
+  let tk: Awaited<ReturnType<typeof getTicket>>
+  try {
+    tk = await getTicket(user.id, publicId)
+  } catch {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc(L.ticketNotFound)}`)
+    return
+  }
+  const closed = tk.status === "CLOSED"
+  const head = `${emo(c, "bell")} <b>${esc(tk.subject)}</b> — ${esc(ticketStatusLabel(L, tk.status))}`
+  const msgs = tk.messages
+    .slice(-8)
+    .map((m) => `${m.fromStaff ? "🛡️" : "👤"} ${esc(m.body)}`)
+    .join("\n\n")
+  await renderCanvas(chatId, {
+    photo: BANNER_PATH,
+    caption: `${head}\n\n${msgs}`,
+    markup: ticketThreadKeyboard(c, tk.publicId, closed, locale),
+    editId,
+  })
+}
+
+/** Create the deposit request for a chosen method and show pay instructions. */
+async function startDepositForMethod(
+  chatId: number,
+  user: User,
+  locale: Locale,
+  method: BotPayMethod,
+  amount: bigint,
+) {
+  const c = await cfg()
+  const L = secLabels(locale)
+  try {
+    if (method === "STARS") {
+      if (!botConfigured()) throw new Error(L.methodUnavailable)
+      const dep = await createDepositRequest({ userId: user.id, amount, method: "STARS" })
+      await prisma.depositRequest.update({ where: { id: dep.id }, data: { starsPayload: dep.publicId } })
+      await sendInvoice({
+        chatId,
+        title: L.starsInvoiceTitle,
+        description: `${L.starsInvoiceDesc} ${formatToman(amount)} ${L.toman}`.slice(0, 255),
+        payload: dep.publicId,
+        stars: Number(dep.payAmount),
+      })
+      return
+    }
+    const dep = await createDepositRequest({ userId: user.id, amount, method })
+    const amountStr =
+      dep.payCurrency === "IRT"
+        ? `${fa(dep.payAmount)} ${L.toman}`
+        : `${(Number(dep.payAmount) / 100).toLocaleString(localeTag(locale), {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} ${dep.payCurrency}`
+    const lines = [
+      `${emo(c, "card")} <b>${esc(L.depInstrTitle)}</b>`,
+      "",
+      `${emo(c, "money")} ${esc(L.depAmount)}: <b>${esc(amountStr)}</b>`,
+    ]
+    if (dep.payAddress) lines.push(`${esc(L.depAddress)}: <code>${esc(dep.payAddress)}</code>`)
+    if (dep.payNetwork) lines.push(`${esc(L.depNetwork)}: ${esc(dep.payNetwork)}`)
+    if (dep.payTag) lines.push(`${esc(L.depTag)}: <code>${esc(dep.payTag)}</code>`)
+    lines.push("", `${emo(c, "warning")} ${esc(L.depNote)}`)
+    await sendMessage(chatId, lines.join("\n"), {
+      replyMarkup: depositInstructionsKeyboard(c, dep.id, locale),
+    })
+  } catch (e) {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+  }
+}
+
+/** Persist an uploaded receipt photo to Blob and mark the deposit as claimed. */
+async function handleReceiptPhoto(
+  chatId: number,
+  user: User,
+  pending: PendingAction,
+  photos: TgPhotoSize[],
+) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const L = secLabels(locale)
+  if (pending.kind !== "awaiting_deposit_receipt") return
+  const best = photos[photos.length - 1]
+  try {
+    const file = await getFile(best.file_id)
+    if (!file.file_path) throw new Error("file")
+    const buf = await downloadTelegramFile(file.file_path)
+    const ext = (file.file_path.split(".").pop() || "jpg").toLowerCase()
+    const blob = await put(`receipts/${pending.depositId}-${Date.now()}.${ext}`, buf, {
+      access: "public",
+      contentType: "image/jpeg",
+    })
+    await claimDepositPaid(pending.depositId, user.id, blob.url)
+    await clearPending(chatId)
+    await sendMessage(chatId, `${emo(c, "check")} ${esc(L.receiptSaved)}`, {
+      replyMarkup: mainMenu(c, locale),
+    })
+  } catch (e) {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+  }
+}
+
+/** Validate + place a bid entered in chat, then refresh the auction card. */
+async function handleBidInput(
+  chatId: number,
+  user: User,
+  locale: Locale,
+  auctionId: string,
+  text: string,
+) {
+  const c = await cfg()
+  const L = secLabels(locale)
+  const amount = parseAmount(text)
+  if (amount == null) {
+    await sendMessage(chatId, `${emo(c, "warning")} ${esc(L.bidInvalid)}`)
+    return
+  }
+  await clearPending(chatId)
+  try {
+    await placeBid({ userId: user.id, auctionId, amount })
+    await sendMessage(chatId, `${emo(c, "check")} ${esc(L.bidPlaced)}`)
+    await showAuctionDetail(chatId, user, auctionId, 0)
+  } catch (e) {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`, {
+      replyMarkup: mainMenu(c, locale),
+    })
+  }
+}
+
+/** A coupon code entered for a product: carry it into the quantity step. */
+async function handleCouponInput(
+  chatId: number,
+  user: User,
+  locale: Locale,
+  productId: string | undefined,
+  text: string,
+) {
+  const c = await cfg()
+  const L = secLabels(locale)
+  const code = text.trim()
+  await clearPending(chatId)
+  if (!productId) {
+    await sendMessage(chatId, `${emo(c, "warning")} ${esc(L.couponNoProduct)}`, {
+      replyMarkup: mainMenu(c, locale),
+    })
+    return
+  }
+  const product = await getFlashProduct(productId)
+  if (!product || product.stock < 1) {
+    const { html } = t(c, locale, "flashEmpty")
+    await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+    return
+  }
+  // Light validation against the single-unit subtotal (re-checked at purchase).
+  try {
+    await evaluateCoupon(prisma, code, product.price, user.id)
+  } catch {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc(L.couponInvalid)}`)
+    return
+  }
+  await setPending(chatId, { kind: "awaiting_quantity", productId, couponCode: code })
+  const bulk =
+    product.bulkMinQty && product.bulkDiscountPercent
+      ? bulkNote(locale, product.bulkDiscountPercent, product.bulkMinQty)
+      : ""
+  const { html } = t(c, locale, "quantityPrompt", {
+    title: product.title,
+    price: price(c, locale, product.price),
+    stock: product.stock,
+    bulk,
+    min: 1,
+    max: product.stock,
+  })
+  await sendMessage(chatId, `${emo(c, "check")} ${esc(L.couponOk)}\n\n${html}`)
+}
+
+/** First step of a new ticket: capture the subject, then ask for the message. */
+async function handleSupportSubject(chatId: number, user: User, locale: Locale, text: string) {
+  const c = await cfg()
+  const L = secLabels(locale)
+  const subject = text.trim()
+  if (subject.length < 3) {
+    await sendMessage(chatId, `${emo(c, "warning")} ${esc(L.subjectShort)}`)
+    return
+  }
+  await setPending(chatId, { kind: "awaiting_support_message", subject })
+  await sendMessage(chatId, `${emo(c, "point")} ${esc(L.messagePrompt)}`)
+}
+
+/** Second step of a new ticket: create it with the initial message. */
+async function handleSupportMessage(
+  chatId: number,
+  user: User,
+  locale: Locale,
+  subject: string,
+  text: string,
+) {
+  const c = await cfg()
+  const L = secLabels(locale)
+  await clearPending(chatId)
+  try {
+    const ticket = await createTicket({ userId: user.id, subject, message: text.trim() })
+    await sendMessage(chatId, `${emo(c, "check")} ${esc(L.ticketCreated)} <code>${esc(ticket.publicId)}</code>`)
+    await showTicketThread(chatId, user, ticket.publicId)
+  } catch (e) {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+  }
+}
+
+/** Post a reply to an existing ticket, then refresh the thread. */
+async function handleTicketReply(
+  chatId: number,
+  user: User,
+  locale: Locale,
+  ticketId: string,
+  text: string,
+) {
+  const c = await cfg()
+  const L = secLabels(locale)
+  await clearPending(chatId)
+  try {
+    await replyToTicket({ userId: user.id, publicId: ticketId, message: text.trim() })
+    await sendMessage(chatId, `${emo(c, "check")} ${esc(L.ticketReplied)}`)
+    await showTicketThread(chatId, user, ticketId)
+  } catch (e) {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
   }
 }
 
@@ -847,6 +1512,181 @@ async function handleCallback(cb: TgCallback) {
     return
   }
 
+  // Canvas list → item detail: open:<section>:<id>
+  if (data.startsWith("open:")) {
+    const [, section, id] = data.split(":")
+    await answerCallbackQuery(cb.id)
+    if (section === "flash") return showFlashDetail(chatId, locale, id, 0, messageId)
+    if (section === "auc") return showAuctionDetail(chatId, user, id, 0, messageId)
+    return
+  }
+
+  // Canvas list pagination: page:<section>:<n>
+  if (data.startsWith("page:")) {
+    const [, section, nStr] = data.split(":")
+    const page = Math.max(0, Number(nStr) || 0)
+    await answerCallbackQuery(cb.id)
+    if (section === "flash") return showFlash(chatId, locale, messageId, page)
+    if (section === "auc") return showAuctions(chatId, locale, messageId, page)
+    if (section === "notif") return showNotifications(chatId, user, messageId, page)
+    return
+  }
+
+  // Apply a coupon to a flash product: coupon:<productId>
+  if (data.startsWith("coupon:")) {
+    const productId = data.slice(7)
+    await setPending(chatId, { kind: "awaiting_coupon_code", productId })
+    await answerCallbackQuery(cb.id)
+    const L = secLabels(locale)
+    await sendMessage(chatId, `${emo(c, "point")} ${esc(L.couponApplied)}:`)
+    return
+  }
+
+  // Place a bid: bid:<auctionId>:<page>
+  if (data.startsWith("bid:")) {
+    const [, auctionId] = data.split(":")
+    await setPending(chatId, { kind: "awaiting_bid_amount", auctionId })
+    await answerCallbackQuery(cb.id)
+    const L = secLabels(locale)
+    const a = await getAuctionDetail(auctionId).catch(() => null)
+    const minLine = a ? ` <b>${esc(price(c, locale, a.minNextBid))}</b>` : ""
+    await sendMessage(chatId, `${emo(c, "chart")} ${esc(L.bidPrompt)}${minLine}`)
+    return
+  }
+
+  // Buy-now on an auction: abuy:<auctionId>:<page>
+  if (data.startsWith("abuy:")) {
+    const [, auctionId] = data.split(":")
+    const L = secLabels(locale)
+    try {
+      await buyNow({ userId: user.id, auctionId })
+      await answerCallbackQuery(cb.id, L.buyNowDone, true)
+      await sendMessage(chatId, `${emo(c, "check")} ${esc(L.buyNowDone)}`, { replyMarkup: mainMenu(c, locale) })
+    } catch (e) {
+      await answerCallbackQuery(cb.id, (e as Error).message.slice(0, 190), true)
+    }
+    return
+  }
+
+  // Toggle watchlist: watch:<auctionId>:<page>
+  if (data.startsWith("watch:")) {
+    const [, auctionId, pageStr] = data.split(":")
+    const page = Math.max(0, Number(pageStr) || 0)
+    const L = secLabels(locale)
+    const watching = await isWatching(user.id, auctionId).catch(() => false)
+    if (watching) await removeFromWatchlist(user.id, auctionId)
+    else await addToWatchlist(user.id, auctionId)
+    await answerCallbackQuery(cb.id, watching ? L.watchOff : L.watchOn)
+    await showAuctionDetail(chatId, user, auctionId, page, messageId)
+    return
+  }
+
+  // Deposit method chosen: dep:<method> → ask for the amount.
+  if (data.startsWith("dep:")) {
+    const method = data.slice(4) as BotPayMethod
+    await setPending(chatId, { kind: "awaiting_deposit_amount", method })
+    await answerCallbackQuery(cb.id)
+    const { html } = t(c, locale, "depositPrompt")
+    await sendMessage(chatId, html)
+    return
+  }
+
+  // Mark a deposit as paid: deppaid:<depositId>
+  if (data.startsWith("deppaid:")) {
+    const depositId = data.slice(8)
+    const L = secLabels(locale)
+    try {
+      await claimDepositPaid(depositId, user.id)
+      await answerCallbackQuery(cb.id, L.paidClaimedShort, true)
+      await sendMessage(chatId, `${emo(c, "check")} ${esc(L.paidClaimed)}`, { replyMarkup: mainMenu(c, locale) })
+    } catch (e) {
+      await answerCallbackQuery(cb.id, (e as Error).message.slice(0, 190), true)
+    }
+    return
+  }
+
+  // Upload a receipt for a deposit: deprcpt:<depositId>
+  if (data.startsWith("deprcpt:")) {
+    const depositId = data.slice(8)
+    await setPending(chatId, { kind: "awaiting_deposit_receipt", depositId })
+    await answerCallbackQuery(cb.id)
+    const L = secLabels(locale)
+    await sendMessage(chatId, `${emo(c, "point")} ${esc(L.receiptPrompt)}`)
+    return
+  }
+
+  // Per-order payment: opay:<method>:<productId>:<qty>
+  if (data.startsWith("opay:")) {
+    const [, method, productId, qtyStr] = data.split(":")
+    const qty = Number(qtyStr) || 1
+    await answerCallbackQuery(cb.id)
+    const draft = await getOrderDraft(chatId)
+    const couponCode = draft?.couponCode
+    if (method === "WALLET") {
+      await completeWalletPurchase(chatId, user, locale, productId, qty, couponCode)
+    } else {
+      const { html } = t(c, locale, "paymentComingSoon")
+      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+    }
+    return
+  }
+
+  // Open a notification (mark read): nopen:<id>
+  if (data.startsWith("nopen:")) {
+    const id = data.slice(6)
+    await markRead(user.id, id).catch(() => {})
+    await answerCallbackQuery(cb.id)
+    await showNotifications(chatId, user, messageId)
+    return
+  }
+  if (data === "nallread") {
+    await markAllRead(user.id).catch(() => {})
+    const L = secLabels(locale)
+    await answerCallbackQuery(cb.id, L.allRead)
+    await showNotifications(chatId, user, messageId)
+    return
+  }
+
+  // Claim a completed mission reward: mclaim:<missionId>
+  if (data.startsWith("mclaim:")) {
+    const missionId = data.slice(7)
+    const L = secLabels(locale)
+    const res = await claimMission(user.id, missionId).catch(() => ({ ok: false, points: 0 }))
+    await answerCallbackQuery(cb.id, res.ok ? `${L.claimedOk} +${res.points}` : L.claimFail, true)
+    await showRewards(chatId, user, messageId)
+    return
+  }
+
+  // Support: new ticket / open thread / reply / close.
+  if (data === "tnew") {
+    await setPending(chatId, { kind: "awaiting_support_subject" })
+    await answerCallbackQuery(cb.id)
+    const L = secLabels(locale)
+    await sendMessage(chatId, `${emo(c, "point")} ${esc(L.subjectPrompt)}`)
+    return
+  }
+  if (data.startsWith("topen:")) {
+    const publicId = data.slice(6)
+    await answerCallbackQuery(cb.id)
+    await showTicketThread(chatId, user, publicId, messageId)
+    return
+  }
+  if (data.startsWith("treply:")) {
+    const ticketId = data.slice(7)
+    await setPending(chatId, { kind: "awaiting_ticket_reply", ticketId })
+    await answerCallbackQuery(cb.id)
+    const L = secLabels(locale)
+    await sendMessage(chatId, `${emo(c, "point")} ${esc(L.messagePrompt)}`)
+    return
+  }
+  if (data.startsWith("tclose:")) {
+    const publicId = data.slice(7)
+    await closeTicket(user.id, publicId).catch(() => {})
+    await answerCallbackQuery(cb.id)
+    await showTicketThread(chatId, user, publicId, messageId)
+    return
+  }
+
   // Language selection: lang:<locale>
   if (data.startsWith("lang:")) {
     const next = data.slice(5)
@@ -858,10 +1698,17 @@ async function handleCallback(cb: TgCallback) {
   if (data.startsWith("wallet:")) {
     const action = data.slice(7)
     if (action === "deposit") {
-      await setPending(chatId, { kind: "awaiting_deposit_amount" })
-      const { html } = t(c, locale, "depositPrompt")
       await answerCallbackQuery(cb.id)
-      await sendMessage(chatId, html)
+      const methods = await enabledPayMethods()
+      if (methods.length === 0) {
+        const { html } = t(c, locale, "paymentComingSoon")
+        await sendMessage(chatId, html, { replyMarkup: walletMenu(c, locale) })
+        return
+      }
+      const L = secLabels(locale)
+      await sendMessage(chatId, `${emo(c, "card")} ${esc(L.depositChoose)}`, {
+        replyMarkup: depositMethodKeyboard(c, methods, locale),
+      })
       return
     }
     if (action === "withdraw") {
@@ -889,6 +1736,14 @@ async function handleCallback(cb: TgCallback) {
         return showAuctions(chatId, locale, messageId)
       case "watchlist":
         return showWatchlist(chatId, user, messageId)
+      case "profile":
+        return showProfile(chatId, user, messageId)
+      case "rewards":
+        return showRewards(chatId, user, messageId)
+      case "notifications":
+        return showNotifications(chatId, user, messageId)
+      case "support":
+        return showSupport(chatId, user, messageId)
       case "invite":
         return showReferral(chatId, user, messageId)
       case "language":
@@ -995,6 +1850,7 @@ async function completeWalletPurchase(
   locale: Locale,
   productId: string,
   qty: number,
+  couponCode?: string,
 ) {
   const c = await cfg()
   const product = await getFlashProduct(productId)
@@ -1004,17 +1860,28 @@ async function completeWalletPurchase(
     return
   }
   const { totalPrice } = priceFor(product, qty)
+  // Preview the payable total (coupon-adjusted) purely for the balance check.
+  let payable = totalPrice
+  if (couponCode) {
+    try {
+      const { preview } = await evaluateCoupon(prisma, couponCode, totalPrice, user.id)
+      payable = preview.finalTotal
+    } catch {
+      /* invalid coupon at this subtotal — purchaseFixed will re-validate */
+    }
+  }
   const balances = await getBalances(user.id)
-  if (balances.availableBalance < totalPrice) {
+  if (balances.availableBalance < payable) {
     const { html } = t(c, locale, "insufficientBalance", {
       balance: price(c, locale, balances.availableBalance),
-      required: price(c, locale, totalPrice),
+      required: price(c, locale, payable),
     })
     await sendMessage(chatId, html, { replyMarkup: walletMenu(c, locale) })
     return
   }
   try {
-    const order = await purchaseFixed({ userId: user.id, productId, quantity: qty })
+    const order = await purchaseFixed({ userId: user.id, productId, quantity: qty, couponCode })
+    await clearOrderDraft(chatId)
     const { html } = t(c, locale, "purchaseSuccess", {
       title: `${product.title} ×${qty}`,
       price: price(c, locale, order.amount),

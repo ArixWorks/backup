@@ -124,6 +124,20 @@ export type BotConfig = {
     notifications: boolean
     /** Require channel membership before the bot can be used. */
     forcedJoin: boolean
+    /** Browse + bid/buy-now on auctions directly in chat. */
+    auctionsInChat: boolean
+    /** Profile & tier screen. */
+    profile: boolean
+    /** Rewards & missions screen. */
+    rewards: boolean
+    /** In-chat notifications inbox. */
+    notificationsInbox: boolean
+    /** Support tickets in chat. */
+    support: boolean
+    /** Apply coupon codes at buy time. */
+    coupons: boolean
+    /** Allow paying an order directly by top-up (not only wallet balance). */
+    perOrderPay: boolean
   }
 }
 
@@ -249,6 +263,29 @@ export const DEFAULT_CONFIG: BotConfig = {
     language: "🌐 زبان",
     joinChannel: "📣 عضویت در کانال",
     checkJoin: "✅ بررسی عضویت",
+    profile: "👤 پروفایل",
+    rewards: "🎯 جوایز و ماموریت‌ها",
+    notifications: "🔔 اعلان‌ها",
+    support: "🆘 پشتیبانی",
+    bid: "🔨 ثبت پیشنهاد",
+    buyNowAuction: "🛒 خرید فوری",
+    watch: "👀 پیگیری",
+    unwatch: "🚫 لغو پیگیری",
+    iPaid: "✅ پرداخت کردم",
+    uploadReceipt: "🧾 ارسال رسید",
+    claim: "🎁 دریافت پاداش",
+    markAllRead: "✅ خواندن همه",
+    newTicket: "➕ تیکت جدید",
+    replyTicket: "✍️ پاسخ",
+    closeTicket: "🔒 بستن تیکت",
+    applyCoupon: "🏷️ کد تخفیف",
+    prev: "◀️ قبلی",
+    next: "بعدی ▶️",
+    backToList: "⬅️ بازگشت به لیست",
+    depCard: "💳 کارت به کارت",
+    depTon: "💎 TON",
+    depUsdt: "💵 USDT",
+    depStars: "⭐ تلگرام استارز",
   },
   buttonStyles: {
     openApp: "success",
@@ -273,6 +310,10 @@ export const DEFAULT_CONFIG: BotConfig = {
     language: "primary",
     joinChannel: "primary",
     checkJoin: "success",
+    profile: "primary",
+    rewards: "success",
+    notifications: "primary",
+    support: "primary",
   },
   // Verified, universally-available Telegram custom emoji ids (animated for
   // premium bot owners). These render as the button icon via
@@ -314,5 +355,12 @@ export const DEFAULT_CONFIG: BotConfig = {
     withdrawals: true,
     notifications: true,
     forcedJoin: false,
+    auctionsInChat: true,
+    profile: true,
+    rewards: true,
+    notificationsInbox: true,
+    support: true,
+    coupons: true,
+    perOrderPay: true,
   },
 }

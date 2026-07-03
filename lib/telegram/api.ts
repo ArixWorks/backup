@@ -183,6 +183,91 @@ export async function editMessageText(
   })
 }
 
+/**
+ * Swap the media (photo) of an existing message and update its caption +
+ * keyboard in place. This powers the single editable "canvas" navigation so we
+ * never spam a new message per item. "message is not modified" is swallowed.
+ */
+export async function editMessageMedia(
+  chatId: string | number,
+  messageId: number,
+  photoUrl: string,
+  caption: string,
+  opts: SendOpts = {},
+) {
+  return call("editMessageMedia", {
+    chat_id: chatId,
+    message_id: messageId,
+    media: {
+      type: "photo",
+      media: photoUrl,
+      caption,
+      parse_mode: opts.parseMode ?? "HTML",
+    },
+    reply_markup: opts.replyMarkup,
+  }).catch((e) => {
+    if (!String(e.message).includes("not modified")) throw e
+  })
+}
+
+/** Edit only the caption (and optionally keyboard) of a photo/media message. */
+export async function editMessageCaption(
+  chatId: string | number,
+  messageId: number,
+  caption: string,
+  opts: SendOpts = {},
+) {
+  return call("editMessageCaption", {
+    chat_id: chatId,
+    message_id: messageId,
+    caption,
+    parse_mode: opts.parseMode ?? "HTML",
+    reply_markup: opts.replyMarkup,
+  }).catch((e) => {
+    if (!String(e.message).includes("not modified")) throw e
+  })
+}
+
+/** Edit only the inline keyboard of an existing message. */
+export async function editMessageReplyMarkup(
+  chatId: string | number,
+  messageId: number,
+  replyMarkup: object,
+) {
+  return call("editMessageReplyMarkup", {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: replyMarkup,
+  }).catch((e) => {
+    if (!String(e.message).includes("not modified")) throw e
+  })
+}
+
+export type TelegramFile = { file_id: string; file_unique_id: string; file_size?: number; file_path?: string }
+
+/** Resolve a file_id to a downloadable file_path via Telegram getFile. */
+export async function getFile(fileId: string): Promise<TelegramFile> {
+  return call<TelegramFile>("getFile", { file_id: fileId })
+}
+
+/**
+ * Download the bytes of a Telegram file given its `file_path` (from getFile).
+ * Used to fetch user-uploaded deposit receipt photos so we can persist them to
+ * Blob storage. Bounded by a longer timeout since it carries the file body.
+ */
+export async function downloadTelegramFile(filePath: string): Promise<Buffer> {
+  if (!TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not set")
+  const res = await withTimeout(
+    30_000,
+    (signal) =>
+      fetch(`https://api.telegram.org/file/bot${TOKEN}/${filePath}`, { signal }),
+    "telegram.downloadFile",
+  )
+  if (!res.ok) throw new Error(`Telegram file download failed: ${res.status}`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  return buf
+}
+
 export async function answerCallbackQuery(id: string, text?: string, showAlert = false) {
   return call("answerCallbackQuery", { callback_query_id: id, text, show_alert: showAlert })
 }
