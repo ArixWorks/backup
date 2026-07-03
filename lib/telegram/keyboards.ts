@@ -45,7 +45,7 @@ export function styledButton(
 }
 
 /** Main menu inline keyboard, respecting feature toggles. */
-export function mainMenu(cfg: BotConfig, locale: Locale = DEFAULT_LOCALE) {
+export function mainMenu(cfg: BotConfig, locale: Locale = DEFAULT_LOCALE, unread = 0) {
   const rows: InlineKeyboard = []
   const url = appUrl()
 
@@ -61,12 +61,224 @@ export function mainMenu(cfg: BotConfig, locale: Locale = DEFAULT_LOCALE) {
     walletRow.push(styledButton(cfg, "wallet", { callback_data: "menu:wallet" }, locale))
   walletRow.push(styledButton(cfg, "orders", { callback_data: "menu:orders" }, locale))
   rows.push(walletRow)
+
+  // Profile / Rewards row (feature-gated).
+  const pr: InlineButton[] = []
+  if (cfg.features.profile) pr.push(styledButton(cfg, "profile", { callback_data: "menu:profile" }, locale))
+  if (cfg.features.rewards) pr.push(styledButton(cfg, "rewards", { callback_data: "menu:rewards" }, locale))
+  if (pr.length) rows.push(pr)
+
+  // Notifications (with unread badge) / Support row.
+  const ns: InlineButton[] = []
+  if (cfg.features.notificationsInbox) {
+    const notif = styledButton(cfg, "notifications", { callback_data: "menu:notifications" }, locale)
+    if (unread > 0) notif.text = `${notif.text} (${unread > 99 ? "99+" : unread})`
+    ns.push(notif)
+  }
+  if (cfg.features.support) ns.push(styledButton(cfg, "support", { callback_data: "menu:support" }, locale))
+  if (ns.length) rows.push(ns)
+
   rows.push([
     styledButton(cfg, "watchlist", { callback_data: "menu:watchlist" }, locale),
     styledButton(cfg, "help", { callback_data: "menu:help" }, locale),
   ])
   rows.push([styledButton(cfg, "invite", { callback_data: "menu:invite" }, locale)])
   rows.push([styledButton(cfg, "language", { callback_data: "menu:language" }, locale)])
+  return inlineKeyboard(rows)
+}
+
+/** A single "Back to menu" row (used inside section keyboards). */
+function backRow(cfg: BotConfig, locale: Locale): InlineButton[] {
+  return [styledButton(cfg, "back", { callback_data: "menu:home" }, locale)]
+}
+
+export type ListItem = { id: string; label: string }
+
+/**
+ * Generic paginated list keyboard for the editable canvas: one button per item
+ * (`open:<section>:<id>`), a prev/next pagination row (`page:<section>:<n>`),
+ * and a Back-to-menu row. `section` is a short tag (flash|auc|notif).
+ */
+export function listKeyboard(
+  cfg: BotConfig,
+  section: string,
+  items: ListItem[],
+  page: number,
+  hasNext: boolean,
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = items.map((it) => [
+    { text: it.label, callback_data: `open:${section}:${it.id}` } as InlineButton,
+  ])
+  const nav: InlineButton[] = []
+  if (page > 0) nav.push(styledButton(cfg, "prev", { callback_data: `page:${section}:${page - 1}` }, locale))
+  if (hasNext) nav.push(styledButton(cfg, "next", { callback_data: `page:${section}:${page + 1}` }, locale))
+  if (nav.length) rows.push(nav)
+  rows.push(backRow(cfg, locale))
+  return inlineKeyboard(rows)
+}
+
+/** Flash-sale detail actions: buy (wallet or per-order), coupon, back-to-list. */
+export function flashDetailKeyboard(
+  cfg: BotConfig,
+  productId: string,
+  page: number,
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = [
+    [styledButton(cfg, "buyNow", { callback_data: `buy:${productId}` }, locale)],
+  ]
+  if (cfg.features.coupons)
+    rows.push([styledButton(cfg, "applyCoupon", { callback_data: `coupon:${productId}` }, locale)])
+  rows.push([styledButton(cfg, "backToList", { callback_data: `page:flash:${page}` }, locale)])
+  return inlineKeyboard(rows)
+}
+
+/** Auction detail actions: place bid / buy now / watch toggle / back-to-list. */
+export function auctionDetailKeyboard(
+  cfg: BotConfig,
+  auctionId: string,
+  page: number,
+  opts: { canBuyNow: boolean; watching: boolean; active: boolean },
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = []
+  if (opts.active) {
+    const actionRow: InlineButton[] = [
+      styledButton(cfg, "bid", { callback_data: `bid:${auctionId}:${page}` }, locale),
+    ]
+    if (opts.canBuyNow)
+      actionRow.push(styledButton(cfg, "buyNowAuction", { callback_data: `abuy:${auctionId}:${page}` }, locale))
+    rows.push(actionRow)
+    rows.push([
+      styledButton(
+        cfg,
+        opts.watching ? "unwatch" : "watch",
+        { callback_data: `watch:${auctionId}:${page}` },
+        locale,
+      ),
+    ])
+  }
+  rows.push([styledButton(cfg, "backToList", { callback_data: `page:auc:${page}` }, locale)])
+  return inlineKeyboard(rows)
+}
+
+/** Deposit method chooser, gated by the enabled payment slots. */
+export function depositMethodKeyboard(
+  cfg: BotConfig,
+  methods: ("CARD" | "TON" | "USDT" | "STARS")[],
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const map: Record<string, string> = { CARD: "depCard", TON: "depTon", USDT: "depUsdt", STARS: "depStars" }
+  const rows: InlineKeyboard = methods.map((m) => [
+    styledButton(cfg, map[m], { callback_data: `dep:${m}` }, locale),
+  ])
+  rows.push(backRow(cfg, locale))
+  return inlineKeyboard(rows)
+}
+
+/** Deposit instructions actions: mark paid, upload receipt, back to wallet. */
+export function depositInstructionsKeyboard(
+  cfg: BotConfig,
+  depositId: string,
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  return inlineKeyboard([
+    [styledButton(cfg, "iPaid", { callback_data: `deppaid:${depositId}` }, locale)],
+    [styledButton(cfg, "uploadReceipt", { callback_data: `deprcpt:${depositId}` }, locale)],
+    [styledButton(cfg, "wallet", { callback_data: "menu:wallet" }, locale)],
+  ])
+}
+
+/**
+ * Per-order payment chooser: pay from wallet balance, or top up via a method
+ * (`opay:<method>:<productId>:<qty>`), method ∈ WALLET|CARD|TON|USDT|STARS.
+ */
+export function orderPayKeyboard(
+  cfg: BotConfig,
+  productId: string,
+  qty: number,
+  methods: ("CARD" | "TON" | "USDT" | "STARS")[],
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = [
+    [styledButton(cfg, "payWallet", { callback_data: `opay:WALLET:${productId}:${qty}` }, locale)],
+  ]
+  if (cfg.features.perOrderPay) {
+    const map: Record<string, string> = { CARD: "depCard", TON: "depTon", USDT: "depUsdt", STARS: "depStars" }
+    for (const m of methods) {
+      rows.push([styledButton(cfg, map[m], { callback_data: `opay:${m}:${productId}:${qty}` }, locale)])
+    }
+  }
+  rows.push([styledButton(cfg, "cancel", { callback_data: "menu:home" }, locale)])
+  return inlineKeyboard(rows)
+}
+
+/** Notifications inbox keyboard: one button per item + mark-all-read + nav. */
+export function notificationsKeyboard(
+  cfg: BotConfig,
+  items: ListItem[],
+  page: number,
+  hasNext: boolean,
+  hasUnread: boolean,
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = items.map((it) => [
+    { text: it.label, callback_data: `nopen:${it.id}` } as InlineButton,
+  ])
+  if (hasUnread) rows.push([styledButton(cfg, "markAllRead", { callback_data: "nallread" }, locale)])
+  const nav: InlineButton[] = []
+  if (page > 0) nav.push(styledButton(cfg, "prev", { callback_data: `page:notif:${page - 1}` }, locale))
+  if (hasNext) nav.push(styledButton(cfg, "next", { callback_data: `page:notif:${page + 1}` }, locale))
+  if (nav.length) rows.push(nav)
+  rows.push(backRow(cfg, locale))
+  return inlineKeyboard(rows)
+}
+
+/** Rewards keyboard: a Claim button per claimable mission + back. */
+export function rewardsKeyboard(
+  cfg: BotConfig,
+  claimable: ListItem[],
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = claimable.map((m) => [
+    styledButton(cfg, "claim", { callback_data: `mclaim:${m.id}` }, locale),
+  ])
+  // Give each Claim button a distinct visible label so users know what they claim.
+  claimable.forEach((m, i) => {
+    if (rows[i]?.[0]) rows[i][0].text = m.label
+  })
+  rows.push(backRow(cfg, locale))
+  return inlineKeyboard(rows)
+}
+
+/** Support keyboard: New ticket + one button per existing ticket + back. */
+export function supportKeyboard(
+  cfg: BotConfig,
+  tickets: ListItem[],
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = [[styledButton(cfg, "newTicket", { callback_data: "tnew" }, locale)]]
+  for (const tk of tickets) rows.push([{ text: tk.label, callback_data: `topen:${tk.id}` } as InlineButton])
+  rows.push(backRow(cfg, locale))
+  return inlineKeyboard(rows)
+}
+
+/** A single support-ticket thread's actions: reply / close / back to list. */
+export function ticketThreadKeyboard(
+  cfg: BotConfig,
+  publicId: string,
+  closed: boolean,
+  locale: Locale = DEFAULT_LOCALE,
+) {
+  const rows: InlineKeyboard = []
+  if (!closed) {
+    rows.push([
+      styledButton(cfg, "replyTicket", { callback_data: `treply:${publicId}` }, locale),
+      styledButton(cfg, "closeTicket", { callback_data: `tclose:${publicId}` }, locale),
+    ])
+  }
+  rows.push([styledButton(cfg, "support", { callback_data: "menu:support" }, locale)])
   return inlineKeyboard(rows)
 }
 

@@ -8,15 +8,19 @@ import {
   sendMessage,
   sendPhoto,
   editMessageText,
+  editMessageCaption,
+  editMessageMedia,
   answerCallbackQuery,
   inlineKeyboard,
   answerPreCheckoutQuery,
+  sendInvoice,
+  getFile,
+  downloadTelegramFile,
 } from "./api"
 import {
   mainMenu,
   walletMenu,
   backButton,
-  productCardKeyboard,
   paymentKeyboard,
   languageKeyboard,
   forcedJoinKeyboard,
@@ -25,19 +29,60 @@ import {
   referralKeyboard,
   referralDeepLink,
   appUrl,
+  listKeyboard,
+  flashDetailKeyboard,
+  auctionDetailKeyboard,
+  depositMethodKeyboard,
+  depositInstructionsKeyboard,
+  orderPayKeyboard,
+  notificationsKeyboard,
+  rewardsKeyboard,
+  supportKeyboard,
+  ticketThreadKeyboard,
+  type ListItem,
 } from "./keyboards"
 import { checkMemberships, clearMembershipCache, forcedJoinActive } from "./membership"
 import { resolveTelegramUser, isAdminTelegram } from "./user"
 import { getMaintenance } from "@/lib/core/settings"
-import { setPending, getPending, clearPending } from "./state"
+import { setPending, getPending, clearPending, setCanvas, getCanvas, type PendingAction, type BotPayMethod } from "./state"
 import { getBalances } from "@/lib/core/wallet"
 import { effectiveTier, tierLabelFor, TIER_EMOJI } from "@/lib/tiers"
-import { tierDiscountPercent } from "@/lib/core/gamification"
+import {
+  tierDiscountPercent,
+  getGamificationSummary,
+  listMissionsForUser,
+  listBadgesForUser,
+  claimMission,
+  recordDailyLogin,
+} from "@/lib/core/gamification"
 import { attachReferral, rewardReferralJoin, getReferralStats } from "@/lib/core/rewards"
 import { notifyReferralJoined } from "./notify"
-import { getOrdersForUser, listAuctions, getFlashProduct, type FlashSaleSummary } from "@/lib/core/catalog"
+import {
+  getOrdersForUser,
+  listAuctions,
+  getFlashProduct,
+  getFlashDetail,
+  getAuctionDetail,
+} from "@/lib/core/catalog"
 import { listFlashSales } from "@/lib/core/catalog"
-import { listWatchlist } from "@/lib/core/watchlist"
+import { listWatchlist, isWatching, addToWatchlist, removeFromWatchlist } from "@/lib/core/watchlist"
+import { placeBid, buyNow } from "@/lib/core/auction"
+import { evaluateCoupon } from "@/lib/core/coupons"
+import {
+  listNotifications,
+  markRead,
+  markAllRead,
+  unreadCount,
+} from "@/lib/core/notifications"
+import {
+  createTicket,
+  listTickets,
+  getTicket,
+  replyToTicket,
+  closeTicket,
+} from "@/lib/core/support"
+import { getPaymentConfig } from "@/lib/core/settings"
+import { put } from "@vercel/blob"
 import {
   getPublicGiveaway,
   enterGiveaway,
@@ -67,11 +112,14 @@ type TgSuccessfulPayment = {
   invoice_payload: string
   telegram_payment_charge_id: string
 }
+type TgPhotoSize = { file_id: string; file_unique_id?: string; file_size?: number; width?: number; height?: number }
 type TgMessage = {
   message_id: number
   chat: TgChat
   from?: TgFrom
   text?: string
+  caption?: string
+  photo?: TgPhotoSize[]
   successful_payment?: TgSuccessfulPayment
 }
 type TgCallback = {
@@ -175,18 +223,85 @@ function linksHtml(links: { label: string; url: string }[]): string {
   )
 }
 
+/** Fallback banner shown on the editable canvas for text-only sections. */
+const BANNER_PATH = "/bot/banner.png"
+/** Items per page in the in-chat browse lists. */
+const PAGE_SIZE = 6
+/** Telegram photo caption hard limit is 1024 chars; keep a safe margin. */
+const CAPTION_MAX = 1000
+
+/** Clamp a caption to Telegram's photo-caption limit (keeps closing bold sane). */
+function clampCaption(html: string): string {
+  if (html.length <= CAPTION_MAX) return html
+  return html.slice(0, CAPTION_MAX - 1) + "…"
+}
+
+/**
+ * Render the single editable "canvas" message. Every browsable/section view
+ * goes through here so we edit ONE message in place instead of spamming a new
+ * message per item:
+ *  - a text-only section uses the brand banner as the photo;
+ *  - an item detail passes the item's cover image.
+ * When editing, we swap only the caption if the photo is unchanged, else swap
+ * the media. Falls back to sending a fresh canvas if no edit target exists or an
+ * edit fails (e.g. the message is too old / was deleted).
+ */
+async function renderCanvas(
+  chatId: number,
+  opts: { photo?: string | null; caption: string; markup?: object; editId?: number },
+): Promise<number | undefined> {
+  const img = absImage(opts.photo) || absImage(BANNER_PATH)
+  const caption = clampCaption(opts.caption)
+
+  if (opts.editId && img) {
+    const cur = await getCanvas(chatId)
+    try {
+      if (cur && cur.id === opts.editId && cur.photo === img) {
+        await editMessageCaption(chatId, opts.editId, caption, { replyMarkup: opts.markup })
+      } else {
+        await editMessageMedia(chatId, opts.editId, img, caption, { replyMarkup: opts.markup })
+        await setCanvas(chatId, opts.editId, img)
+      }
+      return opts.editId
+    } catch {
+      // fall through to sending a fresh canvas
+    }
+  }
+
+  if (img) {
+    const msg = (await sendPhoto(chatId, img, caption, { replyMarkup: opts.markup }).catch(
+      () => null,
+    )) as { message_id?: number } | null
+    const id = msg?.message_id
+    if (id) await setCanvas(chatId, id, img)
+    return id
+  }
+  const msg = (await sendMessage(chatId, caption, { replyMarkup: opts.markup })) as {
+    message_id?: number
+  }
+  return msg?.message_id
+}
+
+/** Enabled deposit/top-up methods, in a stable display order. */
+async function enabledPayMethods(): Promise<BotPayMethod[]> {
+  const cfg = await getPaymentConfig()
+  const order: BotPayMethod[] = ["CARD", "TON", "USDT", "STARS"]
+  return order.filter((m) => cfg.methods.find((s) => s.method === m)?.enabled)
+}
+
 // --- command + view renderers ------------------------------------------------
 
 async function showHome(chatId: number, user: User, opts: { edit?: number } = {}) {
   const c = await cfg()
   const locale = localeOf(c, user)
   const { html } = t(c, locale, "menuPrompt", { name: user.displayName })
-  const markup = mainMenu(c, locale)
-  if (opts.edit) {
-    await editMessageText(chatId, opts.edit, html, { replyMarkup: markup })
-  } else {
-    await sendMessage(chatId, html, { replyMarkup: markup })
-  }
+  const unread = c.features.notificationsInbox ? await unreadCount(user.id).catch(() => 0) : 0
+  await renderCanvas(chatId, {
+    photo: BANNER_PATH,
+    caption: html,
+    markup: mainMenu(c, locale, unread),
+    editId: opts.edit,
+  })
 }
 
 async function showWelcome(chatId: number, user: User, isNew: boolean) {
@@ -194,7 +309,8 @@ async function showWelcome(chatId: number, user: User, isNew: boolean) {
   const locale = localeOf(c, user)
   const key = isNew ? "welcome" : "welcomeBack"
   const { html } = t(c, locale, key, { name: user.displayName, brand: c.brandName })
-  await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+  const unread = c.features.notificationsInbox ? await unreadCount(user.id).catch(() => 0) : 0
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: mainMenu(c, locale, unread) })
 }
 
 /**
@@ -239,8 +355,7 @@ async function showReferral(chatId: number, user: User, editId?: number) {
     .replace(/<[^>]+>/g, "")
     .slice(0, 120)
   const markup = referralKeyboard(c, stats.code, shareText || c.brandName, locale)
-  if (editId) await editMessageText(chatId, editId, html, { replyMarkup: markup })
-  else await sendMessage(chatId, html, { replyMarkup: markup })
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup, editId })
 }
 
 async function showWallet(chatId: number, user: User, editId?: number) {
@@ -260,8 +375,7 @@ async function showWallet(chatId: number, user: User, editId?: number) {
   if (discount > 0) tierLine += ` · ${esc(String(discount))}%`
   const body = `${html}${tierLine}`
   const markup = walletMenu(c, locale)
-  if (editId) await editMessageText(chatId, editId, body, { replyMarkup: markup })
-  else await sendMessage(chatId, body, { replyMarkup: markup })
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: body, markup, editId })
 }
 
 async function showOrders(chatId: number, user: User, editId?: number) {
@@ -270,8 +384,7 @@ async function showOrders(chatId: number, user: User, editId?: number) {
   const orders = (await getOrdersForUser(user.id)).slice(0, 8)
   if (orders.length === 0) {
     const { html } = t(c, locale, "ordersEmpty")
-    if (editId) await editMessageText(chatId, editId, html, { replyMarkup: backButton(c, locale) })
-    else await sendMessage(chatId, html, { replyMarkup: backButton(c, locale) })
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: backButton(c, locale), editId })
     return
   }
   const header = t(c, locale, "ordersHeader")
@@ -280,82 +393,133 @@ async function showOrders(chatId: number, user: User, editId?: number) {
     return `${status} <b>${esc(o.title)}</b>\n   ${esc(price(c, locale, o.amount))} · ${esc(o.publicId)}`
   })
   const body = `${header.html}\n\n${lines.join("\n\n")}`
-  if (editId) await editMessageText(chatId, editId, body, { replyMarkup: backButton(c, locale) })
-  else await sendMessage(chatId, body, { replyMarkup: backButton(c, locale) })
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: body, markup: backButton(c, locale), editId })
 }
 
-async function showFlash(chatId: number, locale: Locale, editId?: number) {
+/** Localized labels for the auction detail card. */
+function aucLabels(locale: Locale) {
+  switch (locale) {
+    case "en":
+      return { price: "Current price", next: "Min next bid", buyNow: "Buy now", ends: "Ends", bids: "Bids", scheduled: "Starts", ended: "Auction ended", reserveNo: "Reserve not met" }
+    case "ru":
+      return { price: "Текущая цена", next: "Мин. ставка", buyNow: "Купить сейчас", ends: "Окончание", bids: "Ставки", scheduled: "Старт", ended: "Аукцион завершён", reserveNo: "Резерв не достигнут" }
+    case "hi":
+      return { price: "मौजूदा कीमत", next: "न्यूनतम अगली बोली", buyNow: "अभी खरीदें", ends: "समाप्ति", bids: "बोलियाँ", scheduled: "शुरू", ended: "नीलामी समाप्त", reserveNo: "रिज़र्व पूरा नहीं" }
+    default:
+      return { price: "قیمت فعلی", next: "حداقل پیشنهاد بعدی", buyNow: "خرید فوری", ends: "پایان", bids: "پیشنهادها", scheduled: "شروع", ended: "مزایده پایان یافت", reserveNo: "به حد رزرو نرسیده" }
+  }
+}
+
+function localeTag(locale: Locale): string {
+  return locale === "fa" ? "fa-IR" : locale === "ru" ? "ru-RU" : locale === "hi" ? "hi-IN" : "en-US"
+}
+
+/** Flash-sale browse list on the editable canvas (buttons, no per-item spam). */
+async function showFlash(chatId: number, locale: Locale, editId?: number, page = 0) {
   const c = await cfg()
-  const items = (await listFlashSales()).filter((p) => p.stock > 0).slice(0, 6)
-  if (items.length === 0) {
+  const all = (await listFlashSales()).filter((p) => p.stock > 0)
+  if (all.length === 0) {
     const { html } = t(c, locale, "flashEmpty")
-    if (editId) await editMessageText(chatId, editId, html, { replyMarkup: backButton(c, locale) })
-    else await sendMessage(chatId, html, { replyMarkup: backButton(c, locale) })
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: backButton(c, locale), editId })
     return
   }
-  const header = t(c, locale, "flashHeader")
-  if (editId) await editMessageText(chatId, editId, header.html, { replyMarkup: backButton(c, locale) })
-  else await sendMessage(chatId, header.html, { replyMarkup: backButton(c, locale) })
-
-  // Send each product as its own card with a Buy-now button.
-  for (const p of items) {
-    await sendProductCard(chatId, locale, p)
-  }
+  const start = page * PAGE_SIZE
+  const items = all.slice(start, start + PAGE_SIZE)
+  const header = t(c, locale, "flashHeader").html
+  const lines = items.map(
+    (p) => `${emo(c, "fire")} <b>${esc(p.title)}</b> — ${esc(price(c, locale, p.price))}`,
+  )
+  const listItems: ListItem[] = items.map((p) => ({
+    id: p.id,
+    label: `${p.title} — ${plain(price(c, locale, p.price))}`.slice(0, 60),
+  }))
+  const markup = listKeyboard(c, "flash", listItems, page, start + PAGE_SIZE < all.length, locale)
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${header}\n\n${lines.join("\n")}`, markup, editId })
 }
 
-/** Render a single product card (used by flash list and buy deep links). */
-async function sendProductCard(chatId: number, locale: Locale, p: FlashSaleSummary) {
+/** Flash-sale product detail on the canvas (swaps in the item cover image). */
+async function showFlashDetail(chatId: number, locale: Locale, productId: string, page: number, editId?: number) {
   const c = await cfg()
-  const bulk =
-    p.bulkMinQty && p.bulkDiscountPercent ? bulkNote(locale, p.bulkDiscountPercent, p.bulkMinQty) : ""
+  const p = await getFlashDetail(productId)
+  if (!p) {
+    const { html } = t(c, locale, "flashEmpty")
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: html, markup: backButton(c, locale), editId })
+    return
+  }
+  const bulk = p.bulkMinQty && p.bulkDiscountPercent ? bulkNote(locale, p.bulkDiscountPercent, p.bulkMinQty) : ""
   const { html } = t(c, locale, "productCard", {
     title: p.title,
     price: price(c, locale, p.price),
     stock: p.stock,
     sold: p.soldDisplay,
     bulk,
-    links: "", // appended as HTML below (anchors can't pass through escaping)
+    links: "",
   })
-  const caption = html + linksHtml(p.links)
-  const markup = productCardKeyboard(c, p.id, locale)
-  const img = absImage(p.coverImage)
-  if (img) {
-    await sendPhoto(chatId, img, caption, { replyMarkup: markup }).catch(async () => {
-      await sendMessage(chatId, caption, { replyMarkup: markup })
-    })
-  } else {
-    await sendMessage(chatId, caption, { replyMarkup: markup })
+  let caption = html + linksHtml(p.links)
+  if (p.ratingCount > 0 && p.ratingAvg != null) {
+    caption += `\n${emo(c, "star")} ${esc(String(p.ratingAvg))} (${esc(String(p.ratingCount))})`
   }
+  const markup = flashDetailKeyboard(c, p.id, page, locale)
+  await renderCanvas(chatId, { photo: p.coverImage || BANNER_PATH, caption, markup, editId })
 }
 
-async function showAuctions(chatId: number, locale: Locale, editId?: number) {
+/** Auction browse list on the editable canvas. */
+async function showAuctions(chatId: number, locale: Locale, editId?: number, page = 0) {
   const c = await cfg()
-  const items = (await listAuctions())
-    .filter((a) => a.status === "ACTIVE" || a.status === "SCHEDULED")
-    .slice(0, 6)
-  if (items.length === 0) {
+  const all = (await listAuctions()).filter((a) => a.status === "ACTIVE" || a.status === "SCHEDULED")
+  if (all.length === 0) {
     const empty = `${emo(c, "gavel")} —`
-    if (editId) await editMessageText(chatId, editId, empty, { replyMarkup: backButton(c, locale) })
-    else await sendMessage(chatId, empty, { replyMarkup: backButton(c, locale) })
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: empty, markup: backButton(c, locale), editId })
     return
   }
-  const header = `${emo(c, "gavel")} <b>${esc(t(c, locale, "watchlistHeader").html ? "" : "")}</b>`
-  const title = `${emo(c, "gavel")} <b>Auctions</b>`
-  if (editId) await editMessageText(chatId, editId, title, { replyMarkup: backButton(c, locale) })
-  else await sendMessage(chatId, title, { replyMarkup: backButton(c, locale) })
-  void header
-  for (const a of items) {
-    const caption = `${emo(c, "gavel")} <b>${esc(a.title)}</b>\n${emo(c, "money")} ${esc(price(c, locale, a.currentPrice))}\n${emo(c, "chart")} ${esc(a.bidCount)}`
-  const markup = auctionButton(c, a.id, locale)
-  const img = absImage(a.coverImage)
-  if (img) {
-    await sendPhoto(chatId, img, caption, { replyMarkup: markup }).catch(async () => {
-        await sendMessage(chatId, caption, { replyMarkup: markup })
-      })
-    } else {
-      await sendMessage(chatId, caption, { replyMarkup: markup })
-    }
+  const start = page * PAGE_SIZE
+  const items = all.slice(start, start + PAGE_SIZE)
+  const header = `${emo(c, "gavel")} <b>${esc(c.brandName)}</b>`
+  const lines = items.map(
+    (a) => `${emo(c, "gavel")} <b>${esc(a.title)}</b> — ${esc(price(c, locale, a.currentPrice))} · ${esc(String(a.bidCount))}`,
+  )
+  const listItems: ListItem[] = items.map((a) => ({
+    id: a.id,
+    label: `${a.title} — ${plain(price(c, locale, a.currentPrice))}`.slice(0, 60),
+  }))
+  const markup = listKeyboard(c, "auc", listItems, page, start + PAGE_SIZE < all.length, locale)
+  await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${header}\n\n${lines.join("\n")}`, markup, editId })
+}
+
+/** Auction detail on the canvas with in-chat bid / buy-now / watch actions. */
+async function showAuctionDetail(chatId: number, user: User, auctionId: string, page: number, editId?: number) {
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  let a: Awaited<ReturnType<typeof getAuctionDetail>>
+  try {
+    a = await getAuctionDetail(auctionId)
+  } catch {
+    await renderCanvas(chatId, { photo: BANNER_PATH, caption: `${emo(c, "cross")} —`, markup: backButton(c, locale), editId })
+    return
   }
+  const L = aucLabels(locale)
+  const active = a.status === "ACTIVE"
+  const watching = await isWatching(user.id, auctionId).catch(() => false)
+  const ends = formatDateTimeLocale(a.endTime, localeTag(locale))
+  const lines = [
+    `${emo(c, "gavel")} <b>${esc(a.title)}</b>`,
+    "",
+    `${emo(c, "money")} ${esc(L.price)}: <b>${esc(price(c, locale, a.currentPrice))}</b>`,
+  ]
+  if (active) lines.push(`${emo(c, "chart")} ${esc(L.next)}: <b>${esc(price(c, locale, a.minNextBid))}</b>`)
+  if (a.buyNowPrice) lines.push(`${emo(c, "cart")} ${esc(L.buyNow)}: <b>${esc(price(c, locale, a.buyNowPrice))}</b>`)
+  lines.push(`${emo(c, "clock")} ${esc(L.ends)}: ${esc(ends)}`)
+  lines.push(`${emo(c, "eye")} ${esc(L.bids)}: ${esc(String(a.bidCount))}`)
+  if (a.hasReserve && !a.reserveMet) lines.push(`${emo(c, "warning")} ${esc(L.reserveNo)}`)
+  if (!active && a.status !== "SCHEDULED") lines.push(`\n${emo(c, "cross")} ${esc(L.ended)}`)
+  const markup = auctionDetailKeyboard(
+    c,
+    a.id,
+    page,
+    { canBuyNow: Boolean(a.buyNowPrice), watching, active },
+    locale,
+  )
+  await renderCanvas(chatId, { photo: a.coverImage || BANNER_PATH, caption: lines.join("\n"), markup, editId })
 }
 
 async function showWatchlist(chatId: number, user: User, editId?: number) {
