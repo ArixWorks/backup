@@ -1,5 +1,5 @@
 import "server-only"
-import { getChatMember } from "./api"
+import { getChatMember, getChat, getChatMemberCount } from "./api"
 import { cache } from "@/lib/redis"
 import type { BotConfig, RequiredChannel } from "./config"
 
@@ -115,4 +115,47 @@ export async function checkSingleChannel(
 /** Drop the cached "passed" flag so the next check re-queries Telegram. */
 export async function clearMembershipCache(telegramId: number | string) {
   await cache.del(passKey(telegramId))
+}
+
+/** A required channel plus public metadata used to render premium join cards. */
+export type EnrichedChannel = RequiredChannel & {
+  description?: string
+  memberCount?: number
+}
+
+const META_TTL = 60 * 30 // channel meta (description/subscribers) cached 30 min
+const metaKey = (id: string) => `tgchmeta:${id}`
+
+/**
+ * Enrich every active required channel with public metadata (description +
+ * subscriber count) fetched from Telegram, cached to avoid hammering the API.
+ * Failures degrade gracefully — the base {id,title,url} is always returned so a
+ * channel the bot can't read still renders a usable join card.
+ */
+export async function getEnrichedChannels(cfg: BotConfig): Promise<EnrichedChannel[]> {
+  const channels = activeChannels(cfg)
+  return Promise.all(
+    channels.map(async (ch): Promise<EnrichedChannel> => {
+      const id = ch.id.trim()
+      try {
+        const cached = await cache.get(metaKey(id))
+        if (cached) return { ...ch, ...(JSON.parse(cached) as Partial<EnrichedChannel>) }
+      } catch {
+        /* ignore malformed cache */
+      }
+      const meta: { description?: string; memberCount?: number } = {}
+      try {
+        const [chat, count] = await Promise.all([
+          getChat(id).catch(() => null),
+          getChatMemberCount(id).catch(() => null),
+        ])
+        if (chat?.description) meta.description = chat.description
+        if (typeof count === "number") meta.memberCount = count
+        await cache.set(metaKey(id), JSON.stringify(meta), META_TTL)
+      } catch (e) {
+        console.log("[v0] channel meta fetch failed for", id, (e as Error).message)
+      }
+      return { ...ch, ...meta }
+    }),
+  )
 }

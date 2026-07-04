@@ -6,16 +6,14 @@ import { checkSingleChannel, forcedJoinActive } from "@/lib/telegram/membership"
 export const dynamic = "force-dynamic"
 
 /**
- * Verifies the user's membership for a SINGLE required channel. The join gate
- * calls this right after the user returns from visiting a channel, to flip that
- * one channel's tick to green.
+ * Verifies the user's membership for a SINGLE required channel. The channel gate
+ * calls this the moment the user returns from visiting a channel, to flip that
+ * one card's tick to green in real time.
  *
  * Returns `{ joined, verifiable }`:
  *  - verifiable=true  → the bot is admin and `joined` is the real Telegram status
  *  - verifiable=false → the bot can't read membership, so `joined` is an
  *    optimistic pass (nothing to enforce).
- *
- * When forced join is off or the account has no Telegram id, everything passes.
  */
 export async function POST(req: Request) {
   const user = await getCurrentUser()

@@ -4,11 +4,9 @@ import Link from "next/link"
 import {
   BadgePercent,
   ChevronLeft,
-  Crown,
   Gavel,
   Gift,
   Globe,
-  LifeBuoy,
   Package,
   Plus,
   Server,
@@ -36,19 +34,16 @@ type Service = {
 }
 
 /**
- * The dashboard is a *hub*, not a shop. It maps the whole platform: each module
- * has exactly one card here. Products live only inside the Store, auctions only
- * inside Auctions, wallet only inside the Wallet tab / header pill.
+ * The dashboard is a *hub*, not a shop. The four cards below are the platform's
+ * core identity — Store, Auctions, Domains, VPS — and nothing else. Every other
+ * capability (giveaways, orders, rewards, support, wallet…) has a single home in
+ * its own page / tab, reachable from Profile, the Wallet tab, or the header.
  */
 const services: Service[] = [
   { href: "/flash", icon: Store, title: "svc.store", desc: "svc.storeDesc", badge: { label: "badge.active", tone: "active" } },
-  { href: "/auctions", icon: Gavel, title: "svc.auctions", desc: "svc.auctionsDesc" },
+  { href: "/auctions", icon: Gavel, title: "svc.auctions", desc: "svc.auctionsDesc", badge: { label: "badge.active", tone: "active" } },
   { href: "/domains", icon: Globe, title: "svc.domains", desc: "svc.domainsDesc", badge: { label: "badge.soon", tone: "soon" } },
   { href: "/vps", icon: Server, title: "svc.vps", desc: "svc.vpsDesc", badge: { label: "badge.soon", tone: "soon" } },
-  { href: "/giveaways", icon: Gift, title: "svc.giveaways", desc: "svc.giveawaysDesc" },
-  { href: "/orders", icon: Package, title: "svc.orders", desc: "svc.ordersDesc" },
-  { href: "/rewards", icon: Crown, title: "svc.rewards", desc: "svc.rewardsDesc" },
-  { href: "/support", icon: LifeBuoy, title: "svc.support", desc: "svc.supportDesc" },
 ]
 
 const quickActions: { href: string; label: MessageKey; icon: typeof Plus }[] = [
@@ -161,23 +156,47 @@ export default function HomePage() {
             {t("home.servicesTitle")}
           </h2>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3.5">
             {services.map((s) => (
-              <Tilt key={s.href} max={9} className="rounded-2xl">
+              <Tilt key={s.href} max={11} glare className="h-full rounded-3xl">
                 <Pressable className="h-full">
                   <Link
                     href={s.href}
-                    className="card-premium group flex h-full flex-col gap-2.5 rounded-2xl border border-border p-4 [transform-style:preserve-3d] transition-all duration-300 hover:border-primary/40"
+                    aria-label={t(s.title)}
+                    className="card-premium group relative flex h-full min-h-40 flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-border p-4 [transform-style:preserve-3d] transition-[border-color,box-shadow] duration-300 hover:border-primary/45 hover:shadow-[var(--shadow-gold)]"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20 transition-all duration-300 [transform:translateZ(26px)] group-hover:bg-primary/15 group-hover:ring-primary/40">
-                        <s.icon className="h-5 w-5 transition-transform duration-300 group-hover:scale-110" />
+                    {/* golden glow that blooms on hover for depth */}
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-primary/15 opacity-70 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+                    />
+                    {/* faint gloss so the surface reads as glass */}
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+                    />
+
+                    <div className="relative z-[1] flex items-start justify-between gap-2">
+                      {/* 3D golden icon chip — raised toward the viewer, lit top edge */}
+                      <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gold text-primary-foreground shadow-[var(--shadow-gold)] ring-1 ring-primary/40 [transform:translateZ(42px)] transition-transform duration-300 will-change-transform group-hover:-translate-y-1 group-active:translate-y-0">
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-0 rounded-2xl [box-shadow:inset_0_1.5px_0_0_oklch(1_0_0/0.45),inset_0_-2px_6px_0_oklch(0_0_0/0.25)]"
+                        />
+                        <s.icon
+                          className="relative h-7 w-7 transition-transform duration-300 group-hover:scale-110"
+                          strokeWidth={2}
+                        />
                       </span>
                       {s.badge ? <StatusBadge label={t(s.badge.label)} tone={s.badge.tone} /> : null}
                     </div>
-                    <div className="[transform:translateZ(14px)]">
-                      <p className="text-sm font-bold text-foreground">{t(s.title)}</p>
-                      <p className="mt-0.5 text-pretty text-[11px] leading-relaxed text-muted-foreground">
+
+                    <div className="relative z-[1] [transform:translateZ(22px)]">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[15px] font-extrabold tracking-tight text-foreground">{t(s.title)}</p>
+                        <ChevronLeft className="h-4 w-4 text-primary opacity-0 transition-all duration-300 group-hover:-translate-x-0.5 group-hover:opacity-100 rtl:rotate-180 rtl:group-hover:translate-x-0.5" />
+                      </div>
+                      <p className="mt-1 text-pretty text-[11px] leading-relaxed text-muted-foreground">
                         {t(s.desc)}
                       </p>
                     </div>

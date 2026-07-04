@@ -10,6 +10,7 @@ import { AuthGate } from "@/components/auth/auth-gate"
 import { MaintenanceGate } from "@/components/maintenance-gate"
 import { ForcePasswordChange } from "@/components/auth/force-password-change"
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow"
+import { ChannelGate } from "@/components/channel-gate"
 import { ScrollProgress } from "@/components/motion"
 
 /**
@@ -48,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <NotificationWatcher />
         <ForcePasswordChange />
         <OnboardingFlow />
+        <ChannelGate />
         <SiteHeader />
         {/* Bottom padding must clear the fixed tab bar *plus* the bottom safe
             inset. Crucially this mirrors the nav's own padding by using

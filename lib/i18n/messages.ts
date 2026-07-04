@@ -189,6 +189,12 @@ export type MessageKey =
   | "join.confirmed"
   | "join.retry"
   | "join.failed"
+  | "join.joinCta"
+  | "join.members"
+  | "join.channelDesc"
+  | "join.allSet"
+  | "join.allSetDesc"
+  | "join.verifying"
   | "wallet.signInRequired"
   | "wallet.topupDemo"
   | "wallet.amountPlaceholder"
@@ -924,11 +930,17 @@ type Catalog = Record<MessageKey, string>
   "join.confirmed": "تأیید شد",
   "join.retry": "دوباره بررسی کن",
   "join.failed": "عضویت همه‌ی کانال‌ها تأیید نشد. ابتدا عضو شو، سپس دوباره بررسی کن.",
+  "join.joinCta": "عضویت",
+  "join.members": "{count} عضو",
+  "join.channelDesc": "کانال رسمی",
+  "join.allSet": "همه چیز آماده است!",
+  "join.allSetDesc": "عضویت شما تأیید شد. در حال ورود به اپ…",
+  "join.verifying": "در حال تأیید عضویت…",
   "wallet.signInRequired": "برای مشاهده کیف پول، ابتدا وارد حساب کاربری خود شوید.",
   "wallet.topupDemo": "شارژ کیف پول (دمو)",
   "wallet.amountPlaceholder": "مبلغ به تومان",
   "wallet.charge": "شارژ",
-  "wallet.demoNote": "در نسخه واقعی، شارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.",
+  "wallet.demoNote": "در نسخه واقعی، شارژ از طریق کارت‌به‌کارت و تأیید مدیر ��نجام می‌شود.",
   "wallet.minTopup": "حداقل مبلغ شارژ ۱۰٬۰۰۰ تومان است",
   "wallet.topupSuccess": "کیف پول شارژ شد",
   "wallet.topupError": "خطا در شارژ کیف پول",
@@ -1027,7 +1039,7 @@ type Catalog = Record<MessageKey, string>
   "invite.s2.title": "اولین خرید دوستت",
   "invite.s2.desc": "با نخستین خرید دوستت، هم تو و هم او پاداش ویژه‌ی خرید اول را دریافت می‌کنید.",
   "invite.s3.title": "درآمد دائمی",
-  "invite.s3.desc": "از این پس بابت هر خرید دوستت، درصدی اعتبار به‌صورت همیشگی نصیب تو می‌شود.",
+  "invite.s3.desc": "از این پس بابت هر خرید دوستت، درصدی اع��بار به‌صورت همیشگی نصیب تو می‌شود.",
   "reports.signInRequired": "برای مشاهده گزارش واریزها، ابتدا وارد حساب کاربری خود شوید.",
   "reports.title": "گزارش واریزها",
   "reports.subtitle": "تاریخچه درخواست‌های شارژ کیف پول و وضعیت بررسی آن‌ها.",
@@ -1621,6 +1633,12 @@ type Catalog = Record<MessageKey, string>
   "join.confirmed": "Verified",
   "join.retry": "Check again",
   "join.failed": "Not all channels were verified. Join first, then check again.",
+  "join.joinCta": "Join",
+  "join.members": "{count} members",
+  "join.channelDesc": "Official channel",
+  "join.allSet": "You're all set!",
+  "join.allSetDesc": "Your membership is verified. Taking you in…",
+  "join.verifying": "Verifying membership…",
   "wallet.signInRequired": "Sign in to view your wallet.",
   "wallet.topupDemo": "Top up wallet (demo)",
   "wallet.amountPlaceholder": "Amount in Toman",
@@ -2144,7 +2162,7 @@ type Catalog = Record<MessageKey, string>
   "giveaways.title": "Розыгрыши",
   "giveaways.subtitle": "Подпишитесь на каналы, участвуйте в розыгрыше и выигрывайте",
   "common.toman": "Туман",
-  "common.viewAll": "Все",
+  "common.viewAll": "��се",
   "common.loading": "Загрузка…",
   "common.back": "Назад",
   "common.cancel": "Отмена",
@@ -2318,6 +2336,12 @@ type Catalog = Record<MessageKey, string>
   "join.confirmed": "Подтверждено",
   "join.retry": "Проверить снова",
   "join.failed": "Не все каналы подтверждены. Сначала подпишитесь, затем проверьте снова.",
+  "join.joinCta": "Подписаться",
+  "join.members": "{count} подписчиков",
+  "join.channelDesc": "Официальный канал",
+  "join.allSet": "Всё готово!",
+  "join.allSetDesc": "Подписка подтверждена. Входим…",
+  "join.verifying": "Проверка подписки…",
   "wallet.signInRequired": "Войдите, чтобы увидеть кошелёк.",
   "wallet.topupDemo": "Пополнить кошелёк (демо)",
   "wallet.amountPlaceholder": "Сумма в туманах",
@@ -2576,7 +2600,7 @@ type Catalog = Record<MessageKey, string>
   "signIn.action": "Войти в аккаунт",
   "watch.errUpdate": "Не удалось обновить список отслеживания",
   "watch.auctionRemoved": "Удалено из отслеживания",
-  "watch.auctionAdded": "Добавлено в отслеживание; вы получите уведомление о начале аукциона",
+  "watch.auctionAdded": "Добавле��о в отслеживание; вы получите уведомление о начале аукциона",
   "watch.watching": "Отслеживается",
   "watch.watchAuction": "Отслеживать аукцион",
   "watch.productCancelled": "Уведомление о наличии отменено",
@@ -2727,7 +2751,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.entered": "Вы участвуете в розыгрыше",
   "gwd.joinChannelsFirst": "Сначала подпишитесь на требуемые каналы",
   "gwd.errEnter": "Ошибка участия в розыгрыше",
-  "gwd.startRegUntil": "Регистрация начнётся через",
+  "gwd.startRegUntil": "Регистрация начнё��ся через",
   "gwd.participants": "Участники",
   "gwd.prize": "Приз",
   "gwd.mustJoin": "Вы должны подписаться на эти каналы",
@@ -3016,6 +3040,12 @@ type Catalog = Record<MessageKey, string>
   "join.confirmed": "Verified",
   "join.retry": "Phir se check karein",
   "join.failed": "Sabhi channels verify nahi hue. Pehle join karein, phir se check karein.",
+  "join.joinCta": "Join karein",
+  "join.members": "{count} members",
+  "join.channelDesc": "Official channel",
+  "join.allSet": "Sab taiyaar hai!",
+  "join.allSetDesc": "Aapki membership verify ho gayi. App khol rahe hain…",
+  "join.verifying": "Membership verify ho rahi hai…",
   "wallet.signInRequired": "Wallet dekhne ke liye sign in karein.",
   "wallet.topupDemo": "Wallet top up karein (demo)",
   "wallet.amountPlaceholder": "Toman mein amount",
