@@ -9,7 +9,6 @@ import {
   User,
   LogOut,
   ShieldCheck,
-  Wallet,
   LifeBuoy,
   ReceiptText,
   Undo2,
@@ -78,7 +77,6 @@ export function ProfileMenu() {
 
   const items: Item[] = [
     { href: "/notifications", label: t("menu.notifications"), desc: t("menu.notificationsDesc"), icon: Bell, badge: unread },
-    { href: "/wallet", label: t("menu.wallet"), desc: t("menu.walletDesc"), icon: Wallet, tone: "primary" },
     { href: "/reports", label: t("menu.reports"), desc: t("menu.reportsDesc"), icon: ReceiptText },
     { href: "/support", label: t("menu.support"), desc: t("menu.supportDesc"), icon: LifeBuoy },
     { href: "/refunds", label: t("menu.refunds"), desc: t("menu.refundsDesc"), icon: Undo2 },

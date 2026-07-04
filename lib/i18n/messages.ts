@@ -663,11 +663,85 @@ export type MessageKey =
   | "refAct.now"
   | "refAct.empty"
   | "refAct.emptyDesc"
+  | "nav.profile"
+  | "home.dashboard"
+  | "home.servicesTitle"
+  | "home.recentTitle"
+  | "home.recentEmpty"
+  | "home.promoTitle"
+  | "home.promoBody"
+  | "home.promoCta"
+  | "home.accountStatus"
+  | "svc.store"
+  | "svc.storeDesc"
+  | "svc.auctions"
+  | "svc.auctionsDesc"
+  | "svc.vps"
+  | "svc.vpsDesc"
+  | "svc.domains"
+  | "svc.domainsDesc"
+  | "svc.giveaways"
+  | "svc.giveawaysDesc"
+  | "svc.orders"
+  | "svc.ordersDesc"
+  | "svc.support"
+  | "svc.supportDesc"
+  | "svc.rewards"
+  | "svc.rewardsDesc"
+  | "badge.soon"
+  | "badge.new"
+  | "badge.hot"
+  | "badge.active"
+  | "soon.title"
+  | "soon.heading"
+  | "soon.body"
+  | "soon.back"
+  | "vps.title"
+  | "vps.subtitle"
+  | "domains.title"
+  | "domains.subtitle"
 
 type Catalog = Record<MessageKey, string>
 
-const fa: Catalog = {
-  "nav.home": "خانه",
+  const fa: Catalog = {
+    "nav.profile": "پروفایل",
+    "home.dashboard": "داشبورد",
+    "home.servicesTitle": "خدمات",
+    "home.recentTitle": "فعالیت اخیر",
+    "home.recentEmpty": "هنوز فعالیتی ثبت نشده است",
+    "home.promoTitle": "پیشنهاد ویژه",
+    "home.promoBody": "با شارژ کیف پول از تخفیف‌های ویژه بهره‌مند شوید",
+    "home.promoCta": "مشاهده",
+    "home.accountStatus": "وضعیت حساب",
+    "svc.store": "فروشگاه",
+    "svc.storeDesc": "اشتراک، اکانت و محصولات دیجیتال",
+    "svc.auctions": "مزایده‌ها",
+    "svc.auctionsDesc": "خرید محصولات با قیمت رقابتی",
+    "svc.vps": "سرور مجازی",
+    "svc.vpsDesc": "میزبانی VPS پرقدرت",
+    "svc.domains": "ثبت دامنه",
+    "svc.domainsDesc": "جستجو و ثبت دامنه اختصاصی",
+    "svc.giveaways": "قرعه‌کشی",
+    "svc.giveawaysDesc": "شرکت در قرعه‌کشی‌های رایگان",
+    "svc.orders": "سفارش‌ها",
+    "svc.ordersDesc": "پیگیری خریدها و تحویل",
+    "svc.support": "پشتیبانی",
+    "svc.supportDesc": "گفتگو با تیم پشتیبانی",
+    "svc.rewards": "باشگاه مشتریان",
+    "svc.rewardsDesc": "امتیاز، سطح و پاداش‌ها",
+    "badge.soon": "بزودی",
+    "badge.new": "جدید",
+    "badge.hot": "داغ",
+    "badge.active": "فعال",
+    "soon.title": "بزودی",
+    "soon.heading": "این بخش بزودی فعال می‌شود",
+    "soon.body": "در حال توسعه این قابلیت هستیم و به‌زودی به پروژه اضافه می‌شود.",
+    "soon.back": "بازگشت به داشبورد",
+    "vps.title": "سرور مجازی (VPS)",
+    "vps.subtitle": "میزبانی ابری پرقدرت و پایدار",
+    "domains.title": "ثبت دامنه",
+    "domains.subtitle": "جستجو، قیمت و ثبت دامنه اختصاصی شما",
+    "nav.home": "خانه",
   "nav.auctions": "مزایده‌ها",
   "nav.flash": "فروشگاه",
   "nav.wallet": "کیف پول",
@@ -807,7 +881,7 @@ const fa: Catalog = {
   "watchlist.empty": "هنوز مزایده‌ای را پیگیری نمی‌کنید.",
   "watchlist.browse": "مشاهده مزایده‌ها",
   "lang.choose": "انتخاب زبان",
-  "auth.tagline": "برای ادامه، با حساب تلگرام خود وارد شوید",
+  "auth.tagline": "برای ادامه، با حساب تلگرام خو�� وارد شوید",
   "auth.telegramBtn": "ورود با تلگرام",
   "auth.secureNote": "ورود امن از طریق تلگرام",
   "auth.privacyTitle": "حریم خصوصی و امنیت",
@@ -892,7 +966,7 @@ const fa: Catalog = {
   "account.logoutAllError": "خروج از همه دستگاه‌ها ناموفق بود",
   "account.methodTelegram": "تلگرام",
   "account.methodPassword": "ایمیل و رمز عبور",
-  "auctions.emptyDesc": "در حال حاضر مزایده فعالی برگزار نمی‌شود. بعداً دوباره سر بزنید.",
+  "auctions.emptyDesc": "در حال حاضر مزایده فعالی برگزار نمی‌شود. بعداً دوباره ��ر بزنید.",
   "auctions.finalized": "تسویه‌شده",
   "auctions.cancelled": "لغوشده",
   "giveaways.myWins": "جوایز من",
@@ -1326,7 +1400,44 @@ const fa: Catalog = {
   "refAct.emptyDesc": "لینک خود را به اشتراک بگذارید تا اینجا دوستانتان را ببینید.",
 }
 
-const en: Catalog = {
+  const en: Catalog = {
+    "nav.profile": "Profile",
+    "home.dashboard": "Dashboard",
+    "home.servicesTitle": "Services",
+    "home.recentTitle": "Recent activity",
+    "home.recentEmpty": "No activity yet",
+    "home.promoTitle": "Special offer",
+    "home.promoBody": "Top up your wallet and unlock exclusive discounts",
+    "home.promoCta": "View",
+    "home.accountStatus": "Account status",
+    "svc.store": "Store",
+    "svc.storeDesc": "Subscriptions, accounts & digital goods",
+    "svc.auctions": "Auctions",
+    "svc.auctionsDesc": "Win products at competitive prices",
+    "svc.vps": "VPS Hosting",
+    "svc.vpsDesc": "Powerful virtual servers",
+    "svc.domains": "Domains",
+    "svc.domainsDesc": "Search & register your domain",
+    "svc.giveaways": "Giveaways",
+    "svc.giveawaysDesc": "Join free giveaways",
+    "svc.orders": "Orders",
+    "svc.ordersDesc": "Track purchases & delivery",
+    "svc.support": "Support",
+    "svc.supportDesc": "Chat with our team",
+    "svc.rewards": "Rewards",
+    "svc.rewardsDesc": "Points, tiers & perks",
+    "badge.soon": "Soon",
+    "badge.new": "New",
+    "badge.hot": "Hot",
+    "badge.active": "Active",
+    "soon.title": "Coming soon",
+    "soon.heading": "This section is coming soon",
+    "soon.body": "We're building this feature and it will be added to the platform shortly.",
+    "soon.back": "Back to dashboard",
+    "vps.title": "VPS Hosting",
+    "vps.subtitle": "Powerful, reliable cloud hosting",
+    "domains.title": "Domain Registration",
+    "domains.subtitle": "Search, price and register your domain",
   "nav.home": "Home",
   "nav.auctions": "Auctions",
   "nav.flash": "Flash Sale",
@@ -1986,7 +2097,44 @@ const en: Catalog = {
   "refAct.emptyDesc": "When you invite friends, their activity will appear here.",
 }
 
-const ru: Catalog = {
+  const ru: Catalog = {
+    "nav.profile": "Профиль",
+    "home.dashboard": "Панель",
+    "home.servicesTitle": "Сервисы",
+    "home.recentTitle": "Недавняя активность",
+    "home.recentEmpty": "Пока нет активности",
+    "home.promoTitle": "Спецпредложение",
+    "home.promoBody": "Пополните кошелёк и получите эксклюзивные скидки",
+    "home.promoCta": "Смотреть",
+    "home.accountStatus": "Статус аккаунта",
+    "svc.store": "Магазин",
+    "svc.storeDesc": "Подписки, аккаунты и цифровые товары",
+    "svc.auctions": "Аукционы",
+    "svc.auctionsDesc": "Выигрывайте товары по выгодным ценам",
+    "svc.vps": "VPS-хостинг",
+    "svc.vpsDesc": "Мощные виртуальные серверы",
+    "svc.domains": "Домены",
+    "svc.domainsDesc": "Поиск и регистрация домена",
+    "svc.giveaways": "Розыгрыши",
+    "svc.giveawaysDesc": "Участвуйте в бесплатных розыгрышах",
+    "svc.orders": "Заказы",
+    "svc.ordersDesc": "Отслеживание покупок и доставки",
+    "svc.support": "Поддержка",
+    "svc.supportDesc": "Чат с нашей командой",
+    "svc.rewards": "Бонусы",
+    "svc.rewardsDesc": "Баллы, уровни и привилегии",
+    "badge.soon": "Скоро",
+    "badge.new": "Новое",
+    "badge.hot": "Хит",
+    "badge.active": "Активно",
+    "soon.title": "Скоро",
+    "soon.heading": "Этот раздел скоро появится",
+    "soon.body": "Мы разрабатываем эту функцию, и скоро она появится на платформе.",
+    "soon.back": "На панель",
+    "vps.title": "VPS-хостинг",
+    "vps.subtitle": "Мощный и надёжный облачный хостинг",
+    "domains.title": "Регистрация домена",
+    "domains.subtitle": "Поиск, цена и регистрация вашего домена",
   "nav.home": "Главная",
   "nav.auctions": "Аукционы",
   "nav.flash": "Распродажа",
@@ -2016,7 +2164,7 @@ const ru: Catalog = {
   "tour.s2.title": "Пополните баланс",
   "tour.s2.body": "Пополняйте кошельком, криптой или через шлюз и покупайте быстрее.",
   "tour.s3.title": "Купите товар",
-  "tour.s3.body": "Нажмите на товар, чтобы увидеть детали и оплатить. Доставка мгновенная.",
+  "tour.s3.body": "Нажмите на товар, чтобы увидеть детали и оплатить. Дос��авка мгновенная.",
   "tour.s4.title": "Участвуйте в аукционах",
   "tour.s4.body": "Делайте ставки на особые товары и выигрывайте по лучшей цене — уникальная возм��жность.",
   "tour.s5.title": "Ничего не пропустите",
@@ -2106,7 +2254,7 @@ const ru: Catalog = {
   "buy.deliveryInfo": "Информация о доставке (авто):",
   "buy.pendingManual": "Заказ оформлен и ожидает ручной доставки. Отслеживайте его в разделе «Заказы».",
   "buy.loginFirst": "Сначала выберите аккаунт",
-  "buy.bulkHint": "Оптовая скидка",
+  "buy.bulkHint": "О��товая скидка",
   "buy.subtotal": "Подытог",
   "coupon.placeholder": "Промокод",
   "coupon.apply": "Применить",
@@ -2647,7 +2795,44 @@ const ru: Catalog = {
 }
 
 // Roman Hindi (Romanized Hindi) — conversational, Latin script (not Devanagari).
-const hi: Catalog = {
+  const hi: Catalog = {
+    "nav.profile": "Profile",
+    "home.dashboard": "Dashboard",
+    "home.servicesTitle": "Services",
+    "home.recentTitle": "Recent activity",
+    "home.recentEmpty": "Abhi koi activity nahi",
+    "home.promoTitle": "Special offer",
+    "home.promoBody": "Wallet top up karein aur exclusive discount payein",
+    "home.promoCta": "Dekhein",
+    "home.accountStatus": "Account status",
+    "svc.store": "Store",
+    "svc.storeDesc": "Subscriptions, accounts aur digital goods",
+    "svc.auctions": "Auctions",
+    "svc.auctionsDesc": "Behtareen daam par products jeetein",
+    "svc.vps": "VPS Hosting",
+    "svc.vpsDesc": "Powerful virtual servers",
+    "svc.domains": "Domains",
+    "svc.domainsDesc": "Apna domain search aur register karein",
+    "svc.giveaways": "Giveaways",
+    "svc.giveawaysDesc": "Free giveaways mein shamil hon",
+    "svc.orders": "Orders",
+    "svc.ordersDesc": "Purchases aur delivery track karein",
+    "svc.support": "Support",
+    "svc.supportDesc": "Hamari team se chat karein",
+    "svc.rewards": "Rewards",
+    "svc.rewardsDesc": "Points, tiers aur perks",
+    "badge.soon": "Soon",
+    "badge.new": "New",
+    "badge.hot": "Hot",
+    "badge.active": "Active",
+    "soon.title": "Coming soon",
+    "soon.heading": "Yeh section jald aa raha hai",
+    "soon.body": "Hum is feature ko bana rahe hain, jald hi platform mein add hoga.",
+    "soon.back": "Dashboard par wapas",
+    "vps.title": "VPS Hosting",
+    "vps.subtitle": "Powerful, reliable cloud hosting",
+    "domains.title": "Domain Registration",
+    "domains.subtitle": "Apna domain search, price aur register karein",
   "nav.home": "Home",
   "nav.auctions": "Nilami",
   "nav.flash": "Flash Sale",

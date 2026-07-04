@@ -3,17 +3,20 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "motion/react"
-import { House, Gavel, Zap, Wallet, ShoppingBag } from "lucide-react"
+import { House, Gavel, Store, Wallet, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 
+// The five primary modules of the platform. Each feature has exactly one entry
+// point here — the dashboard is a hub, never a product list; wallet lives in
+// its own tab (plus the header balance pill) and nowhere else.
 const tabs: { href: string; label: MessageKey; icon: typeof House }[] = [
   { href: "/", label: "nav.home", icon: House },
+  { href: "/flash", label: "nav.flash", icon: Store },
   { href: "/auctions", label: "nav.auctions", icon: Gavel },
-  { href: "/flash", label: "nav.flash", icon: Zap },
   { href: "/wallet", label: "nav.wallet", icon: Wallet },
-  { href: "/orders", label: "nav.orders", icon: ShoppingBag },
+  { href: "/profile", label: "nav.profile", icon: User },
 ]
 
 export function BottomNav() {
