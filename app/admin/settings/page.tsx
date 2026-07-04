@@ -421,7 +421,7 @@ export default function AdminSettingsPage() {
               <div key={row.id} className="rounded-lg border border-border bg-secondary/40 p-3">
                 <div className="mb-2.5 text-sm font-bold">{row.label}</div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Field label="��متیاز لازم" hint="امتیاز مادام‌العمر">
+                  <Field label="امتیاز لازم" hint="امتیاز مادام‌العمر">
                     <Input
                       type="number"
                       value={form[KEYS[row.points]] ?? ""}
