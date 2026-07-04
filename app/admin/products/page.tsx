@@ -43,7 +43,7 @@ export default function AdminProductsPage() {
         <div>
           <h1 className="text-2xl font-bold">مدیریت محصولات</h1>
           <p className="text-sm text-muted-foreground">
-            ساخت و ویرایش محصولات فروش فوری و مزایده
+            ساخت و ویرایش محصولات فروشگاه و مزایده
           </p>
         </div>
         <Link href="/admin/products/new" className={cn(buttonVariants(), "gap-2")}>
@@ -109,7 +109,7 @@ export default function AdminProductsPage() {
                           : "border-chart-2/40 text-chart-2",
                       )}
                     >
-                      {p.saleMode === "AUCTION" ? "مزایده" : "فروش فوری"}
+                      {p.saleMode === "AUCTION" ? "مزایده" : "فروشگاه"}
                     </Badge>
                     <span>
                       {p.deliveryType === "AUTOMATIC" ? "تحویل خودکار" : "تحویل دستی"}

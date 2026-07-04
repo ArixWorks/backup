@@ -7,8 +7,8 @@ export const TEXT_LABELS: Record<string, string> = {
   walletHeader: "سربرگ کیف پول",
   ordersHeader: "سربرگ سفارش‌ها",
   ordersEmpty: "سفارش‌ها خالی",
-  flashHeader: "سربرگ فروش فوری",
-  flashEmpty: "فروش فوری خالی",
+  flashHeader: "سربرگ فروشگاه",
+  flashEmpty: "فروشگاه خالی",
   watchlistHeader: "سربرگ پیگیری‌ها",
   watchlistEmpty: "پیگیری‌ها خالی",
   depositPrompt: "راهنمای شارژ کیف پول",
@@ -37,7 +37,7 @@ export const TEXT_LABELS: Record<string, string> = {
 export const BUTTON_LABELS: Record<string, string> = {
   openApp: "باز کردن اپ",
   auctions: "مزایده‌ها",
-  flash: "فروش فوری",
+  flash: "فروشگاه",
   wallet: "کیف پول",
   orders: "سفارش‌ها",
   watchlist: "پیگیری‌ها",
@@ -53,7 +53,7 @@ export const BUTTON_LABELS: Record<string, string> = {
 
 export const FEATURE_LABELS: Record<string, { title: string; desc: string }> = {
   miniApp: { title: "مینی‌اپ", desc: "نمایش دکمه باز کردن وب‌اپ در ربات" },
-  flashBrowse: { title: "مرور فروش فوری", desc: "نمایش و خرید محصولات در چت" },
+  flashBrowse: { title: "مرور فروشگاه", desc: "نمایش و خرید محصولات در چت" },
   walletInChat: { title: "کیف پول در چت", desc: "مشاهده موجودی و سفارش‌ها در ربات" },
   deposits: { title: "شارژ کیف پول", desc: "ثبت درخواست واریز از داخل ربات" },
   withdrawals: { title: "برداشت", desc: "ثبت درخواست برداشت از داخل ربات" },

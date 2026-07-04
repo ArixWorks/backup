@@ -6,7 +6,7 @@ import useSWR from "swr"
 import { toast } from "sonner"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
-import { playNotificationChime } from "@/lib/notification-sound"
+import { playNotificationChime, installAudioPrimer } from "@/lib/notification-sound"
 import { useI18n } from "@/components/i18n-provider"
 
 interface NotificationItem {
@@ -41,6 +41,12 @@ export function NotificationWatcher() {
   )
 
   const items = data?.data?.items ?? []
+
+  // Unlock the Web Audio context on the first user gesture so notification
+  // chimes actually play (browsers/Telegram block audio until then).
+  useEffect(() => {
+    installAudioPrimer()
+  }, [])
 
   useEffect(() => {
     if (items.length === 0) return

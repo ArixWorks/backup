@@ -116,8 +116,12 @@ function applyInsets(wa: TelegramWebApp) {
   const root = document.documentElement
   const safe = wa.safeAreaInset ?? { top: 0, bottom: 0, left: 0, right: 0 }
   const content = wa.contentSafeAreaInset ?? { top: 0, bottom: 0, left: 0, right: 0 }
-  // Total inset = device safe area + Telegram's own UI (close/menu) safe area.
-  root.style.setProperty("--tg-safe-top", `${safe.top + content.top}px`)
+  // For the top we take the LARGER of the two insets, not their sum: the
+  // Mini App viewport already starts below Telegram's header in normal mode, so
+  // adding device-safe + content-safe double-counts the status bar and leaves a
+  // big empty gap under the header. max() clears whichever bar is actually
+  // present without the extra padding.
+  root.style.setProperty("--tg-safe-top", `${Math.max(safe.top, content.top)}px`)
   root.style.setProperty("--tg-safe-bottom", `${safe.bottom + content.bottom}px`)
   root.style.setProperty("--tg-safe-left", `${safe.left + content.left}px`)
   root.style.setProperty("--tg-safe-right", `${safe.right + content.right}px`)

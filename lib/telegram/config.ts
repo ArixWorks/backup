@@ -177,15 +177,15 @@ export const DEFAULT_CONFIG: BotConfig = {
   customEmoji: {},
   texts: {
     welcome:
-      "{wave} سلام {name} عزیز!\n\nبه *{brand}* خوش اومدی {sparkles}\nبازار حرفه‌ای محصولات دیجیتال با مزایده زنده و فروش فوری.\n\nاز دکمه‌های پایین استفاده کن یا اپ رو باز کن {rocket}",
+      "{wave} سلام {name} عزیز!\n\nبه *{brand}* خوش اومدی {sparkles}\nبازار حرفه‌ای محصولات دیجیتال با مزایده زنده و فروشگاه.\n\nاز دکمه‌های پایین استفاده کن یا اپ رو باز کن {rocket}",
     welcomeBack: "{wave} دوباره سلام {name}!\nخوشحالیم که برگشتی {sparkles}",
     menuPrompt: "{star} از منوی زیر یکی رو انتخاب کن:",
     walletHeader:
       "{wallet} *کیف پول شما*\n\n{money} موجودی کل: *{total}*\n{lock} مسدودشده: *{frozen}*\n{check} قابل برداشت: *{available}*",
     ordersHeader: "{box} *سفارش‌های اخیر شما*",
-    ordersEmpty: "{box} هنوز سفارشی ثبت نکردی.\nبرای شروع، فروش فوری رو ببین {fire}",
-    flashHeader: "{fire} *فروش فوری*\nمحصولات با تحویل آنی:",
-    flashEmpty: "{clock} در حال حاضر فروش فوری فعالی نداریم.",
+    ordersEmpty: "{box} هنوز سفارشی ثبت نکردی.\nبرای شروع، فروشگاه رو ببین {fire}",
+    flashHeader: "{fire} *فروشگاه*\nمحصولات با تحویل آنی:",
+    flashEmpty: "{clock} در حال حاضر محصولی در فروشگاه موجود نیست.",
     watchlistHeader: "{eye} *مزایده‌های در حال پیگیری*",
     watchlistEmpty: "{eye} لیست پیگیری خالیه.\nمزایده‌ها رو ببین و دکمه پیگیری رو بزن {bell}",
     depositPrompt:
@@ -217,7 +217,7 @@ export const DEFAULT_CONFIG: BotConfig = {
       "{party} *خرید موفق!*\n\n{box} {title}\n{money} مبلغ: *{price}*\n\nاطلاعات تحویل در «سفارش‌های من» {gift}",
     purchaseFailed: "{cross} خرید ناموفق بود:\n{reason}",
     notRegistered: "{warning} برای استفاده، اول باید حسابت رو بسازی.\nدستور /start رو بزن {rocket}",
-    help: "{star} *راهنمای {brand}*\n\n/start شروع و منوی اصلی\n/wallet کیف پول\n/orders سفارش‌ها\n/flash فروش فوری\n/watchlist پیگیری‌ها\n/language تغییر زبان\n/app باز کردن اپ\n/help این راهنما",
+    help: "{star} *راهنمای {brand}*\n\n/start شروع و منوی اصلی\n/wallet کیف پول\n/orders سفارش‌ها\n/flash فروشگاه\n/watchlist پیگیری‌ها\n/language تغییر زبان\n/app باز کردن اپ\n/help این راهنما",
     productCard:
       "{star} *{title}*\n\n{money} قیمت: *{price}*\n{box} موجودی: *{stock}*\n{chart} فروخته‌شده: *{sold}*{bulk}{links}",
     quantityPrompt:
@@ -242,7 +242,7 @@ export const DEFAULT_CONFIG: BotConfig = {
   buttons: {
     openApp: "🚀 باز کردن اپ",
     auctions: "🔨 مزایده‌ها",
-    flash: "🔥 فروش فوری",
+    flash: "🔥 فروشگاه",
     wallet: "💎 کیف پول",
     orders: "📦 سفارش‌ها",
     watchlist: "👀 پیگیری‌ها",

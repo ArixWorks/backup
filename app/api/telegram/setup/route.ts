@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     { command: "menu", description: "منوی اصلی" },
     { command: "wallet", description: "کیف پول" },
     { command: "orders", description: "سفارش‌های من" },
-    { command: "flash", description: "فروش فوری" },
+    { command: "flash", description: "فروشگاه" },
     { command: "auctions", description: "مزایده‌ها" },
     { command: "watchlist", description: "لیست پیگیری" },
     { command: "profile", description: "پروفایل من" },

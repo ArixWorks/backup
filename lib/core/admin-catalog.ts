@@ -146,7 +146,7 @@ export interface FlashUpdateInput {
 
 export async function updateFlashProduct(productId: string, input: FlashUpdateInput, adminId: string) {
   const product = await prisma.product.findUnique({ where: { id: productId }, include: { fixedSale: true } })
-  if (!product || !product.fixedSale) throw new NotFoundError("محصول فروش فوری یافت نشد")
+  if (!product || !product.fixedSale) throw new NotFoundError("محصول فروشگاه یافت نشد")
   const updated = await prisma.product.update({
     where: { id: productId },
     data: {
