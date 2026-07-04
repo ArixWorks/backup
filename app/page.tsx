@@ -10,18 +10,15 @@ import {
   Package,
   Plus,
   Server,
-  ShieldCheck,
   Store,
   UserPlus,
-  Wallet,
 } from "lucide-react"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import { RecommendedRail } from "@/components/recommended-rail"
 import { Stagger, FadeItem, Pressable, Tilt } from "@/components/motion"
-import { MembershipBadge } from "@/components/membership-badge"
-import { tierLabelKey } from "@/lib/tiers"
+import { ProfileBalanceHero } from "@/components/profile-balance-hero"
 
 type Badge = { label: MessageKey; tone: "soon" | "active" }
 
@@ -55,73 +52,21 @@ const quickActions: { href: string; label: MessageKey; icon: typeof Plus }[] = [
 
 export default function HomePage() {
   const { user } = useSession()
-  const { t, priceValue, currency } = useI18n()
+  const { t } = useI18n()
 
   const discount = user?.membership?.discountPercent ?? 0
 
   return (
     <Stagger className="space-y-7">
-      {/* ── Welcome hero: wallet summary + membership + account status ── */}
+      {/* ── Profile + wallet-balance hero (identity ⇄ balance in one row) ── */}
       <FadeItem>
-        <Tilt max={5} glare className="rounded-[var(--radius)]">
-          <section className="gold-border sheen surface-glow relative overflow-hidden p-5 shadow-xl shadow-primary/5 [transform-style:preserve-3d]">
-            <div className="relative z-[2] flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-sm text-muted-foreground">
-                {t("home.welcome")}
-                {user?.displayName ? ` ${user.displayName}` : ""}
-              </span>
-              {user ? (
-                <Link href="/rewards" className="shrink-0">
-                  <MembershipBadge tier={user.membership.tier} />
-                </Link>
-              ) : null}
-            </div>
-
-            {discount > 0 ? (
-              <div className="relative z-[2] mt-3 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-gold">
-                <BadgePercent className="h-3.5 w-3.5 text-primary" />
-                {t("membership.discount").replace("{n}", String(discount))}
-              </div>
-            ) : null}
-
-            {/* Balance summary — the single dashboard representation of the
-                wallet. Tapping it opens the Wallet tab (one clear entry). */}
-            <Link
-              href="/wallet"
-              className="active:scale-press relative z-[2] mt-5 block [transform:translateZ(40px)]"
-              aria-label={t("nav.wallet")}
-            >
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Wallet className="h-4 w-4 text-primary" />
-                {t("home.balance")}
-              </span>
-              <span className="mt-1.5 flex items-baseline gap-1.5">
-                <span className="text-gold min-w-0 truncate text-[clamp(1.7rem,8.5vw,2.6rem)] font-extrabold leading-none tabular-nums tracking-tight">
-                  {priceValue(user?.balances?.availableBalance ?? 0)}
-                </span>
-                <span className="shrink-0 text-sm text-muted-foreground">{currency}</span>
-              </span>
-            </Link>
-
-            {/* Account status pill */}
-            <div className="relative z-[2] mt-4 flex items-center gap-2 [transform:translateZ(20px)]">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                {t("home.accountStatus")}
-                {user ? (
-                  <span className="font-bold text-foreground">
-                    {t(tierLabelKey(user.membership.tier) as MessageKey)}
-                  </span>
-                ) : null}
-              </span>
-            </div>
-
-            <div
-              aria-hidden
-              className="animate-float pointer-events-none absolute -left-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-2xl"
-            />
-          </section>
-        </Tilt>
+        <ProfileBalanceHero />
+        {discount > 0 ? (
+          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-gold">
+            <BadgePercent className="h-3.5 w-3.5 text-primary" />
+            {t("membership.discount").replace("{n}", String(discount))}
+          </div>
+        ) : null}
       </FadeItem>
 
       {/* ── Quick actions (frequent tasks) ── */}
