@@ -589,7 +589,7 @@ function gwLabels(locale: Locale) {
     case "hi":
       return {
         prize: "इनाम", winners: "विजेता", participants: "प्रतिभागी",
-        drawAt: "ड्रॉ", enter: "🎉 भा��� लें", entered: "✅ आप शामिल हैं",
+        drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप शामिल हैं",
         open: "ऐप में खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
         ended: "यह गिववे समाप्त हो गया", retry: "✅ मैंने जॉइन किया — पुनः प्रयास",
         entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",

@@ -126,7 +126,7 @@ const ru: PartialTexts = {
 
 const hi: PartialTexts = {
   welcome:
-    "{wave} नमस्ते {name}!\n\n*{brand}* मे�� आपका स्वागत है {sparkles}\nलाइव नीलामी और फ्लैश सेल के साथ डिजिटल उत्पादों का प्रोफेशनल मार्केटप्लेस।\n\nनीचे दिए बटन इस्तेमाल करें या ऐप खोलें {rocket}",
+    "{wave} नमस्ते {name}!\n\n*{brand}* में आपका स्वागत है {sparkles}\nलाइव नीलामी और फ्लैश सेल के साथ डिजिटल उत्पादों का प्रोफेशनल मार्केटप्लेस।\n\nनीचे दिए बटन इस्तेमाल करें या ऐप खोलें {rocket}",
   welcomeBack: "{wave} वापसी पर स्वागत है, {name}!\nआपको फिर देखकर खुशी हुई {sparkles}",
   menuPrompt: "{star} नीचे से एक विकल्प चुनें:",
   walletHeader:
@@ -172,7 +172,7 @@ const hi: PartialTexts = {
     "{globe} नमस्ते! पहले अपनी भाषा चुनें {point}\n{globe} Hi! Please choose your language first {point}",
   languageSet: "{check} भाषा अपडेट हुई {sparkles}",
   joinRequired:
-    "{lock} *अनिवार्य सदस्यता* {megaphone}\n\n*{brand}* इस्तेमाल करने के लिए प��ले नीचे दिए चैनलों को जॉइन करें {point}\n\nफिर एक्सेस पाने के लिए *“सदस्यता जाँचें”* दबाएँ {check}",
+    "{lock} *अनिवार्य सदस्यता* {megaphone}\n\n*{brand}* इस्तेमाल करने के लिए पहले नीचे दिए चैनलों को जॉइन करें {point}\n\nफिर एक्सेस पाने के लिए *“सदस्यता जाँचें”* दबाएँ {check}",
   accessRevoked:
     "{warning} *आपकी एक्सेस रद्द हो गई!* {lock}\n\nलगता है आपने किसी अनिवार्य चैनल को छोड़ दिया {cross}\n*{brand}* फिर से इस्तेमाल करने के लिए नीचे दिए चैनल फिर जॉइन करें {point}\n\nफिर *“सदस्यता जाँचें”* दबाएँ {check}",
   joinVerified:
