@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth/session"
-import { getBotConfig } from "@/lib/telegram/settings"
-import { forcedJoinActive } from "@/lib/telegram/membership"
 
 export const dynamic = "force-dynamic"
 
 /**
  * First-run onboarding status for the signed-in user. The client uses this to
- * decide whether to show the onboarding flow (join gate → language → tutorial →
- * success) and which required channels to render on the join gate.
+ * decide whether to show the onboarding flow (language → tutorial → success).
  *
- * Only public, non-sensitive channel metadata (title + join url) is exposed.
+ * Forced-channel membership is handled separately by the channel gate
+ * (GET /api/v1/channels/gate), so it is intentionally not part of this payload.
  */
 export async function GET() {
   const user = await getCurrentUser()
@@ -21,23 +19,10 @@ export async function GET() {
     )
   }
 
-  const cfg = await getBotConfig()
-  const joinEnabled = forcedJoinActive(cfg)
-  // Whether THIS user can actually be membership-checked (needs a Telegram id).
-  const canVerify = joinEnabled && Boolean(user.telegramId)
-
-  const channels = (joinEnabled ? cfg.requiredChannels ?? [] : [])
-    .filter((ch) => ch && ch.id && ch.id.trim())
-    .map((ch) => ({ id: ch.id, title: ch.title, url: ch.url }))
-
   return NextResponse.json({
     ok: true,
     data: {
       needsOnboarding: !user.onboardedAt,
-      joinEnabled,
-      canVerify,
-      channels,
-      brandName: cfg.brandName,
     },
   })
 }

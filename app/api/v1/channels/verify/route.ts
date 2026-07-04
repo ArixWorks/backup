@@ -10,13 +10,12 @@ import {
 export const dynamic = "force-dynamic"
 
 /**
- * Re-checks the user's membership across every required channel for the
- * onboarding join gate. Always forces a fresh Telegram lookup (cache busted)
- * so a just-joined user is detected immediately.
+ * Authoritative re-check of the user's membership across every required channel
+ * for the standalone channel gate. Always forces a fresh Telegram lookup (cache
+ * busted) so a just-joined user is recognised immediately, letting the gate
+ * continue to the dashboard without a page refresh.
  *
- * When forced join is disabled, or the account has no Telegram id (e.g. a
- * web/password-only login), the gate passes automatically so onboarding never
- * dead-ends.
+ * When forced join is off or the account has no Telegram id, the gate passes.
  */
 export async function POST() {
   const user = await getCurrentUser()

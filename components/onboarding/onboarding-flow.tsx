@@ -5,31 +5,24 @@ import useSWR, { useSWRConfig } from "swr"
 import { AnimatePresence, motion } from "motion/react"
 import { fetcher, apiPost } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
-import { JoinGateStep } from "./join-gate-step"
 import { LanguageStep } from "./language-step"
 import { TutorialStep } from "./tutorial-step"
 import { SuccessStep } from "./success-step"
 
-export type OnboardChannel = { id: string; title: string; url: string }
-
 type OnboardingStatus = {
   needsOnboarding: boolean
-  joinEnabled: boolean
-  canVerify: boolean
-  channels: OnboardChannel[]
-  brandName: string
 }
 
-type Step = "join" | "language" | "tutorial" | "success"
+type Step = "language" | "tutorial" | "success"
 
 /**
- * Full first-run onboarding flow, shown as a blocking fullscreen overlay for
+ * First-run onboarding flow, shown as a blocking fullscreen overlay for
  * signed-in users who haven't completed it yet. Sequence:
- *   join gate (forced-channel membership) → language picker → guided tutorial
- *   → "you're all set" success → mark complete.
+ *   language picker → guided tutorial → "you're all set" success → mark complete.
  *
- * The join step is skipped automatically when forced join is disabled or the
- * account can't be membership-checked, so the flow never dead-ends.
+ * The forced-channel membership gate is deliberately NOT part of this flow — it
+ * lives in <ChannelGate/> as a dedicated verification screen that runs AFTER
+ * language selection (see components/channel-gate.tsx).
  */
 export function OnboardingFlow() {
   const { user, refresh } = useSession()
@@ -43,17 +36,9 @@ export function OnboardingFlow() {
   const [step, setStep] = useState<Step | null>(null)
   const [finishing, setFinishing] = useState(false)
 
-  // Decide the entry step once the status loads.
-  const resolvedStep: Step | null =
-    step ??
-    (status
-      ? status.joinEnabled && status.channels.length > 0
-        ? "join"
-        : "language"
-      : null)
+  const resolvedStep: Step = step ?? "language"
 
   if (!user || !status || !status.needsOnboarding) return null
-  if (!resolvedStep) return null
 
   async function complete() {
     setFinishing(true)
@@ -86,14 +71,6 @@ export function OnboardingFlow() {
           transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-y-auto px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
-          {resolvedStep === "join" && (
-            <JoinGateStep
-              channels={status.channels}
-              canVerify={status.canVerify}
-              brandName={status.brandName}
-              onPassed={() => setStep("language")}
-            />
-          )}
           {resolvedStep === "language" && (
             <LanguageStep onContinue={() => setStep("tutorial")} />
           )}

@@ -338,6 +338,28 @@ export async function getChatMember(chatId: string | number, userId: string | nu
   return call<ChatMember>("getChatMember", { chat_id: chatId, user_id: userId })
 }
 
+export type TelegramChat = {
+  id: number
+  title?: string
+  username?: string
+  description?: string
+  photo?: { small_file_id: string; big_file_id: string }
+}
+
+/**
+ * Fetch public metadata for a chat/channel (title, description, photo). Used to
+ * enrich the forced-join verification cards. Requires the bot to be a member of
+ * the channel; callers handle errors gracefully (the card just degrades).
+ */
+export async function getChat(chatId: string | number) {
+  return call<TelegramChat>("getChat", { chat_id: chatId })
+}
+
+/** Current subscriber count of a channel, shown on the verification cards. */
+export async function getChatMemberCount(chatId: string | number) {
+  return call<number>("getChatMemberCount", { chat_id: chatId })
+}
+
 export async function setWebhook(url: string, secret: string) {
   return call("setWebhook", {
     url,
