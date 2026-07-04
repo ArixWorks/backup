@@ -322,5 +322,26 @@ export async function purchaseFixed(opts: {
     console.log("[v0] purchase email error:", (e as Error).message)
   }
 
+  // In-app notification (best-effort). AUTOMATIC products are delivered inside
+  // the transaction above, so the buyer is told it's ready immediately; MANUAL
+  // products get a "processing" note and the delivered notification later fires
+  // from the admin fulfilment path (completeManualDelivery).
+  try {
+    const { createNotification } = await import("./notifications")
+    const delivered = product.deliveryType === "AUTOMATIC"
+    await createNotification({
+      userId: order.userId,
+      type: delivered ? "ORDER_DELIVERED" : "GENERAL",
+      title: delivered ? "سفارش تحویل شد" : "خرید ثبت شد",
+      body: delivered
+        ? `سفارش «${product.title}» با موفقیت خریداری و تحویل داده شد. برای مشاهده کلیک کنید.`
+        : `خرید «${product.title}» ثبت شد و در حال آماده‌سازی است. به‌زودی تحویل داده می‌شود.`,
+      href: "/orders",
+      image: product.coverImage,
+    })
+  } catch (e) {
+    console.log("[v0] purchase notif error:", (e as Error).message)
+  }
+
   return order
 }

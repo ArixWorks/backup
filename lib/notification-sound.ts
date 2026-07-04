@@ -70,3 +70,30 @@ export function primeAudio() {
   const ctx = getCtx()
   if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {})
 }
+
+let primerInstalled = false
+
+/**
+ * Browsers (and the Telegram in-app webview) keep a freshly created
+ * AudioContext "suspended" until the page receives a genuine user gesture, so
+ * a chime fired from a background poll is silently dropped. Installing a
+ * one-time set of gesture listeners resumes/unlocks the context the moment the
+ * user first taps, clicks, or presses a key anywhere in the app — after which
+ * every subsequent notification chime plays reliably. Safe to call repeatedly;
+ * it only installs the listeners once.
+ */
+export function installAudioPrimer() {
+  if (typeof window === "undefined" || primerInstalled) return
+  primerInstalled = true
+  const unlock = () => {
+    primeAudio()
+    window.removeEventListener("pointerdown", unlock)
+    window.removeEventListener("touchstart", unlock)
+    window.removeEventListener("keydown", unlock)
+    window.removeEventListener("click", unlock)
+  }
+  window.addEventListener("pointerdown", unlock, { passive: true })
+  window.addEventListener("touchstart", unlock, { passive: true })
+  window.addEventListener("keydown", unlock)
+  window.addEventListener("click", unlock)
+}
