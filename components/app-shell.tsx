@@ -49,7 +49,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ForcePasswordChange />
         <OnboardingFlow />
         <SiteHeader />
-        <main className="mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-xl px-4 pb-28 pt-4">
+        {/* Bottom padding must clear the fixed tab bar *plus* the device
+            safe-area inset, otherwise trailing content (e.g. the reviews
+            section) slides underneath the nav on gesture-nav phones. */}
+        <main className="mx-auto min-h-[calc(100dvh-3.5rem)] w-full max-w-xl px-4 pt-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))]">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}

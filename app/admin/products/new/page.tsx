@@ -196,7 +196,7 @@ export default function NewProductPage() {
         <Card className="space-y-5 p-6">
           <Tabs value={mode} onValueChange={(v) => setMode(v as "flash" | "auction")}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="flash">فروش فوری</TabsTrigger>
+              <TabsTrigger value="flash">فروشگاه</TabsTrigger>
               <TabsTrigger value="auction">مزایده</TabsTrigger>
             </TabsList>
 
