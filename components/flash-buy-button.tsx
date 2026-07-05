@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -159,7 +161,7 @@ export function FlashBuyButton({
                 <DialogTitle>{sale.title}</DialogTitle>
                 <DialogDescription>{t("buy.quantity")}</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <DialogBody className="space-y-4">
                 <div className="flex items-center justify-center gap-4">
                   <Button
                     variant="outline"
@@ -259,10 +261,12 @@ export function FlashBuyButton({
                     strong
                   />
                 </div>
+              </DialogBody>
+              <DialogFooter>
                 <Button className="w-full" onClick={() => setStep("payment")}>
                   {t("buy.selectPayment")}
                 </Button>
-              </div>
+              </DialogFooter>
             </>
           )}
 
@@ -274,7 +278,7 @@ export function FlashBuyButton({
                   {sale.title} — {priceValue(total)} {currency}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-2">
+              <DialogBody className="space-y-2">
                 <button
                   type="button"
                   onClick={pay}
@@ -308,7 +312,7 @@ export function FlashBuyButton({
                     </span>
                   </div>
                 ))}
-              </div>
+              </DialogBody>
             </>
           )}
 
@@ -321,6 +325,7 @@ export function FlashBuyButton({
                 </DialogTitle>
                 <DialogDescription>{sale.title}</DialogDescription>
               </DialogHeader>
+              <DialogBody>
               {result?.payload ? (
                 <div className="space-y-2">
                   <span className="text-sm text-muted-foreground">{t("buy.deliveryInfo")}</span>
@@ -331,9 +336,12 @@ export function FlashBuyButton({
               ) : (
                 <p className="text-sm text-muted-foreground">{t("buy.pendingManual")}</p>
               )}
-              <Button variant="gold" size="lg" className="mt-1 w-full" onClick={() => setOpen(false)}>
-                {t("common.done")}
-              </Button>
+              </DialogBody>
+              <DialogFooter>
+                <Button variant="gold" size="lg" className="w-full" onClick={() => setOpen(false)}>
+                  {t("common.done")}
+                </Button>
+              </DialogFooter>
             </>
           )}
         </DialogContent>

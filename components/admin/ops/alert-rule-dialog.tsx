@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -117,7 +118,7 @@ export function AlertRuleDialog({ open, onOpenChange, rule, onSaved }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{editing ? "ویرایش قانون هشدار" : "قانون هشدار جدید"}</DialogTitle>
           <DialogDescription>
@@ -125,7 +126,7 @@ export function AlertRuleDialog({ open, onOpenChange, rule, onSaved }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
+        <DialogBody className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="rule-name">نام قانون</Label>
             <Input
@@ -226,7 +227,7 @@ export function AlertRuleDialog({ open, onOpenChange, rule, onSaved }: Props) {
               ))}
             </ToggleGroup>
           </div>
-        </div>
+        </DialogBody>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>

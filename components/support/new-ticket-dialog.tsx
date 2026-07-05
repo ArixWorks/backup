@@ -5,7 +5,9 @@ import { toast } from "sonner"
 import { Loader2, Paperclip, Plus, X } from "lucide-react"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -75,12 +77,12 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
           </Button>
         }
       />
-      <DialogContent className="max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("newTicket.title")}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
+        <DialogBody className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor={categoryId} className="text-xs font-medium text-muted-foreground">{t("newTicket.category")}</label>
             <select
@@ -140,12 +142,14 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
               </span>
             )}
           </div>
+        </DialogBody>
 
-          <Button onClick={submit} disabled={busy} className="mt-1 gap-2">
+        <DialogFooter>
+          <Button onClick={submit} disabled={busy} className="gap-2">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {busy ? t("newTicket.sending") : t("newTicket.submit")}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

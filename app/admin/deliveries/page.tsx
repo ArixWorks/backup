@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -128,7 +129,7 @@ export default function DeliveriesPage() {
               کاربر نمایش داده می‌شود.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <DialogBody className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="u">نام کاربری</Label>
@@ -167,7 +168,7 @@ export default function DeliveriesPage() {
                 rows={3}
               />
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActive(null)}>
               انصراف
