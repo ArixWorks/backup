@@ -1,4 +1,26 @@
+import { cache } from "react"
+import { unstable_cache, revalidateTag } from "next/cache"
 import { prisma } from "@/lib/db"
+
+/**
+ * Tag shared by every cross-request settings cache entry. Any settings write
+ * calls `invalidateSettingsCache()` so readers pick up the new value on the
+ * next request instead of serving a stale snapshot.
+ */
+export const SETTINGS_CACHE_TAG = "app-settings"
+
+/**
+ * Invalidate all cached settings reads. Safe to call from route handlers and
+ * server actions; wrapped so it can't throw when invoked outside a request
+ * (e.g. cron/background scripts).
+ */
+export function invalidateSettingsCache(): void {
+  try {
+    revalidateTag(SETTINGS_CACHE_TAG, "max")
+  } catch {
+    /* not in a revalidate-capable context (script/worker) — ignore */
+  }
+}
 
 /**
  * Typed accessors over the key-value `Setting` table. Values are stored as
@@ -220,6 +242,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
     create: { key, value },
     update: { value },
   })
+  invalidateSettingsCache()
 }
 
 export async function setSettings(entries: Record<string, string>): Promise<void> {
@@ -228,6 +251,7 @@ export async function setSettings(entries: Record<string, string>): Promise<void
       prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } }),
     ),
   )
+  invalidateSettingsCache()
 }
 
 export function toNumber(value: string, fallback = 0): number {
@@ -244,6 +268,24 @@ export async function getActiveTheme(db: Db = prisma): Promise<ThemeId> {
   const value = await getSetting(SETTING_KEYS.themeActive, db)
   return isThemeId(value) ? value : DEFAULT_THEME
 }
+
+/**
+ * Cross-request cached active-theme reader for the render hot path (root
+ * layout). The theme changes only when an admin picks a new one, so we cache
+ * it under the shared settings tag and let `invalidateSettingsCache()` bust it.
+ * `cache()` additionally dedupes the two reads the root layout performs
+ * (`generateViewport` + the layout body) into a single lookup per request.
+ */
+const readActiveThemeCached = unstable_cache(
+  async (): Promise<ThemeId> => {
+    const value = await getSetting(SETTING_KEYS.themeActive)
+    return isThemeId(value) ? value : DEFAULT_THEME
+  },
+  ["active-theme"],
+  { tags: [SETTINGS_CACHE_TAG], revalidate: 3600 },
+)
+
+export const getActiveThemeCached = cache(readActiveThemeCached)
 
 export interface PaymentMethodConfig {
   method: "CARD" | "TON" | "USDT" | "STARS"
