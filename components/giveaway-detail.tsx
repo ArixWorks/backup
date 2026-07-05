@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import confetti from "canvas-confetti"
+// canvas-confetti is loaded lazily (only when a user actually wins) so its
+// weight never lands in the giveaway page's initial bundle.
 import { motion } from "motion/react"
 import { Gift, Users, Trophy, Clock, Check, ExternalLink, Loader2, Lock, PartyPopper } from "lucide-react"
 import { toast } from "sonner"
@@ -38,7 +39,15 @@ export type GiveawayDetailData = {
   winners: Winner[]
 }
 
-function fireConfetti() {
+async function fireConfetti() {
+  // Respect users who prefer reduced motion — skip the animation entirely.
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return
+  }
+  const { default: confetti } = await import("canvas-confetti")
   const end = Date.now() + 900
   const colors = ["#e8b923", "#f5d76e", "#ffffff"]
   ;(function frame() {
@@ -70,7 +79,7 @@ export function GiveawayDetail({
   useEffect(() => {
     if (isFinished && giveaway.winners.length > 0 && !firedRef.current) {
       firedRef.current = true
-      fireConfetti()
+      void fireConfetti()
     }
   }, [isFinished, giveaway.winners.length])
 
@@ -84,7 +93,7 @@ export function GiveawayDetail({
       )
       if (res.data.joined) {
         toast.success(t("gwd.entered"))
-        fireConfetti()
+        void fireConfetti()
         onChange()
       } else {
         setMissing(res.data.missing)

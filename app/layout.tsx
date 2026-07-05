@@ -3,21 +3,26 @@ import type { Metadata, Viewport } from 'next'
 import { Vazirmatn, Geist_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import { AppShell } from '@/components/app-shell'
-import { getActiveTheme, THEMES, DEFAULT_THEME } from '@/lib/core/settings'
+import { THEMES, DEFAULT_THEME } from '@/lib/core/settings'
+import { getActiveThemeCached } from '@/lib/core/settings-cache'
 import './globals.css'
 
 // Vazirmatn: the complete, professional open Persian/Arabic UI typeface
-// (successor to Vazir). Self-hosted and optimized by next/font.
+// (successor to Vazir). Self-hosted and optimized by next/font. It's a variable
+// font, so we omit `weight` to ship a single variable file that covers every
+// weight the UI uses (400–900) instead of 6 separate static instances.
 const vazirmatn = Vazirmatn({
   subsets: ['arabic', 'latin'],
-  weight: ['300', '400', '500', '600', '700', '800'],
   variable: '--font-vazirmatn',
   display: 'swap',
+  // Reduce CLS: keep swapped fallback metrics close to the web font.
+  adjustFontFallback: true,
 })
 
+// Geist Mono is also variable — one file covers all needed weights (400–600).
+// Only used in a handful of numeric/monospace spots, so we can defer its swap.
 const geistMono = Geist_Mono({
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
   variable: '--font-geist-mono',
   display: 'swap',
 })
@@ -30,7 +35,7 @@ export const metadata: Metadata = {
 }
 
 export async function generateViewport(): Promise<Viewport> {
-  const theme = await getActiveTheme().catch(() => DEFAULT_THEME)
+  const theme = await getActiveThemeCached().catch(() => DEFAULT_THEME)
   const headerColor =
     THEMES.find((t) => t.id === theme)?.headerColor ?? '#080d12'
   return {
@@ -44,7 +49,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const theme = await getActiveTheme().catch(() => DEFAULT_THEME)
+  const theme = await getActiveThemeCached().catch(() => DEFAULT_THEME)
   return (
     <html
       lang="fa"
