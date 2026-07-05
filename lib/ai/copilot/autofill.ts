@@ -75,10 +75,16 @@ function fieldValueSchema(field: CopilotFieldDef): z.ZodTypeAny {
 
 /** Build the full Form Object schema for an entity, honoring the field subset. */
 function buildSchema(def: CopilotEntityDef, onlyKeys?: string[]) {
+  // NOTE: OpenAI (and other Gateway providers) run structured output in STRICT
+  // mode, which requires every property to appear in the JSON-Schema `required`
+  // array — `.optional()` produces non-required keys and is rejected with a 400
+  // ("'required' ... must include every key in properties"). We therefore make
+  // skippable keys `.nullable()` (required, but may be null) and strip the nulls
+  // afterwards in `sanitizeFormObject`, keeping the downstream contract identical.
   const fieldEntries = def.fields
     .filter((f) => f.aiFillable !== false)
     .filter((f) => !onlyKeys || onlyKeys.includes(f.key))
-    .map((f) => [f.key, fieldValueSchema(f).optional()] as const)
+    .map((f) => [f.key, fieldValueSchema(f).nullable()] as const)
 
   const shape: Record<string, z.ZodTypeAny> = {
     fields: z.object(Object.fromEntries(fieldEntries)),
@@ -86,8 +92,7 @@ function buildSchema(def: CopilotEntityDef, onlyKeys?: string[]) {
   }
   if (def.imageSlots.length > 0) {
     shape.imagePrompts = z
-      .object(Object.fromEntries(def.imageSlots.map((s) => [s.key, z.string()])))
-      .partial()
+      .object(Object.fromEntries(def.imageSlots.map((s) => [s.key, z.string().nullable()])))
       .describe("پرامپت پیشنهادی برای هر تصویر (به انگلیسی برای کیفیت بهتر)")
   }
   if (def.recommendSaleType) {
@@ -101,6 +106,36 @@ function buildSchema(def: CopilotEntityDef, onlyKeys?: string[]) {
 
 function localeList(): string {
   return SUPPORTED_LOCALES.map((l) => `${l} (${LOCALE_LABEL[l]})`).join("، ")
+}
+
+/**
+ * Strip the strict-mode `null` placeholders back out of the model output so the
+ * rest of the app keeps seeing "absent = not provided". Drops field entries the
+ * model chose to skip (entry null, or its `value` null) and empty image prompts.
+ */
+function sanitizeFormObject(raw: unknown): CopilotFormObject {
+  const obj = (raw ?? {}) as Record<string, unknown>
+  const out: Record<string, unknown> = { ...obj }
+
+  if (obj.fields && typeof obj.fields === "object") {
+    const fields: Record<string, unknown> = {}
+    for (const [key, entry] of Object.entries(obj.fields as Record<string, unknown>)) {
+      if (entry == null) continue
+      if (typeof entry === "object" && "value" in entry && (entry as { value: unknown }).value == null) continue
+      fields[key] = entry
+    }
+    out.fields = fields
+  }
+
+  if (obj.imagePrompts && typeof obj.imagePrompts === "object") {
+    const prompts: Record<string, string> = {}
+    for (const [key, value] of Object.entries(obj.imagePrompts as Record<string, unknown>)) {
+      if (typeof value === "string" && value.trim()) prompts[key] = value
+    }
+    out.imagePrompts = prompts
+  }
+
+  return out as unknown as CopilotFormObject
 }
 
 function fieldGuide(def: CopilotEntityDef, onlyKeys?: string[]): string {
@@ -184,7 +219,7 @@ export async function generateFormObject(input: RunAutofillInput): Promise<Copil
     refType: "copilot",
     refId: def.id,
   })
-  return object as unknown as CopilotFormObject
+  return sanitizeFormObject(object)
 }
 
 /**
@@ -223,7 +258,7 @@ export async function improveFormObject(input: RunAutofillInput): Promise<Copilo
     refType: "copilot",
     refId: def.id,
   })
-  return object as unknown as CopilotFormObject
+  return sanitizeFormObject(object)
 }
 
 /** Regenerate a single field (optionally a single locale) without touching others. */
@@ -260,5 +295,5 @@ export async function regenerateField(input: {
     refType: "copilot",
     refId: def.id,
   })
-  return object as unknown as CopilotFormObject
+  return sanitizeFormObject(object)
 }

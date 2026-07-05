@@ -18,7 +18,9 @@ const validationSchema = z.object({
       label: z.string().describe("عنوان فارسی فیلد"),
       status: z.enum(["ok", "warn", "error"]),
       message: z.string().describe("توضیح کوتاه مشکل یا تأیید"),
-      suggestedFix: z.string().optional().describe("مقدار پیشنهادی قابل‌اعمال، در صورت وجود"),
+      // Nullable (not optional): strict structured-output mode requires every
+      // key to be present; the model returns null when there is no fix.
+      suggestedFix: z.string().nullable().describe("مقدار پیشنهادی قابل‌اعمال، در صورت وجود"),
     }),
   ),
   overall: z.enum(["ok", "warn", "error"]),
