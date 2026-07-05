@@ -151,3 +151,52 @@ export async function generateVariations(
     .filter((r): r is PromiseFulfilledResult<GeneratedImage> => r.status === "fulfilled")
     .map((r) => r.value)
 }
+
+/** Logical asset slots + their default aspect ratios for a full entity set. */
+export const ASSET_SLOTS: { slot: string; aspect: ImageAspect; label: string }[] = [
+  { slot: "cover", aspect: "1:1", label: "کاور" },
+  { slot: "thumbnail", aspect: "1:1", label: "بندانگشتی" },
+  { slot: "banner", aspect: "16:9", label: "بنر" },
+  { slot: "gallery", aspect: "4:5", label: "گالری" },
+  { slot: "og", aspect: "16:9", label: "Open Graph" },
+  { slot: "telegram", aspect: "16:9", label: "پیش‌نمایش تلگرام" },
+]
+
+export interface AssetSetResult {
+  slot: string
+  label: string
+  image: GeneratedImage | null
+  error?: string
+}
+
+/**
+ * Generate the full asset set for an entity in one call. Each slot gets its own
+ * aspect ratio but shares the same visual style (same base prompt) so the set
+ * stays cohesive. Best-effort: a failed slot returns `image: null` with an error.
+ */
+export async function generateAssetSet(
+  basePrompt: string,
+  opts: Omit<GenerateImageOptions, "prompt" | "aspect" | "slot">,
+  slots: string[] = ASSET_SLOTS.map((s) => s.slot),
+): Promise<AssetSetResult[]> {
+  const targets = ASSET_SLOTS.filter((s) => slots.includes(s.slot))
+  const jobs = targets.map(async (t) => {
+    try {
+      const image = await generateSingleImage({
+        ...opts,
+        prompt: `${basePrompt}\n\nComposition: ${t.label} (${t.aspect}).`,
+        aspect: t.aspect,
+        slot: t.slot,
+      })
+      return { slot: t.slot, label: t.label, image }
+    } catch (err) {
+      return {
+        slot: t.slot,
+        label: t.label,
+        image: null,
+        error: err instanceof Error ? err.message : "generation failed",
+      }
+    }
+  })
+  return Promise.all(jobs)
+}

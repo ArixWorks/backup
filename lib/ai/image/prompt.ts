@@ -30,17 +30,18 @@ const SLOT_STYLE: Record<string, string> = {
 }
 
 export function buildImagePrompt(input: {
-  entityId: string
-  slot: string
-  form: Record<string, unknown>
+  entityId?: string
+  slot?: string
+  form?: Record<string, unknown>
   override?: string
 }): string {
   if (input.override && input.override.trim()) return input.override.trim()
-  const def = getEntityDef(input.entityId)
-  const title = pick(input.form, "title") || pick(input.form, "prizeLabel") || pick(input.form, "subject")
-  const desc = pick(input.form, "shortDescription") || pick(input.form, "description")
-  const category = pick(input.form, "category")
-  const style = SLOT_STYLE[input.slot] ?? "clean professional product image"
+  const def = input.entityId ? getEntityDef(input.entityId) : undefined
+  const form = input.form ?? {}
+  const title = pick(form, "title") || pick(form, "prizeLabel") || pick(form, "subject")
+  const desc = pick(form, "shortDescription") || pick(form, "description")
+  const category = pick(form, "category")
+  const style = (input.slot && SLOT_STYLE[input.slot]) || "clean professional product image"
 
   return [
     title ? `Product: ${title}.` : `${def?.label ?? "product"} image.`,

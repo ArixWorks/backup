@@ -47,7 +47,7 @@ const SEO_LOCALE_SHAPE = z.object(
         keywords: z.array(z.string()),
       }),
     ]),
-  ) as Record<(typeof SUPPORTED_LOCALES)[number], z.ZodTypeAny>,
+  ) as unknown as Record<(typeof SUPPORTED_LOCALES)[number], z.ZodTypeAny>,
 )
 
 /** Build the per-field value schema (value + optional reason) for one field. */
@@ -184,7 +184,7 @@ export async function generateFormObject(input: RunAutofillInput): Promise<Copil
     refType: "copilot",
     refId: def.id,
   })
-  return object as CopilotFormObject
+  return object as unknown as CopilotFormObject
 }
 
 /**
@@ -223,7 +223,7 @@ export async function improveFormObject(input: RunAutofillInput): Promise<Copilo
     refType: "copilot",
     refId: def.id,
   })
-  return object as CopilotFormObject
+  return object as unknown as CopilotFormObject
 }
 
 /** Regenerate a single field (optionally a single locale) without touching others. */
@@ -260,5 +260,5 @@ export async function regenerateField(input: {
     refType: "copilot",
     refId: def.id,
   })
-  return object as CopilotFormObject
+  return object as unknown as CopilotFormObject
 }
