@@ -105,6 +105,16 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] email queue processing error:", (e as Error).message)
   }
 
+  // Run due AI automations (daily digest, ticket triage, ...). Best-effort:
+  // each automation is isolated and an AI failure must never break the tick.
+  let automations: { ran: number } = { ran: 0 }
+  try {
+    const { runDueAutomations } = await import("@/lib/ai/automations")
+    automations = await runDueAutomations()
+  } catch (e) {
+    console.log("[v0] AI automations error:", (e as Error).message)
+  }
+
   return {
     activated: activated.activated,
     notified,
@@ -113,6 +123,7 @@ export const POST = route(async (req: Request) => {
     giveaways,
     backup,
     email,
+    automations,
   }
     })
   } catch (err) {

@@ -1574,3 +1574,45 @@ model AiKnowledgeChunk {
 
   @@index([docId])
 }
+
+// ---------------------------------------------------------------------------
+// AI Automation. Scheduled AI-driven tasks executed by the cron tick. Each
+// automation has a stable `key` (matches a handler in the registry) that admins
+// can enable/disable and reschedule. Automations are advisory: they produce
+// digests, alerts, and admin notifications — never silent mutations of
+// customer-facing data. Every execution is recorded in AiAutomationRun.
+// ---------------------------------------------------------------------------
+
+model AiAutomation {
+  id          String              @id @default(cuid())
+  // Stable identifier that maps to a handler in the automation registry.
+  key         String              @unique
+  enabled     Boolean             @default(false)
+  // Cron-like cadence in minutes between runs (the tick enforces the interval).
+  intervalMin Int                 @default(1440)
+  // Free-form per-automation config (thresholds, recipients, locale, ...).
+  config      Json?
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  lastStatus  String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  runs AiAutomationRun[]
+
+  @@index([enabled])
+}
+
+model AiAutomationRun {
+  id           String       @id @default(cuid())
+  automationId String
+  automation   AiAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  status       String // "ok" | "error" | "skipped"
+  summary      String?
+  detail       Json?
+  error        String?
+  durationMs   Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  @@index([automationId, createdAt])
+}
