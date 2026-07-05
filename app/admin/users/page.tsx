@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -268,7 +269,7 @@ export default function AdminUsersPage() {
           <DialogHeader>
             <DialogTitle>تعدیل موجودی — {adjustUser?.displayName}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <p className="text-xs text-muted-foreground">
               مبلغ مثبت برای شارژ و مبلغ منفی برای کسر. این عملیات در دفتر کل ثبت دائمی می‌شود.
             </p>
@@ -291,7 +292,7 @@ export default function AdminUsersPage() {
                 placeholder="مثلاً جبران خطای تحویل"
               />
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setAdjustUser(null)}>
               انصراف
@@ -311,7 +312,7 @@ export default function AdminUsersPage() {
               عضویت ویژه VIP — {vipUser?.displayName}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             {vipUser?.vipManual ? (
               <div className="rounded-lg border border-violet-500/30 bg-violet-500/10 p-3 text-sm text-violet-600 dark:text-violet-300">
                 این کاربر هم‌اکنون عضو ویژه است
@@ -336,7 +337,7 @@ export default function AdminUsersPage() {
                 placeholder="مثلاً 30 (خالی = دائمی)"
               />
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter className="gap-2 sm:gap-2">
             {vipUser?.vipManual && (
               <Button

@@ -1,8 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, X, Loader2, Wand2, CircleDot, AlertCircle } from "lucide-react"
+import { Sparkles, Loader2, Wand2, CircleDot, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -65,37 +74,23 @@ export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => 
     }
   }
 
-  if (!open) return null
-
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-      <aside
-        className="fixed inset-y-0 left-0 z-50 flex w-full max-w-md flex-col border-r border-border bg-background shadow-xl"
-        role="dialog"
-        aria-label={`دستیار هوش مصنوعی ${def.label}`}
-      >
-        <header className="flex items-center justify-between border-b border-border p-4">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Sparkles className="size-4" />
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent size="xl" aria-label={`دستیار هوش مصنوعی ${def.label}`}>
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Sparkles className="size-4.5" />
             </span>
-            <div>
-              <h2 className="text-sm font-semibold">دستیار هوش مصنوعی</h2>
-              <p className="text-xs text-muted-foreground">{def.label}</p>
+            <div className="min-w-0">
+              <DialogTitle>دستیار هوش مصنوعی</DialogTitle>
+              <DialogDescription className="truncate">{def.label}</DialogDescription>
             </div>
           </div>
-          <Button size="icon" variant="ghost" onClick={onClose} aria-label="بستن">
-            <X className="size-4" />
-          </Button>
-        </header>
+        </DialogHeader>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          {/* Generate / Improve controls */}
+        <DialogBody className="space-y-4">
+          {/* Brief + apply mode */}
           <div className="space-y-2">
             <Textarea
               value={brief}
@@ -108,39 +103,18 @@ export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => 
               rows={3}
               className="text-sm"
             />
-            <div className="flex items-center gap-2">
-              <Select value={applyMode} onValueChange={(v) => setApplyMode(v as CopilotApplyMode)}>
-                <SelectTrigger className="h-9 flex-1 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(MODE_LABEL) as CopilotApplyMode[]).map((m) => (
-                    <SelectItem key={m} value={m} className="text-xs">
-                      {MODE_LABEL[m]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              {isEditMode ? (
-                <>
-                  <Button className="flex-1" onClick={() => generate(true)} disabled={busy}>
-                    {busy ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-                    بهبود با هوش مصنوعی
-                  </Button>
-                  <Button variant="secondary" onClick={() => generate(false)} disabled={busy}>
-                    <Sparkles className="size-4" />
-                    بازتولید
-                  </Button>
-                </>
-              ) : (
-                <Button className="flex-1" onClick={() => generate(false)} disabled={busy}>
-                  {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                  ایجاد با هوش مصنوعی
-                </Button>
-              )}
-            </div>
+            <Select value={applyMode} onValueChange={(v) => setApplyMode(v as CopilotApplyMode)}>
+              <SelectTrigger className="h-9 w-full text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(MODE_LABEL) as CopilotApplyMode[]).map((m) => (
+                  <SelectItem key={m} value={m} className="text-xs">
+                    {MODE_LABEL[m]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {busy ? <WorkflowProgress /> : null}
@@ -170,9 +144,32 @@ export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => 
               {pendingEdits.length} اصلاح شما برای بهبود پیشنهادهای بعدی ثبت خواهد شد.
             </p>
           ) : null}
-        </div>
-      </aside>
-    </>
+        </DialogBody>
+
+        <DialogFooter className="sm:justify-between">
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            بستن
+          </Button>
+          {isEditMode ? (
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => generate(false)} disabled={busy}>
+                <Sparkles className="size-4" />
+                بازتولید
+              </Button>
+              <Button onClick={() => generate(true)} disabled={busy}>
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+                بهبود با هوش مصنوعی
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={() => generate(false)} disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              ایجاد با هوش مصنوعی
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

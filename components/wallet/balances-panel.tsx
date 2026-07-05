@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -229,7 +230,7 @@ function ConvertDialog({
         <DialogHeader>
           <DialogTitle>{t("convert.button")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <DialogBody className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">{t("convert.from")}</label>
@@ -278,7 +279,7 @@ function ConvertDialog({
               </div>
             )}
           </div>
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button onClick={submit} disabled={loading || rate == null} className="gap-2">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
