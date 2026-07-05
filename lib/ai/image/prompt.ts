@@ -1,0 +1,54 @@
+import "server-only"
+import { getEntityDef } from "../copilot/entities"
+
+/**
+ * Auto-build an image prompt from entity/form context. The admin can always
+ * override the generated prompt in the Copilot image panel before generating.
+ * Prompts are written in English for the best cross-model image quality.
+ */
+
+function pick(form: Record<string, unknown>, key: string): string {
+  const v = form?.[key]
+  if (typeof v === "string") return v
+  if (v && typeof v === "object") {
+    // localized value — prefer fa then en.
+    const rec = v as Record<string, unknown>
+    if (typeof rec.fa === "string") return rec.fa
+    if (typeof rec.en === "string") return rec.en
+  }
+  return ""
+}
+
+const SLOT_STYLE: Record<string, string> = {
+  cover: "clean modern product hero shot, soft studio lighting, premium e-commerce look",
+  thumbnail: "centered product icon, minimal background, crisp and legible at small size",
+  banner: "wide marketing banner, dynamic composition, bold focal subject, ample negative space",
+  gallery: "detailed product lifestyle shot, realistic context, high detail",
+  og: "social share card style, high contrast, product centered, brandable",
+  telegram: "square social preview, vivid, eye-catching, mobile-first",
+  prize: "attractive giveaway prize presentation, celebratory, gift theme",
+}
+
+export function buildImagePrompt(input: {
+  entityId: string
+  slot: string
+  form: Record<string, unknown>
+  override?: string
+}): string {
+  if (input.override && input.override.trim()) return input.override.trim()
+  const def = getEntityDef(input.entityId)
+  const title = pick(input.form, "title") || pick(input.form, "prizeLabel") || pick(input.form, "subject")
+  const desc = pick(input.form, "shortDescription") || pick(input.form, "description")
+  const category = pick(input.form, "category")
+  const style = SLOT_STYLE[input.slot] ?? "clean professional product image"
+
+  return [
+    title ? `Product: ${title}.` : `${def?.label ?? "product"} image.`,
+    category ? `Category: ${category}.` : "",
+    desc ? `Context: ${desc.slice(0, 200)}.` : "",
+    `Style: ${style}.`,
+    "No text, no watermark, high quality, professional.",
+  ]
+    .filter(Boolean)
+    .join(" ")
+}
