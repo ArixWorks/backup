@@ -83,6 +83,15 @@ function callParams(config: AiConfig, opts: RunOptions) {
   }
 }
 
+/**
+ * The AI SDK prompt input is a discriminated union: provide EITHER `messages`
+ * OR `prompt`, never both. Return the exclusive shape so the call sites type-check.
+ */
+function promptPayload(opts: RunOptions): { messages: ModelMessage[] } | { prompt: string } {
+  if (opts.messages && opts.messages.length > 0) return { messages: opts.messages }
+  return { prompt: opts.prompt ?? "" }
+}
+
 export interface RunTextResult {
   text: string
   model: string
@@ -102,8 +111,7 @@ export async function runText(opts: RunOptions): Promise<RunTextResult> {
         generateText({
           model: gw(p.model),
           system: opts.system,
-          prompt: opts.prompt,
-          messages: opts.messages,
+          ...promptPayload(opts),
           temperature: p.temperature,
           maxOutputTokens: p.maxOutputTokens,
           maxRetries: p.maxRetries,
@@ -155,8 +163,7 @@ export async function runObject<T>(
           model: gw(p.model),
           schema: opts.schema,
           system: opts.system,
-          prompt: opts.prompt,
-          messages: opts.messages,
+          ...promptPayload(opts),
           temperature: p.temperature,
           maxOutputTokens: p.maxOutputTokens,
           maxRetries: p.maxRetries,
@@ -204,8 +211,7 @@ export async function runStream(opts: RunOptions) {
   const result = streamText({
     model: gw(p.model),
     system: opts.system,
-    prompt: opts.prompt,
-    messages: opts.messages,
+    ...promptPayload(opts),
     temperature: p.temperature,
     maxOutputTokens: p.maxOutputTokens,
     maxRetries: p.maxRetries,

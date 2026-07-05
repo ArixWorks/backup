@@ -37,13 +37,14 @@ const delSchema = z.object({ provider: z.enum(AI_PROVIDER_IDS as [string, ...str
 
 export const DELETE = route(async (req: Request) => {
   const admin = await requireSuperAdmin()
-  const body = delSchema.parse(await req.json())
-  await deleteApiKey(body.provider)
+  const provider = new URL(req.url).searchParams.get("provider")
+  const parsed = delSchema.parse({ provider })
+  await deleteApiKey(parsed.provider)
   await audit({
     actorId: admin.id,
     action: "ai.credential.delete",
     entity: "AiCredential",
-    entityId: body.provider,
+    entityId: parsed.provider,
   })
   return { ok: true }
 })
