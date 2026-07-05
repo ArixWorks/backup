@@ -1,6 +1,6 @@
 import "server-only"
 import { createGateway, generateObject, generateText, streamText } from "ai"
-import type { ModelMessage } from "ai"
+import type { ModelMessage, StopCondition, ToolSet } from "ai"
 import type { z } from "zod"
 import { withTimeout } from "@/lib/core/resilience"
 import { rateLimitBy } from "@/lib/api/rate-limit"
@@ -45,6 +45,10 @@ export interface RunOptions {
   refType?: string | null
   refId?: string | null
   meta?: Record<string, unknown>
+  /** Tools for agentic (multi-step) generation. Used by runStream/runText. */
+  tools?: ToolSet
+  /** Stop condition(s) for the tool loop, e.g. stepCountIs(6). */
+  stopWhen?: StopCondition<ToolSet> | StopCondition<ToolSet>[]
 }
 
 async function preflight(feature: string, userId?: string | null): Promise<AiConfig> {
@@ -212,6 +216,8 @@ export async function runStream(opts: RunOptions) {
     model: gw(p.model),
     system: opts.system,
     ...promptPayload(opts),
+    ...(opts.tools ? { tools: opts.tools } : {}),
+    ...(opts.stopWhen ? { stopWhen: opts.stopWhen } : {}),
     temperature: p.temperature,
     maxOutputTokens: p.maxOutputTokens,
     maxRetries: p.maxRetries,

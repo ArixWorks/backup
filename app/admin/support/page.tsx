@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SUPPORT_STATUS_META, SUPPORT_CATEGORY_LABELS } from "@/lib/support-meta"
+import { AiAssistPanel } from "@/components/admin/support/ai-assist-panel"
 
 type TicketRow = {
   publicId: string
@@ -216,7 +217,9 @@ function AdminTicketThread({ publicId, onBack }: { publicId: string; onBack: () 
               این تیکت بسته شده است.
             </div>
           ) : (
-            <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
+            <div className="space-y-3">
+              <AiAssistPanel publicId={publicId} onUseDraft={setBody} />
+              <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -232,6 +235,7 @@ function AdminTicketThread({ publicId, onBack }: { publicId: string; onBack: () 
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   ارسال پاسخ
                 </Button>
+              </div>
               </div>
             </div>
           )}
