@@ -82,7 +82,7 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
 
       {/* VIP exclusivity note (with optional expiry). */}
       {summary.vipActive ? (
-        <div className="relative z-[1] mt-3 flex items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 p-2.5 text-xs font-semibold text-violet-600 dark:text-violet-300">
+        <div className="relative z-[1] mt-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-2.5 text-xs font-semibold text-primary">
           <Crown className="h-4 w-4 shrink-0" />
           <span className="min-w-0">{t("membership.vipExclusive")}</span>
           {expiry ? (

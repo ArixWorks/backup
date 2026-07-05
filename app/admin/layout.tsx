@@ -6,5 +6,11 @@ export const metadata: Metadata = {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminShell>{children}</AdminShell>
+  // `admin-scope` pins a permanent Premium Dark + Gold identity for the whole
+  // admin subtree, independent of the app theme or the admin's membership tier.
+  return (
+    <div className="admin-scope min-h-dvh">
+      <AdminShell>{children}</AdminShell>
+    </div>
+  )
 }

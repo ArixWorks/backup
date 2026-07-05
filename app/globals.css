@@ -192,6 +192,269 @@
 }
 
 /* ============================================================================
+   MEMBERSHIP THEME ENGINE  (data-tier on <html>)
+   The membership tier is the app's PRIMARY visual identity. MembershipTheme
+   provider sets `<html data-tier="standard|bronze|silver|gold|diamond|vip">`
+   from the user's CURRENT ACTIVE tier (VIP grant wins). Each tier re-maps the
+   accent system (--accent-1/2/deep, --primary(+fg), --ring, --shadow-accent,
+   --halo-2) plus tier decorative tokens the Living Surface consumes
+   (--tier-line, --tier-particle, --tier-glow). Base background/foreground stay
+   from data-theme so contrast + identity governance always hold.
+
+   Placed AFTER the [data-theme] blocks so tier accents win (equal specificity).
+   The default (no data-tier) === gold, so SSR never flashes before hydration.
+
+   Smooth cinematic morphing between tiers is achieved by registering the color
+   tokens with @property and transitioning them on :root (GPU-friendly paint).
+   ============================================================================ */
+
+@property --accent-1 { syntax: '<color>'; inherits: true; initial-value: oklch(0.78 0.14 78); }
+@property --accent-2 { syntax: '<color>'; inherits: true; initial-value: oklch(0.92 0.13 92); }
+@property --accent-deep { syntax: '<color>'; inherits: true; initial-value: oklch(0.62 0.12 80); }
+@property --primary { syntax: '<color>'; inherits: true; initial-value: oklch(0.83 0.155 86); }
+@property --primary-foreground { syntax: '<color>'; inherits: true; initial-value: oklch(0.19 0.03 84); }
+@property --ring { syntax: '<color>'; inherits: true; initial-value: oklch(0.82 0.16 84); }
+@property --halo-2 { syntax: '<color>'; inherits: true; initial-value: oklch(0.62 0.14 250); }
+@property --tier-line { syntax: '<color>'; inherits: true; initial-value: oklch(0.78 0.14 78); }
+@property --tier-particle { syntax: '<color>'; inherits: true; initial-value: oklch(0.92 0.13 92); }
+
+/* Cinematic tier morph: interpolate the accent tokens on the root over the slow
+   duration. Consuming properties (via var()) smoothly recolor the whole app. */
+html {
+  transition:
+    --accent-1 var(--duration-slow) var(--ease-in-out-soft),
+    --accent-2 var(--duration-slow) var(--ease-in-out-soft),
+    --accent-deep var(--duration-slow) var(--ease-in-out-soft),
+    --primary var(--duration-slow) var(--ease-in-out-soft),
+    --primary-foreground var(--duration-slow) var(--ease-in-out-soft),
+    --ring var(--duration-slow) var(--ease-in-out-soft),
+    --halo-2 var(--duration-slow) var(--ease-in-out-soft),
+    --tier-line var(--duration-slow) var(--ease-in-out-soft),
+    --tier-particle var(--duration-slow) var(--ease-in-out-soft);
+}
+html[data-motion='minimal'] {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition: none;
+  }
+}
+
+/* Shared decorative-token defaults (each tier overrides accent stops below). */
+:root {
+  --tier-line: var(--accent-1);
+  --tier-particle: var(--accent-2);
+  --tier-glow: var(--primary);
+}
+
+/* ---- STANDARD: understated cool graphite / steel (entry identity) ---- */
+[data-tier='standard'] {
+  --accent-1: oklch(0.72 0.03 245);
+  --accent-2: oklch(0.84 0.025 250);
+  --accent-deep: oklch(0.55 0.03 248);
+  --primary: oklch(0.74 0.03 245);
+  --primary-foreground: oklch(0.18 0.02 248);
+  --ring: oklch(0.74 0.03 245);
+  --shadow-accent: 0 10px 34px -12px oklch(0.74 0.03 245 / 0.32);
+  --halo-2: oklch(0.6 0.03 255);
+  --tier-line: oklch(0.74 0.03 245);
+  --tier-particle: oklch(0.86 0.02 250);
+  --tier-glow: oklch(0.72 0.03 245);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+}
+
+/* ---- BRONZE: warm copper / bronze luxury ---- */
+[data-tier='bronze'] {
+  --accent-1: oklch(0.62 0.1 48);
+  --accent-2: oklch(0.79 0.12 66);
+  --accent-deep: oklch(0.5 0.09 45);
+  --primary: oklch(0.68 0.11 55);
+  --primary-foreground: oklch(0.16 0.03 45);
+  --ring: oklch(0.68 0.11 55);
+  --shadow-accent: 0 11px 38px -10px oklch(0.68 0.11 55 / 0.42);
+  --halo-2: oklch(0.55 0.09 38);
+  --tier-line: oklch(0.7 0.11 55);
+  --tier-particle: oklch(0.82 0.12 68);
+  --tier-glow: oklch(0.68 0.11 55);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+}
+
+/* ---- SILVER: elegant platinum with a cool white glow ---- */
+[data-tier='silver'] {
+  --accent-1: oklch(0.8 0.02 250);
+  --accent-2: oklch(0.96 0.008 250);
+  --accent-deep: oklch(0.68 0.02 250);
+  --primary: oklch(0.83 0.022 250);
+  --primary-foreground: oklch(0.2 0.015 250);
+  --ring: oklch(0.85 0.022 250);
+  --shadow-accent: 0 11px 42px -10px oklch(0.9 0.02 250 / 0.42);
+  --halo-2: oklch(0.78 0.02 250);
+  --tier-line: oklch(0.85 0.02 250);
+  --tier-particle: oklch(0.97 0.006 250);
+  --tier-glow: oklch(0.88 0.02 250);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+}
+
+/* ---- GOLD: signature luxe gold (matches the default identity) ---- */
+[data-tier='gold'] {
+  --accent-1: oklch(0.78 0.14 78);
+  --accent-2: oklch(0.92 0.13 92);
+  --accent-deep: oklch(0.62 0.12 80);
+  --primary: oklch(0.83 0.155 86);
+  --primary-foreground: oklch(0.19 0.03 84);
+  --ring: oklch(0.82 0.16 84);
+  --shadow-accent: 0 10px 36px -10px oklch(0.83 0.155 86 / 0.4);
+  --halo-2: oklch(0.62 0.14 250);
+  --tier-line: oklch(0.8 0.14 82);
+  --tier-particle: oklch(0.92 0.13 92);
+  --tier-glow: oklch(0.83 0.155 86);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+}
+
+/* ---- DIAMOND: blue crystal / icy platinum ---- */
+[data-tier='diamond'] {
+  --accent-1: oklch(0.75 0.13 205);
+  --accent-2: oklch(0.9 0.09 200);
+  --accent-deep: oklch(0.62 0.14 220);
+  --primary: oklch(0.8 0.12 208);
+  --primary-foreground: oklch(0.16 0.03 220);
+  --ring: oklch(0.8 0.13 205);
+  --shadow-accent: 0 12px 44px -10px oklch(0.8 0.13 205 / 0.46);
+  --halo-2: oklch(0.7 0.12 250);
+  --tier-line: oklch(0.8 0.13 205);
+  --tier-particle: oklch(0.92 0.08 200);
+  --tier-glow: oklch(0.8 0.12 208);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+}
+
+/* ---- VIP: imperial royal gold — the pinnacle, richest luxury lighting ---- */
+[data-tier='vip'] {
+  --accent-1: oklch(0.72 0.13 58);
+  --accent-2: oklch(0.95 0.13 95);
+  --accent-deep: oklch(0.58 0.13 52);
+  --primary: oklch(0.85 0.16 90);
+  --primary-foreground: oklch(0.17 0.04 78);
+  --ring: oklch(0.86 0.16 88);
+  --shadow-accent: 0 14px 52px -10px oklch(0.85 0.16 90 / 0.55);
+  --halo-2: oklch(0.68 0.14 40);
+  --tier-line: oklch(0.86 0.15 84);
+  --tier-particle: oklch(0.96 0.12 96);
+  --tier-glow: oklch(0.85 0.16 90);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+}
+
+/* Charts follow the active tier: primary series + deep accent series.
+   `[data-tier]` (attribute-exists) matches the same specificity as
+   `[data-theme]` but comes later in source order, so tier accents win.
+   The provider always sets data-tier, so charts are never left un-themed. */
+[data-tier] {
+  --chart-1: var(--primary);
+  --chart-2: var(--accent-deep);
+}
+
+/* ============================================================================
+   ADMIN SCOPE — permanent Premium Dark + Gold control-center identity.
+   The admin panel is an operational tool: it must look IDENTICAL for every
+   administrator and never inherit the logged-in admin's membership tier.
+   `.admin-scope` re-declares every surface + accent token on the admin subtree
+   (custom properties cascade), so it always renders Premium Dark + Gold
+   regardless of <html data-theme> or <html data-tier>. High-readability,
+   minimal-distraction, cinematic-but-professional.
+   ============================================================================ */
+.admin-scope {
+  /* --- Premium dark surface (fixed, independent of the app theme) --- */
+  --background: oklch(0.145 0.012 250);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.195 0.014 250);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.185 0.014 250);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --secondary: oklch(0.26 0.015 250);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.24 0.013 250);
+  --muted-foreground: oklch(0.7 0.012 250);
+  --accent: oklch(0.29 0.017 250);
+  --accent-foreground: oklch(0.96 0.005 250);
+  --destructive: oklch(0.62 0.22 18);
+  --destructive-foreground: oklch(0.98 0.01 18);
+  --overlay: oklch(0.06 0.01 240);
+  --success: oklch(0.7 0.16 158);
+  --success-foreground: oklch(0.18 0.02 158);
+  --warning: oklch(0.78 0.15 70);
+  --warning-foreground: oklch(0.2 0.03 70);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+
+  /* --- Fixed gold accent (never tier-driven) --- */
+  --primary: oklch(0.83 0.155 86);
+  --primary-foreground: oklch(0.19 0.03 84);
+  --ring: oklch(0.82 0.16 84);
+  --accent-1: oklch(0.78 0.14 78);
+  --accent-2: oklch(0.92 0.13 92);
+  --accent-deep: oklch(0.62 0.12 80);
+  --shadow-accent: 0 10px 36px -10px oklch(0.83 0.155 86 / 0.4);
+  --halo-2: oklch(0.62 0.14 250);
+  --tier-line: oklch(0.8 0.14 82);
+  --tier-particle: oklch(0.92 0.13 92);
+  --tier-glow: oklch(0.83 0.155 86);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+
+  /* Charts: gold + deep gold + steel neutrals (professional, low-noise). */
+  --chart-1: oklch(0.83 0.155 86);
+  --chart-2: oklch(0.62 0.12 80);
+  --chart-3: oklch(0.62 0.14 250);
+  --chart-4: oklch(0.7 0.16 158);
+  --chart-5: oklch(0.68 0.012 250);
+
+  color: var(--foreground);
+}
+
+/* Admin never animates a tier morph — its identity is static. */
+.admin-scope,
+.admin-scope * {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+}
+
+/* Soft golden ambient lighting behind the admin control center. */
+.admin-scope {
+  position: relative;
+  isolation: isolate;
+}
+.admin-scope::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 60%),
+    radial-gradient(90% 60% at 100% 0%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 55%),
+    var(--background);
+}
+
+/* ============================================================================
    EXPERIENCE LAYERS (special moments only)
    Subio has ONE signature identity: Dark + Gold. Aurora is no longer a whole-app
    theme — it is a *scoped accent treatment* applied to a single subtree (a banner,
@@ -465,6 +728,7 @@
       90deg,
       transparent,
       color-mix(in oklch, white 6%, transparent),
+      color-mix(in oklch, var(--tier-glow) 10%, transparent),
       transparent
     );
     animation: shimmer 1.8s ease-in-out infinite;
@@ -617,6 +881,101 @@
   .cta-sweep {
     animation: cta-sweep 2.8s ease-in-out infinite;
     will-change: transform;
+  }
+
+  /* ===== LIVING SURFACE (tier-aware ambient animation system) =====
+     Flowing lines, drifting particles, ambient blooms — all driven by the
+     membership accent tokens so every effect reskins with the active tier.
+     Transform/opacity only → GPU-accelerated. Motion-tier gated below. */
+
+  /* Flowing energy line: a dashed accent stroke that streams along its path. */
+  @keyframes line-flow {
+    to {
+      stroke-dashoffset: -600;
+    }
+  }
+  .flow-line {
+    stroke-dasharray: 5 13;
+    animation: line-flow 9s linear infinite;
+    will-change: stroke-dashoffset;
+  }
+  .flow-line-slow {
+    stroke-dasharray: 3 17;
+    animation: line-flow 15s linear infinite reverse;
+    will-change: stroke-dashoffset;
+  }
+
+  /* Gentle vertical drift for ambient particles / motes. */
+  @keyframes drift-y {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-14px);
+    }
+  }
+  .animate-drift {
+    animation: drift-y 7s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  /* Slow breathing scale for ambient glow blooms. */
+  @keyframes bloom-breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.12);
+    }
+  }
+  .animate-bloom {
+    animation: bloom-breathe 6.5s ease-in-out infinite;
+    will-change: opacity, transform;
+  }
+
+  /* One-shot cinematic bloom when the membership tier changes. */
+  @keyframes tier-bloom {
+    0% {
+      opacity: 0;
+      transform: scale(0.7);
+    }
+    30% {
+      opacity: 0.85;
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1.9);
+    }
+  }
+  .tier-bloom-flash {
+    animation: tier-bloom 1.1s var(--ease-out-quint) forwards;
+    will-change: opacity, transform;
+  }
+}
+
+/* Balanced motion: trim the heaviest Living Surface loops, keep blooms + lines. */
+[data-motion='balanced'] .animate-drift {
+  animation: none !important;
+}
+/* Minimal / reduced motion: freeze the entire Living Surface. */
+[data-motion='minimal'] .flow-line,
+[data-motion='minimal'] .flow-line-slow,
+[data-motion='minimal'] .animate-drift,
+[data-motion='minimal'] .animate-bloom,
+[data-motion='minimal'] .tier-bloom-flash {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-line,
+  .flow-line-slow,
+  .animate-drift,
+  .animate-bloom,
+  .tier-bloom-flash {
+    animation: none !important;
   }
 }
 

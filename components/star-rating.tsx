@@ -29,7 +29,7 @@ export function StarRating({
           <Star
             className={cn(
               "transition-colors",
-              filled || half ? "fill-amber-400 text-amber-400" : "fill-transparent text-muted-foreground/40",
+              filled || half ? "fill-primary text-primary" : "fill-transparent text-muted-foreground/40",
             )}
             style={{ width: size, height: size }}
             aria-hidden="true"

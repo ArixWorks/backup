@@ -47,12 +47,21 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
+  render,
+  nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // When a custom element is provided via `render` (e.g. a Next.js <Link> that
+  // renders an <a>), it is no longer a native <button>. Default `nativeButton`
+  // to false in that case so Base UI applies the correct button semantics
+  // (role/keyboard handling) and doesn't warn about lost accessibility. Callers
+  // can still override explicitly when they render a real <button>.
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      render={render}
+      nativeButton={nativeButton ?? (render ? false : undefined)}
       {...props}
     />
   )

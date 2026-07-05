@@ -84,7 +84,7 @@ export function EmailSection({
             {t("acctEmail.verified")}
           </span>
         ) : email.address ? (
-          <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-600">
+          <span className="flex items-center gap-1 rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-warning">
             <Clock className="h-3.5 w-3.5" />
             {t("acctEmail.unverified")}
           </span>
@@ -92,7 +92,7 @@ export function EmailSection({
       </div>
 
       {pending && (
-        <p className="mb-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
+          <p className="mb-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
           {t("acctEmail.pending")}
           <span dir="ltr">{pending}</span>
         </p>
