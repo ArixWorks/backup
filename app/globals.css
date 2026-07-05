@@ -372,6 +372,89 @@ html[data-motion='minimal'] {
 }
 
 /* ============================================================================
+   ADMIN SCOPE — permanent Premium Dark + Gold control-center identity.
+   The admin panel is an operational tool: it must look IDENTICAL for every
+   administrator and never inherit the logged-in admin's membership tier.
+   `.admin-scope` re-declares every surface + accent token on the admin subtree
+   (custom properties cascade), so it always renders Premium Dark + Gold
+   regardless of <html data-theme> or <html data-tier>. High-readability,
+   minimal-distraction, cinematic-but-professional.
+   ============================================================================ */
+.admin-scope {
+  /* --- Premium dark surface (fixed, independent of the app theme) --- */
+  --background: oklch(0.145 0.012 250);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.195 0.014 250);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.185 0.014 250);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --secondary: oklch(0.26 0.015 250);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.24 0.013 250);
+  --muted-foreground: oklch(0.7 0.012 250);
+  --accent: oklch(0.29 0.017 250);
+  --accent-foreground: oklch(0.96 0.005 250);
+  --destructive: oklch(0.62 0.22 18);
+  --destructive-foreground: oklch(0.98 0.01 18);
+  --overlay: oklch(0.06 0.01 240);
+  --success: oklch(0.7 0.16 158);
+  --success-foreground: oklch(0.18 0.02 158);
+  --warning: oklch(0.78 0.15 70);
+  --warning-foreground: oklch(0.2 0.03 70);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+
+  /* --- Fixed gold accent (never tier-driven) --- */
+  --primary: oklch(0.83 0.155 86);
+  --primary-foreground: oklch(0.19 0.03 84);
+  --ring: oklch(0.82 0.16 84);
+  --accent-1: oklch(0.78 0.14 78);
+  --accent-2: oklch(0.92 0.13 92);
+  --accent-deep: oklch(0.62 0.12 80);
+  --shadow-accent: 0 10px 36px -10px oklch(0.83 0.155 86 / 0.4);
+  --halo-2: oklch(0.62 0.14 250);
+  --tier-line: oklch(0.8 0.14 82);
+  --tier-particle: oklch(0.92 0.13 92);
+  --tier-glow: oklch(0.83 0.155 86);
+  --gold-1: var(--accent-1);
+  --gold-2: var(--accent-2);
+  --gold-deep: var(--accent-deep);
+  --shadow-gold: var(--shadow-accent);
+
+  /* Charts: gold + deep gold + steel neutrals (professional, low-noise). */
+  --chart-1: oklch(0.83 0.155 86);
+  --chart-2: oklch(0.62 0.12 80);
+  --chart-3: oklch(0.62 0.14 250);
+  --chart-4: oklch(0.7 0.16 158);
+  --chart-5: oklch(0.68 0.012 250);
+
+  color: var(--foreground);
+}
+
+/* Admin never animates a tier morph — its identity is static. */
+.admin-scope,
+.admin-scope * {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+}
+
+/* Soft golden ambient lighting behind the admin control center. */
+.admin-scope {
+  position: relative;
+  isolation: isolate;
+}
+.admin-scope::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 60%),
+    radial-gradient(90% 60% at 100% 0%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 55%),
+    var(--background);
+}
+
+/* ============================================================================
    EXPERIENCE LAYERS (special moments only)
    Subio has ONE signature identity: Dark + Gold. Aurora is no longer a whole-app
    theme — it is a *scoped accent treatment* applied to a single subtree (a banner,

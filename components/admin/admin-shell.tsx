@@ -33,6 +33,7 @@ import {
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { cn } from "@/lib/utils"
+import { LivingSurface } from "@/components/living-surface"
 
 type Stats = {
   pendingDeposits: number
@@ -162,7 +163,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-4 px-4 pb-16 pt-4 md:grid-cols-[220px_1fr] md:gap-6 md:px-6 md:pb-10 md:pt-6">
+    <div className="relative mx-auto grid w-full max-w-5xl gap-4 px-4 pb-16 pt-4 md:grid-cols-[220px_1fr] md:gap-6 md:px-6 md:pb-10 md:pt-6">
+      {/* Subtle live ambient particles — professional, minimal distraction. */}
+      <LivingSurface intensity="soft" lines={false} className="fixed inset-0 -z-10" />
+
       {/* Mobile: compact section switcher (avoids horizontal overflow in Telegram) */}
       <div className="md:hidden">
         <div className="mb-3 flex items-center gap-2 px-1">
@@ -173,7 +177,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
-          className="flex w-full items-center gap-2 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm font-semibold"
+          className="glass flex w-full items-center gap-2 rounded-xl border border-border/60 px-4 py-3 text-sm font-semibold shadow-md"
         >
           <ActiveIcon className="h-4 w-4 shrink-0 text-primary" />
           <span className="truncate">{activeItem.label}</span>
@@ -185,7 +189,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           />
         </button>
         {menuOpen && (
-          <nav className="mt-2 grid grid-cols-2 gap-1 rounded-xl border border-border bg-card p-2">
+          <nav className="glass mt-2 grid grid-cols-2 gap-1 rounded-xl border border-border/60 p-2 shadow-lg">
             {items.map((item) => (
               <NavLink key={item.href} item={item} />
             ))}
@@ -193,17 +197,19 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Desktop: sticky sidebar */}
+      {/* Desktop: sticky glass sidebar */}
       <aside className="hidden md:sticky md:top-20 md:block md:self-start">
-        <div className="mb-3 flex items-center gap-2 px-2">
-          <ShieldAlert className="h-5 w-5 text-primary" />
-          <span className="font-bold">پنل مدیریت</span>
+        <div className="glass rounded-2xl border border-border/60 p-2.5 shadow-lg">
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2.5">
+            <ShieldAlert className="h-5 w-5 text-primary" />
+            <span className="font-bold">پنل مدیریت</span>
+          </div>
+          <nav className="flex flex-col gap-1">
+            {items.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+          </nav>
         </div>
-        <nav className="flex flex-col gap-1">
-          {items.map((item) => (
-            <NavLink key={item.href} item={item} />
-          ))}
-        </nav>
       </aside>
 
       <div className="min-w-0">{children}</div>
