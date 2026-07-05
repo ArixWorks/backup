@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { IMAGE_ASPECTS, type ImageAspect } from "@/lib/ai/image/settings"
+import { IMAGE_ASPECTS, type ImageAspect } from "@/lib/ai/image/constants"
 import type { CopilotImageSlot } from "@/lib/ai/copilot/entities"
 import { useCopilot } from "./copilot-provider"
 import { copilotGenerateImage, copilotGenerateAssetSet, type GeneratedImage } from "./api"

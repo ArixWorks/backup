@@ -270,10 +270,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <ShieldAlert className="h-5 w-5 text-primary" />
             <span className="font-bold">پنل مدیریت</span>
           </div>
-          <nav className="flex flex-col gap-1">
-            {items.map((item) => (
-              <NavLink key={item.href} item={item} />
-            ))}
+          <nav className="max-h-[calc(100vh-9rem)] overflow-y-auto pl-1">
+            <NavSections />
           </nav>
         </div>
       </aside>
