@@ -1,6 +1,31 @@
 import { prisma } from "@/lib/db"
 
 /**
+ * Tag shared by every cross-request settings cache entry. Any settings write
+ * calls `invalidateSettingsCache()` so readers pick up the new value on the
+ * next request instead of serving a stale snapshot.
+ *
+ * Kept as a plain string constant (no top-level `next/cache` import) so this
+ * module stays importable from client components that only need the theme
+ * constants (e.g. the appearance picker).
+ */
+export const SETTINGS_CACHE_TAG = "app-settings"
+
+/**
+ * Invalidate all cached settings reads. `next/cache` is imported dynamically so
+ * this module never pulls a server-only API into the client bundle, and the
+ * call is wrapped so it can't throw when invoked outside a request (cron/worker).
+ */
+export async function invalidateSettingsCache(): Promise<void> {
+  try {
+    const { revalidateTag } = await import("next/cache")
+    revalidateTag(SETTINGS_CACHE_TAG, "max")
+  } catch {
+    /* not in a revalidate-capable context (script/worker) — ignore */
+  }
+}
+
+/**
  * Typed accessors over the key-value `Setting` table. Values are stored as
  * strings; helpers coerce to number/bool. Defaults are used when a key is unset.
  */
@@ -220,6 +245,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
     create: { key, value },
     update: { value },
   })
+  await invalidateSettingsCache()
 }
 
 export async function setSettings(entries: Record<string, string>): Promise<void> {
@@ -228,6 +254,7 @@ export async function setSettings(entries: Record<string, string>): Promise<void
       prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } }),
     ),
   )
+  await invalidateSettingsCache()
 }
 
 export function toNumber(value: string, fallback = 0): number {
