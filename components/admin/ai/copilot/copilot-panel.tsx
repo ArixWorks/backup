@@ -29,8 +29,10 @@ const MODE_LABEL: Record<CopilotApplyMode, string> = {
 
 export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { def, mode, adapter, setDraft, busy, setBusy, pendingEdits, entityId } = useCopilot()
+  // "improve" (edit pages) and "edit" both work over existing data.
+  const isEditMode = mode !== "create"
   const [brief, setBrief] = useState("")
-  const [applyMode, setApplyMode] = useState<CopilotApplyMode>(mode === "edit" ? "fill-missing" : "replace")
+  const [applyMode, setApplyMode] = useState<CopilotApplyMode>(isEditMode ? "fill-missing" : "replace")
   const [similar, setSimilar] = useState<SimilarMatch[]>([])
   const [ran, setRan] = useState(false)
 
@@ -99,7 +101,7 @@ export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => 
               value={brief}
               onChange={(e) => setBrief(e.target.value)}
               placeholder={
-                mode === "edit"
+                isEditMode
                   ? "توضیح تغییر مورد نظر (اختیاری) — یا مستقیم «بهبود» را بزنید"
                   : "مثلاً: اکانت پرمیوم اسپاتیفای ۶ ماهه با تحویل آنی"
               }
@@ -121,16 +123,23 @@ export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => 
               </Select>
             </div>
             <div className="flex gap-2">
-              <Button className="flex-1" onClick={() => generate(false)} disabled={busy}>
-                {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                ایجاد با هوش مصنوعی
-              </Button>
-              {mode === "edit" ? (
-                <Button variant="secondary" onClick={() => generate(true)} disabled={busy}>
-                  <Wand2 className="size-4" />
-                  بهبود
+              {isEditMode ? (
+                <>
+                  <Button className="flex-1" onClick={() => generate(true)} disabled={busy}>
+                    {busy ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+                    بهبود با هوش مصنوعی
+                  </Button>
+                  <Button variant="secondary" onClick={() => generate(false)} disabled={busy}>
+                    <Sparkles className="size-4" />
+                    بازتولید
+                  </Button>
+                </>
+              ) : (
+                <Button className="flex-1" onClick={() => generate(false)} disabled={busy}>
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                  ایجاد با هوش مصنوعی
                 </Button>
-              ) : null}
+              )}
             </div>
           </div>
 

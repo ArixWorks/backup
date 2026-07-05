@@ -24,8 +24,8 @@ export interface CopilotAdapter {
 interface CopilotContextValue {
   entityId: string
   def: CopilotEntityDef
-  /** "create" or "edit" — drives the primary button label & default mode. */
-  mode: "create" | "edit"
+  /** Drives the primary button label & default action ("improve" = edit pages). */
+  mode: "create" | "edit" | "improve"
   adapter: CopilotAdapter
   /** Latest AI draft awaiting review (null when none). */
   draft: CopilotFormObject | null
@@ -57,7 +57,7 @@ export function CopilotProvider({
   children,
 }: {
   entityId: string
-  mode?: "create" | "edit"
+  mode?: "create" | "edit" | "improve"
   adapter: CopilotAdapter
   children: React.ReactNode
 }) {

@@ -26,6 +26,7 @@ type DetailGiveaway = {
   couponValue: string | null
   couponExpiresInDays: number | null
   winnersCount: number
+  i18n: Record<string, Record<string, unknown>> | null
   requiredChannels: { id: string; title: string; url: string }[] | null
   startAt: string
   endAt: string
@@ -89,7 +90,7 @@ export default function EditGiveawayPage({ params }: { params: Promise<{ id: str
       {isLoading || !initial ? (
         <Skeleton className="h-96 w-full rounded-xl" />
       ) : (
-        <GiveawayForm initial={initial} giveawayId={id} />
+        <GiveawayForm initial={initial} giveawayId={id} initialI18n={g?.i18n ?? undefined} />
       )}
     </div>
   )

@@ -18,6 +18,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+import {
+  CopilotProvider,
+  CopilotLauncher,
+  useCopilotAdapter,
+  type FieldBinding,
+} from "@/components/admin/ai/copilot"
 
 type ProductRow = {
   id: string
@@ -47,6 +53,13 @@ export function ChannelComposer() {
   const hasButton = productId !== FREEFORM && buttonLabel.trim().length > 0
 
   const caption = useMemo(() => buildCaption({ title, body }), [title, body])
+
+  const bindings: Record<string, FieldBinding> = {
+    title: { get: () => title, set: (v) => setTitle(String(v ?? "")), localized: true },
+    body: { get: () => body, set: (v) => setBody(String(v ?? "")), localized: true },
+    image: { get: () => imageUrl, set: (v) => setImageUrl(String(v ?? "")) },
+  }
+  const { adapter } = useCopilotAdapter(bindings)
 
   function applyProduct(value: string | null) {
     const id = value ?? FREEFORM
@@ -85,16 +98,20 @@ export function ChannelComposer() {
   }
 
   return (
+    <CopilotProvider entityId="channel-post" mode="create" adapter={adapter}>
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-2xl font-extrabold">
-          <Megaphone className="h-6 w-6 text-primary" />
-          پست کانال
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          متن و عکس پست تبلیغاتی را بساز، پیش‌نمایش را ببین و مستقیم به کانال ارسال کن. اگر محصولی
-          انتخاب کنی، دکمه‌ی خرید با لینک عمیق به ربات اضافه می‌شود.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="flex items-center gap-2 text-2xl font-extrabold">
+            <Megaphone className="h-6 w-6 text-primary" />
+            پست کانال
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            متن و عکس پست تبلیغاتی را بساز، پیش‌نمایش را ببین و مستقیم به کانال ارسال کن. اگر محصولی
+            انتخاب کنی، دکمه‌ی خرید با لینک عمیق به ربات اضافه می‌شود.
+          </p>
+        </div>
+        <CopilotLauncher />
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -217,5 +234,6 @@ export function ChannelComposer() {
         </div>
       </div>
     </div>
+    </CopilotProvider>
   )
 }

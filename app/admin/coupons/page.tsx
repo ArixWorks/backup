@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman } from "@/lib/format"
+import {
+  CopilotProvider,
+  CopilotLauncher,
+  useCopilotAdapter,
+  type FieldBinding,
+} from "@/components/admin/ai/copilot"
 
 type Coupon = {
   id: string
@@ -45,6 +51,12 @@ export default function AdminCouponsPage() {
   function set<K extends keyof typeof empty>(key: K, value: (typeof empty)[K]) {
     setForm((f) => ({ ...f, [key]: value }))
   }
+
+  const bindings: Record<string, FieldBinding> = {
+    code: { get: () => form.code, set: (v) => set("code", String(v ?? "").toUpperCase()) },
+    description: { get: () => "", set: () => {}, localized: true },
+  }
+  const { adapter } = useCopilotAdapter(bindings)
 
   async function create() {
     if (!form.code.trim() || !form.value) {
@@ -101,11 +113,15 @@ export default function AdminCouponsPage() {
       </div>
 
       {/* Create form */}
+      <CopilotProvider entityId="coupon" mode="create" adapter={adapter}>
       <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="mb-4 flex items-center gap-2 font-bold">
-          <Plus className="h-4 w-4 text-primary" />
-          ساخت کد جدید
-        </h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 font-bold">
+            <Plus className="h-4 w-4 text-primary" />
+            ساخت کد جدید
+          </h2>
+          <CopilotLauncher />
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <LabeledInput label="کد" value={form.code} onChange={(v) => set("code", v.toUpperCase())} placeholder="WELCOME20" />
           <label className="flex flex-col gap-1.5">
@@ -165,6 +181,7 @@ export default function AdminCouponsPage() {
           </Button>
         </div>
       </div>
+      </CopilotProvider>
 
       {/* List */}
       {isLoading ? (

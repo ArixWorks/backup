@@ -13,14 +13,16 @@ import { copilotRecordEdits } from "./api"
  * whenever the panel closes.
  */
 export function CopilotLauncher({
-  label = "دستیار هوش مصنوعی",
+  label,
   className,
 }: {
   label?: string
   className?: string
 }) {
-  const { entityId, pendingEdits, clearEdits } = useCopilot()
+  const { entityId, mode, pendingEdits, clearEdits } = useCopilot()
   const [open, setOpen] = useState(false)
+  const resolvedLabel =
+    label ?? (mode === "create" ? "ایجاد با هوش مصنوعی" : "بهبود با هوش مصنوعی")
 
   async function close() {
     setOpen(false)
@@ -49,7 +51,7 @@ export function CopilotLauncher({
     <>
       <Button type="button" onClick={() => setOpen(true)} className={className}>
         <Sparkles className="size-4" />
-        {label}
+        {resolvedLabel}
       </Button>
       <CopilotPanel open={open} onClose={close} />
     </>
