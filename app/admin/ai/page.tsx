@@ -17,6 +17,7 @@ export const AI_KEYS = {
   enabled: "ai.enabled",
   provider: "ai.provider",
   model: "ai.model",
+  embeddingModel: "ai.embeddingModel",
   temperature: "ai.temperature",
   maxTokens: "ai.maxTokens",
   timeoutMs: "ai.timeoutMs",

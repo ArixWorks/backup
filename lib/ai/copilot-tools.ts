@@ -2,6 +2,7 @@ import { tool } from "ai"
 import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { dashboardStats } from "@/lib/core/admin"
+import { searchKnowledge } from "./knowledge"
 
 /**
  * Read-only Copilot tools for the admin AI assistant.
@@ -145,6 +146,25 @@ export const copilotTools = {
         buyer: o.user?.displayName ?? "—",
         product: o.product?.title ?? "—",
         createdAt: o.createdAt.toISOString(),
+      }))
+    },
+  }),
+
+  searchKnowledgeBase: tool({
+    description:
+      "جستجوی معنایی در پایگاه دانش (راهنماها، قوانین، سوالات متداول). برای پاسخ به سوالات درباره سیاست‌ها، رویه‌ها و اطلاعات مستند فروشگاه استفاده شود. اگر پاسخ در نتایج نبود، صادقانه بگو که اطلاعاتی یافت نشد.",
+    inputSchema: z.object({
+      query: z.string().min(2).describe("عبارت جستجو"),
+      limit: z.number().int().min(1).max(8).default(5),
+    }),
+    execute: async ({ query, limit }) => {
+      const hits = await searchKnowledge(query, { limit, publicOnly: false })
+      return hits.map((h) => ({
+        title: h.title,
+        category: h.category,
+        sourceUrl: h.sourceUrl,
+        content: h.content,
+        similarity: Number(h.similarity.toFixed(3)),
       }))
     },
   }),

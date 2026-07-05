@@ -85,6 +85,20 @@ export function AiModelConfig({
         )}
       </Field>
 
+      <Field
+        label="مدل Embedding (پایگاه دانش)"
+        hint="برای نمایه‌سازی و جستجوی معنایی پایگاه دانش. باید ۱۵۳۶ بُعدی باشد تا با ستون vector سازگار بماند. تغییر آن نیازمند بازنمایه‌سازی اسناد است."
+        source={source[AI_KEYS.embeddingModel]}
+      >
+        <Input
+          value={form[AI_KEYS.embeddingModel] ?? ""}
+          onChange={(e) => set(AI_KEYS.embeddingModel, e.target.value)}
+          placeholder="openai/text-embedding-3-small"
+          className="font-mono"
+          dir="ltr"
+        />
+      </Field>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           label="دما (Temperature)"

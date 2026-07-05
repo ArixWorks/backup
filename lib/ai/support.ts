@@ -1,6 +1,7 @@
 import "server-only"
 import { z } from "zod"
 import { runObject } from "./client"
+import { searchKnowledge } from "./knowledge"
 
 /**
  * AI Support — assists staff on the ticket desk. Every function routes through
@@ -40,6 +41,26 @@ export async function draftTicketReply(
   input: { subject: string; category?: string; messages: ThreadMessage[]; tone?: string; instruction?: string },
   actor: { userId?: string | null },
 ): Promise<DraftReply> {
+  // RAG: pull public knowledge base context relevant to the latest user message.
+  const lastUserMsg = [...input.messages].reverse().find((m) => !m.fromStaff)?.body
+  let knowledgeBlock = ""
+  if (lastUserMsg) {
+    try {
+      const hits = await searchKnowledge(`${input.subject}\n${lastUserMsg}`, {
+        limit: 3,
+        publicOnly: true,
+        userId: actor.userId,
+      })
+      if (hits.length > 0) {
+        knowledgeBlock =
+          "\n\nاطلاعات مرتبط از پایگاه دانش (فقط در صورت مرتبط بودن استفاده کن):\n" +
+          hits.map((h, i) => `[${i + 1}] ${h.title}: ${h.content}`).join("\n")
+      }
+    } catch {
+      // KB is best-effort; drafting must still work if retrieval fails.
+    }
+  }
+
   const { object } = await runObject({
     feature: "support.draft_reply",
     schema: draftReplySchema,
@@ -52,6 +73,7 @@ export async function draftTicketReply(
       input.tone ? `لحن: ${input.tone}` : "",
       "",
       renderThread(input.subject, input.messages),
+      knowledgeBlock,
     ]
       .filter(Boolean)
       .join("\n"),

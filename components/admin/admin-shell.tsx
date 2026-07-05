@@ -31,6 +31,7 @@ import {
   Mail,
   Sparkles,
   PenLine,
+  BookOpen,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -76,6 +77,7 @@ const items: NavItem[] = [
   { href: "/admin/ai", label: "هوش مصنوعی", icon: Sparkles, exact: true },
   { href: "/admin/ai/content", label: "استودیو محتوا", icon: PenLine },
   { href: "/admin/ai/copilot", label: "دستیار هوشمند", icon: Bot },
+  { href: "/admin/ai/knowledge", label: "پایگاه دانش", icon: BookOpen },
   { href: "/admin/email", label: "مدیریت ایمیل", icon: Mail },
   { href: "/admin/backup", label: "پشتیبان‌گیری", icon: DatabaseBackup },
   { href: "/admin/audit", label: "گزارش فعالیت", icon: ScrollText },
