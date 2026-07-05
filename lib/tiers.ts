@@ -144,14 +144,15 @@ export const TIER_META: Record<Tier, TierVisual> = {
     bar: "bg-cyan-400",
   },
   VIP: {
+    // Imperial royal gold — the pinnacle tier (matches the VIP visual theme).
     label: "وی‌آی‌پی",
     glyph: "Crown",
-    chip: "bg-gradient-to-br from-violet-500/25 to-fuchsia-500/25 text-violet-600 dark:text-violet-300",
-    ring: "ring-violet-500/50",
-    glow: "bg-violet-500/20",
-    border: "border-violet-500/50",
-    text: "text-violet-600 dark:text-violet-300",
-    bar: "bg-gradient-to-r from-violet-500 to-fuchsia-500",
+    chip: "bg-gradient-to-br from-amber-400/30 to-yellow-300/25 text-amber-500 dark:text-amber-300",
+    ring: "ring-amber-400/55",
+    glow: "bg-amber-400/20",
+    border: "border-amber-400/55",
+    text: "text-amber-500 dark:text-amber-300",
+    bar: "bg-gradient-to-r from-amber-400 to-yellow-300",
   },
 }
 

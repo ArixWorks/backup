@@ -6,19 +6,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import { MembershipBadge } from "@/components/membership-badge"
+import { PremiumHeroCard } from "@/components/premium-hero-card"
 
 /**
  * The dashboard signature surface: a single compact, horizontal "wallet card"
  * that fuses the user's identity (avatar · name · @handle · membership tier)
  * on one end with their wallet balance + a live-activity shortcut on the other.
  *
- * Visual language is 100% gold-theme driven (see globals.css utilities):
- *  - `gold-border`  → animated gradient hairline frame
- *  - `surface-glow` → soft radial gold light from the top corner
- *  - `sheen`        → slow diagonal light sweep
- *  - floating gold blooms + twinkling gold dust for depth
- * All ambient motion is decoration-only and auto-tuned by the app's motion
- * tiers / OS Reduce-Motion, so low-end devices stay perfectly responsive.
+ * Built on the reusable `PremiumHeroCard` (frozen cinematic utilities +
+ * tier-aware `LivingSurface`), so the whole card reskins automatically with the
+ * user's active membership tier. All ambient motion is decoration-only and
+ * auto-tuned by the app's motion tiers / OS Reduce-Motion.
  */
 export function ProfileBalanceHero() {
   const { user } = useSession()
@@ -28,61 +26,9 @@ export function ProfileBalanceHero() {
   const handle = user?.telegramUsername ?? user?.alias ?? null
 
   return (
-    <section
-      aria-label={t("home.welcome")}
-      className="gold-border sheen surface-glow relative overflow-hidden px-4 py-3.5 shadow-xl shadow-primary/10 sm:px-5 sm:py-4"
-    >
-      {/* ── Ambient gold background: blooms · dust · wave ── */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
-        <span className="animate-float absolute -right-10 -top-12 h-32 w-32 rounded-full bg-primary/15 blur-3xl" />
-        <span
-          className="animate-float absolute -bottom-14 -left-8 h-36 w-36 rounded-full bg-primary/10 blur-3xl"
-          style={{ animationDelay: "1.4s" }}
-        />
-        {/* twinkling gold dust */}
-        <span className="animate-twinkle absolute left-[22%] top-3 h-1 w-1 rounded-full bg-primary/70" />
-        <span
-          className="animate-twinkle absolute left-[58%] top-6 h-0.5 w-0.5 rounded-full bg-primary/60"
-          style={{ animationDelay: "0.8s" }}
-        />
-        <span
-          className="animate-twinkle absolute right-[18%] bottom-4 h-1 w-1 rounded-full bg-primary/60"
-          style={{ animationDelay: "1.9s" }}
-        />
-        {/* soft gold wave lines along the base */}
-        <svg
-          className="absolute inset-x-0 bottom-0 h-16 w-full opacity-60"
-          viewBox="0 0 400 64"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <path
-            d="M0 40 C 80 12, 160 60, 240 34 S 400 20, 400 44 L400 64 L0 64 Z"
-            fill="url(#hero-wave)"
-          />
-          <path
-            d="M0 46 C 90 24, 170 62, 250 42 S 400 34, 400 52"
-            stroke="url(#hero-wave-line)"
-            strokeWidth="1"
-            fill="none"
-          />
-          <defs>
-            <linearGradient id="hero-wave" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
-              <stop stopColor="var(--primary)" stopOpacity="0" />
-              <stop offset="0.5" stopColor="var(--primary)" stopOpacity="0.12" />
-              <stop offset="1" stopColor="var(--primary)" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="hero-wave-line" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
-              <stop stopColor="var(--primary)" stopOpacity="0" />
-              <stop offset="0.5" stopColor="var(--primary)" stopOpacity="0.55" />
-              <stop offset="1" stopColor="var(--primary)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-
+    <PremiumHeroCard aria-label={t("home.welcome")}>
       {/* ── Content row ── */}
-      <div className="relative z-[2] flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         {/* Identity cluster */}
         <div className="flex min-w-0 items-center gap-3">
           <span className="relative shrink-0">
@@ -150,6 +96,6 @@ export function ProfileBalanceHero() {
           </Link>
         </div>
       </div>
-    </section>
+    </PremiumHeroCard>
   )
 }

@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { TelegramProvider } from "@/components/telegram-provider"
 import { I18nProvider } from "@/components/i18n-provider"
 import { MotionProvider } from "@/components/motion-provider"
+import { MembershipThemeProvider } from "@/components/membership-theme-provider"
 import { ReferralCapture } from "@/components/referral-capture"
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -11,8 +12,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <I18nProvider>
       <MotionProvider>
         <TelegramProvider>
-          <ReferralCapture />
-          {children}
+          <MembershipThemeProvider>
+            <ReferralCapture />
+            {children}
+          </MembershipThemeProvider>
         </TelegramProvider>
         <Toaster
           position="top-center"
