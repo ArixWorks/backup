@@ -86,6 +86,20 @@ export function AiModelConfig({
       </Field>
 
       <Field
+        label="مدل سریع (اتوماسیون و کارهای پس‌زمینه)"
+        hint="مدل کم‌تأخیر برای کارهای دسته‌ای مثل اتوماسیون‌ها و خلاصه‌های روزانه. مدل استدلالی پیش‌فرض برای این کارها کند است."
+        source={source[AI_KEYS.fastModel]}
+      >
+        <Input
+          value={form[AI_KEYS.fastModel] ?? ""}
+          onChange={(e) => set(AI_KEYS.fastModel, e.target.value)}
+          placeholder="openai/gpt-4.1-mini"
+          className="font-mono"
+          dir="ltr"
+        />
+      </Field>
+
+      <Field
         label="مدل Embedding (پایگاه دانش)"
         hint="برای نمایه‌سازی و جستجوی معنایی پایگاه دانش. باید ۱۵۳۶ بُعدی باشد تا با ستون vector سازگار بماند. تغییر آن نیازمند بازنمایه‌سازی اسناد است."
         source={source[AI_KEYS.embeddingModel]}

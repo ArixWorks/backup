@@ -92,6 +92,8 @@ const opsDigest: AutomationHandler = {
     const { object } = await runObject({
       feature: "automation.ops_digest",
       schema: opsDigestSchema,
+      // Automations run in the background: use the fast, low-latency model.
+      tier: "fast",
       system:
         "تو دستیار عملیات یک فروشگاه دیجیتال هستی. بر اساس اعداد داده‌شده یک بریفینگ کوتاه، دقیق و عملیاتی به فارسی بنویس. اگر عددی نگران‌کننده است (مثل تحویل ناموفق یا بازپرداخت معوق) آن را برجسته کن.",
       prompt: `شاخص‌های امروز:\n${JSON.stringify(facts, null, 2)}`,
@@ -151,6 +153,7 @@ const ticketTriage: AutomationHandler = {
     const { object } = await runObject({
       feature: "automation.ticket_triage",
       schema: triageSchema,
+      tier: "fast",
       system:
         "تو مدیر پشتیبانی هستی. از فهرست تیکت‌های معوق، فوری‌ترین‌ها را بر اساس قدمت و دسته‌بندی انتخاب و دلیل را کوتاه بنویس.",
       prompt: `تیکت‌های معوق (بیش از ${maxAgeHours} ساعت بدون به‌روزرسانی):\n${JSON.stringify(

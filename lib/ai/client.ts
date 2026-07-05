@@ -38,6 +38,12 @@ export interface RunOptions {
   messages?: ModelMessage[]
   /** Override the configured model for this call (still a gateway string). */
   model?: string
+  /**
+   * Model tier. "fast" uses the configured low-latency `fastModel` — ideal for
+   * batch/utility jobs (automations, digests) where the premium reasoning model
+   * is too slow. An explicit `model` always wins over `tier`.
+   */
+  tier?: "default" | "fast"
   temperature?: number
   maxTokens?: number
   /** Actor for per-user rate limiting + analytics. */
@@ -49,6 +55,11 @@ export interface RunOptions {
   tools?: ToolSet
   /** Stop condition(s) for the tool loop, e.g. stepCountIs(6). */
   stopWhen?: StopCondition<ToolSet> | StopCondition<ToolSet>[]
+  /**
+   * Override the configured request timeout (ms) for this call. Useful for slow
+   * batch/reasoning jobs (e.g. automations) that legitimately exceed the default.
+   */
+  timeoutMs?: number
 }
 
 async function preflight(feature: string, userId?: string | null): Promise<AiConfig> {
@@ -79,8 +90,9 @@ async function preflight(feature: string, userId?: string | null): Promise<AiCon
 }
 
 function callParams(config: AiConfig, opts: RunOptions) {
+  const tierModel = opts.tier === "fast" ? config.fastModel : config.model
   return {
-    model: opts.model || config.model,
+    model: opts.model || tierModel,
     temperature: opts.temperature ?? config.temperature,
     maxOutputTokens: (opts.maxTokens ?? config.maxTokens) || undefined,
     maxRetries: config.maxRetries,
@@ -110,7 +122,7 @@ export async function runText(opts: RunOptions): Promise<RunTextResult> {
   const startedAt = Date.now()
   try {
     const res = await withTimeout(
-      config.timeoutMs,
+      opts.timeoutMs ?? config.timeoutMs,
       (signal) =>
         generateText({
           model: gw(p.model),
@@ -163,7 +175,7 @@ export async function runObject<T>(
   const startedAt = Date.now()
   try {
     const res = await withTimeout(
-      config.timeoutMs,
+      opts.timeoutMs ?? config.timeoutMs,
       (signal) =>
         generateObject({
           model: gw(p.model),
