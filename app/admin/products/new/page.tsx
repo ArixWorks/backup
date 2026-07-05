@@ -23,6 +23,12 @@ import { cn } from "@/lib/utils"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { tehranInputToUtcISO } from "@/lib/format"
+import {
+  CopilotProvider,
+  CopilotLauncher,
+  useCopilotAdapter,
+  type FieldBinding,
+} from "@/components/admin/ai/copilot"
 
 type DeliveryType = "MANUAL" | "AUTOMATIC"
 
@@ -52,8 +58,11 @@ export default function NewProductPage() {
   // shared
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  const [shortDescription, setShortDescription] = useState("")
   const [category, setCategory] = useState("")
+  const [tags, setTags] = useState<string[]>([])
   const [coverImage, setCoverImage] = useState("")
+  const [gallery, setGallery] = useState<string[]>([])
   const [deliveryType, setDeliveryType] = useState<DeliveryType>("MANUAL")
 
   // flash
@@ -73,6 +82,31 @@ export default function NewProductPage() {
   const [quantity, setQuantity] = useState("1")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
+
+  // Copilot bindings — map entity field keys to this form's state.
+  const bindings: Record<string, FieldBinding> = {
+    title: { get: () => title, set: (v) => setTitle(String(v ?? "")), localized: true },
+    shortDescription: { get: () => shortDescription, set: (v) => setShortDescription(String(v ?? "")), localized: true },
+    description: { get: () => description, set: (v) => setDescription(String(v ?? "")), localized: true },
+    category: { get: () => category, set: (v) => setCategory(String(v ?? "")) },
+    tags: { get: () => tags, set: (v) => setTags(Array.isArray(v) ? v.map(String) : []) },
+    deliveryType: { get: () => deliveryType, set: (v) => setDeliveryType((v as DeliveryType) || "MANUAL") },
+    price: { get: () => price, set: (v) => setPrice(String(v ?? "")) },
+    stock: { get: () => stock, set: (v) => setStock(String(v ?? "")) },
+    startPrice: { get: () => startPrice, set: (v) => setStartPrice(String(v ?? "")) },
+    minimumIncrement: { get: () => minIncrement, set: (v) => setMinIncrement(String(v ?? "")) },
+    buyNowPrice: { get: () => buyNowPrice, set: (v) => setBuyNowPrice(String(v ?? "")) },
+    coverImage: { get: () => coverImage, set: (v) => setCoverImage(String(v ?? "")) },
+    gallery: {
+      get: () => gallery,
+      set: (v) =>
+        setGallery((prev) =>
+          Array.isArray(v) ? [...prev, ...v.map(String)] : v ? [...prev, String(v)] : prev,
+        ),
+    },
+    seo: { get: () => "", set: () => {}, localized: true },
+  }
+  const { adapter, getI18n, hasTranslations } = useCopilotAdapter(bindings)
 
   async function submit() {
     if (!title.trim()) {
@@ -109,6 +143,9 @@ export default function NewProductPage() {
         title: title.trim(),
         description: description || undefined,
         category: category || undefined,
+        tags: tags.length ? tags : undefined,
+        gallery: gallery.length ? gallery : undefined,
+        i18n: hasTranslations() ? getI18n() : undefined,
         coverImage: coverImage || undefined,
         deliveryType,
       }
@@ -145,6 +182,7 @@ export default function NewProductPage() {
   }
 
   return (
+    <CopilotProvider entityId="product" mode="create" adapter={adapter}>
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link
@@ -153,12 +191,13 @@ export default function NewProductPage() {
         >
           <ArrowRight className="h-4 w-4" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">محصول جدید</h1>
           <p className="text-sm text-muted-foreground">
             نوع فروش، اطلاعات پایه و قیمت‌گذاری را تعیین کنید
           </p>
         </div>
+        <CopilotLauncher />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -166,20 +205,67 @@ export default function NewProductPage() {
           <Field label="عنوان محصول">
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً اشتراک یک‌ساله ChatGPT Plus" />
           </Field>
-          <Field label="توضیحات">
+          <Field label="توضیح کوتاه" hint="یک جمله جذاب برای کارت محصول">
+            <Textarea
+              value={shortDescription}
+              onChange={(e) => setShortDescription(e.target.value)}
+              rows={2}
+              placeholder="مثلاً: دسترسی فوری، گارانتی بازگشت وجه"
+            />
+          </Field>
+          <Field label="توضیحات کامل">
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="توضیح کوتاه درباره محصول"
+              rows={4}
+              placeholder="توضیح کامل درباره محصول"
             />
           </Field>
           <Field label="دسته‌بندی">
             <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="هوش مصنوعی" />
           </Field>
+          <Field label="برچسب‌ها" hint="با کاما جدا کنید">
+            <Input
+              value={tags.join("، ")}
+              onChange={(e) =>
+                setTags(
+                  e.target.value
+                    .split(/[,،]/)
+                    .map((t) => t.trim())
+                    .filter(Boolean),
+                )
+              }
+              placeholder="پرمیوم، اشتراک، هوش مصنوعی"
+            />
+          </Field>
           <Field label="تصویر کاور" hint="پس از انتخاب، تصویر را در نسبت ۱۶:۹ برش بزنید">
             <ImageUpload value={coverImage} onChange={setCoverImage} folder="products" aspect="aspect-video" />
           </Field>
+          {gallery.length > 0 ? (
+            <Field label="گالری" hint="تصاویر ساخته‌شده توسط دستیار">
+              <div className="flex flex-wrap gap-2">
+                {gallery.map((url, i) => (
+                  <div key={`${url}-${i}`} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url || "/placeholder.svg"}
+                      alt={`گالری ${i + 1}`}
+                      className="size-16 rounded-md border border-border object-cover"
+                      crossOrigin="anonymous"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setGallery((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground"
+                      aria-label="حذف تصویر"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Field>
+          ) : null}
           <Field label="نوع تحویل" hint="تحویل خودکار از مخزن موجودی انجام می‌شود">
             <Select value={deliveryType} onValueChange={(v) => setDeliveryType(v as DeliveryType)}>
               <SelectTrigger>
@@ -257,5 +343,6 @@ export default function NewProductPage() {
         </Card>
       </div>
     </div>
+    </CopilotProvider>
   )
 }

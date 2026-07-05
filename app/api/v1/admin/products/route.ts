@@ -14,11 +14,17 @@ const money = z.union([z.string(), z.number()])
 
 const linkSchema = z.object({ label: z.string(), url: z.string() })
 
+// Native multilingual copy produced by the AI Copilot: { fa?, en?, ru?, hi? }
+const i18nSchema = z.record(z.string(), z.unknown()).nullable().optional()
+
 const flashSchema = z.object({
   mode: z.literal("FIXED_PRICE"),
   title: z.string().min(1),
   description: z.string().optional(),
   category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  gallery: z.array(z.string()).optional(),
+  i18n: i18nSchema,
   coverImage: z.string().optional(),
   deliveryType: z.enum(["MANUAL", "AUTOMATIC"]),
   price: money,
@@ -36,6 +42,9 @@ const auctionSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  gallery: z.array(z.string()).optional(),
+  i18n: i18nSchema,
   coverImage: z.string().optional(),
   deliveryType: z.enum(["MANUAL", "AUTOMATIC"]),
   startPrice: money,
@@ -61,6 +70,9 @@ export const POST = route(async (req: Request) => {
         title: body.title,
         description: body.description,
         category: body.category,
+        tags: body.tags,
+        gallery: body.gallery,
+        i18n: (body.i18n ?? null) as never,
         coverImage: body.coverImage,
         deliveryType: body.deliveryType,
         price: BigInt(body.price),
@@ -81,6 +93,9 @@ export const POST = route(async (req: Request) => {
       title: body.title,
       description: body.description,
       category: body.category,
+      tags: body.tags,
+      gallery: body.gallery,
+      i18n: (body.i18n ?? null) as never,
       coverImage: body.coverImage,
       deliveryType: body.deliveryType,
       startPrice: BigInt(body.startPrice),

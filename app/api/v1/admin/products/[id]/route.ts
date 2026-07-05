@@ -17,6 +17,9 @@ const linkSchema = z.object({ label: z.string(), url: z.string() })
 const schema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  i18n: z.record(z.string(), z.unknown()).nullable().optional(),
   coverImage: z.string().optional(),
   gallery: z.array(z.string()).optional(),
   price: money.optional(),
@@ -57,6 +60,10 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
     {
       title: body.title,
       description: body.description,
+      category: body.category,
+      tags: body.tags,
+      gallery: body.gallery,
+      i18n: (body.i18n ?? undefined) as never,
       coverImage: body.coverImage,
       price: body.price != null ? BigInt(body.price) : undefined,
       stock: body.stock,

@@ -15,6 +15,7 @@ const createSchema = z.object({
   title: z.string().trim().min(2).max(120),
   subtitle: z.string().trim().max(160).nullish(),
   description: z.string().trim().max(4000).nullish(),
+  i18n: z.record(z.string(), z.unknown()).nullish(),
   coverImage: z.string().trim().nullish(),
   prizeImage: z.string().trim().nullish(),
   prizeLabel: z.string().trim().min(1).max(160),
@@ -45,6 +46,6 @@ export const GET = route(async () => {
 export const POST = route(async (req: Request) => {
   const admin = await requireAdmin()
   const body = createSchema.parse(await req.json())
-  const created = await createGiveaway(body, admin.id)
+  const created = await createGiveaway({ ...body, i18n: (body.i18n ?? null) as never }, admin.id)
   return { id: created.id, slug: created.slug }
 })

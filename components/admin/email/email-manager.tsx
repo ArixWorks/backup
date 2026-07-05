@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmailAnalytics } from "./email-analytics"
 import { EmailLogs } from "./email-logs"
 import { EmailSettings } from "./email-settings"
+import { EmailComposer } from "./email-composer"
 
 export function EmailManager() {
   return (
@@ -15,16 +16,20 @@ export function EmailManager() {
         </div>
         <div>
           <h1 className="text-xl font-bold">مدیریت ایمیل</h1>
-          <p className="text-sm text-muted-foreground">تحلیل ارسال، گزارش‌ها و پیکربندی سرویس ایمیل</p>
+          <p className="text-sm text-muted-foreground">نوشتن ایمیل با هوش مصنوعی، تحلیل ارسال، گزارش‌ها و پیکربندی سرویس ایمیل</p>
         </div>
       </header>
 
-      <Tabs defaultValue="analytics" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="compose" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="compose">نوشتن</TabsTrigger>
           <TabsTrigger value="analytics">تحلیل</TabsTrigger>
           <TabsTrigger value="logs">گزارش‌ها</TabsTrigger>
           <TabsTrigger value="settings">تنظیمات</TabsTrigger>
         </TabsList>
+        <TabsContent value="compose" className="mt-5">
+          <EmailComposer />
+        </TabsContent>
         <TabsContent value="analytics" className="mt-5">
           <EmailAnalytics />
         </TabsContent>

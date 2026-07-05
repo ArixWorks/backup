@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
+import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
 
 type ProductLink = { label: string; url: string }
 
@@ -32,6 +33,9 @@ type Product = {
   id: string
   title: string
   description: string | null
+  category: string | null
+  tags: string[]
+  i18n: I18nStore | null
   saleMode: string
   deliveryType: string
   hidden: boolean
@@ -81,6 +85,36 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <p className="mt-2 text-sm text-muted-foreground">{product.description}</p>
             )}
           </div>
+
+          <ImprovePanel
+            entityId="product"
+            initial={{
+              title: product.title,
+              description: product.description ?? "",
+              category: product.category ?? "",
+              tags: product.tags ?? [],
+              price: product.fixedSale ? String(product.fixedSale.price) : "",
+            }}
+            localizedKeys={["title", "description", "shortDescription", "seo"]}
+            initialI18n={product.i18n ?? undefined}
+            onSave={async (patch, i18n) => {
+              const body: Record<string, unknown> = {}
+              if (patch.title !== undefined) body.title = String(patch.title)
+              if (patch.description !== undefined) body.description = String(patch.description)
+              if (patch.category !== undefined) body.category = String(patch.category)
+              if (patch.tags !== undefined) body.tags = patch.tags
+              if (patch.price !== undefined) body.price = String(patch.price)
+              if (Object.keys(i18n).length > 0) body.i18n = i18n
+              const r = await fetch(`/api/v1/admin/products/${id}`, {
+                method: "PATCH",
+                credentials: "include",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              })
+              if (!r.ok) throw new ApiError((await r.json())?.error?.message ?? "خطا", "ERR", r.status)
+              await mutate()
+            }}
+          />
 
           <MediaEditor
             id={id}

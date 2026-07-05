@@ -30,7 +30,6 @@ import {
   DatabaseBackup,
   Mail,
   Sparkles,
-  PenLine,
   BookOpen,
   Workflow,
 } from "lucide-react"
@@ -56,34 +55,62 @@ type NavItem = {
   badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops"
 }
 
-const items: NavItem[] = [
-  { href: "/admin", label: "داشبورد", icon: LayoutDashboard, exact: true },
-  { href: "/admin/ops", label: "مرکز عملیات", icon: Activity, badge: "ops" },
-  { href: "/admin/growth", label: "تحلیل رشد", icon: TrendingUp },
-  { href: "/admin/deposits", label: "تأیید واریز", icon: Banknote, badge: "deposits" },
-  { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
-  { href: "/admin/refunds", label: "بازگشت وجه", icon: Undo2, badge: "refunds" },
-  { href: "/admin/finance", label: "مالی و حسابداری", icon: Landmark },
-  { href: "/admin/support", label: "تیکت‌ها", icon: LifeBuoy, badge: "tickets" },
-  { href: "/admin/deliveries", label: "تحویل سفارش", icon: Package, badge: "deliveries" },
-  { href: "/admin/products", label: "محصولات", icon: Boxes },
-  { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
-  { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
-  { href: "/admin/referrals", label: "سیستم دعوت", icon: Share2 },
-  { href: "/admin/coupons", label: "کدهای تخفیف", icon: Ticket },
-  { href: "/admin/users", label: "کاربران", icon: Users },
-  { href: "/admin/channel", label: "پست کانال", icon: Megaphone },
-  { href: "/admin/bot", label: "ربات تلگرام", icon: Bot },
-  { href: "/admin/settings", label: "تنظیمات پاداش", icon: Settings2 },
-  { href: "/admin/ai", label: "هوش مصنوعی", icon: Sparkles, exact: true },
-  { href: "/admin/ai/content", label: "استودیو محتوا", icon: PenLine },
-  { href: "/admin/ai/copilot", label: "دستیار هوشمند", icon: Bot },
-  { href: "/admin/ai/knowledge", label: "پایگاه دانش", icon: BookOpen },
-  { href: "/admin/ai/automations", label: "اتوماسیون هوشمند", icon: Workflow },
-  { href: "/admin/email", label: "مدیریت ایمیل", icon: Mail },
-  { href: "/admin/backup", label: "پشتیبان‌گیری", icon: DatabaseBackup },
-  { href: "/admin/audit", label: "گزارش فعالیت", icon: ScrollText },
+type NavGroup = { title: string; items: NavItem[] }
+
+const navGroups: NavGroup[] = [
+  {
+    title: "عملیات روزانه",
+    items: [
+      { href: "/admin", label: "داشبورد", icon: LayoutDashboard, exact: true },
+      { href: "/admin/ops", label: "مرکز عملیات", icon: Activity, badge: "ops" },
+      { href: "/admin/deposits", label: "تأیید واریز", icon: Banknote, badge: "deposits" },
+      { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
+      { href: "/admin/refunds", label: "بازگشت وجه", icon: Undo2, badge: "refunds" },
+      { href: "/admin/deliveries", label: "تحویل سفارش", icon: Package, badge: "deliveries" },
+      { href: "/admin/support", label: "تیکت‌ها", icon: LifeBuoy, badge: "tickets" },
+    ],
+  },
+  {
+    title: "خدمات",
+    items: [
+      { href: "/admin/products", label: "محصولات", icon: Boxes },
+      { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
+      { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
+    ],
+  },
+  {
+    title: "بازاریابی",
+    items: [
+      { href: "/admin/referrals", label: "سیستم دعوت", icon: Share2 },
+      { href: "/admin/coupons", label: "کدهای تخفیف", icon: Ticket },
+      { href: "/admin/channel", label: "پست کانال", icon: Megaphone },
+      { href: "/admin/email", label: "مدیریت ایمیل", icon: Mail },
+      { href: "/admin/growth", label: "تحلیل رشد", icon: TrendingUp },
+    ],
+  },
+  {
+    title: "هوش مصنوعی",
+    items: [
+      { href: "/admin/ai", label: "دستیار هوشمند", icon: Sparkles, exact: true },
+      { href: "/admin/ai/copilot", label: "کوپایلت فرم‌ها", icon: Bot },
+      { href: "/admin/ai/knowledge", label: "پایگاه دانش", icon: BookOpen },
+      { href: "/admin/ai/automations", label: "اتوماسیون هوشمند", icon: Workflow },
+    ],
+  },
+  {
+    title: "سیستم",
+    items: [
+      { href: "/admin/users", label: "کاربران", icon: Users },
+      { href: "/admin/finance", label: "مالی و حسابداری", icon: Landmark },
+      { href: "/admin/bot", label: "ربات تلگرام", icon: Bot },
+      { href: "/admin/settings", label: "تنظیمات پاداش", icon: Settings2 },
+      { href: "/admin/backup", label: "پشتیبان‌گیری", icon: DatabaseBackup },
+      { href: "/admin/audit", label: "گزارش فعالیت", icon: ScrollText },
+    ],
+  },
 ]
+
+const items: NavItem[] = navGroups.flatMap((g) => g.items)
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useSession()
@@ -171,6 +198,38 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     )
   }
 
+  function GroupSum({ group }: { group: NavGroup }) {
+    const total = group.items.reduce((n, it) => n + badgeCount(it.badge), 0)
+    if (total === 0) return null
+    return (
+      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground tabular-nums">
+        {total}
+      </span>
+    )
+  }
+
+  function NavSections({ grid = false }: { grid?: boolean }) {
+    return (
+      <div className="flex flex-col gap-3">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <div className="mb-1 flex items-center gap-2 px-2">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/70">
+                {group.title}
+              </span>
+              <GroupSum group={group} />
+            </div>
+            <div className={cn(grid ? "grid grid-cols-2 gap-1" : "flex flex-col gap-1")}>
+              {group.items.map((item) => (
+                <NavLink key={item.href} item={item} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="relative mx-auto grid w-full max-w-5xl gap-4 px-4 pb-16 pt-4 md:grid-cols-[220px_1fr] md:gap-6 md:px-6 md:pb-10 md:pt-6">
       {/* Subtle live ambient particles — professional, minimal distraction. */}
@@ -198,10 +257,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           />
         </button>
         {menuOpen && (
-          <nav className="glass mt-2 grid grid-cols-2 gap-1 rounded-xl border border-border/60 p-2 shadow-lg">
-            {items.map((item) => (
-              <NavLink key={item.href} item={item} />
-            ))}
+          <nav className="glass mt-2 rounded-xl border border-border/60 p-2 shadow-lg">
+            <NavSections grid />
           </nav>
         )}
       </div>
@@ -213,10 +270,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <ShieldAlert className="h-5 w-5 text-primary" />
             <span className="font-bold">پنل مدیریت</span>
           </div>
-          <nav className="flex flex-col gap-1">
-            {items.map((item) => (
-              <NavLink key={item.href} item={item} />
-            ))}
+          <nav className="max-h-[calc(100vh-9rem)] overflow-y-auto pl-1">
+            <NavSections />
           </nav>
         </div>
       </aside>

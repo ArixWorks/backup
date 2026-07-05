@@ -13,6 +13,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { ImageUpload } from "@/components/admin/image-upload"
+import {
+  CopilotProvider,
+  CopilotLauncher,
+  useCopilotAdapter,
+  type FieldBinding,
+  type I18nStore,
+} from "@/components/admin/ai/copilot"
 
 type Channel = { id: string; title: string; url: string }
 type PrizeKind = "CUSTOM" | "WALLET" | "COUPON" | "INVENTORY"
@@ -77,14 +84,34 @@ function Field({ label, children, hint }: { label: string; children: React.React
 export function GiveawayForm({
   initial,
   giveawayId,
+  initialI18n,
 }: {
   initial: GiveawayFormValues
   giveawayId?: string
+  initialI18n?: I18nStore
 }) {
   const router = useRouter()
   const [form, setForm] = useState<GiveawayFormValues>(initial)
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(giveawayId)
+
+  // Copilot bindings. In edit mode we run "improve" over the loaded values.
+  const bindings: Record<string, FieldBinding> = {
+    title: { get: () => form.title, set: (v) => set("title", String(v ?? "")), localized: true },
+    subtitle: { get: () => form.subtitle, set: (v) => set("subtitle", String(v ?? "")), localized: true },
+    description: { get: () => form.description, set: (v) => set("description", String(v ?? "")), localized: true },
+    prizeLabel: { get: () => form.prizeLabel, set: (v) => set("prizeLabel", String(v ?? "")), localized: true },
+    winnersCount: { get: () => form.winnersCount, set: (v) => set("winnersCount", String(v ?? "1")) },
+    coverImage: { get: () => form.coverImage, set: (v) => set("coverImage", String(v ?? "")) },
+    prizeImage: { get: () => form.prizeImage, set: (v) => set("prizeImage", String(v ?? "")) },
+    seo: { get: () => "", set: () => {}, localized: true },
+  }
+  const { adapter, getI18n, hasTranslations, setI18n } = useCopilotAdapter(bindings)
+  const seededRef = useState(() => {
+    if (initialI18n && Object.keys(initialI18n).length > 0) setI18n(initialI18n)
+    return true
+  })[0]
+  void seededRef
 
   const { data: productsData } = useSWR<{ data: { id: string; title: string }[] }>(
     form.prizeKind === "INVENTORY" ? "/api/v1/admin/products" : null,
@@ -120,6 +147,7 @@ export function GiveawayForm({
       title: form.title.trim(),
       subtitle: form.subtitle.trim() || null,
       description: form.description.trim() || null,
+      i18n: hasTranslations() ? getI18n() : undefined,
       coverImage: form.coverImage.trim() || null,
       prizeImage: form.prizeImage.trim() || null,
       prizeLabel: form.prizeLabel.trim(),
@@ -186,7 +214,14 @@ export function GiveawayForm({
   }
 
   return (
+    <CopilotProvider entityId="giveaway" mode={isEdit ? "improve" : "create"} adapter={adapter}>
     <Card className="space-y-5 p-5">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/25 bg-primary/5 px-4 py-3">
+        <p className="text-sm font-semibold">
+          {isEdit ? "بهبود محتوای قرعه‌کشی با هوش مصنوعی" : "ساخت سریع با هوش مصنوعی"}
+        </p>
+        <CopilotLauncher />
+      </div>
       {/* Basics */}
       <div className="space-y-4">
         <Field label="عنوان قرعه‌کشی">
@@ -306,7 +341,7 @@ export function GiveawayForm({
           <h3 className="font-bold">کانال‌های اجباری</h3>
           <Button type="button" variant="outline" size="sm" onClick={addChannel} className="gap-1">
             <Plus className="h-3.5 w-3.5" />
-            افزودن
+            افزود��
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
@@ -354,5 +389,6 @@ export function GiveawayForm({
         </Button>
       </div>
     </Card>
+    </CopilotProvider>
   )
 }
