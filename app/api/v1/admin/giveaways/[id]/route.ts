@@ -16,6 +16,7 @@ const updateSchema = z.object({
   title: z.string().trim().min(2).max(120).optional(),
   subtitle: z.string().trim().max(160).nullish(),
   description: z.string().trim().max(4000).nullish(),
+  i18n: z.record(z.string(), z.unknown()).nullish(),
   coverImage: z.string().trim().nullish(),
   prizeImage: z.string().trim().nullish(),
   prizeLabel: z.string().trim().min(1).max(160).optional(),
@@ -69,7 +70,7 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   const admin = await requireAdmin()
   const { id } = await ctx.params
   const body = updateSchema.parse(await req.json())
-  await updateGiveaway(id, body, admin.id)
+  await updateGiveaway(id, { ...body, i18n: (body.i18n ?? undefined) as never }, admin.id)
   return { ok: true }
 })
 
