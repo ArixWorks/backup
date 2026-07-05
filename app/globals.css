@@ -362,6 +362,15 @@ html[data-motion='minimal'] {
   --shadow-gold: var(--shadow-accent);
 }
 
+/* Charts follow the active tier: primary series + deep accent series.
+   `[data-tier]` (attribute-exists) matches the same specificity as
+   `[data-theme]` but comes later in source order, so tier accents win.
+   The provider always sets data-tier, so charts are never left un-themed. */
+[data-tier] {
+  --chart-1: var(--primary);
+  --chart-2: var(--accent-deep);
+}
+
 /* ============================================================================
    EXPERIENCE LAYERS (special moments only)
    Subio has ONE signature identity: Dark + Gold. Aurora is no longer a whole-app
@@ -636,6 +645,7 @@ html[data-motion='minimal'] {
       90deg,
       transparent,
       color-mix(in oklch, white 6%, transparent),
+      color-mix(in oklch, var(--tier-glow) 10%, transparent),
       transparent
     );
     animation: shimmer 1.8s ease-in-out infinite;

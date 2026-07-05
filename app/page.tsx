@@ -192,8 +192,8 @@ function StatusBadge({ label, tone }: { label: string; tone: "soon" | "active" }
     <span
       className={
         tone === "soon"
-          ? "shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-500"
-          : "shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-500"
+          ? "shrink-0 rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning"
+          : "shrink-0 rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success"
       }
     >
       {label}

@@ -51,7 +51,7 @@ export function ForcePasswordChange() {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 p-4 backdrop-blur-sm">
       <div className="glass w-full max-w-md rounded-3xl border border-primary/20 p-6">
         <div className="mb-4 flex flex-col items-center gap-2 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/15 text-warning">
             <ShieldAlert className="h-6 w-6" />
           </span>
           <h1 className="text-lg font-extrabold text-foreground">{t("forcePwd.title")}</h1>

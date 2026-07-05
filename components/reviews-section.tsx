@@ -119,7 +119,7 @@ export function ReviewsSection({ productId }: { productId: string }) {
                     <div key={star} className="flex items-center gap-2">
                       <span className="w-3 text-xs tabular-nums text-muted-foreground">{num(star)}</span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                       </div>
                       <span className="w-8 text-end text-xs tabular-nums text-muted-foreground">
                         {num(c)}
