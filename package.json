@@ -21,6 +21,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.16",
     "@base-ui/react": "^1.5.0",
     "@prisma/client": "^6.19.3",
     "@sentry/nextjs": "^10.62.0",

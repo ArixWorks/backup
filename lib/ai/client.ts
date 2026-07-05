@@ -1,5 +1,5 @@
 import "server-only"
-import { createGateway, generateObject, generateText, streamText } from "ai"
+import { createGateway, embedMany, generateObject, generateText, streamText } from "ai"
 import type { ModelMessage, StopCondition, ToolSet } from "ai"
 import type { z } from "zod"
 import { withTimeout } from "@/lib/core/resilience"
@@ -116,6 +116,8 @@ export async function runText(opts: RunOptions): Promise<RunTextResult> {
           model: gw(p.model),
           system: opts.system,
           ...promptPayload(opts),
+          ...(opts.tools ? { tools: opts.tools } : {}),
+          ...(opts.stopWhen ? { stopWhen: opts.stopWhen } : {}),
           temperature: p.temperature,
           maxOutputTokens: p.maxOutputTokens,
           maxRetries: p.maxRetries,
@@ -243,6 +245,55 @@ export async function runStream(opts: RunOptions) {
     },
   })
   return { result, streamed: true as const }
+}
+
+/**
+ * Embed one or more texts through the Gateway. Used by the knowledge base for
+ * both ingestion (many chunks) and retrieval (a single query). Respects the
+ * master switch + guardrails and records a usage event. Returns 1536-dim
+ * vectors (matching the `AiKnowledgeChunk.embedding` column).
+ */
+export async function embedTexts(
+  texts: string[],
+  opts: { feature: string; userId?: string | null } = { feature: "knowledge.embed" },
+): Promise<number[][]> {
+  if (texts.length === 0) return []
+  const config = await preflight(opts.feature, opts.userId)
+  const gw = await gatewayProvider()
+  const startedAt = Date.now()
+  try {
+    const { embeddings, usage } = await embedMany({
+      model: gw.textEmbeddingModel(config.embeddingModel),
+      values: texts,
+      maxRetries: config.maxRetries,
+    })
+    await recordUsage({
+      feature: opts.feature,
+      provider: config.provider,
+      model: config.embeddingModel,
+      operation: "embed",
+      userId: opts.userId,
+      inputTokens: usage?.tokens,
+      totalTokens: usage?.tokens,
+      latencyMs: Date.now() - startedAt,
+      ok: true,
+    })
+    return embeddings
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.log(`[v0] AI embed failed (${opts.feature}):`, message)
+    await recordUsage({
+      feature: opts.feature,
+      provider: config.provider,
+      model: config.embeddingModel,
+      operation: "embed",
+      userId: opts.userId,
+      latencyMs: Date.now() - startedAt,
+      ok: false,
+      errorMessage: message.slice(0, 500),
+    })
+    throw new AiProviderError()
+  }
 }
 
 async function recordFailure(

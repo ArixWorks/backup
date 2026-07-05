@@ -15,6 +15,7 @@ export const AI_SETTING_KEYS = {
   enabled: "ai.enabled", // master switch for the whole AI platform
   provider: "ai.provider", // provider slug from the registry
   model: "ai.model", // "provider/model" string
+  embeddingModel: "ai.embeddingModel", // embedding model for the knowledge base (must be 1536-dim)
   temperature: "ai.temperature", // 0..2
   maxTokens: "ai.maxTokens", // max output tokens per call (0 = provider default)
   timeoutMs: "ai.timeoutMs", // per-call timeout
@@ -34,6 +35,8 @@ function envDefaults(): Record<string, string> {
     [AI_SETTING_KEYS.enabled]: "true",
     [AI_SETTING_KEYS.provider]: process.env.AI_DEFAULT_PROVIDER || DEFAULT_PROVIDER,
     [AI_SETTING_KEYS.model]: process.env.AI_DEFAULT_MODEL || DEFAULT_MODEL,
+    [AI_SETTING_KEYS.embeddingModel]:
+      process.env.AI_EMBEDDING_MODEL || "openai/text-embedding-3-small",
     [AI_SETTING_KEYS.temperature]: process.env.AI_DEFAULT_TEMPERATURE || "0.7",
     [AI_SETTING_KEYS.maxTokens]: process.env.AI_DEFAULT_MAX_TOKENS || "0",
     [AI_SETTING_KEYS.timeoutMs]: process.env.AI_DEFAULT_TIMEOUT_MS || "60000",
@@ -49,6 +52,7 @@ export interface AiConfig {
   enabled: boolean
   provider: string
   model: string
+  embeddingModel: string
   temperature: number
   maxTokens: number
   timeoutMs: number
@@ -68,6 +72,7 @@ export async function getAiConfig(): Promise<AiConfig> {
     enabled: toBool(get(AI_SETTING_KEYS.enabled)),
     provider: get(AI_SETTING_KEYS.provider),
     model: get(AI_SETTING_KEYS.model),
+    embeddingModel: get(AI_SETTING_KEYS.embeddingModel),
     temperature: toNumber(get(AI_SETTING_KEYS.temperature), 0.7),
     maxTokens: toNumber(get(AI_SETTING_KEYS.maxTokens), 0),
     timeoutMs: toNumber(get(AI_SETTING_KEYS.timeoutMs), 60000),

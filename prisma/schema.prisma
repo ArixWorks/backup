@@ -1523,3 +1523,54 @@ model AiMemory {
   @@index([scope, scopeId])
   @@index([expiresAt])
 }
+
+// ---------------------------------------------------------------------------
+// AI Knowledge Base (RAG). Documents are chunked and embedded into pgvector.
+// The `embedding` column uses the pgvector `vector` type (Unsupported by
+// Prisma); all similarity search happens via raw SQL using the `<=>` operator.
+// Dimension 1536 matches OpenAI text-embedding-3-small (configurable model must
+// match this dimension, or re-provision the column).
+// ---------------------------------------------------------------------------
+
+enum AiKnowledgeStatus {
+  READY
+  INDEXING
+  ERROR
+}
+
+model AiKnowledgeDoc {
+  id          String            @id @default(cuid())
+  title       String
+  // Origin of the content: manual entry, imported URL, or an FAQ pair.
+  source      String            @default("manual")
+  sourceUrl   String?
+  category    String?
+  locale      String            @default("fa")
+  // Whether this doc may be surfaced to end users (support) vs admin-only.
+  isPublic    Boolean           @default(true)
+  content     String
+  status      AiKnowledgeStatus @default(READY)
+  chunkCount  Int               @default(0)
+  error       String?
+  createdById String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  chunks AiKnowledgeChunk[]
+
+  @@index([status])
+  @@index([isPublic])
+}
+
+model AiKnowledgeChunk {
+  id        String                       @id @default(cuid())
+  docId     String
+  doc       AiKnowledgeDoc               @relation(fields: [docId], references: [id], onDelete: Cascade)
+  idx       Int
+  content   String
+  tokens    Int                          @default(0)
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime                     @default(now())
+
+  @@index([docId])
+}

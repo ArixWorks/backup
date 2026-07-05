@@ -75,6 +75,7 @@ const items: NavItem[] = [
   { href: "/admin/settings", label: "تنظیمات پاداش", icon: Settings2 },
   { href: "/admin/ai", label: "هوش مصنوعی", icon: Sparkles, exact: true },
   { href: "/admin/ai/content", label: "استودیو محتوا", icon: PenLine },
+  { href: "/admin/ai/copilot", label: "دستیار هوشمند", icon: Bot },
   { href: "/admin/email", label: "مدیریت ایمیل", icon: Mail },
   { href: "/admin/backup", label: "پشتیبان‌گیری", icon: DatabaseBackup },
   { href: "/admin/audit", label: "گزارش فعالیت", icon: ScrollText },
