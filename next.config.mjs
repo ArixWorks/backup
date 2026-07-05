@@ -33,6 +33,15 @@ const nextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     deviceSizes: [360, 420, 640, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    // Allow the optimizer to fetch remotely hosted media. Without an explicit
+    // allow-list Next.js rejects every external URL with a 400. Vercel Blob
+    // public buckets are served from `<id>.public.blob.vercel-storage.com`.
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.public.blob.vercel-storage.com',
+      },
+    ],
   },
   // Modularize large barrel packages so each route only ships the exact icons /
   // primitives it renders instead of the union across the whole app. This alone
