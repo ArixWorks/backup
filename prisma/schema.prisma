@@ -1402,3 +1402,124 @@ model EmailEvent {
   @@index([type, occurredAt])
   @@index([providerId])
 }
+
+// ---------------------------------------------------------------------------
+// AI Platform (shared core for every AI capability across SubIO)
+//
+// Design goals: provider-agnostic (no code path is bound to OpenAI), secrets
+// encrypted at rest, full usage/cost observability, prompt versioning and a
+// memory store — all consumed through one gateway (`lib/ai`). Non-secret
+// settings (provider, model, temperature, limits, toggles) live in the generic
+// `Setting` table under `ai.*` keys; only secret API keys live here, encrypted.
+// ---------------------------------------------------------------------------
+
+// One encrypted API key per provider (e.g. "openai", "anthropic", "gateway").
+// The ciphertext is AES-256-GCM; the raw key is never stored or returned to any
+// client. Only a Super Admin may read (masked) or mutate these rows.
+model AiCredential {
+  id           String    @id @default(cuid())
+  // Stable provider slug from the provider registry (lib/ai/providers.ts).
+  provider     String    @unique
+  // AES-256-GCM payload: iv:authTag:ciphertext (all base64), see lib/ai/crypto.
+  ciphertext   String
+  // Last 4 chars of the raw key, kept for a "•••• 1234" hint in the UI.
+  last4        String?
+  // Free-form label (e.g. "Production key").
+  label        String?
+  // Result of the most recent Test Connection: "connected" | "error" | "invalid".
+  status       String    @default("unknown")
+  statusDetail String?
+  lastTestedAt DateTime?
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// One row per AI generation. The authoritative record for usage, token and cost
+// analytics, latency observability and audit. Written by the gateway wrapper for
+// every call (success or failure) so nothing bypasses tracking.
+model AiUsageEvent {
+  id           String   @id @default(cuid())
+  // Logical capability that made the call, e.g. "content.seo", "support.reply",
+  // "copilot", "translate". Free-form so new features need no migration.
+  feature      String
+  provider     String
+  model        String
+  operation    String   @default("generateText") // generateText | generateObject | stream | embed | image
+  // Optional actor + correlation for per-user analytics and rate limiting.
+  userId       String?
+  refType      String?
+  refId        String?
+  // Token accounting (nullable — some providers omit parts).
+  inputTokens  Int?
+  outputTokens Int?
+  totalTokens  Int?
+  // Estimated cost in micro-USD (millionths of a dollar) to avoid float drift.
+  costMicroUsd BigInt   @default(0)
+  latencyMs    Int?
+  ok           Boolean  @default(true)
+  errorCode    String?
+  errorMessage String?
+  // Arbitrary structured context (prompt id/version, temperature, etc.).
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([feature, createdAt])
+  @@index([provider, model, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// A named, versioned prompt. The current pointer is `activeVersion`; history is
+// kept in AiPromptVersion so prompts can be rolled back and A/B compared.
+model AiPromptTemplate {
+  id            String             @id @default(cuid())
+  // Stable key referenced from code, e.g. "support.reply", "content.seo".
+  key           String             @unique
+  name          String
+  description   String?
+  feature       String? // grouping for the prompt library UI
+  activeVersion Int                @default(1)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  versions AiPromptVersion[]
+
+  @@index([feature])
+}
+
+model AiPromptVersion {
+  id           String           @id @default(cuid())
+  templateId   String
+  template     AiPromptTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version      Int
+  // Handlebars-style {{variable}} placeholders rendered at call time.
+  systemPrompt String?
+  userPrompt   String
+  // Optional per-prompt model/params override (JSON: { model, temperature, ... }).
+  config       Json?
+  notes        String?
+  createdById  String?
+  createdAt    DateTime         @default(now())
+
+  @@unique([templateId, version])
+}
+
+// Durable AI memory. `scope` + `scopeId` namespace entries (e.g.
+// scope="user", scopeId=<userId>; or scope="global"). `key` is unique per scope.
+model AiMemory {
+  id        String   @id @default(cuid())
+  scope     String   @default("global")
+  scopeId   String   @default("global")
+  key       String
+  value     Json
+  // Optional soft expiry for transient memories.
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scope, scopeId, key])
+  @@index([scope, scopeId])
+  @@index([expiresAt])
+}
