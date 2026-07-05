@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -250,11 +251,11 @@ export function KnowledgeManager() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent size="lg" dir="rtl">
           <DialogHeader>
             <DialogTitle>{editingId ? "ویرایش سند" : "سند جدید"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <DialogBody className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">عنوان</label>
               <Input
@@ -303,7 +304,7 @@ export function KnowledgeManager() {
                 onCheckedChange={(v) => setForm((f) => ({ ...f, isPublic: v }))}
               />
             </div>
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               انصراف

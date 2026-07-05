@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { formatDateTime } from "@/lib/format"
 import { STATUS_LABELS, STATUS_TONE, TEMPLATE_LABELS } from "./labels"
 
@@ -191,10 +191,11 @@ export function EmailLogs() {
 
       {/* Detail dialog */}
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>جزئیات ایمیل</DialogTitle>
           </DialogHeader>
+          <DialogBody>
           {!detail?.data ? (
             <div className="flex flex-col gap-2">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -246,6 +247,7 @@ export function EmailLogs() {
               )}
             </div>
           )}
+          </DialogBody>
         </DialogContent>
       </Dialog>
     </div>

@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -315,7 +316,7 @@ function RestoreCard({ onDone }: { onDone: () => void }) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
+          <DialogBody className="space-y-3">
             <div className="flex flex-col gap-1.5">
               <Label className="text-sm font-bold">فایل پشتیبان (.json.gz)</Label>
               <Input
@@ -334,7 +335,7 @@ function RestoreCard({ onDone }: { onDone: () => void }) {
                 placeholder="RESTORE"
               />
             </div>
-          </div>
+          </DialogBody>
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={restoring}>
