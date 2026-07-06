@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
+import { RichContentEditor, EnhancedTextarea } from "@/components/rich-content"
 import { tehranInputToUtcISO } from "@/lib/format"
 import {
   CopilotProvider,

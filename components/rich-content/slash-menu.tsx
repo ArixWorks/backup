@@ -73,7 +73,11 @@ export function SlashMenu({
         try {
           const coords = editor.view.coordsAtPos($from.pos)
           const box = editor.view.dom.getBoundingClientRect()
-          setPos({ top: coords.bottom - box.top + 4, left: coords.left - box.left })
+          const MENU_WIDTH = 256 // matches w-64
+          // Clamp so the fixed-width menu never overflows the editor edges.
+          const rawLeft = coords.left - box.left
+          const maxLeft = Math.max(0, box.width - MENU_WIDTH - 8)
+          setPos({ top: coords.bottom - box.top + 4, left: Math.min(Math.max(rawLeft, 0), maxLeft) })
         } catch {
           /* ignore */
         }
@@ -127,7 +131,7 @@ export function SlashMenu({
     <div
       ref={containerRef}
       className="absolute z-50 max-h-72 w-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
-      style={{ top: pos.top, insetInlineStart: pos.left }}
+      style={{ top: pos.top, left: pos.left }}
       role="listbox"
     >
       {Object.entries(groups).map(([group, cmds]) => (
