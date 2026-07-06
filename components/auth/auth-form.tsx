@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
 import { ShieldCheck, Send, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ type PublicConfig = { data: { brandName?: string; botUsername?: string } }
 export function AuthForm() {
   const { t } = useI18n()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { mutate } = useSWRConfig()
   const { data: cfg } = useSWR<PublicConfig>("/api/v1/public/config", fetcher)
   const botUsername = cfg?.data?.botUsername?.replace(/^@/, "") || ""
@@ -31,9 +32,13 @@ export function AuthForm() {
 
   const finishLogin = useCallback(async () => {
     await mutate("/api/v1/auth/session")
-    router.replace("/")
+    // Honor a `?next=` target (e.g. redirected here by the admin guard), but
+    // only allow same-origin relative paths to avoid open-redirect abuse.
+    const next = searchParams.get("next")
+    const dest = next && next.startsWith("/") && !next.startsWith("//") ? next : "/"
+    router.replace(dest)
     router.refresh()
-  }, [mutate, router])
+  }, [mutate, router, searchParams])
 
   const onTelegramAuth = useCallback(
     async (payload: Record<string, unknown>) => {

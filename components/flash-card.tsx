@@ -6,6 +6,7 @@ import { Package, Tag, ExternalLink } from "lucide-react"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { FlashBuyButton } from "@/components/flash-buy-button"
 import { useI18n } from "@/components/i18n-provider"
+import { richExcerpt } from "@/lib/rich-content/render"
 
 export type ProductLink = { label: string; url: string }
 
@@ -87,8 +88,10 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
             </span>
           )}
         </div>
-        {sale.description && (
-          <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">{sale.description}</p>
+        {sale.description && richExcerpt(sale.description) && (
+          <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+            {richExcerpt(sale.description)}
+          </p>
         )}
         {sale.links && sale.links.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
