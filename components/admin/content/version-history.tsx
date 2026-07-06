@@ -39,13 +39,13 @@ export function VersionHistory({
 }) {
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<Revision | null>(null)
-  const { data } = useSWR<{ items: Revision[] }>(
+  const { data } = useSWR<{ data: { items: Revision[] } }>(
     open
       ? `/api/v1/admin/revisions?entityType=${typeKey}&entityId=${contentId}&field=body`
       : null,
     fetcher,
   )
-  const items = data?.items ?? []
+  const items = data?.data?.items ?? []
 
   return (
     <>
