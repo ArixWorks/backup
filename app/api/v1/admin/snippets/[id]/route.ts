@@ -2,7 +2,7 @@ import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { NotFoundError } from "@/lib/core/errors"
 import { prisma } from "@/lib/db"
-import { sanitizeHtml } from "@/lib/rich-content/sanitize"
+import { sanitizeRichHtml } from "@/lib/rich-content/sanitize"
 
 export const dynamic = "force-dynamic"
 
@@ -17,7 +17,7 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
     data: {
       name: body.name?.trim() ?? undefined,
       category: body.category === undefined ? undefined : body.category?.trim() || null,
-      html: body.html === undefined ? undefined : sanitizeHtml(body.html),
+      html: body.html === undefined ? undefined : sanitizeRichHtml(body.html),
     },
   })
   return snippet

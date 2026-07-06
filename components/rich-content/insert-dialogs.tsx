@@ -237,7 +237,7 @@ export function CalloutDialog({
           <DialogTitle>درج کالاوت</DialogTitle>
           <DialogDescription>نوع جعبه را انتخاب کنید</DialogDescription>
         </DialogHeader>
-        <Select value={kind} onValueChange={setKind}>
+        <Select value={kind} onValueChange={(v) => v && setKind(v)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -293,7 +293,7 @@ export function VariableDialog({
           <DialogDescription>مقدار پویا هنگام نمایش جایگزین می‌شود</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <Select value={varKey} onValueChange={setVarKey}>
+          <Select value={varKey} onValueChange={(v) => v && setVarKey(v)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -373,6 +373,75 @@ export function AttachmentDialog({
         <DialogFooter>
           <Button onClick={insert}>درج</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/* ---------------- Emoji dialog ---------------- */
+const EMOJI_GROUPS: { label: string; items: string[] }[] = [
+  { label: "پرکاربرد", items: ["😀", "😍", "🎉", "🔥", "👍", "🙏", "❤️", "✅", "⭐", "💎", "🚀", "🎁"] },
+  { label: "چهره‌ها", items: ["😀", "😁", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😎", "🤩", "🤔", "😴", "😅", "😭", "😡", "🥳"] },
+  { label: "دست‌ها", items: ["👍", "👎", "👌", "✌️", "🤞", "🙏", "👏", "🙌", "💪", "🫶", "🤝", "✍️"] },
+  { label: "اشیا و نمادها", items: ["🔥", "⭐", "✨", "🎉", "🎊", "🎁", "💎", "💰", "🏆", "🥇", "✅", "❌", "⚠️", "❤️", "💙", "💚", "📌", "🔔"] },
+  { label: "تجارت", items: ["🛒", "🛍️", "💳", "🏷️", "📦", "🚚", "📈", "📉", "💹", "🧾", "🏦", "💵"] },
+]
+
+export function EmojiDialog({
+  editor,
+  open,
+  onOpenChange,
+}: {
+  editor: Editor
+  open: boolean
+  onOpenChange: (v: boolean) => void
+}) {
+  const [q, setQ] = useState("")
+
+  useEffect(() => {
+    if (open) setQ("")
+  }, [open])
+
+  const insert = (emoji: string) => {
+    editor.chain().focus().insertContent(emoji).run()
+    onOpenChange(false)
+  }
+
+  const groups = q.trim()
+    ? [{ label: "نتایج", items: EMOJI_GROUPS.flatMap((g) => g.items).filter((_, i, arr) => arr.indexOf(arr[i]) === i) }]
+    : EMOJI_GROUPS
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>درج اموجی</DialogTitle>
+          <DialogDescription>یک اموجی برای درج انتخاب کنید</DialogDescription>
+        </DialogHeader>
+        <div className="relative">
+          <Search className="absolute inset-inline-start-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جستجو…" className="ps-8" />
+        </div>
+        <div className="max-h-72 space-y-3 overflow-y-auto">
+          {groups.map((g) => (
+            <div key={g.label}>
+              <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">{g.label}</div>
+              <div className="grid grid-cols-8 gap-1">
+                {g.items.map((emoji, i) => (
+                  <button
+                    key={`${g.label}-${i}`}
+                    type="button"
+                    onClick={() => insert(emoji)}
+                    className="flex size-8 items-center justify-center rounded-md text-lg transition-colors hover:bg-accent"
+                    aria-label={`درج ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </DialogContent>
     </Dialog>
   )

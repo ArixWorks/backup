@@ -31,7 +31,7 @@ export interface SlashCommand {
   run: (editor: Editor, openDialog: (name: DialogName) => void) => void
 }
 
-export type DialogName = "media" | "embed" | "attachment" | "callout" | "ai" | "table" | "variable"
+export type DialogName = "media" | "embed" | "attachment" | "callout" | "ai" | "table" | "variable" | "link" | "emoji"
 
 export const SLASH_COMMANDS: SlashCommand[] = [
   {

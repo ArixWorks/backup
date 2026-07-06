@@ -2,7 +2,7 @@ import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { ValidationError } from "@/lib/core/errors"
 import { prisma } from "@/lib/db"
-import { sanitizeHtml } from "@/lib/rich-content/sanitize"
+import { sanitizeRichHtml } from "@/lib/rich-content/sanitize"
 
 export const dynamic = "force-dynamic"
 
@@ -46,7 +46,7 @@ export const POST = route(async (req: Request) => {
       entityType: body.entityType,
       entityId: body.entityId,
       field: body.field ?? "description",
-      html: sanitizeHtml(body.html),
+      html: sanitizeRichHtml(body.html),
       status: body.status ?? "revision",
       note: body.note ?? null,
       createdById: admin.id,
