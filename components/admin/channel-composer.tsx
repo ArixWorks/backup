@@ -8,8 +8,8 @@ import { buildCaption } from "@/lib/channel-format"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { EnhancedTextarea } from "@/components/rich-content"
 import {
   Select,
   SelectContent,
@@ -146,12 +146,14 @@ export function ChannelComposer() {
 
           <div className="space-y-2">
             <Label htmlFor="ch-body">متن</Label>
-            <Textarea
+            <EnhancedTextarea
               id="ch-body"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
               placeholder={"🔥 قیمت کاهش یافت!\nهمین حالا سفارش بده."}
-              rows={5}
+              minRows={5}
+              maxRows={14}
+              maxLength={1024}
             />
           </div>
 
