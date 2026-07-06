@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/empty-state"
 import { FlashBuyButton } from "@/components/flash-buy-button"
 import { ProductWatchButton } from "@/components/product-watch-button"
 import { ProductGallery } from "@/components/product-gallery"
-import { RichText } from "@/components/rich-text"
+import { RichContent } from "@/components/rich-content"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { ReviewsSection } from "@/components/reviews-section"
 import { StarRating } from "@/components/star-rating"
@@ -116,7 +116,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
           {p.description && (
             <section className="space-y-2">
               <h2 className="text-sm font-bold">{t("detail.description")}</h2>
-              <RichText content={p.description} />
+              <RichContent content={p.description} />
             </section>
           )}
 
