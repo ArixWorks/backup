@@ -200,7 +200,7 @@ export default function RefundsPage() {
       <section className="space-y-3">
         <h2 className="text-sm font-bold text-muted-foreground">{t("refunds.previous")}</h2>
         {isLoading ? (
-          <div className="space-y-2">
+          <div className="space-y-2 web:lg:grid web:lg:grid-cols-2 web:lg:gap-2 web:lg:space-y-0">
             {[0, 1].map((i) => (
               <Skeleton key={i} className="h-20 w-full rounded-2xl" />
             ))}
@@ -211,7 +211,7 @@ export default function RefundsPage() {
             {t("refunds.empty")}
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 web:lg:grid web:lg:grid-cols-2 web:lg:items-start web:lg:gap-2 web:lg:space-y-0">
             {refunds.map((r) => (
               <li key={r.id} className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-2">

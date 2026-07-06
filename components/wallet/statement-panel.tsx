@@ -128,7 +128,7 @@ export function StatementPanel({
           />
         </div>
         {showFilters && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 web:sm:grid-cols-3">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">{t("stmt.txnType")}</label>
               <Select value={type} onValueChange={(v) => v && setType(v)}>

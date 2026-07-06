@@ -44,7 +44,7 @@ export default function GiveawaysPage() {
       </FadeItem>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 web:sm:grid-cols-2 web:xl:grid-cols-3">
           {[0, 1].map((i) => (
             <CardSkeleton key={i} />
           ))}
@@ -61,7 +61,7 @@ export default function GiveawaysPage() {
         <>
           {active.length > 0 && (
             <FadeItem>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 web:sm:grid-cols-2 web:xl:grid-cols-3">
                 {active.map((g) => (
                   <GiveawayCard key={g.id} giveaway={g} />
                 ))}
@@ -73,7 +73,7 @@ export default function GiveawaysPage() {
             <FadeItem>
               <section className="space-y-3">
                 <h2 className="text-sm font-bold text-muted-foreground">{t("giveaways.past")}</h2>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 web:sm:grid-cols-2 web:xl:grid-cols-3">
                   {past.map((g) => (
                     <GiveawayCard key={g.id} giveaway={g} />
                   ))}

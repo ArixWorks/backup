@@ -205,8 +205,8 @@ export function AutomationsManager() {
             هنوز اجرایی ثبت نشده است.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-2xl border border-border">
+            <table className="w-full min-w-[560px] text-sm">
               <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
                   <th className="p-2 text-start font-medium">اتوماسیون</th>

@@ -77,7 +77,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     return (
       <div className="space-y-6" role="status" aria-busy="true">
         <Skeleton className="h-5 w-24 rounded-full" />
-        <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+        <div className="grid gap-6 web:lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-6">
             <Skeleton className="aspect-[16/9] w-full rounded-2xl" />
             <div className="space-y-3">

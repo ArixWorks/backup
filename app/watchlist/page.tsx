@@ -46,7 +46,7 @@ export default function WatchlistPage() {
                 actionHref="/auctions"
               />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 web:sm:grid-cols-2 web:xl:grid-cols-3">
                 {auctions.map((a) => (
                   <AuctionCard key={a.id} auction={a} />
                 ))}

@@ -74,8 +74,8 @@ export function CopilotChat() {
             <div
               className={
                 m.role === "user"
-                  ? "max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground"
-                  : "max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm text-foreground"
+                  ? "max-w-[85%] break-words rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground"
+                  : "max-w-[85%] break-words rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm text-foreground"
               }
             >
               {m.parts.map((part, i) => {

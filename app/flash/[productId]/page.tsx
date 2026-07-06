@@ -60,7 +60,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
     return (
       <div className="space-y-6" role="status" aria-busy="true">
         <Skeleton className="h-5 w-20 rounded-full" />
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="grid gap-6 web:lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-6">
             <Skeleton className="aspect-square w-full rounded-2xl sm:aspect-[4/3]" />
             <div className="space-y-2">
