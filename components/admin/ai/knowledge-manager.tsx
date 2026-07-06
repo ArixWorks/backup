@@ -28,6 +28,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
+import { useBulkSelection } from "@/lib/hooks/use-bulk-selection"
+import { SelectionCheckbox } from "@/components/admin/bulk/selection-checkbox"
+import { BulkActionsBar, type BulkDeleteResult } from "@/components/admin/bulk/bulk-actions-bar"
 
 const KB_URL = "/api/v1/admin/ai/knowledge"
 
@@ -70,6 +74,12 @@ const STATUS_META: Record<KnowledgeDoc["status"], { label: string; className: st
 export function KnowledgeManager() {
   const { data, isLoading } = useSWR<{ data: KnowledgeDoc[] }>(KB_URL, fetcher)
   const docs = data?.data ?? []
+  const selection = useBulkSelection(docs.map((d) => d.id))
+
+  async function removeSelected(): Promise<BulkDeleteResult> {
+    const res = await apiDelete<{ data: BulkDeleteResult }>(KB_URL, { ids: selection.selectedIds })
+    return res.data
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -161,7 +171,20 @@ export function KnowledgeManager() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{docs.length} سند</p>
+        {docs.length > 0 ? (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <SelectionCheckbox
+              checked={selection.allSelected}
+              indeterminate={selection.someSelected}
+              onChange={selection.toggleAll}
+              label="انتخاب همه"
+              stopPropagation={false}
+            />
+            {selection.count > 0 ? `${selection.count} انتخاب‌شده` : `${docs.length} سند`}
+          </label>
+        ) : (
+          <p className="text-sm text-muted-foreground">{docs.length} سند</p>
+        )}
         <Button onClick={openCreate} className="gap-2">
           <Plus className="size-4" />
           سند جدید
@@ -184,9 +207,19 @@ export function KnowledgeManager() {
             return (
               <li
                 key={doc.id}
-                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between"
+                className={cn(
+                  "flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 md:flex-row md:items-center md:justify-between",
+                  selection.isSelected(doc.id) && "border-primary/60 bg-primary/5",
+                )}
               >
-                <div className="min-w-0 space-y-1">
+                <div className="flex min-w-0 items-start gap-3">
+                  <SelectionCheckbox
+                    checked={selection.isSelected(doc.id)}
+                    onChange={() => selection.toggle(doc.id)}
+                    label={`انتخاب ${doc.title}`}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="truncate font-semibold text-foreground">{doc.title}</h3>
                     <Badge variant="secondary" className={status.className}>
@@ -210,6 +243,7 @@ export function KnowledgeManager() {
                       {doc.error}
                     </p>
                   ) : null}
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
@@ -316,6 +350,14 @@ export function KnowledgeManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkActionsBar
+        count={selection.count}
+        itemNoun="سند"
+        onDelete={removeSelected}
+        onClear={selection.clear}
+        onDone={() => mutate(KB_URL)}
+      />
     </div>
   )
 }

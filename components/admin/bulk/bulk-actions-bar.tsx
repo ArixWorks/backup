@@ -38,8 +38,9 @@ export function BulkActionsBar({
   /** Perform the delete. Should return the API result for reporting. */
   onDelete: () => Promise<BulkDeleteResult | void>
   onClear: () => void
-  /** Called after a successful (even partial) delete so the caller can refresh. */
-  onDone: () => void | Promise<void>
+  /** Called after a successful (even partial) delete so the caller can refresh.
+   * Return type is intentionally loose to accept SWR's `mutate`. */
+  onDone: () => unknown
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [busy, setBusy] = useState(false)
