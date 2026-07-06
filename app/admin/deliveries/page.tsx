@@ -10,7 +10,7 @@ import { StatusPill } from "@/components/admin/status-pill"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { EnhancedTextarea } from "@/components/rich-content"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
@@ -161,11 +161,13 @@ export default function DeliveriesPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="n">یادداشت / توضیحات</Label>
-              <Textarea
+              <EnhancedTextarea
                 id="n"
                 value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-                rows={3}
+                onChange={(v) => setForm({ ...form, note: v })}
+                minRows={3}
+                maxRows={10}
+                showCount={false}
               />
             </div>
           </DialogBody>

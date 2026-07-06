@@ -24,7 +24,7 @@ import { fetcher, apiPut, apiPost } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { EnhancedTextarea } from "@/components/rich-content"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
@@ -254,11 +254,13 @@ export function BotEditor() {
                     {key}
                   </code>
                 </Label>
-                <Textarea
-                  rows={value.length > 120 ? 4 : 2}
+                <EnhancedTextarea
+                  minRows={value.length > 120 ? 4 : 2}
+                  maxRows={12}
+                  showCount={false}
                   value={value}
-                  onChange={(e) =>
-                    update((c) => ({ ...c, texts: { ...c.texts, [key]: e.target.value } }))
+                  onChange={(v) =>
+                    update((c) => ({ ...c, texts: { ...c.texts, [key]: v } }))
                   }
                   className="font-mono text-sm leading-relaxed"
                 />

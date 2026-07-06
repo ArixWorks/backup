@@ -162,45 +162,45 @@ enum SupportCategory {
 // ---------------------------------------------------------------------------
 
 model User {
-  id          String     @id @default(cuid())
-  email       String?    @unique
+  id                 String     @id @default(cuid())
+  email              String?    @unique
   // Argon2id password hash for email/password login (null = Telegram-only account).
   // Legacy scrypt hashes are still accepted and transparently rehashed on next login.
-  passwordHash String?
+  passwordHash       String?
   // True once the email address has been confirmed via a verification token.
   // A verified email is locked and can no longer be changed from the UI.
-  emailVerified Boolean   @default(false)
+  emailVerified      Boolean    @default(false)
   // Forces a password change on next login (used for the seeded admin account).
-  mustChangePassword Boolean @default(false)
+  mustChangePassword Boolean    @default(false)
   // "telegram" | "password" — the method used for the most recent successful login.
-  lastLoginMethod String?
+  lastLoginMethod    String?
   // Bumped to invalidate every existing signed session (logout from all devices).
-  tokenVersion Int        @default(0)
-  telegramId  String?    @unique
+  tokenVersion       Int        @default(0)
+  telegramId         String?    @unique
   // Telegram chat id used for push notifications (usually equals telegramId for private chats).
-  telegramChatId String?
-  telegramUsername String?
-  photoUrl    String?
-  languageCode String?
+  telegramChatId     String?
+  telegramUsername   String?
+  photoUrl           String?
+  languageCode       String?
   // True once the user manually picks a language, so Telegram's language_code stops overriding it.
-  localeManual Boolean   @default(false)
-  isPremium   Boolean    @default(false)
-  username    String?    @unique
-  displayName String
-  alias       String     @unique // public pseudonym shown in bid history
-  role        UserRole   @default(USER)
-  status      UserStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  localeManual       Boolean    @default(false)
+  isPremium          Boolean    @default(false)
+  username           String?    @unique
+  displayName        String
+  alias              String     @unique // public pseudonym shown in bid history
+  role               UserRole   @default(USER)
+  status             UserStatus @default(ACTIVE)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   // Referral program: each user has a shareable code; referredById points to
   // the inviter. referralRewarded flips true once the first-purchase bonus is paid.
-  referralCode     String?  @unique
-  referredById     String?
-  referredBy       User?    @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals        User[]   @relation("UserReferrals")
+  referralCode         String? @unique
+  referredById         String?
+  referredBy           User?   @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals            User[]  @relation("UserReferrals")
   // referralRewarded flips true once the one-time first-purchase bonus is paid.
-  referralRewarded Boolean  @default(false)
+  referralRewarded     Boolean @default(false)
   // referralJoinRewarded flips true once the inviter's "joined" bonus (stage A:
   // friend started the bot and passed the forced-join gate) is paid. Separate
   // guard so the join reward and the first-purchase reward each pay exactly once.
@@ -209,49 +209,49 @@ model User {
   // Gamification & loyalty -------------------------------------------------
   // loyaltyPoints is the current spendable balance; lifetimePoints is the
   // monotonic total ever earned and is one of the two VIP-tier drivers.
-  loyaltyPoints    Int       @default(0)
-  lifetimePoints   Int       @default(0)
+  loyaltyPoints      Int       @default(0)
+  lifetimePoints     Int       @default(0)
   // totalSpent is lifetime spend in IRT minor units, the other VIP driver.
-  totalSpent       BigInt    @default(0)
+  totalSpent         BigInt    @default(0)
   // vipTier holds the EARNED auto tier (STANDARD..DIAMOND), never VIP.
-  vipTier          VipTier   @default(STANDARD)
-  vipSince         DateTime?
+  vipTier            VipTier   @default(STANDARD)
+  vipSince           DateTime?
   // Exclusive VIP membership, granted only by an admin. When vipManual is true
   // (and not past vipManualExpiresAt) the user's effective tier is VIP,
   // overriding their earned tier. Admin can toggle it on/off at any time.
   vipManual          Boolean   @default(false)
   vipManualExpiresAt DateTime?
   // Daily-login streak tracking for the "daily login" mission.
-  lastLoginDay     String?   // "YYYY-MM-DD" of the last counted login
-  loginStreak      Int       @default(0)
-  profileCompleted Boolean   @default(false)
+  lastLoginDay       String? // "YYYY-MM-DD" of the last counted login
+  loginStreak        Int       @default(0)
+  profileCompleted   Boolean   @default(false)
   // Set once the user finishes the first-run onboarding flow (join gate →
   // language → guided tutorial → success). Null means onboarding is pending.
-  onboardedAt      DateTime?
+  onboardedAt        DateTime?
 
   pointEntries PointLedger[]
   userBadges   UserBadge[]
   userMissions UserMission[]
 
-  wallets     Wallet[]
-  ledgerAccounts LedgerAccount[]
-  conversions CurrencyConversion[]
-  bids        Bid[]
-  orders      Order[]
-  watchlist   WatchlistEntry[]
-  auditLogs   AuditLog[]
-  deposits    DepositRequest[]
-  withdrawals WithdrawalRequest[]
-  refunds     RefundRequest[]
-  tickets     SupportTicket[]
-  reviews     Review[]
-  redemptions CouponRedemption[]
-  notifications Notification[]
-  stockAlerts StockAlert[]
+  wallets         Wallet[]
+  ledgerAccounts  LedgerAccount[]
+  conversions     CurrencyConversion[]
+  bids            Bid[]
+  orders          Order[]
+  watchlist       WatchlistEntry[]
+  auditLogs       AuditLog[]
+  deposits        DepositRequest[]
+  withdrawals     WithdrawalRequest[]
+  refunds         RefundRequest[]
+  tickets         SupportTicket[]
+  reviews         Review[]
+  redemptions     CouponRedemption[]
+  notifications   Notification[]
+  stockAlerts     StockAlert[]
   categoryFollows CategoryFollow[]
-  authTokens  AuthToken[]
-  giveawayEntries  GiveawayEntry[]
-  giveawayWins     GiveawayWinner[]
+  authTokens      AuthToken[]
+  giveawayEntries GiveawayEntry[]
+  giveawayWins    GiveawayWinner[]
 
   @@index([status])
   @@index([referredById])
@@ -296,19 +296,19 @@ model Wallet {
 
 // Immutable ledger. Records are never updated or deleted.
 model WalletTransaction {
-  id          String       @id @default(cuid())
-  walletId    String
-  wallet      Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  type        WalletTxType
+  id           String       @id @default(cuid())
+  walletId     String
+  wallet       Wallet       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type         WalletTxType
   // Denormalised currency of the wallet, copied for convenient querying.
-  currency    String       @default("IRT")
-  amount      BigInt // signed delta applied by this entry
+  currency     String       @default("IRT")
+  amount       BigInt // signed delta applied by this entry
   balanceAfter BigInt
-  frozenAfter BigInt
-  refType     String? // e.g. "auction", "order", "deposit"
-  refId       String?
-  note        String?
-  createdAt   DateTime     @default(now())
+  frozenAfter  BigInt
+  refType      String? // e.g. "auction", "order", "deposit"
+  refId        String?
+  note         String?
+  createdAt    DateTime     @default(now())
 
   @@index([walletId, createdAt])
   @@index([refType, refId])
@@ -406,14 +406,14 @@ model LedgerEntry {
 // One side of a ledger entry. amount is signed; balanceAfter snapshots the
 // account balance immediately after this leg was applied.
 model LedgerLeg {
-  id          String        @id @default(cuid())
-  entryId     String
-  entry       LedgerEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  accountId   String
-  account     LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  amount      BigInt // signed; sum across an entry's legs == 0
+  id           String        @id @default(cuid())
+  entryId      String
+  entry        LedgerEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId    String
+  account      LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount       BigInt // signed; sum across an entry's legs == 0
   balanceAfter BigInt
-  createdAt   DateTime      @default(now())
+  createdAt    DateTime      @default(now())
 
   @@index([accountId, createdAt])
   @@index([entryId])
@@ -619,25 +619,25 @@ model CategoryFollow {
 // ---------------------------------------------------------------------------
 
 model FixedSale {
-  id            String    @id @default(cuid())
-  productId     String    @unique
-  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  price         BigInt
-  stock         Int       @default(0)
-  reservedStock Int       @default(0) // temporary reservations for in-flight checkouts
-  purchaseLimit Int? // max units per user
+  id                  String    @id @default(cuid())
+  productId           String    @unique
+  product             Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price               BigInt
+  stock               Int       @default(0)
+  reservedStock       Int       @default(0) // temporary reservations for in-flight checkouts
+  purchaseLimit       Int? // max units per user
   // Real number of units sold through the bot/app (incremented per purchase).
-  soldCount     Int       @default(0)
+  soldCount           Int       @default(0)
   // Vanity baseline added to soldCount for public display (editable in admin).
-  soldBaseline  Int       @default(0)
+  soldBaseline        Int       @default(0)
   // Bulk discount: when quantity >= bulkMinQty, apply bulkDiscountPercent off.
   bulkMinQty          Int?
   bulkDiscountPercent Int?
-  startTime     DateTime?
-  endTime       DateTime?
-  version       Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  startTime           DateTime?
+  endTime             DateTime?
+  version             Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -645,32 +645,32 @@ model FixedSale {
 // ---------------------------------------------------------------------------
 
 model Auction {
-  id                String        @id @default(cuid())
-  productId         String        @unique
-  product           Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  startPrice        BigInt
-  currentPrice      BigInt        @default(0)
-  minimumIncrement  BigInt        @default(1000)
-  reservePrice      BigInt?
-  buyNowPrice       BigInt?
-  startTime         DateTime
-  endTime           DateTime
-  antiSnipingEnabled Boolean      @default(true)
-  antiSnipingSeconds Int          @default(120)
-  autoExtend        Boolean       @default(true)
-  quantity          Int           @default(1) // multi-winner support
-  status            AuctionStatus @default(SCHEDULED)
+  id                 String        @id @default(cuid())
+  productId          String        @unique
+  product            Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  startPrice         BigInt
+  currentPrice       BigInt        @default(0)
+  minimumIncrement   BigInt        @default(1000)
+  reservePrice       BigInt?
+  buyNowPrice        BigInt?
+  startTime          DateTime
+  endTime            DateTime
+  antiSnipingEnabled Boolean       @default(true)
+  antiSnipingSeconds Int           @default(120)
+  autoExtend         Boolean       @default(true)
+  quantity           Int           @default(1) // multi-winner support
+  status             AuctionStatus @default(SCHEDULED)
   // Optimistic-locking guard for bid races.
-  version           Int           @default(0)
+  version            Int           @default(0)
   // Idempotency flag: set true once the "ending soon" alert has been sent.
-  endingSoonNotified Boolean      @default(false)
-  finalizedAt       DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  endingSoonNotified Boolean       @default(false)
+  finalizedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  bids      Bid[]
-  orders    Order[]
-  watchers  WatchlistEntry[]
+  bids     Bid[]
+  orders   Order[]
+  watchers WatchlistEntry[]
 
   @@index([status, endTime])
 }
@@ -707,20 +707,20 @@ model WatchlistEntry {
 // ---------------------------------------------------------------------------
 
 model Order {
-  id          String      @id @default(cuid())
-  publicId    String      @unique // unguessable reference
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product     @relation(fields: [productId], references: [id])
-  auctionId   String?
-  auction     Auction?    @relation(fields: [auctionId], references: [id])
-  type        OrderType
-  status      OrderStatus @default(PENDING)
-  amount      BigInt
-  quantity    Int         @default(1)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String      @id @default(cuid())
+  publicId  String      @unique // unguessable reference
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product     @relation(fields: [productId], references: [id])
+  auctionId String?
+  auction   Auction?    @relation(fields: [auctionId], references: [id])
+  type      OrderType
+  status    OrderStatus @default(PENDING)
+  amount    BigInt
+  quantity  Int         @default(1)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   delivery Delivery?
 
@@ -744,16 +744,16 @@ model Delivery {
 
 // Inventory pool for automatic delivery. Each item is single-use.
 model InventoryItem {
-  id          String          @id @default(cuid())
-  productId   String
-  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  username    String?
-  password    String?
-  licenseKey  String?
-  note        String?
-  status      InventoryStatus @default(AVAILABLE)
-  reservedAt  DateTime?
-  createdAt   DateTime        @default(now())
+  id         String          @id @default(cuid())
+  productId  String
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  username   String?
+  password   String?
+  licenseKey String?
+  note       String?
+  status     InventoryStatus @default(AVAILABLE)
+  reservedAt DateTime?
+  createdAt  DateTime        @default(now())
 
   delivery Delivery?
 
@@ -775,17 +775,17 @@ model BotSetting {
 // ---------------------------------------------------------------------------
 
 model DepositRequest {
-  id           String        @id @default(cuid())
-  publicId     String        @unique
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount       BigInt // wallet credit in IRT base minor units
-  status       DepositStatus @default(PENDING)
-  method       DepositMethod @default(CARD)
+  id       String        @id @default(cuid())
+  publicId String        @unique
+  userId   String
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount   BigInt // wallet credit in IRT base minor units
+  status   DepositStatus @default(PENDING)
+  method   DepositMethod @default(CARD)
 
   // What the user actually pays (IRT / USDT / TON / XTR).
-  payCurrency String @default("IRT")
-  payAmount   BigInt @default(0) // unique amount in payCurrency minor units
+  payCurrency String  @default("IRT")
+  payAmount   BigInt  @default(0) // unique amount in payCurrency minor units
   payAddress  String? // destination snapshot (card no / wallet address / UID)
   payNetwork  String? // e.g. BEP20 / TRC20 / TON
   payTag      String? // unique transfer-note code (card/UID flows)
@@ -806,8 +806,8 @@ model DepositRequest {
   reviewedById String?
   reviewedAt   DateTime?
   rejectReason String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
@@ -961,46 +961,46 @@ enum GiveawayEntrySource {
 }
 
 model Giveaway {
-  id            String             @id @default(cuid())
-  slug          String             @unique // unguessable public reference
-  title         String
-  subtitle      String?
-  description   String? // rich text / markdown-ish
+  id                  String             @id @default(cuid())
+  slug                String             @unique // unguessable public reference
+  title               String
+  subtitle            String?
+  description         String? // rich text / markdown-ish
   // Native multilingual copy generated by the AI Copilot (fa/en/ru/hi).
-  i18n          Json?
-  coverImage    String?
-  prizeImage    String?
+  i18n                Json?
+  coverImage          String?
+  prizeImage          String?
   // Display label for the prize (e.g. "اشتراک یک‌ماهه VPN", "۵۰۰ هزار تومان اعتبار").
-  prizeLabel    String
-  prizeKind     GiveawayPrizeKind  @default(CUSTOM)
+  prizeLabel          String
+  prizeKind           GiveawayPrizeKind  @default(CUSTOM)
   // WALLET: amount in minor units (Toman). Other kinds: null.
-  prizeAmount   BigInt?
+  prizeAmount         BigInt?
   // INVENTORY: the product whose inventory pool prizes are claimed from.
-  prizeProductId String?
-  prizeProduct  Product?           @relation(fields: [prizeProductId], references: [id], onDelete: SetNull)
+  prizeProductId      String?
+  prizeProduct        Product?           @relation(fields: [prizeProductId], references: [id], onDelete: SetNull)
   // COUPON: template used to mint a per-winner coupon (type/value/expiry days).
-  couponType    CouponType?
-  couponValue   BigInt?
+  couponType          CouponType?
+  couponValue         BigInt?
   couponExpiresInDays Int?
-  winnersCount  Int                @default(1)
+  winnersCount        Int                @default(1)
   // Required Telegram channels to be eligible. Array of { id, title, url }.
-  requiredChannels Json?
-  startAt       DateTime
-  endAt         DateTime
-  drawAt        DateTime
+  requiredChannels    Json?
+  startAt             DateTime
+  endAt               DateTime
+  drawAt              DateTime
   // IANA timezone label for admin display (storage is always UTC).
-  timezone      String             @default("Asia/Tehran")
-  status        GiveawayStatus     @default(DRAFT)
-  visibility    GiveawayVisibility @default(PUBLIC)
-  autoDraw      Boolean            @default(false) // draw automatically at drawAt without admin approval
-  internalNotes String?
+  timezone            String             @default("Asia/Tehran")
+  status              GiveawayStatus     @default(DRAFT)
+  visibility          GiveawayVisibility @default(PUBLIC)
+  autoDraw            Boolean            @default(false) // draw automatically at drawAt without admin approval
+  internalNotes       String?
   // True once admins have been alerted ~5 min before drawAt (avoids duplicate alerts).
-  preDrawNotified Boolean          @default(false)
+  preDrawNotified     Boolean            @default(false)
   // Cryptographic seed recorded at draw time so the selection is auditable/reproducible.
-  drawSeed      String?
-  drawnAt       DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  drawSeed            String?
+  drawnAt             DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   entries GiveawayEntry[]
   winners GiveawayWinner[]
@@ -1031,21 +1031,21 @@ model GiveawayEntry {
 }
 
 model GiveawayWinner {
-  id         String         @id @default(cuid())
-  giveawayId String
-  giveaway   Giveaway       @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  entryId    String         @unique
-  entry      GiveawayEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  position   Int // 1-based winner index
+  id            String        @id @default(cuid())
+  giveawayId    String
+  giveaway      Giveaway      @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  entryId       String        @unique
+  entry         GiveawayEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position      Int // 1-based winner index
   // Prize delivery lifecycle.
-  delivered  Boolean        @default(false)
-  deliveredAt DateTime?
+  delivered     Boolean       @default(false)
+  deliveredAt   DateTime?
   // Delivered payload (coupon code, credentials, claim note) — never shown publicly.
-  claimData  Json?
+  claimData     Json?
   deliveryError String?
-  createdAt  DateTime       @default(now())
+  createdAt     DateTime      @default(now())
 
   @@unique([giveawayId, userId])
   @@index([giveawayId, position])
@@ -1222,10 +1222,10 @@ enum AlertStatus {
 // Time-series store for every collected metric (infra / app / business).
 // Kept compact; old rows are pruned by the monitor cron.
 model MetricSample {
-  id        String   @id @default(cuid())
-  name      String // metric key, e.g. "system.cpu.load1" or "app.rps"
-  value     Float
-  labels    Json? // optional dimensions, e.g. { service: "api", route: "/x" }
+  id         String   @id @default(cuid())
+  name       String // metric key, e.g. "system.cpu.load1" or "app.rps"
+  value      Float
+  labels     Json? // optional dimensions, e.g. { service: "api", route: "/x" }
   capturedAt DateTime @default(now())
 
   @@index([name, capturedAt])
@@ -1269,18 +1269,18 @@ model ErrorEvent {
 
 // Threshold/anomaly rule that drives alerting.
 model AlertRule {
-  id             String          @id @default(cuid())
-  name           String
-  metric         String // metric key this rule watches
-  comparator     AlertComparator @default(GT)
-  threshold      Float
-  forSeconds     Int             @default(0) // sustained duration before firing
-  severity       AlertSeverity   @default(WARNING)
-  channels       Json            @default("[\"dashboard\"]") // ["telegram","email","dashboard"]
-  enabled        Boolean         @default(true)
-  cooldownSeconds Int            @default(900)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  name            String
+  metric          String // metric key this rule watches
+  comparator      AlertComparator @default(GT)
+  threshold       Float
+  forSeconds      Int             @default(0) // sustained duration before firing
+  severity        AlertSeverity   @default(WARNING)
+  channels        Json            @default("[\"dashboard\"]") // ["telegram","email","dashboard"]
+  enabled         Boolean         @default(true)
+  cooldownSeconds Int             @default(900)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   events AlertEvent[]
 
@@ -1480,15 +1480,15 @@ model AiUsageEvent {
 // A named, versioned prompt. The current pointer is `activeVersion`; history is
 // kept in AiPromptVersion so prompts can be rolled back and A/B compared.
 model AiPromptTemplate {
-  id            String             @id @default(cuid())
+  id            String   @id @default(cuid())
   // Stable key referenced from code, e.g. "support.reply", "content.seo".
-  key           String             @unique
+  key           String   @unique
   name          String
   description   String?
   feature       String? // grouping for the prompt library UI
-  activeVersion Int                @default(1)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  activeVersion Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   versions AiPromptVersion[]
 
@@ -1515,15 +1515,15 @@ model AiPromptVersion {
 // Durable AI memory. `scope` + `scopeId` namespace entries (e.g.
 // scope="user", scopeId=<userId>; or scope="global"). `key` is unique per scope.
 model AiMemory {
-  id        String   @id @default(cuid())
-  scope     String   @default("global")
-  scopeId   String   @default("global")
+  id        String    @id @default(cuid())
+  scope     String    @default("global")
+  scopeId   String    @default("global")
   key       String
   value     Json
   // Optional soft expiry for transient memories.
   expiresAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([scope, scopeId, key])
   @@index([scope, scopeId])
@@ -1590,19 +1590,19 @@ model AiKnowledgeChunk {
 // ---------------------------------------------------------------------------
 
 model AiAutomation {
-  id          String              @id @default(cuid())
+  id          String    @id @default(cuid())
   // Stable identifier that maps to a handler in the automation registry.
-  key         String              @unique
-  enabled     Boolean             @default(false)
+  key         String    @unique
+  enabled     Boolean   @default(false)
   // Cron-like cadence in minutes between runs (the tick enforces the interval).
-  intervalMin Int                 @default(1440)
+  intervalMin Int       @default(1440)
   // Free-form per-automation config (thresholds, recipients, locale, ...).
   config      Json?
   lastRunAt   DateTime?
   nextRunAt   DateTime?
   lastStatus  String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   runs AiAutomationRun[]
 
@@ -1621,4 +1621,238 @@ model AiAutomationRun {
   createdAt    DateTime     @default(now())
 
   @@index([automationId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Rich Content Platform
+// Shared editor infrastructure used by every long-form content surface
+// (products, auctions, giveaways, articles, FAQ, rules, emails, channel posts).
+// Content itself lives on each owning model as standard semantic HTML; these
+// tables back the cross-cutting features (media library, snippets, revisions).
+// ---------------------------------------------------------------------------
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  ARCHIVE
+  OTHER
+}
+
+/// Optional folders for organizing the shared Media Library.
+model MediaFolder {
+  id        String        @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  MediaFolder[] @relation("FolderTree")
+  assets    MediaAsset[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([parentId])
+}
+
+/// Every file uploaded through the Media Manager. `url` is the Blob URL (or the
+/// authenticated proxy path for private files). Deleting a folder detaches its
+/// assets rather than removing the files.
+model MediaAsset {
+  id           String       @id @default(cuid())
+  url          String
+  pathname     String? // Blob pathname, for deletion
+  kind         MediaKind    @default(OTHER)
+  mimeType     String
+  filename     String
+  size         Int          @default(0)
+  width        Int?
+  height       Int?
+  blurDataUrl  String? // tiny base64 placeholder for images
+  alt          String?
+  caption      String?
+  tags         String[]     @default([])
+  folderId     String?
+  folder       MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploadedById String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([kind])
+  @@index([folderId])
+  @@index([createdAt])
+}
+
+/// Reusable content blocks/snippets. Body is canonical semantic HTML; inserting
+/// a snippet expands it into normal editable nodes (copy-in, not live-linked).
+model ContentSnippet {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?
+  html        String // semantic HTML body
+  scope       String   @default("global") // reserved for future per-section scoping
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([name])
+}
+
+/// Version history for any rich field. `entityType`+`entityId`+`field`
+/// identifies the owning column; `status` distinguishes drafts, the published
+/// snapshot, and prior revisions so any version can be restored.
+model ContentRevision {
+  id          String   @id @default(cuid())
+  entityType  String // e.g. "product", "article", "faq"
+  entityId    String
+  field       String   @default("description")
+  html        String
+  status      String   @default("revision") // "draft" | "published" | "revision"
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId, field, createdAt])
+}
+
+/// Forward-compatibility only (NOT wired this phase): inline comment threads
+/// anchored to a `data-comment-id` mark in the content. Present so future
+/// collaboration/commenting needs no storage-format change or data migration.
+model ContentComment {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  field      String   @default("description")
+  anchorId   String // matches data-comment-id in the HTML
+  body       String
+  authorId   String?
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([entityType, entityId, field])
+  @@index([anchorId])
+}
+
+// ---------------------------------------------------------------------------
+// Generic, Type-Driven CMS
+// One `Content` table backs every content type (article, faq, rules, tutorial,
+// help, vps/domain landings, and any future type). The type's behaviour —
+// fields, routing, taxonomy, relations, navigation — is declared in code via
+// the registry in lib/cms. Adding a new content type needs NO schema change.
+// ---------------------------------------------------------------------------
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+/// A single piece of managed content. `type` is the registry content-type key.
+/// `body` is canonical semantic HTML (same format as product descriptions).
+/// `fields` holds type-specific custom fields validated by the registry.
+model Content {
+  id           String        @id @default(cuid())
+  type         String // registry key: "article" | "faq" | "rules" | ...
+  slug         String
+  locale       String        @default("fa")
+  title        String
+  excerpt      String?
+  body         String        @default("") // semantic HTML
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+
+  // SEO
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String[] @default([])
+  ogImageUrl     String?
+  canonicalUrl   String?
+  noindex        Boolean  @default(false)
+
+  // Type-specific custom fields (shape validated by registry Zod schema).
+  fields Json @default("{}")
+
+  // Presentation / taxonomy
+  coverImageUrl String?
+  order         Int              @default(0)
+  categoryId    String?
+  category      ContentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags          ContentTag[]     @relation("ContentTags")
+
+  // Navigation metadata (per-content overrides of the type's nav defaults).
+  navShow         Boolean   @default(false)
+  navLabel        String?
+  navIcon         String?
+  navOrder        Int       @default(0)
+  navPlacement    String[]  @default([]) // HEADER | FOOTER | SIDEBAR
+  navParentId     String?
+  navParent       Content?  @relation("ContentNavTree", fields: [navParentId], references: [id], onDelete: SetNull)
+  navChildren     Content[] @relation("ContentNavTree")
+  breadcrumbLabel String?
+
+  // Outgoing relationships (to other content or domain entities).
+  relations ContentRelation[] @relation("ContentRelationsFrom")
+
+  authorId    String?
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, slug, locale])
+  @@index([type, status])
+  @@index([type, categoryId])
+  @@index([status, publishedAt])
+  @@index([navParentId])
+}
+
+/// Per-type taxonomy (hierarchical). Categories are scoped by content `type`.
+model ContentCategory {
+  id        String            @id @default(cuid())
+  type      String
+  name      String
+  slug      String
+  parentId  String?
+  parent    ContentCategory?  @relation("ContentCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  ContentCategory[] @relation("ContentCategoryTree")
+  order     Int               @default(0)
+  contents  Content[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([type, slug])
+  @@index([type])
+  @@index([parentId])
+}
+
+/// Shared, cross-type tags (implicit many-to-many with Content).
+model ContentTag {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  contents  Content[] @relation("ContentTags")
+  createdAt DateTime  @default(now())
+
+  @@index([name])
+}
+
+/// Generic, polymorphic relationship rows. `targetId` is polymorphic (not a
+/// hard FK) so a single content item can link to other content OR domain
+/// entities (product/auction/giveaway). The resolver validates existence per
+/// `targetType`. `relationKey` identifies which declared relation slot it fills.
+model ContentRelation {
+  id            String   @id @default(cuid())
+  fromContentId String
+  fromContent   Content  @relation("ContentRelationsFrom", fields: [fromContentId], references: [id], onDelete: Cascade)
+  targetType    String // "content" | "product" | "auction" | "giveaway"
+  targetId      String
+  relationKey   String // declared slot key, e.g. "relatedProducts"
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([fromContentId, relationKey])
+  @@index([targetType, targetId])
 }

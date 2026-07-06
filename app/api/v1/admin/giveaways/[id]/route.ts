@@ -3,6 +3,7 @@ import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { getGiveawayById, updateGiveaway, deleteGiveaway, getGiveawayStats } from "@/lib/core/giveaway"
+import { richTextField } from "@/lib/rich-content/zod"
 
 export const dynamic = "force-dynamic"
 
@@ -15,7 +16,7 @@ const channelSchema = z.object({
 const updateSchema = z.object({
   title: z.string().trim().min(2).max(120).optional(),
   subtitle: z.string().trim().max(160).nullish(),
-  description: z.string().trim().max(4000).nullish(),
+  description: richTextField(20_000).nullish(),
   i18n: z.record(z.string(), z.unknown()).nullish(),
   coverImage: z.string().trim().nullish(),
   prizeImage: z.string().trim().nullish(),

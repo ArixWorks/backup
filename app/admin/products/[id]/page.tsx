@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
-import { RichText } from "@/components/rich-text"
+import { RichContent, RichContentEditor } from "@/components/rich-content"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { StatusPill } from "@/components/admin/status-pill"
 import { Button } from "@/components/ui/button"
@@ -82,8 +82,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <DeliveryBadge type={product.deliveryType === "AUTOMATIC" ? "AUTO_POOL" : "MANUAL"} />
               {product.hidden && <StatusPill status="PENDING" className="!bg-muted" />}
             </div>
-            {product.description && <RichText content={product.description} className="mt-2" />}
+            {product.description && <RichContent content={product.description} className="mt-2" />}
           </div>
+
+          <DescriptionEditor
+            id={id}
+            initial={product.description ?? ""}
+            onSaved={mutate}
+          />
 
           <ImprovePanel
             entityId="product"
@@ -140,6 +146,56 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function DescriptionEditor({
+  id,
+  initial,
+  onSaved,
+}: {
+  id: string
+  initial: string
+  onSaved: () => void
+}) {
+  const [html, setHtml] = useState(initial)
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    try {
+      const r = await fetch(`/api/v1/admin/products/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ description: html }),
+      })
+      if (!r.ok) throw new ApiError((await r.json())?.error?.message ?? "خطا", "ERR", r.status)
+      toast.success("توضیحات ذخیره شد")
+      onSaved()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در ذخیره توضیحات")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold">توضیحات کامل</h2>
+        <Button onClick={save} disabled={saving} size="sm" className="gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          ذخیره توضیحات
+        </Button>
+      </div>
+      <RichContentEditor
+        value={html}
+        onChange={setHtml}
+        draftKey={`product-${id}-description`}
+        placeholder="توضیح کامل محصول را بنویسید یا «/» را برای دستورها تایپ کنید…"
+      />
     </div>
   )
 }

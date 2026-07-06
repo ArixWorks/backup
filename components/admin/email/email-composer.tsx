@@ -5,8 +5,8 @@ import { Eye, Loader2, Send, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { EnhancedTextarea } from "@/components/rich-content"
 import { apiPost, ApiError } from "@/lib/api-client"
 import {
   CopilotProvider,
@@ -147,11 +147,13 @@ export function EmailComposer() {
 
           <div className="space-y-1.5">
             <Label htmlFor="email-body">متن ایمیل</Label>
-            <Textarea
+            <EnhancedTextarea
               id="email-body"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={8}
+              onChange={setBody}
+              minRows={8}
+              maxRows={20}
+              maxLength={20000}
               placeholder="متن اصلی ایمیل را اینجا بنویسید یا از دستیار هوش مصنوعی کمک بگیرید"
             />
           </div>

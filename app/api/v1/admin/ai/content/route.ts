@@ -6,6 +6,7 @@ import {
   generateProductDescription,
   generateSeo,
   rewriteText,
+  runInlineAction,
   suggestTaxonomy,
   translateText,
 } from "@/lib/ai/content"
@@ -56,6 +57,13 @@ const schema = z.discriminatedUnion("task", [
     tone: z.string().optional(),
     locale: z.string().optional(),
   }),
+  z.object({
+    task: z.literal("inline"),
+    action: z.enum(["rewrite", "expand", "shorten", "improve", "translate", "seo", "grammar"]),
+    html: z.string().min(1),
+    targetLocale: z.string().optional(),
+    locale: z.string().optional(),
+  }),
 ])
 
 export const POST = route(async (req: Request) => {
@@ -76,5 +84,7 @@ export const POST = route(async (req: Request) => {
       return rewriteText(body, actor)
     case "announcement":
       return generateAnnouncement(body, actor)
+    case "inline":
+      return runInlineAction(body, actor)
   }
 })

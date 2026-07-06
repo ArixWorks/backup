@@ -9,7 +9,6 @@ import { apiPost } from "@/lib/api-client"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
@@ -22,6 +21,7 @@ import {
 import { cn } from "@/lib/utils"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
+import { RichContentEditor, EnhancedTextarea } from "@/components/rich-content"
 import { tehranInputToUtcISO } from "@/lib/format"
 import {
   CopilotProvider,
@@ -206,19 +206,21 @@ export default function NewProductPage() {
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً اشتراک یک‌ساله ChatGPT Plus" />
           </Field>
           <Field label="توضیح کوتاه" hint="یک جمله جذاب برای کارت محصول">
-            <Textarea
+            <EnhancedTextarea
               value={shortDescription}
-              onChange={(e) => setShortDescription(e.target.value)}
-              rows={2}
+              onChange={setShortDescription}
+              minRows={2}
+              maxRows={5}
+              maxLength={200}
               placeholder="مثلاً: دسترسی فوری، گارانتی بازگشت وجه"
             />
           </Field>
-          <Field label="توضیحات کامل">
-            <Textarea
+          <Field label="توضیحات کامل" hint="ویرایشگر کامل با پشتیبانی از رسانه، جدول، هشدار و دستیار هوشمند">
+            <RichContentEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              placeholder="توضیح کامل درباره محصول"
+              onChange={setDescription}
+              draftKey="product-new-description"
+              placeholder="توضیح کامل درباره محصول را بنویسید یا «/» را برای دستورها تایپ کنید…"
             />
           </Field>
           <Field label="دسته‌بندی">

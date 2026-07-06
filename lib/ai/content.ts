@@ -184,6 +184,56 @@ export async function rewriteText(
 }
 
 // ---------------------------------------------------------------------------
+// Task: inline editor actions (Rich Content Editor bubble menu)
+// Operates on a selected fragment and returns semantic-HTML ready to splice
+// back into the document. Kept HTML-first so the editor inserts rich nodes,
+// not raw text.
+// ---------------------------------------------------------------------------
+export type InlineAction = "rewrite" | "expand" | "shorten" | "improve" | "translate" | "seo" | "grammar"
+
+const INLINE_INSTRUCTION: Record<InlineAction, string> = {
+  rewrite: "این متن را با حفظ معنا بازنویسی کن.",
+  expand: "این متن را با جزئیات و توضیح بیشتر گسترش بده.",
+  shorten: "این متن را کوتاه‌تر و فشرده‌تر کن بدون حذف نکات کلیدی.",
+  improve: "این متن را از نظر نگارش، روانی و جذابیت بهبود بده.",
+  translate: "این متن را ترجمه کن.",
+  seo: "این متن را برای سئو بهینه کن؛ از کلمات کلیدی طبیعی و ساختار مناسب استفاده کن.",
+  grammar: "فقط اشکالات دستوری و املایی این متن را اصلاح کن و ساختار را حفظ کن.",
+}
+
+export const inlineHtmlSchema = z.object({
+  html: z.string().describe("خروجی به صورت HTML معتبر و معنایی (p, ul, strong, ...) بدون style درون‌خطی"),
+})
+
+export async function runInlineAction(
+  input: { action: InlineAction; html: string; targetLocale?: string; locale?: string },
+  actor: ContentActor,
+): Promise<{ html: string }> {
+  const locale = LOCALE_LABEL[input.locale ?? "fa"] ?? "فارسی"
+  const instruction =
+    input.action === "translate"
+      ? `این متن را به ${LOCALE_LABEL[input.targetLocale ?? "en"] ?? input.targetLocale ?? "English"} ترجمه کن.`
+      : INLINE_INSTRUCTION[input.action]
+  const { object } = await runObject({
+    feature: `content.inline.${input.action}`,
+    schema: inlineHtmlSchema,
+    system:
+      BASE_SYSTEM +
+      " خروجی را فقط به صورت HTML معنایی و تمیز برگردان (بدون تگ <html>/<body> و بدون style درون‌خطی).",
+    userId: actor.userId,
+    prompt: [
+      instruction,
+      input.action !== "translate" ? `زبان خروجی: ${locale}.` : "",
+      "\nمتن ورودی (HTML):\n",
+      input.html,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  })
+  return object
+}
+
+// ---------------------------------------------------------------------------
 // Task: announcement / marketing copy (for notifications, Telegram, email)
 // ---------------------------------------------------------------------------
 export const announcementSchema = z.object({

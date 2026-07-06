@@ -7,6 +7,7 @@ import {
   setProductVisibility,
   updateProductMedia,
 } from "@/lib/core/admin-catalog"
+import { richTextField } from "@/lib/rich-content/zod"
 
 export const dynamic = "force-dynamic"
 
@@ -16,7 +17,7 @@ const linkSchema = z.object({ label: z.string(), url: z.string() })
 
 const schema = z.object({
   title: z.string().optional(),
-  description: z.string().optional(),
+  description: richTextField().optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   i18n: z.record(z.string(), z.unknown()).nullable().optional(),

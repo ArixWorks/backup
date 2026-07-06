@@ -2,6 +2,7 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { listProductsAdmin, createFlashProduct, createAuctionProduct } from "@/lib/core/admin-catalog"
+import { richTextField } from "@/lib/rich-content/zod"
 
 export const dynamic = "force-dynamic"
 
@@ -20,7 +21,7 @@ const i18nSchema = z.record(z.string(), z.unknown()).nullable().optional()
 const flashSchema = z.object({
   mode: z.literal("FIXED_PRICE"),
   title: z.string().min(1),
-  description: z.string().optional(),
+  description: richTextField().optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   gallery: z.array(z.string()).optional(),
@@ -40,7 +41,7 @@ const flashSchema = z.object({
 const auctionSchema = z.object({
   mode: z.literal("AUCTION"),
   title: z.string().min(1),
-  description: z.string().optional(),
+  description: richTextField().optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   gallery: z.array(z.string()).optional(),

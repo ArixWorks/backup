@@ -9,6 +9,7 @@ import { useSidebar } from "@/components/layout/sidebar-context"
 import { sidebarGroups, isNavItemActive } from "@/lib/nav-config"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Logo, BrandMark } from "@/components/logo"
+import { CmsNavGroup } from "@/components/layout/cms-nav-group"
 
 /**
  * Web-desktop navigation sidebar (RTL, sticky, collapsible).
@@ -110,6 +111,7 @@ export function Sidebar() {
             </ul>
           </div>
         ))}
+        <CmsNavGroup collapsed={collapsed} />
       </nav>
     </aside>
   )
