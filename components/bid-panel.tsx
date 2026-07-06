@@ -29,13 +29,19 @@ export function BidPanel({
 }: Props) {
   const { user, refresh } = useSession()
   const { t } = useI18n()
-  const [amount, setAmount] = useState<string>(String(minNextBid))
+  // Money crosses the API as BigInt-serialized *strings*. Coerce every value to
+  // a Number up front so all arithmetic is numeric — otherwise `min + inc * n`
+  // becomes string concatenation (e.g. "50000" + 10000 -> "5000010000").
+  const minNext = Number(minNextBid) || 0
+  const increment = Number(minimumIncrement) || 0
+  const buyNow = buyNowPrice == null ? null : Number(buyNowPrice)
+  const [amount, setAmount] = useState<string>(String(minNext))
   const [loading, setLoading] = useState(false)
   const [buying, setBuying] = useState(false)
 
   useEffect(() => {
-    setAmount(String(minNextBid))
-  }, [minNextBid])
+    setAmount(String(minNext))
+  }, [minNext])
 
   const ended = status !== "ACTIVE"
   const available = user?.balances?.availableBalance ?? 0
@@ -43,8 +49,8 @@ export function BidPanel({
   async function placeBid() {
     if (!user) return toast.error(t("buy.loginFirst"))
     const value = Number(amount)
-    if (!Number.isFinite(value) || value < minNextBid) {
-      return toast.error(t("bid.minBid", { amount: formatToman(minNextBid) }))
+    if (!Number.isFinite(value) || value < minNext) {
+      return toast.error(t("bid.minBid", { amount: formatToman(minNext) }))
     }
     setLoading(true)
     try {
@@ -72,8 +78,13 @@ export function BidPanel({
     }
   }
 
-  function bump(mult: number) {
-    setAmount(String(minNextBid + minimumIncrement * mult))
+  // Adaptive quick-add tiers: multiples of the minimum increment. Always valid
+  // (never below the minimum next bid) and scales with the increment size, so a
+  // 5,000 increment offers +5k/+10k/+25k and a 50,000 one offers +50k/+100k/+250k.
+  const quickTiers = [1, 2, 5]
+
+  function setTo(value: number) {
+    setAmount(String(Math.round(value)))
   }
 
   if (ended) {
@@ -103,14 +114,21 @@ export function BidPanel({
           className="tabular-nums text-lg font-bold"
         />
         <div className="flex gap-2">
-          {[0, 1, 2].map((m) => (
+          <button
+            type="button"
+            onClick={() => setTo(minNext)}
+            className="flex-1 rounded-md border border-border bg-secondary py-1.5 text-xs font-medium transition-colors hover:border-primary/40"
+          >
+            {t("bid.min")}
+          </button>
+          {quickTiers.map((tier) => (
             <button
-              key={m}
+              key={tier}
               type="button"
-              onClick={() => bump(m)}
-              className="flex-1 rounded-md border border-border bg-secondary py-1.5 text-xs font-medium transition-colors hover:border-primary/40"
+              onClick={() => setTo(minNext + increment * tier)}
+              className="flex-1 rounded-md border border-border bg-secondary py-1.5 text-xs font-medium tabular-nums transition-colors hover:border-primary/40"
             >
-              {m === 0 ? t("bid.min") : `+${formatToman(minimumIncrement * m)}`}
+              {`+${formatToman(increment * tier)}`}
             </button>
           ))}
         </div>
@@ -121,16 +139,16 @@ export function BidPanel({
         {t("bid.submit")}
       </Button>
 
-      {buyNowPrice != null && (
+      {buyNow != null && (
         <Button
-          onClick={buyNow}
+          onClick={buyNowAction}
           disabled={buying}
           variant="secondary"
           className="w-full gap-2"
           size="lg"
         >
           {buying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4 text-primary" />}
-          {t("bid.buyNow", { amount: `${formatToman(buyNowPrice)} ${t("common.toman")}` })}
+          {t("bid.buyNow", { amount: `${formatToman(buyNow)} ${t("common.toman")}` })}
         </Button>
       )}
 
