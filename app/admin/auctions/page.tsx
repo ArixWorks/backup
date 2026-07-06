@@ -4,8 +4,8 @@ import useSWR from "swr"
 import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Plus, Gavel, XCircle, ExternalLink, ImageIcon, AlertTriangle } from "lucide-react"
-import { fetcher, apiPost } from "@/lib/api-client"
+import { Plus, Gavel, XCircle, ExternalLink, ImageIcon, AlertTriangle, Trash2 } from "lucide-react"
+import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { formatToman, formatNumber, formatDateTime } from "@/lib/format"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { useBulkSelection } from "@/lib/hooks/use-bulk-selection"
+import { SelectionCheckbox } from "@/components/admin/bulk/selection-checkbox"
+import { BulkActionsBar, type BulkDeleteResult } from "@/components/admin/bulk/bulk-actions-bar"
 
 type Product = {
   id: string
@@ -65,9 +68,28 @@ export default function AdminAuctionsPage() {
     fetcher,
   )
   const auctions = (data?.data ?? []).filter((p) => p.saleMode === "AUCTION" && p.auction)
+  const selection = useBulkSelection(auctions.map((p) => p.id))
 
   const [cancelTarget, setCancelTarget] = useState<Product | null>(null)
   const [busy, setBusy] = useState(false)
+
+  async function removeOne(p: Product) {
+    if (!confirm(`حذف مزایده «${p.title}»؟ این عملیات قابل بازگشت نیست.`)) return
+    try {
+      await apiDelete(`/api/v1/admin/products/${p.id}`)
+      toast.success("مزایده حذف شد")
+      await mutate()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در حذف")
+    }
+  }
+
+  async function removeSelected(): Promise<BulkDeleteResult> {
+    const res = await apiDelete<{ data: BulkDeleteResult }>("/api/v1/admin/products", {
+      ids: selection.selectedIds,
+    })
+    return res.data
+  }
 
   async function confirmCancel() {
     if (!cancelTarget?.auction) return
@@ -97,6 +119,19 @@ export default function AdminAuctionsPage() {
         </Link>
       </header>
 
+      {auctions.length > 0 && (
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <SelectionCheckbox
+            checked={selection.allSelected}
+            indeterminate={selection.someSelected}
+            onChange={selection.toggleAll}
+            label="انتخاب همه"
+            stopPropagation={false}
+          />
+          انتخاب همه
+        </label>
+      )}
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">در حال بارگذاری…</p>
       ) : error ? (
@@ -122,7 +157,18 @@ export default function AdminAuctionsPage() {
             const a = p.auction!
             const canCancel = a.status === "SCHEDULED" || a.status === "ACTIVE"
             return (
-              <Card key={p.id} className="flex flex-wrap items-center gap-4 p-4">
+              <Card
+                key={p.id}
+                className={cn(
+                  "flex flex-wrap items-center gap-4 p-4",
+                  selection.isSelected(p.id) && "border-primary/60 bg-primary/5",
+                )}
+              >
+                <SelectionCheckbox
+                  checked={selection.isSelected(p.id)}
+                  onChange={() => selection.toggle(p.id)}
+                  label={`انتخاب ${p.title}`}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{p.title}</span>
@@ -164,6 +210,15 @@ export default function AdminAuctionsPage() {
                       لغو
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 text-destructive"
+                    onClick={() => removeOne(p)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    حذف
+                  </Button>
                 </div>
               </Card>
             )
@@ -190,6 +245,14 @@ export default function AdminAuctionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BulkActionsBar
+        count={selection.count}
+        itemNoun="مزایده"
+        onDelete={removeSelected}
+        onClear={selection.clear}
+        onDone={mutate}
+      />
     </div>
   )
 }

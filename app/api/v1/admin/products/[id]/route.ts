@@ -6,7 +6,9 @@ import {
   updateFlashProduct,
   setProductVisibility,
   updateProductMedia,
+  deleteProducts,
 } from "@/lib/core/admin-catalog"
+import { ValidationError } from "@/lib/core/errors"
 import { richTextField } from "@/lib/rich-content/zod"
 
 export const dynamic = "force-dynamic"
@@ -78,4 +80,16 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
     },
     admin.id,
   )
+})
+
+export const DELETE = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
+  const admin = await requireAdmin()
+  const { id } = await ctx.params
+  const result = await deleteProducts([id], admin.id)
+  // Single-target delete: surface the guard reason as a clear error.
+  if (result.deleted.length === 0) {
+    const reason = result.skipped[0]?.reason ?? "حذف ممکن نشد"
+    throw new ValidationError(reason)
+  }
+  return result
 })

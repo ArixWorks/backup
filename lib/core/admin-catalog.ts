@@ -305,3 +305,70 @@ export async function setProductVisibility(productId: string, hidden: boolean, a
   await prisma.product.update({ where: { id: productId }, data: { hidden } })
   await audit({ actorId: adminId, action: "product.visibility", entity: "product", entityId: productId, meta: { hidden } })
 }
+
+// --- Deletion (single + bulk) ------------------------------------------------
+
+export interface DeleteResult {
+  deleted: string[]
+  /** Items that could not be deleted, with a human-readable Persian reason. */
+  skipped: { id: string; title: string; reason: string }[]
+}
+
+/**
+ * Delete one or more products (fixed-price or auction) by id.
+ *
+ * Financial-safety guard: a product that has any associated orders is NEVER
+ * hard-deleted (that would destroy purchase/settlement history). Such items are
+ * returned in `skipped` with a clear reason so the admin can hide them instead.
+ * All other relations (fixedSale, auction, bids, inventory, reviews, ...)
+ * cascade automatically via the schema. Deletion of each product is atomic; the
+ * loop is best-effort so one failure does not abort the rest of the batch.
+ */
+export async function deleteProducts(ids: string[], adminId: string): Promise<DeleteResult> {
+  const unique = Array.from(new Set(ids.filter(Boolean)))
+  const result: DeleteResult = { deleted: [], skipped: [] }
+  if (unique.length === 0) return result
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: unique } },
+    select: {
+      id: true,
+      title: true,
+      saleMode: true,
+      _count: { select: { orders: true } },
+    },
+  })
+  const byId = new Map(products.map((p) => [p.id, p]))
+
+  for (const id of unique) {
+    const product = byId.get(id)
+    if (!product) {
+      result.skipped.push({ id, title: id, reason: "یافت نشد" })
+      continue
+    }
+    if (product._count.orders > 0) {
+      result.skipped.push({
+        id,
+        title: product.title,
+        reason: `دارای ${product._count.orders} سفارش ثبت‌شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,
+      })
+      continue
+    }
+    try {
+      await prisma.product.delete({ where: { id } })
+      result.deleted.push(id)
+      await audit({
+        actorId: adminId,
+        action: "product.delete",
+        entity: "product",
+        entityId: id,
+        meta: { mode: product.saleMode, title: product.title },
+      })
+    } catch (e) {
+      console.log("[v0] deleteProducts error for", id, (e as Error).message)
+      result.skipped.push({ id, title: product.title, reason: "حذف به دلیل وابستگی داده‌ها ممکن نشد" })
+    }
+  }
+
+  return result
+}

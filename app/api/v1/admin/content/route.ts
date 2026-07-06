@@ -4,9 +4,10 @@ import { requireAdmin } from "@/lib/auth/session"
 import { ValidationError } from "@/lib/core/errors"
 import { requireContentType } from "@/lib/cms/registry"
 import { assertCan } from "@/lib/cms/permissions"
-import { listContent, createContent } from "@/lib/cms/content"
+import { listContent, createContent, getContent, deleteContent } from "@/lib/cms/content"
 import { resolveTagIds } from "@/lib/cms/taxonomy"
 import { contentWriteSchema } from "@/lib/cms/validation"
+import { z } from "zod"
 
 export const dynamic = "force-dynamic"
 
@@ -41,4 +42,29 @@ export const POST = route(async (req: Request) => {
     input.tagIds = [...(input.tagIds ?? []), ...(await resolveTagIds(input.tagNames))]
   }
   return createContent(admin, type, input)
+})
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "حداقل یک مورد را انتخاب کنید").max(200),
+})
+
+/** Bulk-delete content items. Permission is checked per item by its own type. */
+export const DELETE = route(async (req: Request) => {
+  const admin = await requireAdmin()
+  const { ids } = bulkDeleteSchema.parse(await req.json())
+  const unique = Array.from(new Set(ids))
+  const deleted: string[] = []
+  const skipped: { id: string; title: string; reason: string }[] = []
+  for (const id of unique) {
+    try {
+      const existing = await getContent(id)
+      assertCan(admin, existing.type, "delete")
+      await deleteContent(id)
+      deleted.push(id)
+    } catch (e) {
+      console.log("[v0] bulk deleteContent error for", id, (e as Error).message)
+      skipped.push({ id, title: id, reason: "حذف ممکن نشد یا دسترسی ندارید" })
+    }
+  }
+  return { deleted, skipped }
 })

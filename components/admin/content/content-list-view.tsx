@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input"
 import { buttonVariants } from "@/components/ui/button"
 import { ContentIcon } from "./content-icon"
 import { cn } from "@/lib/utils"
+import { useBulkSelection } from "@/lib/hooks/use-bulk-selection"
+import { SelectionCheckbox } from "@/components/admin/bulk/selection-checkbox"
+import { BulkActionsBar, type BulkDeleteResult } from "@/components/admin/bulk/bulk-actions-bar"
 
 type Row = {
   id: string
@@ -60,6 +63,7 @@ export function ContentListView({
   )
   const items = data?.data?.items ?? []
   const rows = items.filter((r) => !q || r.title.includes(q) || r.slug.includes(q))
+  const selection = useBulkSelection(rows.map((r) => r.id))
 
   const isSingletonFull = mode === "singleton" && items.length >= 1
 
@@ -72,6 +76,13 @@ export function ContentListView({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "خطا در حذف")
     }
+  }
+
+  async function removeSelected(): Promise<BulkDeleteResult> {
+    const res = await apiDelete<{ data: BulkDeleteResult }>("/api/v1/admin/content", {
+      ids: selection.selectedIds,
+    })
+    return res.data
   }
 
   return (
@@ -114,13 +125,31 @@ export function ContentListView({
         </div>
       ) : (
         <div className="space-y-2">
+          <label className="flex w-fit cursor-pointer items-center gap-2 px-1 text-sm text-muted-foreground">
+            <SelectionCheckbox
+              checked={selection.allSelected}
+              indeterminate={selection.someSelected}
+              onChange={selection.toggleAll}
+              label="انتخاب همه"
+              stopPropagation={false}
+            />
+            انتخاب همه
+          </label>
           {rows.map((r) => {
             const st = STATUS_META[r.status] ?? STATUS_META.DRAFT
             return (
               <div
                 key={r.id}
-                className="glass flex items-center gap-3 rounded-xl border border-border/60 p-3"
+                className={cn(
+                  "glass flex items-center gap-3 rounded-xl border border-border/60 p-3",
+                  selection.isSelected(r.id) && "border-primary/60 bg-primary/5",
+                )}
               >
+                <SelectionCheckbox
+                  checked={selection.isSelected(r.id)}
+                  onChange={() => selection.toggle(r.id)}
+                  label={`انتخاب ${r.title}`}
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-semibold">{r.title}</span>
@@ -164,6 +193,14 @@ export function ContentListView({
           })}
         </div>
       )}
+
+      <BulkActionsBar
+        count={selection.count}
+        itemNoun={labelSingular}
+        onDelete={removeSelected}
+        onClear={selection.clear}
+        onDone={mutate}
+      />
     </div>
   )
 }

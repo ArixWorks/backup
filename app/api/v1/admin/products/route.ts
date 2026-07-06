@@ -1,7 +1,12 @@
 import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
-import { listProductsAdmin, createFlashProduct, createAuctionProduct } from "@/lib/core/admin-catalog"
+import {
+  listProductsAdmin,
+  createFlashProduct,
+  createAuctionProduct,
+  deleteProducts,
+} from "@/lib/core/admin-catalog"
 import { richTextField } from "@/lib/rich-content/zod"
 
 export const dynamic = "force-dynamic"
@@ -9,6 +14,16 @@ export const dynamic = "force-dynamic"
 export const GET = route(async () => {
   await requireAdmin()
   return listProductsAdmin()
+})
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "حداقل یک مورد را انتخاب کنید").max(200),
+})
+
+export const DELETE = route(async (req: Request) => {
+  const admin = await requireAdmin()
+  const { ids } = bulkDeleteSchema.parse(await req.json())
+  return deleteProducts(ids, admin.id)
 })
 
 const money = z.union([z.string(), z.number()])
