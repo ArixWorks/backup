@@ -27,7 +27,7 @@ export function Sidebar() {
     <aside
       data-collapsed={collapsed}
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 border-e border-border/60 bg-card/40 backdrop-blur-xl lg:flex lg:flex-col",
+        "sticky top-0 hidden h-dvh shrink-0 border-e border-border/60 bg-card/40 backdrop-blur-xl web:lg:flex web:lg:flex-col",
         "transition-[width] duration-300 ease-out motion-reduce:transition-none",
       )}
       style={{ width: collapsed ? "var(--sidebar-w-collapsed)" : "var(--sidebar-w)" }}

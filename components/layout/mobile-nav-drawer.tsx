@@ -35,7 +35,7 @@ export function MobileNavDrawer() {
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger
         aria-label={t("a11y.openMenu")}
-        className="tap-target grid place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+        className="tap-target grid place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground web:lg:hidden"
       >
         <Menu className="size-5" />
       </DrawerTrigger>
