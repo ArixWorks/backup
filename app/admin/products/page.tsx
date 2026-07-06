@@ -4,14 +4,18 @@ import useSWR from "swr"
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
-import { Plus, Search, Package, AlertTriangle } from "lucide-react"
-import { fetcher } from "@/lib/api-client"
+import { toast } from "sonner"
+import { Plus, Search, Package, AlertTriangle, Trash2 } from "lucide-react"
+import { fetcher, apiDelete, ApiError } from "@/lib/api-client"
 import { formatToman, formatNumber } from "@/lib/format"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useBulkSelection } from "@/lib/hooks/use-bulk-selection"
+import { SelectionCheckbox } from "@/components/admin/bulk/selection-checkbox"
+import { BulkActionsBar, type BulkDeleteResult } from "@/components/admin/bulk/bulk-actions-bar"
 
 type Product = {
   id: string
@@ -36,6 +40,25 @@ export default function AdminProductsPage() {
   const products = (data?.data ?? []).filter((p) =>
     p.title.toLowerCase().includes(q.toLowerCase()),
   )
+  const selection = useBulkSelection(products.map((p) => p.id))
+
+  async function removeOne(p: Product) {
+    if (!confirm(`حذف «${p.title}»؟ این عملیات قابل بازگشت نیست.`)) return
+    try {
+      await apiDelete(`/api/v1/admin/products/${p.id}`)
+      toast.success("محصول حذف شد")
+      await mutate()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در حذف")
+    }
+  }
+
+  async function removeSelected(): Promise<BulkDeleteResult> {
+    const res = await apiDelete<{ data: BulkDeleteResult }>("/api/v1/admin/products", {
+      ids: selection.selectedIds,
+    })
+    return res.data
+  }
 
   return (
     <div className="space-y-6">
@@ -52,14 +75,28 @@ export default function AdminProductsPage() {
         </Link>
       </header>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="جستجوی محصول…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="pr-9"
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="جستجوی محصول…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="pr-9"
+          />
+        </div>
+        {products.length > 0 && (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <SelectionCheckbox
+              checked={selection.allSelected}
+              indeterminate={selection.someSelected}
+              onChange={selection.toggleAll}
+              label="انتخاب همه"
+              stopPropagation={false}
+            />
+            انتخاب همه
+          </label>
+        )}
       </div>
 
       {isLoading ? (
@@ -84,8 +121,19 @@ export default function AdminProductsPage() {
       ) : (
         <div className="grid gap-3">
           {products.map((p) => (
-            <Link key={p.id} href={`/admin/products/${p.id}`}>
-              <Card className="flex items-center gap-4 p-4 transition-colors hover:border-primary/50">
+            <Card
+              key={p.id}
+              className={cn(
+                "flex items-center gap-3 p-4 transition-colors hover:border-primary/50",
+                selection.isSelected(p.id) && "border-primary/60 bg-primary/5",
+              )}
+            >
+              <SelectionCheckbox
+                checked={selection.isSelected(p.id)}
+                onChange={() => selection.toggle(p.id)}
+                label={`انتخاب ${p.title}`}
+              />
+              <Link href={`/admin/products/${p.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
                   {p.coverImage && (
                     <Image
@@ -153,11 +201,27 @@ export default function AdminProductsPage() {
                     </>
                   ) : null}
                 </div>
-              </Card>
-            </Link>
+              </Link>
+              <button
+                type="button"
+                onClick={() => removeOne(p)}
+                aria-label={`حذف ${p.title}`}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </Card>
           ))}
         </div>
       )}
+
+      <BulkActionsBar
+        count={selection.count}
+        itemNoun="محصول"
+        onDelete={removeSelected}
+        onClear={selection.clear}
+        onDone={mutate}
+      />
     </div>
   )
 }

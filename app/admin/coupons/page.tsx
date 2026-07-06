@@ -15,6 +15,10 @@ import {
   useCopilotAdapter,
   type FieldBinding,
 } from "@/components/admin/ai/copilot"
+import { cn } from "@/lib/utils"
+import { useBulkSelection } from "@/lib/hooks/use-bulk-selection"
+import { SelectionCheckbox } from "@/components/admin/bulk/selection-checkbox"
+import { BulkActionsBar, type BulkDeleteResult } from "@/components/admin/bulk/bulk-actions-bar"
 
 type Coupon = {
   id: string
@@ -47,9 +51,17 @@ export default function AdminCouponsPage() {
   const [creating, setCreating] = useState(false)
 
   const coupons = data?.data ?? []
+  const selection = useBulkSelection(coupons.map((c) => c.id))
 
   function set<K extends keyof typeof empty>(key: K, value: (typeof empty)[K]) {
     setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  async function removeSelected(): Promise<BulkDeleteResult> {
+    const res = await apiDelete<{ data: BulkDeleteResult }>("/api/v1/admin/coupons", {
+      ids: selection.selectedIds,
+    })
+    return res.data
   }
 
   const bindings: Record<string, FieldBinding> = {
@@ -192,10 +204,30 @@ export default function AdminCouponsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-2.5 text-sm text-muted-foreground">
+            <SelectionCheckbox
+              checked={selection.allSelected}
+              indeterminate={selection.someSelected}
+              onChange={selection.toggleAll}
+              label="انتخاب همه"
+            />
+            انتخاب همه
+          </div>
           <ul className="divide-y divide-border">
             {coupons.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <li
+                key={c.id}
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-3 p-4",
+                  selection.isSelected(c.id) && "bg-primary/5",
+                )}
+              >
                 <div className="flex items-center gap-3">
+                  <SelectionCheckbox
+                    checked={selection.isSelected(c.id)}
+                    onChange={() => selection.toggle(c.id)}
+                    label={`انتخاب ${c.code}`}
+                  />
                   <span className="rounded-md bg-secondary px-2 py-1 font-mono text-sm font-bold">
                     {c.code}
                   </span>
@@ -238,6 +270,14 @@ export default function AdminCouponsPage() {
           </ul>
         </div>
       )}
+
+      <BulkActionsBar
+        count={selection.count}
+        itemNoun="کد تخفیف"
+        onDelete={removeSelected}
+        onClear={selection.clear}
+        onDone={mutate}
+      />
     </div>
   )
 }

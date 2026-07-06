@@ -76,8 +76,13 @@ export async function apiPatch<T = any>(url: string, body?: unknown): Promise<T>
   return parse(res)
 }
 
-export async function apiDelete<T = any>(url: string): Promise<T> {
-  const res = await fetch(url, { method: 'DELETE', credentials: 'include' })
+export async function apiDelete<T = any>(url: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: body ? { 'content-type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
   return parse(res)
 }
 

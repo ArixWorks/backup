@@ -3,7 +3,7 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireAiAdmin } from "@/lib/ai/permissions"
 import { audit } from "@/lib/core/audit"
-import { createDoc, listDocs } from "@/lib/ai/knowledge"
+import { createDoc, listDocs, deleteDoc } from "@/lib/ai/knowledge"
 
 export const GET = route(async () => {
   await requireAiAdmin()
@@ -39,4 +39,32 @@ export const POST = route(async (req: Request) => {
     entityId: doc?.id ?? "",
   })
   return doc
+})
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "حداقل یک مورد را انتخاب کنید").max(200),
+})
+
+export const DELETE = route(async (req: Request) => {
+  const admin = await requireAiAdmin()
+  const { ids } = bulkDeleteSchema.parse(await req.json())
+  const unique = Array.from(new Set(ids))
+  const deleted: string[] = []
+  const skipped: { id: string; title: string; reason: string }[] = []
+  for (const id of unique) {
+    try {
+      await deleteDoc(id)
+      deleted.push(id)
+      await audit({
+        actorId: admin.id,
+        action: "ai.knowledge.delete",
+        entity: "AiKnowledgeDoc",
+        entityId: id,
+      })
+    } catch (e) {
+      console.log("[v0] bulk deleteDoc error for", id, (e as Error).message)
+      skipped.push({ id, title: id, reason: "حذف ممکن نشد" })
+    }
+  }
+  return { deleted, skipped }
 })
