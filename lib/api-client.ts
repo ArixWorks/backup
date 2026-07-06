@@ -10,7 +10,27 @@ export class ApiError extends Error {
 
 async function parse(res: Response) {
   const text = await res.text()
-  const json = text ? JSON.parse(text) : {}
+
+  let json: any = {}
+  if (text) {
+    try {
+      json = JSON.parse(text)
+    } catch {
+      // The server returned something that isn't JSON (an HTML error/redirect
+      // page, a Vercel auth wall, a proxy 502, etc.). Surface a meaningful,
+      // status-aware error instead of a cryptic "Unexpected token '<'".
+      const message =
+        res.status === 401 || res.status === 403
+          ? 'نشست شما منقضی شده یا دسترسی ندارید. لطفاً دوباره وارد شوید.'
+          : res.status === 404
+            ? 'سرویس مورد نظر یافت نشد.'
+            : res.status >= 500
+              ? 'خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.'
+              : 'پاسخ نامعتبر از سرور دریافت شد. لطفاً دوباره وارد شوید یا صفحه را تازه‌سازی کنید.'
+      throw new ApiError(message, 'INVALID_RESPONSE', res.status || 0)
+    }
+  }
+
   if (!res.ok) {
     throw new ApiError(
       json?.error?.message ?? 'خطای ناشناخته',
