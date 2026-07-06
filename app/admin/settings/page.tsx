@@ -7,7 +7,7 @@ import { Settings2, Loader2, Save } from "lucide-react"
 import { fetcher, apiPatch, ApiError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { EnhancedTextarea } from "@/components/rich-content"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AppearancePicker } from "@/components/admin/appearance-picker"
 
@@ -138,10 +138,11 @@ export default function AdminSettingsPage() {
           </Field>
 
           <Field label="متن پیام" hint="توضیحی که به کاربران نمایش داده می‌شود">
-            <Textarea
-              rows={4}
+            <EnhancedTextarea
+              minRows={4}
+              maxRows={10}
               value={form[KEYS.maintenanceMessage] ?? ""}
-              onChange={(e) => set(KEYS.maintenanceMessage, e.target.value)}
+              onChange={(v) => set(KEYS.maintenanceMessage, v)}
               placeholder="در حال ارتقای سیستم برای تجربه‌ای بهتر هستیم. لطفاً کمی بعد دوباره سر بزنید."
             />
           </Field>

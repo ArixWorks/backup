@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SUPPORT_STATUS_META, SUPPORT_CATEGORY_LABELS } from "@/lib/support-meta"
 import { AiAssistPanel } from "@/components/admin/support/ai-assist-panel"
+import { EnhancedTextarea } from "@/components/rich-content"
 
 type TicketRow = {
   publicId: string
@@ -220,12 +221,14 @@ function AdminTicketThread({ publicId, onBack }: { publicId: string; onBack: () 
             <div className="space-y-3">
               <AiAssistPanel publicId={publicId} onUseDraft={setBody} />
               <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
-              <textarea
+              <EnhancedTextarea
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={setBody}
                 placeholder="پاسخ پشتیبانی…"
-                rows={3}
-                className="w-full resize-none rounded-lg border border-input bg-background p-2.5 text-sm outline-none focus:border-primary/50"
+                minRows={3}
+                maxRows={12}
+                showCount={false}
+                aria-label="پاسخ پشتیبانی"
               />
               <div className="flex items-center justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => reply(true)} disabled={sending}>
