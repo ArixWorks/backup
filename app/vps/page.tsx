@@ -1,10 +1,11 @@
-"use client"
+import { CmsSingletonPage, buildSingletonMetadata } from "@/components/cms/singleton-page"
 
-import { Server } from "lucide-react"
-import { ComingSoon } from "@/components/coming-soon"
-import { useI18n } from "@/components/i18n-provider"
+// The VPS service (ordering, provisioning, control panel) is planned for a
+// later phase. This route already renders CMS-managed marketing/intro content
+// so business logic can be added later without changing the URL or the page.
+export const dynamic = "force-dynamic"
+export const generateMetadata = () => buildSingletonMetadata("vps")
 
 export default function VpsPage() {
-  const { t } = useI18n()
-  return <ComingSoon icon={Server} title={t("vps.title")} subtitle={t("vps.subtitle")} />
+  return <CmsSingletonPage type="vps" />
 }
