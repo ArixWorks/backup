@@ -32,6 +32,7 @@ import {
   Sparkles,
   BookOpen,
   Workflow,
+  FileText,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -77,6 +78,10 @@ const navGroups: NavGroup[] = [
       { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
       { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
     ],
+  },
+  {
+    title: "محتوا",
+    items: [{ href: "/admin/content", label: "مدیریت محتوا", icon: FileText }],
   },
   {
     title: "بازاریابی",
