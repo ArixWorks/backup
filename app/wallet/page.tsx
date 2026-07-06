@@ -52,40 +52,44 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <BalancesPanel
-        balances={balances}
-        currencies={currencies}
-        loading={isLoading}
-        selected={selected}
-        onSelect={setSelected}
-        onChanged={refreshAll}
-      />
+    <div className="space-y-5 web:lg:grid web:lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] web:lg:items-start web:lg:gap-6 web:lg:space-y-0">
+      {/* Left column: balances + primary actions (identity of the wallet). */}
+      <div className="space-y-5">
+        <BalancesPanel
+          balances={balances}
+          currencies={currencies}
+          loading={isLoading}
+          selected={selected}
+          onSelect={setSelected}
+          onChanged={refreshAll}
+        />
 
-      <Button
-        onClick={() => setAddOpen(true)}
-        className="h-14 w-full gap-2 rounded-2xl text-base font-bold shadow-sm"
-      >
-        <Plus className="h-5 w-5" />
-        {t("wallet.addFunds")}
-      </Button>
+        <Button
+          onClick={() => setAddOpen(true)}
+          className="h-14 w-full gap-2 rounded-2xl text-base font-bold shadow-sm"
+        >
+          <Plus className="h-5 w-5" />
+          {t("wallet.addFunds")}
+        </Button>
 
-      <Link
-        href="/rewards"
-        className="card-premium active:scale-press flex items-center gap-3 rounded-2xl border border-primary/30 p-4 transition-colors"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/25">
-          <Crown className="h-5 w-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-foreground">{t("wallet.rewardsTitle")}</p>
-          <p className="text-xs text-muted-foreground">{t("wallet.rewardsSubtitle")}</p>
-        </div>
-        <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground rtl:rotate-180" />
-      </Link>
+        <Link
+          href="/rewards"
+          className="card-premium active:scale-press flex items-center gap-3 rounded-2xl border border-primary/30 p-4 transition-colors"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/25">
+            <Crown className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-foreground">{t("wallet.rewardsTitle")}</p>
+            <p className="text-xs text-muted-foreground">{t("wallet.rewardsSubtitle")}</p>
+          </div>
+          <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground rtl:rotate-180" />
+        </Link>
 
-      <ReferralCard />
+        <ReferralCard />
+      </div>
 
+      {/* Right column: full transaction statement, given the room to breathe. */}
       <StatementPanel
         currency={selected}
         decimals={selectedMeta?.decimals ?? 0}

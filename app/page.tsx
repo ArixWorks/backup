@@ -73,13 +73,13 @@ export default function HomePage() {
       <FadeItem>
         <section
           aria-label={t("home.quickActions")}
-          className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] web:lg:mx-0 web:lg:grid web:lg:grid-cols-4 web:lg:overflow-visible web:lg:px-0 [&::-webkit-scrollbar]:hidden"
         >
           {quickActions.map((a) => (
-            <Pressable key={a.href} className="snap-start">
+            <Pressable key={a.href} className="snap-start web:lg:w-full">
               <Link
                 href={a.href}
-                className="card-premium group flex items-center gap-2 rounded-full border border-border px-4 py-2.5 transition-colors hover:border-primary/40"
+                className="card-premium group flex items-center gap-2 rounded-full border border-border px-4 py-2.5 transition-colors hover:border-primary/40 web:lg:justify-center"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20 transition-colors group-hover:bg-primary/15">
                   <a.icon className="h-4 w-4" />
@@ -101,7 +101,7 @@ export default function HomePage() {
             {t("home.servicesTitle")}
           </h2>
 
-          <div className="grid grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-2 gap-3.5 web:lg:grid-cols-4 web:xl:gap-5">
             {services.map((s) => (
               <Tilt key={s.href} max={11} glare className="h-full rounded-3xl">
                 <Pressable className="h-full">

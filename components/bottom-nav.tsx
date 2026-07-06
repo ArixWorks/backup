@@ -6,7 +6,6 @@ import { motion } from "motion/react"
 import { House, Gavel, Store, Wallet, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useI18n } from "@/components/i18n-provider"
-import { useShellWidthClass } from "@/lib/use-shell-width"
 import type { MessageKey } from "@/lib/i18n/messages"
 
 // The five primary modules of the platform. Each feature has exactly one entry
@@ -23,7 +22,6 @@ const tabs: { href: string; label: MessageKey; icon: typeof House }[] = [
 export function BottomNav() {
   const pathname = usePathname()
   const { t } = useI18n()
-  const widthClass = useShellWidthClass()
 
   return (
     <nav
@@ -35,9 +33,13 @@ export function BottomNav() {
         // down to the device edge with no gap.
         "fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-card pb-safe px-safe",
         "shadow-[0_-10px_30px_-16px_rgba(0,0,0,0.7)]",
+        // The web-desktop dashboard uses the persistent Sidebar instead, so the
+        // tab bar is removed there (only in a browser at lg+). The Telegram
+        // mini-app always keeps it.
+        "web:lg:hidden",
       )}
     >
-      <ul className={cn("mx-auto flex items-stretch justify-between gap-1 px-2 pt-1.5 pb-1", widthClass)}>
+      <ul className="mx-auto flex max-w-[var(--shell-max)] items-stretch justify-between gap-1 px-2 pt-1.5 pb-1">
         {tabs.map((tab) => {
           const active =
             tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href)

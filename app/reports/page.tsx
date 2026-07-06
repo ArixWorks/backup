@@ -48,7 +48,7 @@ export default function ReportsPage() {
       <PageHeader icon={ReceiptText} title={t("reports.title")} description={t("reports.subtitle")} />
 
       {isLoading ? (
-        <div className="space-y-2">
+        <div className="space-y-2 web:lg:grid web:lg:grid-cols-2 web:lg:gap-2 web:lg:space-y-0">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-20 w-full rounded-2xl" />
           ))}
@@ -62,7 +62,7 @@ export default function ReportsPage() {
           actionHref="/wallet"
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-2 web:lg:grid web:lg:grid-cols-2 web:lg:items-start web:lg:gap-2 web:lg:space-y-0">
           {deposits.map((d) => (
             <li key={d.id} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-center justify-between gap-2">

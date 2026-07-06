@@ -33,7 +33,7 @@ export function BadgesGrid({ badges }: { badges: Badge[] }) {
           {t("rewards.earnedOf", { earned: formatNumber(earnedCount), total: formatNumber(badges.length) })}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3 web:sm:grid-cols-4 web:lg:grid-cols-6">
         {badges.map((badge) => (
           <div
             key={badge.code}

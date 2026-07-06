@@ -96,7 +96,7 @@ export default function OrdersPage() {
       <PageHeader icon={Package} title={t("orders.title")} />
 
       {isLoading ? (
-        <div className="space-y-3">
+        <div className="space-y-3 web:lg:grid web:lg:grid-cols-2 web:lg:gap-3 web:lg:space-y-0">
           {[0, 1, 2].map((i) => (
             <Skeleton key={i} className="h-28 w-full rounded-2xl" />
           ))}
@@ -110,7 +110,7 @@ export default function OrdersPage() {
           actionHref="/flash"
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3 web:lg:grid web:lg:grid-cols-2 web:lg:items-start web:lg:gap-3 web:lg:space-y-0">
           {orders.map((o) => {
             const s = statusMap[o.status] ?? statusMap.PENDING
             return (
