@@ -58,6 +58,7 @@ export function MobileNavDrawer() {
                     return (
                       <li key={item.href}>
                         <DrawerClose
+                          nativeButton={false}
                           render={
                             <Link
                               href={item.href}

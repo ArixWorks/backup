@@ -136,7 +136,7 @@ export function FlashBrowser() {
 
       {/* Results */}
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 web:lg:grid-cols-3 web:xl:grid-cols-4">
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <CardSkeleton key={i} />
           ))}
@@ -164,7 +164,7 @@ export function FlashBrowser() {
           <EmptyState icon={Zap} title={t("flash.empty")} />
         )
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 web:lg:grid-cols-3 web:xl:grid-cols-4">
           {sales.map((s) => (
             <FlashCard key={s.id} sale={s} onPurchased={() => mutate()} />
           ))}

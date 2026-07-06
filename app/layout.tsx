@@ -1,4 +1,5 @@
 import { Analytics } from '@vercel/analytics/next'
+import Script from 'next/script'
 import type { Metadata, Viewport } from 'next'
 import { Vazirmatn, Geist_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
@@ -71,12 +72,9 @@ export default async function RootLayout({
             (CSS `tg:`/`web:` variants) picks the right shell on first paint.
             Mirrors TelegramProvider.launchedFromTelegram() but width-free and
             synchronous — decides by environment, never by screen size. */}
-        <script
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var u=location.hash+location.search;var tg=/tgWebApp/i.test(u)||!!(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData);document.documentElement.dataset.env=tg?'telegram':'web';}catch(e){}})();`,
-          }}
-        />
+        <Script id="env-detect" strategy="beforeInteractive">
+          {`(function(){try{var u=location.hash+location.search;var tg=/tgWebApp/i.test(u)||!!(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData);document.documentElement.dataset.env=tg?'telegram':'web';}catch(e){}})();`}
+        </Script>
         <script src="https://telegram.org/js/telegram-web-app.js?57" async />
       </head>
       <body className="font-sans antialiased">

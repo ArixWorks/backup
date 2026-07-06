@@ -82,13 +82,15 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Account & activity */}
-      <LinkGroup items={accountItems} />
-      <LinkGroup items={activityItems.concat(
-        isStaff
-          ? [{ href: "/admin", label: "menu.admin", desc: "menu.adminDesc", icon: ShieldCheck }]
-          : [],
-      )} />
+      {/* Account & activity — stacked on mobile, side-by-side on the web shell. */}
+      <div className="space-y-5 web:lg:grid web:lg:grid-cols-2 web:lg:items-start web:lg:gap-5 web:lg:space-y-0">
+        <LinkGroup items={accountItems} />
+        <LinkGroup items={activityItems.concat(
+          isStaff
+            ? [{ href: "/admin", label: "menu.admin", desc: "menu.adminDesc", icon: ShieldCheck }]
+            : [],
+        )} />
+      </div>
 
       {/* Preferences */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
