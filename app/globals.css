@@ -4,6 +4,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Environment variants ─────────────────────────────────────────────────
+   Layout is decided by ENVIRONMENT first, screen size second. An inline script
+   in <head> sets data-env on <html> synchronously (telegram vs web) BEFORE
+   paint, so these variants let the whole chrome switch with pure CSS — no JS
+   layout swap, no hydration flash, no CLS. `tg:` targets the Telegram Mini App;
+   `web:` targets a normal browser. Combine with breakpoints, e.g.
+   `web:lg:grid-cols-[...]`. */
+@custom-variant tg (&:where([data-env='telegram'] *));
+@custom-variant web (&:where([data-env='web'] *));
+/* Pointer-aware: `hoverable:` only applies where a fine pointer + real hover
+   exist (desktop mouse), so we never pay for hover effects on touch devices. */
+@custom-variant hoverable (@media (hover: hover) and (pointer: fine));
+
 @theme inline {
   --font-heading: var(--font-vazirmatn), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-vazirmatn), ui-sans-serif, system-ui, sans-serif;
@@ -72,6 +85,34 @@
   --duration-fast: 150ms; /* taps, hovers, icon swaps */
   --duration-base: 240ms; /* most UI transitions */
   --duration-slow: 420ms; /* page / surface transitions */
+
+  /* ── Responsive layout system ────────────────────────────────────────────
+     One source of truth for the responsive shell. Content column stays capped
+     for readability; on ultrawide the extra space feeds side rails instead of
+     stretching text. Sidebar widths drive the web-desktop marketplace shell. */
+  --shell-max: 36rem; /* mini-app + web-mobile content cap (~576px) */
+  --content-max: 80rem; /* web-desktop main content cap (~1280px) */
+  --content-wide: 96rem; /* ultrawide outer cap (sidebar + content + rail) */
+  --sidebar-w: 16rem; /* expanded web sidebar */
+  --sidebar-w-collapsed: 4.5rem; /* collapsed web sidebar (icons only) */
+  --rail-w: 20rem; /* ultrawide right rail (quick actions / analytics) */
+  --header-h: 3.5rem; /* mini-app header height */
+  --header-h-web: 4.5rem; /* web-desktop header height */
+
+  /* Fluid typography — min at 320px viewport, max at 1280px. Consumed via the
+     .text-fluid-* utilities below so headings scale smoothly with no jumps. */
+  --text-fluid-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
+  --text-fluid-sm: clamp(0.8125rem, 0.78rem + 0.18vw, 0.875rem);
+  --text-fluid-base: clamp(0.875rem, 0.83rem + 0.22vw, 1rem);
+  --text-fluid-lg: clamp(1rem, 0.93rem + 0.35vw, 1.25rem);
+  --text-fluid-xl: clamp(1.25rem, 1.12rem + 0.6vw, 1.75rem);
+  --text-fluid-2xl: clamp(1.5rem, 1.28rem + 1vw, 2.5rem);
+  --text-fluid-3xl: clamp(1.875rem, 1.5rem + 1.7vw, 3.5rem);
+
+  /* Fluid spacing for section rhythm that tightens on phones, opens on desktop. */
+  --space-fluid-sm: clamp(0.75rem, 0.6rem + 0.6vw, 1.25rem);
+  --space-fluid-md: clamp(1rem, 0.75rem + 1.1vw, 2rem);
+  --space-fluid-lg: clamp(1.5rem, 1rem + 2vw, 3.5rem);
 }
 
 /* ============================================================================
@@ -568,6 +609,37 @@ html[data-motion='minimal'] {
   .tap-target {
     min-height: 2.75rem;
     min-width: 2.75rem;
+  }
+
+  /* ── Fluid typography utilities ──────────────────────────────────────────
+     Smoothly scale between breakpoints (no stepped jumps → no reflow surprise).
+     line-height stays in the 1.3–1.5 range for readability. */
+  .text-fluid-xs { font-size: var(--text-fluid-xs); line-height: 1.5; }
+  .text-fluid-sm { font-size: var(--text-fluid-sm); line-height: 1.5; }
+  .text-fluid-base { font-size: var(--text-fluid-base); line-height: 1.6; }
+  .text-fluid-lg { font-size: var(--text-fluid-lg); line-height: 1.45; }
+  .text-fluid-xl { font-size: var(--text-fluid-xl); line-height: 1.3; letter-spacing: -0.01em; }
+  .text-fluid-2xl { font-size: var(--text-fluid-2xl); line-height: 1.2; letter-spacing: -0.015em; }
+  .text-fluid-3xl { font-size: var(--text-fluid-3xl); line-height: 1.12; letter-spacing: -0.02em; }
+
+  /* Reserve intrinsic aspect ratio so media/blocks never cause layout shift
+     while loading (zero-CLS helper for cards, banners, avatars). */
+  .reserve-square { aspect-ratio: 1 / 1; }
+  .reserve-video { aspect-ratio: 16 / 9; }
+  .reserve-card { aspect-ratio: 4 / 3; }
+}
+
+/* Global reduced-motion + touch performance guard. Users who prefer reduced
+   motion get near-instant transitions everywhere, protecting battery/CPU on
+   phones and honoring accessibility without per-component branching. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

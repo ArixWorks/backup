@@ -55,6 +55,11 @@ export default async function RootLayout({
       lang="fa"
       dir="rtl"
       data-theme={theme}
+      // Default to the web experience for SSR (crawlers / normal browsers). The
+      // inline script below flips this to "telegram" synchronously, before
+      // paint, when the launch URL shows a Telegram Mini App payload — so the
+      // correct chrome (web dashboard vs mini-app) renders with no flash/CLS.
+      data-env="web"
       className={`dark bg-background ${vazirmatn.variable} ${geistMono.variable}`}
       // i18n-provider and telegram-provider intentionally mutate <html>
       // lang/dir/data-* on the client after hydration based on stored locale
@@ -62,6 +67,16 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Environment detection runs BEFORE hydration so the layout engine
+            (CSS `tg:`/`web:` variants) picks the right shell on first paint.
+            Mirrors TelegramProvider.launchedFromTelegram() but width-free and
+            synchronous — decides by environment, never by screen size. */}
+        <script
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var u=location.hash+location.search;var tg=/tgWebApp/i.test(u)||!!(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData);document.documentElement.dataset.env=tg?'telegram':'web';}catch(e){}})();`,
+          }}
+        />
         <script src="https://telegram.org/js/telegram-web-app.js?57" async />
       </head>
       <body className="font-sans antialiased">
