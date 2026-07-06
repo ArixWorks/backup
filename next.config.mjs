@@ -24,14 +24,6 @@ const securityHeaders = [
 const nextConfig = {
   // Produces a self-contained server bundle for the Docker image (no effect on dev).
   output: 'standalone',
-  // `isomorphic-dompurify` (our rich-content sanitizer) pulls in `jsdom`, whose
-  // dynamic `require()`s cannot be traced/bundled by the Next server compiler.
-  // Bundling it makes the module throw at import time in the production build,
-  // which took down every route that imports the sanitizer (products, content)
-  // with a hard /500. Marking these external makes Node `require` them at
-  // runtime from node_modules (Next still copies them into standalone output),
-  // which is the supported way to ship jsdom-based packages on the server.
-  serverExternalPackages: ['isomorphic-dompurify', 'jsdom'],
   images: {
     // Serve resized, modern-format (AVIF/WebP) images via the built-in
     // optimizer (sharp). Local /public assets and same-origin file routes are
