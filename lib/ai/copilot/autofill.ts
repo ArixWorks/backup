@@ -10,6 +10,7 @@ import {
 } from "./entities"
 import type { CopilotApplyMode, CopilotFormObject } from "./types"
 import { getStyleHints } from "./feedback"
+import { parseTomanAmount } from "./money"
 
 /**
  * Form Autofill engine. Turns a short admin brief into a complete, structured
@@ -61,7 +62,16 @@ function fieldValueSchema(field: CopilotFieldDef): z.ZodTypeAny {
     })
   } else if (field.type === "tags") {
     value = z.array(z.string())
-  } else if (field.type === "number" || field.type === "money") {
+  } else if (field.type === "money") {
+    // Echo the amount EXACTLY as written (digits + any scale word) as a string;
+    // it is converted to an integer Toman value deterministically in
+    // `sanitizeFormObject` via `parseTomanAmount`. Never let the model do the math.
+    value = z
+      .string()
+      .describe(
+        "مبلغ را دقیقاً همان‌طور که کاربر نوشته و همراه با واحد مقیاس بنویس (مثل «۱ میلیون»، «۵۰ هزار»، «۵۰ تومان»). خودت عدد را حساب یا تبدیل نکن.",
+      )
+  } else if (field.type === "number") {
     value = z.number()
   } else if (field.localized) {
     value = LOCALE_VALUE_SHAPE
@@ -113,15 +123,23 @@ function localeList(): string {
  * rest of the app keeps seeing "absent = not provided". Drops field entries the
  * model chose to skip (entry null, or its `value` null) and empty image prompts.
  */
-function sanitizeFormObject(raw: unknown): CopilotFormObject {
+function sanitizeFormObject(raw: unknown, def: CopilotEntityDef): CopilotFormObject {
   const obj = (raw ?? {}) as Record<string, unknown>
   const out: Record<string, unknown> = { ...obj }
+  const moneyKeys = new Set(def.fields.filter((f) => f.type === "money").map((f) => f.key))
 
   if (obj.fields && typeof obj.fields === "object") {
     const fields: Record<string, unknown> = {}
     for (const [key, entry] of Object.entries(obj.fields as Record<string, unknown>)) {
       if (entry == null) continue
       if (typeof entry === "object" && "value" in entry && (entry as { value: unknown }).value == null) continue
+      // Convert money fields from the echoed text into an integer Toman amount.
+      if (moneyKeys.has(key) && typeof entry === "object" && "value" in entry) {
+        const parsed = parseTomanAmount((entry as { value: unknown }).value)
+        if (parsed == null) continue // no usable amount → treat as not provided
+        fields[key] = { ...(entry as Record<string, unknown>), value: parsed }
+        continue
+      }
       fields[key] = entry
     }
     out.fields = fields
@@ -167,6 +185,32 @@ function contextBlock(def: CopilotEntityDef, ctx: AutofillContext, styleHints: s
   return parts.length ? `\n\nاطلاعات زمینه:\n${parts.join("\n\n")}` : ""
 }
 
+const MONEY_INSTRUCTION =
+  "برای فیلدهای مبلغ/قیمت: مقدار را دقیقاً همان‌طور که کاربر نوشته و همراه با واحد مقیاس بنویس " +
+  "(مثل «۱ میلیون»، «۵۰ هزار»، «۵۰ تومان»). خودت عدد را حساب یا به تومان کامل تبدیل نکن؛ تبدیل به‌صورت خودکار انجام می‌شود."
+
+/**
+ * Returns Markdown-styling guidance for the rich-text fields being generated
+ * (description/body). The stored value is rendered with a Markdown renderer, so
+ * the model MUST use real Markdown/limited HTML — never raw `###`/`**` runs.
+ */
+function richtextGuide(def: CopilotEntityDef, onlyKeys?: string[]): string {
+  const rich = def.fields
+    .filter((f) => f.type === "richtext")
+    .filter((f) => f.aiFillable !== false)
+    .filter((f) => !onlyKeys || onlyKeys.includes(f.key))
+  if (rich.length === 0) return ""
+  const labels = rich.map((f) => `«${f.label}»`).join(" و ")
+  return [
+    `\nقالب‌بندی فیلدهای متنی ${labels} با Markdown (این متن با یک نمایشگر Markdown رندر می‌شود، پس نشانه‌ها را واقعی و استاندارد بنویس):`,
+    "- ساختار تمیز و اسکن‌پذیر: تیترها با «## » یا «### » (حتماً یک فاصله بعد از #)، پاراگراف‌های کوتاه و فهرست‌های گلوله‌ای با «- ».",
+    "- تأکید: **پررنگ** برای نکات کلیدی، *ایتالیک* در صورت نیاز.",
+    "- برای هر بخش یا نکته از یک ایموجی مرتبط و حرفه‌ای استفاده کن (نه زیاده‌روی) تا جذاب‌تر شود. ✅🎯🔒⚡️🎁",
+    "- زیرخط با `<u>متن</u>` و رنگ با `<span style=\"color:#f59e0b\">متن</span>` یا هایلایت با `<mark>متن</mark>` — فقط برای تأکیدِ کم و هدفمند.",
+    "- هرگز علامت‌های خام مثل «###» یا «**» را بدون ساختار درست و پشت‌سرهم ننویس؛ خروجی باید مرتب و خوانا باشد.",
+  ].join("\n")
+}
+
 const MODE_INSTRUCTION: Record<CopilotApplyMode, string> = {
   "fill-missing": "فقط فیلدهایی که در «فرم فعلی» خالی هستند را تولید کن و بقیه را دست‌نخورده رها کن.",
   patch: "فقط فیلدهای درخواست‌شده را تولید کن.",
@@ -198,6 +242,8 @@ export async function generateFormObject(input: RunAutofillInput): Promise<Copil
     "",
     `فیلدهای چندزبانه را برای هر زبان به‌صورت Native و بومی‌سازی‌شده تولید کن (نه ترجمه‌ی لفظی). زبان‌ها: ${localeList()}.`,
     `اگر ترجمه‌ی مستقیم کیفیت خوبی ندارد، متن آن زبان را بازنویسی فرهنگی کن.`,
+    MONEY_INSTRUCTION,
+    richtextGuide(def, onlyKeys),
     MODE_INSTRUCTION[input.mode],
     input.mode !== "replace" && ctx.currentForm
       ? `\nفرم فعلی (JSON):\n${JSON.stringify(ctx.currentForm)}`
@@ -219,7 +265,7 @@ export async function generateFormObject(input: RunAutofillInput): Promise<Copil
     refType: "copilot",
     refId: def.id,
   })
-  return sanitizeFormObject(object)
+  return sanitizeFormObject(object, def)
 }
 
 /**
@@ -241,6 +287,8 @@ export async function improveFormObject(input: RunAutofillInput): Promise<Copilo
     "- سئو و متادیتا را بهینه کن.",
     "- فیلدهای ناقص یا خالی را پر کن.",
     "- در صورت لزوم قیمت/دسته را اصلاح کن و دلیلش را بگو.",
+    MONEY_INSTRUCTION,
+    richtextGuide(def),
     input.brief ? `\nراهنمای اضافی مدیر: ${input.brief}` : "",
     `\nفیلدهای چندزبانه را برای همه‌ی زبان‌ها Native نگه‌دار. زبان‌ها: ${localeList()}.`,
     `\nفرم فعلی (JSON):\n${JSON.stringify(ctx.currentForm ?? {})}`,
@@ -258,7 +306,7 @@ export async function improveFormObject(input: RunAutofillInput): Promise<Copilo
     refType: "copilot",
     refId: def.id,
   })
-  return sanitizeFormObject(object)
+  return sanitizeFormObject(object, def)
 }
 
 /** Regenerate a single field (optionally a single locale) without touching others. */
@@ -295,5 +343,5 @@ export async function regenerateField(input: {
     refType: "copilot",
     refId: def.id,
   })
-  return sanitizeFormObject(object)
+  return sanitizeFormObject(object, def)
 }

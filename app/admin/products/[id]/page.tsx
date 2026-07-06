@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
+import { RichText } from "@/components/rich-text"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { StatusPill } from "@/components/admin/status-pill"
 import { Button } from "@/components/ui/button"
@@ -81,9 +82,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <DeliveryBadge type={product.deliveryType === "AUTOMATIC" ? "AUTO_POOL" : "MANUAL"} />
               {product.hidden && <StatusPill status="PENDING" className="!bg-muted" />}
             </div>
-            {product.description && (
-              <p className="mt-2 text-sm text-muted-foreground">{product.description}</p>
-            )}
+            {product.description && <RichText content={product.description} className="mt-2" />}
           </div>
 
           <ImprovePanel

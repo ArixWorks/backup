@@ -29,7 +29,7 @@ export default function AuctionsPage() {
           description={t("auctions.emptyDesc")}
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {auctions.map((a) => (
             <AuctionCard key={a.id} auction={a} />
           ))}

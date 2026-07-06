@@ -6,6 +6,8 @@ import { Logo } from "@/components/logo"
 import { ProfileMenu } from "@/components/profile-menu"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
+import { useShellWidthClass } from "@/lib/use-shell-width"
+import { cn } from "@/lib/utils"
 
 /**
  * Deliberately minimal Telegram Mini App header: brand, wallet balance, and
@@ -17,11 +19,12 @@ export function SiteHeader() {
   const { user } = useSession()
   const { priceCompact, t } = useI18n()
   const balance = priceCompact(user?.balances?.availableBalance ?? 0)
+  const widthClass = useShellWidthClass()
 
   return (
     <header className="glass sticky top-0 z-40 pt-safe">
       <div
-        className="mx-auto flex h-16 w-full max-w-xl items-center justify-between gap-3"
+        className={cn("mx-auto flex h-16 w-full items-center justify-between gap-3", widthClass)}
         style={{
           // Base 20px gutter PLUS any device safe-area inset, so the header
           // never hugs the screen edges on phones without a side notch.
