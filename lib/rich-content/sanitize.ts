@@ -1,4 +1,21 @@
-import DOMPurify from "isomorphic-dompurify"
+import type DOMPurifyType from "isomorphic-dompurify"
+
+/**
+ * `isomorphic-dompurify` pulls in `jsdom` on the server. Importing it at module
+ * top-level means *any* route that merely imports this file (even indirectly,
+ * e.g. via a shared Zod schema) evaluates the heavy jsdom dependency at load
+ * time — and if that evaluation fails on the serverless runtime the entire
+ * route module crashes at import, producing a generic HTML 500 page instead of
+ * our JSON errors. Load it lazily so only code paths that actually sanitize
+ * pay the cost, and importing this module can never crash a route.
+ */
+let _purify: typeof DOMPurifyType | null = null
+function getDOMPurify(): typeof DOMPurifyType {
+  if (_purify) return _purify
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  _purify = require("isomorphic-dompurify").default ?? require("isomorphic-dompurify")
+  return _purify as typeof DOMPurifyType
+}
 
 /**
  * Rich Content sanitizer — the single source of truth for what HTML is allowed
@@ -71,6 +88,8 @@ function installHooks() {
   if (hooksInstalled) return
   hooksInstalled = true
 
+  const DOMPurify = getDOMPurify()
+
   // Force safe link/target behavior and block non-allowed iframe hosts.
   DOMPurify.addHook("afterSanitizeAttributes", (node) => {
     const el = node as unknown as Element
@@ -117,7 +136,7 @@ function installHooks() {
   })
 }
 
-const CONFIG: Parameters<typeof DOMPurify.sanitize>[1] = {
+const CONFIG: Parameters<typeof DOMPurifyType.sanitize>[1] = {
   ALLOWED_TAGS,
   ALLOWED_ATTR,
   ADD_ATTR: ["target", "allowfullscreen"],
@@ -133,7 +152,7 @@ const CONFIG: Parameters<typeof DOMPurify.sanitize>[1] = {
 export function sanitizeRichHtml(html: string): string {
   if (!html) return ""
   installHooks()
-  return DOMPurify.sanitize(html, CONFIG) as unknown as string
+  return getDOMPurify().sanitize(html, CONFIG) as unknown as string
 }
 
 /** Whether the two allow-lists consider `html` already clean (no-op sanitize). */
