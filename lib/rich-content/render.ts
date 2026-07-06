@@ -8,6 +8,42 @@ import { resolveVariablesInHtml, type VariableContext } from "./variables"
  * heading anchor ids. Pure string transforms — no DOM — so it runs in RSC.
  */
 
+/**
+ * Convert any stored rich value (legacy Markdown OR semantic HTML) into a clean
+ * single-line plain-text snippet, suitable for card excerpts, list previews and
+ * meta descriptions. Strips HTML tags and common Markdown markers so raw markup
+ * like `<p>` or `###` never leaks into the UI. Pure string transform (RSC-safe).
+ */
+export function richExcerpt(content: string | null | undefined, maxLength = 160): string {
+  if (!content?.trim()) return ""
+  let text = content
+    // Drop fenced/inline code fences but keep their text
+    .replace(/```[a-z]*\n?/gi, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    // HTML tags -> space
+    .replace(/<[^>]+>/g, " ")
+    // Decode the few entities our sanitizer emits
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Markdown links/images -> label only
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    // Leading block markers: headings, quotes, list bullets
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
+    // Emphasis / strikethrough markers
+    .replace(/(\*\*|__|\*|_|~~)/g, "")
+    // Collapse whitespace
+    .replace(/\s+/g, " ")
+    .trim()
+  if (text.length > maxLength) {
+    text = text.slice(0, maxLength).replace(/\s+\S*$/, "").trim() + "…"
+  }
+  return text
+}
+
 /** URL-safe slug that keeps Persian/Arabic letters (for anchor links). */
 export function slugify(text: string): string {
   return text
