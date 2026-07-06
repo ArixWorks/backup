@@ -1,27 +1,18 @@
-import type DOMPurifyType from "isomorphic-dompurify"
-
-/**
- * `isomorphic-dompurify` pulls in `jsdom` on the server. Importing it at module
- * top-level means *any* route that merely imports this file (even indirectly,
- * e.g. via a shared Zod schema) evaluates the heavy jsdom dependency at load
- * time — and if that evaluation fails on the serverless runtime the entire
- * route module crashes at import, producing a generic HTML 500 page instead of
- * our JSON errors. Load it lazily so only code paths that actually sanitize
- * pay the cost, and importing this module can never crash a route.
- */
-let _purify: typeof DOMPurifyType | null = null
-function getDOMPurify(): typeof DOMPurifyType {
-  if (_purify) return _purify
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  _purify = require("isomorphic-dompurify").default ?? require("isomorphic-dompurify")
-  return _purify as typeof DOMPurifyType
-}
+import sanitizeHtml from "sanitize-html"
 
 /**
  * Rich Content sanitizer — the single source of truth for what HTML is allowed
  * to live in the database and be rendered. Runs identically on the server (RSC
  * renderer, save-time defense in depth) and the client (paste cleaner, pre-save
- * pass) via `isomorphic-dompurify`.
+ * pass).
+ *
+ * Implemented with `sanitize-html` (a pure-JS parser, no `jsdom`). The previous
+ * implementation used `isomorphic-dompurify`, which pulls in `jsdom` on the
+ * server; on the Vercel serverless runtime that dependency chain includes
+ * ESM-only modules (`html-encoding-sniffer` → `@exodus/bytes`) that crash under
+ * `require()` with `ERR_REQUIRE_ESM`, taking down every API route that imported
+ * this module. `sanitize-html` is CommonJS-safe and synchronous, so it works on
+ * both server and client without a DOM implementation.
  *
  * The stored format is standard *semantic* HTML. Editor-specific state is only
  * carried on `data-*` attributes and a small, fixed set of class names — never
@@ -61,9 +52,9 @@ const ALLOWED_TAGS = [
 ]
 
 /**
- * Attribute allow-list. `data-*` attributes carry all editor node metadata
- * (callout kind, smart-link refs, template variables, tooltips, embeds …) and
- * are permitted globally by the ADD_ATTR list below.
+ * Attribute allow-list, applied to every tag. `data-*` attributes carry all
+ * editor node metadata (callout kind, smart-link refs, template variables,
+ * tooltips, embeds …) and are permitted via the `data-*` wildcard.
  */
 const ALLOWED_ATTR = [
   "href", "target", "rel", "title", "alt", "src", "srcset", "sizes", "poster",
@@ -71,78 +62,61 @@ const ALLOWED_ATTR = [
   "colspan", "rowspan", "scope", "headers", "align", "valign", "span",
   "id", "class", "style", "dir", "lang", "role", "aria-label", "aria-hidden", "aria-describedby",
   "allow", "allowfullscreen", "frameborder", "referrerpolicy", "type", "open", "start", "reversed",
-  // data-* attributes used by custom nodes:
-  "data-type", "data-callout", "data-variant", "data-tooltip", "data-tooltip-pos",
-  "data-ref-type", "data-ref-id", "data-ref-label", "data-var", "data-fallback",
-  "data-language", "data-highlight-lines", "data-embed", "data-provider", "data-src",
-  "data-align", "data-caption", "data-footnote", "data-footnote-id", "data-snippet",
-  "data-gallery", "data-blurhash", "data-mention", "data-comment-id",
+  "data-*",
 ]
 
-/** Inline CSS properties that survive sanitization (color/format only). */
-const ALLOWED_STYLE = /^(color|background-color|text-align|font-weight|font-style|text-decoration|width|height|max-width|aspect-ratio)\s*:/i
-
-let hooksInstalled = false
-
-function installHooks() {
-  if (hooksInstalled) return
-  hooksInstalled = true
-
-  const DOMPurify = getDOMPurify()
-
-  // Force safe link/target behavior and block non-allowed iframe hosts.
-  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-    const el = node as unknown as Element
-    const tag = el.tagName?.toLowerCase()
-
-    if (tag === "a") {
-      const href = el.getAttribute("href") ?? ""
-      // Allow only http(s), mailto, tel and internal (/...) links.
-      if (href && !/^(https?:|mailto:|tel:|\/|#)/i.test(href)) {
-        el.removeAttribute("href")
-      }
-      if (el.getAttribute("target") === "_blank") {
-        el.setAttribute("rel", "noopener noreferrer")
-      }
-    }
-
-    if (tag === "iframe") {
-      const src = el.getAttribute("src") ?? ""
-      let ok = false
-      try {
-        ok = ALLOWED_IFRAME_HOSTS.includes(new URL(src).host)
-      } catch {
-        ok = false
-      }
-      if (!ok) {
-        el.remove()
-        return
-      }
-      el.setAttribute("loading", "lazy")
-      el.setAttribute("referrerpolicy", "strict-origin-when-cross-origin")
-    }
-
-    // Strip disallowed inline style declarations.
-    const style = el.getAttribute?.("style")
-    if (style) {
-      const safe = style
-        .split(";")
-        .map((d) => d.trim())
-        .filter((d) => d && ALLOWED_STYLE.test(d))
-        .join("; ")
-      if (safe) el.setAttribute("style", safe)
-      else el.removeAttribute("style")
-    }
-  })
+/**
+ * Inline CSS properties that survive sanitization (color/format only). Values
+ * are constrained to safe token shapes so `url(...)`, `expression(...)`, etc.
+ * can never slip through.
+ */
+const COLOR = /^(#(0x)?[0-9a-f]{3,8}|rgba?\([\d.,\s%]+\)|hsla?\([\d.,\s%]+\)|[a-z]+)$/i
+const LENGTH = /^(auto|[\d.]+(px|%|rem|em|vh|vw|ch)?)$/i
+const ALLOWED_STYLES: sanitizeHtml.IOptions["allowedStyles"] = {
+  "*": {
+    color: [COLOR],
+    "background-color": [COLOR],
+    "text-align": [/^(left|right|center|justify|start|end)$/i],
+    "font-weight": [/^(normal|bold|bolder|lighter|[1-9]00)$/i],
+    "font-style": [/^(normal|italic|oblique)$/i],
+    "text-decoration": [/^(none|underline|line-through|overline)(\s+(none|underline|line-through|overline))*$/i],
+    width: [LENGTH],
+    height: [LENGTH],
+    "max-width": [LENGTH],
+    "aspect-ratio": [/^[\d.]+(\s*\/\s*[\d.]+)?$/],
+  },
 }
 
-const CONFIG: Parameters<typeof DOMPurifyType.sanitize>[1] = {
-  ALLOWED_TAGS,
-  ALLOWED_ATTR,
-  ADD_ATTR: ["target", "allowfullscreen"],
-  ALLOW_DATA_ATTR: true,
-  FORBID_TAGS: ["script", "style", "form", "input", "textarea", "button", "object", "embed", "link", "meta"],
-  FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"],
+const OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: ALLOWED_TAGS,
+  allowedAttributes: { "*": ALLOWED_ATTR },
+  // Only these URL schemes are allowed on href/src (plus relative + hash URLs).
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  allowProtocolRelative: false,
+  allowedSchemesAppliedToAttributes: ["href", "src", "poster"],
+  allowedIframeHostnames: ALLOWED_IFRAME_HOSTS,
+  allowIframeRelativeUrls: false,
+  allowedStyles: ALLOWED_STYLES,
+  // Drop the *content* of dangerous tags entirely (not just the tag wrapper).
+  nonTextTags: ["script", "style", "textarea", "option", "noscript"],
+  // Remove <iframe> elements whose src was stripped because the host wasn't in
+  // the allow-list, so we never leave behind an empty embed shell.
+  exclusiveFilter: (frame) => frame.tag === "iframe" && !frame.attribs.src,
+  transformTags: {
+    a: (tagName, attribs) => {
+      const next: Record<string, string> = { ...attribs }
+      if (next.target === "_blank") {
+        next.rel = "noopener noreferrer"
+      }
+      return { tagName, attribs: next }
+    },
+    iframe: (tagName, attribs) => {
+      const next: Record<string, string> = { ...attribs }
+      next.loading = "lazy"
+      next.referrerpolicy = "strict-origin-when-cross-origin"
+      return { tagName, attribs: next }
+    },
+  },
 }
 
 /**
@@ -151,11 +125,10 @@ const CONFIG: Parameters<typeof DOMPurifyType.sanitize>[1] = {
  */
 export function sanitizeRichHtml(html: string): string {
   if (!html) return ""
-  installHooks()
-  return getDOMPurify().sanitize(html, CONFIG) as unknown as string
+  return sanitizeHtml(html, OPTIONS)
 }
 
-/** Whether the two allow-lists consider `html` already clean (no-op sanitize). */
+/** Whether the allow-lists consider `html` already clean (no-op sanitize). */
 export function isCleanRichHtml(html: string): boolean {
   return sanitizeRichHtml(html) === html
 }
