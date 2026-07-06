@@ -189,6 +189,28 @@ const MONEY_INSTRUCTION =
   "برای فیلدهای مبلغ/قیمت: مقدار را دقیقاً همان‌طور که کاربر نوشته و همراه با واحد مقیاس بنویس " +
   "(مثل «۱ میلیون»، «۵۰ هزار»، «۵۰ تومان»). خودت عدد را حساب یا به تومان کامل تبدیل نکن؛ تبدیل به‌صورت خودکار انجام می‌شود."
 
+/**
+ * Returns Markdown-styling guidance for the rich-text fields being generated
+ * (description/body). The stored value is rendered with a Markdown renderer, so
+ * the model MUST use real Markdown/limited HTML — never raw `###`/`**` runs.
+ */
+function richtextGuide(def: CopilotEntityDef, onlyKeys?: string[]): string {
+  const rich = def.fields
+    .filter((f) => f.type === "richtext")
+    .filter((f) => f.aiFillable !== false)
+    .filter((f) => !onlyKeys || onlyKeys.includes(f.key))
+  if (rich.length === 0) return ""
+  const labels = rich.map((f) => `«${f.label}»`).join(" و ")
+  return [
+    `\nقالب‌بندی فیلدهای متنی ${labels} با Markdown (این متن با یک نمایشگر Markdown رندر می‌شود، پس نشانه‌ها را واقعی و استاندارد بنویس):`,
+    "- ساختار تمیز و اسکن‌پذیر: تیترها با «## » یا «### » (حتماً یک فاصله بعد از #)، پاراگراف‌های کوتاه و فهرست‌های گلوله‌ای با «- ».",
+    "- تأکید: **پررنگ** برای نکات کلیدی، *ایتالیک* در صورت نیاز.",
+    "- برای هر بخش یا نکته از یک ایموجی مرتبط و حرفه‌ای استفاده کن (نه زیاده‌روی) تا جذاب‌تر شود. ✅🎯🔒⚡️🎁",
+    "- زیرخط با `<u>متن</u>` و رنگ با `<span style=\"color:#f59e0b\">متن</span>` یا هایلایت با `<mark>متن</mark>` — فقط برای تأکیدِ کم و هدفمند.",
+    "- هرگز علامت‌های خام مثل «###» یا «**» را بدون ساختار درست و پشت‌سرهم ننویس؛ خروجی باید مرتب و خوانا باشد.",
+  ].join("\n")
+}
+
 const MODE_INSTRUCTION: Record<CopilotApplyMode, string> = {
   "fill-missing": "فقط فیلدهایی که در «فرم فعلی» خالی هستند را تولید کن و بقیه را دست‌نخورده رها کن.",
   patch: "فقط فیلدهای درخواست‌شده را تولید کن.",
@@ -221,6 +243,7 @@ export async function generateFormObject(input: RunAutofillInput): Promise<Copil
     `فیلدهای چندزبانه را برای هر زبان به‌صورت Native و بومی‌سازی‌شده تولید کن (نه ترجمه‌ی لفظی). زبان‌ها: ${localeList()}.`,
     `اگر ترجمه‌ی مستقیم کیفیت خوبی ندارد، متن آن زبان را بازنویسی فرهنگی کن.`,
     MONEY_INSTRUCTION,
+    richtextGuide(def, onlyKeys),
     MODE_INSTRUCTION[input.mode],
     input.mode !== "replace" && ctx.currentForm
       ? `\nفرم فعلی (JSON):\n${JSON.stringify(ctx.currentForm)}`
@@ -265,6 +288,7 @@ export async function improveFormObject(input: RunAutofillInput): Promise<Copilo
     "- فیلدهای ناقص یا خالی را پر کن.",
     "- در صورت لزوم قیمت/دسته را اصلاح کن و دلیلش را بگو.",
     MONEY_INSTRUCTION,
+    richtextGuide(def),
     input.brief ? `\nراهنمای اضافی مدیر: ${input.brief}` : "",
     `\nفیلدهای چندزبانه را برای همه‌ی زبان‌ها Native نگه‌دار. زبان‌ها: ${localeList()}.`,
     `\nفرم فعلی (JSON):\n${JSON.stringify(ctx.currentForm ?? {})}`,
