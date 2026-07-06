@@ -1622,3 +1622,114 @@ model AiAutomationRun {
 
   @@index([automationId, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Rich Content Platform
+// Shared editor infrastructure used by every long-form content surface
+// (products, auctions, giveaways, articles, FAQ, rules, emails, channel posts).
+// Content itself lives on each owning model as standard semantic HTML; these
+// tables back the cross-cutting features (media library, snippets, revisions).
+// ---------------------------------------------------------------------------
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  ARCHIVE
+  OTHER
+}
+
+/// Optional folders for organizing the shared Media Library.
+model MediaFolder {
+  id        String        @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  MediaFolder[] @relation("FolderTree")
+  assets    MediaAsset[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([parentId])
+}
+
+/// Every file uploaded through the Media Manager. `url` is the Blob URL (or the
+/// authenticated proxy path for private files). Deleting a folder detaches its
+/// assets rather than removing the files.
+model MediaAsset {
+  id           String       @id @default(cuid())
+  url          String
+  pathname     String?      // Blob pathname, for deletion
+  kind         MediaKind    @default(OTHER)
+  mimeType     String
+  filename     String
+  size         Int          @default(0)
+  width        Int?
+  height       Int?
+  blurDataUrl  String?      // tiny base64 placeholder for images
+  alt          String?
+  caption      String?
+  tags         String[]     @default([])
+  folderId     String?
+  folder       MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploadedById String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([kind])
+  @@index([folderId])
+  @@index([createdAt])
+}
+
+/// Reusable content blocks/snippets. Body is canonical semantic HTML; inserting
+/// a snippet expands it into normal editable nodes (copy-in, not live-linked).
+model ContentSnippet {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?
+  html        String   // semantic HTML body
+  scope       String   @default("global") // reserved for future per-section scoping
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([name])
+}
+
+/// Version history for any rich field. `entityType`+`entityId`+`field`
+/// identifies the owning column; `status` distinguishes drafts, the published
+/// snapshot, and prior revisions so any version can be restored.
+model ContentRevision {
+  id          String   @id @default(cuid())
+  entityType  String // e.g. "product", "article", "faq"
+  entityId    String
+  field       String   @default("description")
+  html        String
+  status      String   @default("revision") // "draft" | "published" | "revision"
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId, field, createdAt])
+}
+
+/// Forward-compatibility only (NOT wired this phase): inline comment threads
+/// anchored to a `data-comment-id` mark in the content. Present so future
+/// collaboration/commenting needs no storage-format change or data migration.
+model ContentComment {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  field      String   @default("description")
+  anchorId   String // matches data-comment-id in the HTML
+  body       String
+  authorId   String?
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([entityType, entityId, field])
+  @@index([anchorId])
+}

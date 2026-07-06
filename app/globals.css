@@ -1320,3 +1320,81 @@ body::-webkit-scrollbar,
   height: 0 !important;
   display: none !important; /* Chrome, Safari, Edge */
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Rich Content — shared styling for the semantic-HTML custom nodes.
+   Applied identically to the server renderer (.rc-prose) and the editable
+   surface (.rc-editor .ProseMirror) so authoring matches the published view.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Callout boxes ---------------------------------------------------------- */
+.rc-prose [data-callout],
+.rc-editor .ProseMirror [data-callout] {
+  display: flex;
+  gap: 0.625rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-inline-start-width: 4px;
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  padding: 0.75rem 0.875rem;
+  margin: 1rem 0;
+}
+.rc-prose [data-callout] > svg,
+.rc-editor .ProseMirror [data-callout] > svg { flex: none; margin-top: 0.125rem; }
+.rc-prose [data-callout="info"], .rc-editor .ProseMirror [data-callout="info"] { border-inline-start-color: oklch(0.7 0.13 235); }
+.rc-prose [data-callout="success"], .rc-editor .ProseMirror [data-callout="success"] { border-inline-start-color: oklch(0.72 0.16 150); }
+.rc-prose [data-callout="warning"], .rc-editor .ProseMirror [data-callout="warning"] { border-inline-start-color: oklch(0.8 0.15 85); }
+.rc-prose [data-callout="error"], .rc-editor .ProseMirror [data-callout="error"] { border-inline-start-color: var(--destructive); }
+.rc-prose [data-callout="tip"], .rc-editor .ProseMirror [data-callout="tip"] { border-inline-start-color: oklch(0.72 0.16 165); }
+.rc-prose [data-callout="vip"], .rc-editor .ProseMirror [data-callout="vip"],
+.rc-prose [data-callout="discount"], .rc-editor .ProseMirror [data-callout="discount"],
+.rc-prose [data-callout="ai"], .rc-editor .ProseMirror [data-callout="ai"],
+.rc-prose [data-callout="security"], .rc-editor .ProseMirror [data-callout="security"],
+.rc-prose [data-callout="update"], .rc-editor .ProseMirror [data-callout="update"] { border-inline-start-color: var(--primary); }
+
+/* Dividers --------------------------------------------------------------- */
+.rc-prose hr[data-variant="double"], .rc-editor .ProseMirror hr[data-variant="double"] { border: 0; border-top: 3px double var(--border); }
+.rc-prose hr[data-variant="dotted"], .rc-editor .ProseMirror hr[data-variant="dotted"] { border: 0; border-top: 2px dotted var(--border); }
+.rc-prose hr[data-variant="gradient"], .rc-editor .ProseMirror hr[data-variant="gradient"],
+.rc-prose hr[data-variant="gold"], .rc-editor .ProseMirror hr[data-variant="gold"] {
+  border: 0; height: 2px;
+  background: linear-gradient(to right, transparent, var(--primary), transparent);
+}
+
+/* Attachment cards ------------------------------------------------------- */
+.rc-prose [data-type="attachment"], .rc-editor .ProseMirror [data-type="attachment"] {
+  display: flex; align-items: center; gap: 0.75rem;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--card); padding: 0.75rem; margin: 0.75rem 0; text-decoration: none;
+}
+
+/* Template variables ----------------------------------------------------- */
+.rc-prose [data-var], .rc-editor .ProseMirror [data-var] {
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--foreground);
+  padding: 0.05rem 0.35rem; font-weight: 600; white-space: nowrap;
+}
+
+/* Smart internal links --------------------------------------------------- */
+.rc-prose a[data-ref-type], .rc-editor .ProseMirror a[data-ref-type] {
+  text-decoration-style: dotted; text-underline-offset: 3px;
+}
+
+/* Footnotes -------------------------------------------------------------- */
+.rc-prose sup[data-footnote], .rc-editor .ProseMirror sup[data-footnote] { color: var(--primary); font-weight: 700; cursor: pointer; }
+
+/* Editable-surface essentials ------------------------------------------- */
+.rc-editor .ProseMirror { outline: none; min-height: 12rem; }
+.rc-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: inline-start; height: 0; pointer-events: none;
+}
+.rc-editor .ProseMirror:focus { outline: none; }
+.rc-editor .ProseMirror .ProseMirror-selectednode { outline: 2px solid var(--primary); border-radius: var(--radius-md); }
+.rc-editor .ProseMirror table { position: relative; }
+.rc-editor .ProseMirror .column-resize-handle { position: absolute; inset-inline-end: -2px; top: 0; bottom: 0; width: 4px; background: var(--primary); pointer-events: none; }
+.rc-editor .ProseMirror .selectedCell:after {
+  content: ""; position: absolute; inset: 0; background: color-mix(in oklab, var(--primary) 18%, transparent); pointer-events: none;
+}
