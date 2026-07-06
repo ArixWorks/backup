@@ -4,7 +4,7 @@ import useSWR from "swr"
 import Link from "next/link"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Plus, Gavel, XCircle, ExternalLink, ImageIcon } from "lucide-react"
+import { Plus, Gavel, XCircle, ExternalLink, ImageIcon, AlertTriangle } from "lucide-react"
 import { fetcher, apiPost } from "@/lib/api-client"
 import { formatToman, formatNumber, formatDateTime } from "@/lib/format"
 import { Card } from "@/components/ui/card"
@@ -60,7 +60,7 @@ function statusTone(s: string): string {
 }
 
 export default function AdminAuctionsPage() {
-  const { data, isLoading, mutate } = useSWR<{ ok: boolean; data: Product[] }>(
+  const { data, isLoading, error, mutate } = useSWR<{ ok: boolean; data: Product[] }>(
     "/api/v1/admin/products",
     fetcher,
   )
@@ -99,6 +99,18 @@ export default function AdminAuctionsPage() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">در حال بارگذاری…</p>
+      ) : error ? (
+        <Card className="flex flex-col items-center gap-3 p-12 text-center">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <p className="text-sm text-muted-foreground">
+            {error?.status === 401 || error?.status === 403
+              ? "دسترسی ادمین لازم است. لطفاً دوباره وارد شوید."
+              : `خطا در بارگذاری مزایده‌ها${error?.message ? `: ${error.message}` : ""}`}
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => mutate()}>
+            تلاش مجدد
+          </Button>
+        </Card>
       ) : auctions.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 p-12 text-center">
           <Gavel className="h-8 w-8 text-muted-foreground" />

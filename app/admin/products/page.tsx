@@ -4,13 +4,13 @@ import useSWR from "swr"
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
-import { Plus, Search, Package } from "lucide-react"
+import { Plus, Search, Package, AlertTriangle } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { formatToman, formatNumber } from "@/lib/format"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 type Product = {
@@ -28,7 +28,7 @@ type Product = {
 }
 
 export default function AdminProductsPage() {
-  const { data, isLoading } = useSWR<{ ok: boolean; data: Product[] }>(
+  const { data, isLoading, error, mutate } = useSWR<{ ok: boolean; data: Product[] }>(
     "/api/v1/admin/products",
     fetcher,
   )
@@ -64,6 +64,18 @@ export default function AdminProductsPage() {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">در حال بارگذاری…</p>
+      ) : error ? (
+        <Card className="flex flex-col items-center gap-3 p-12 text-center">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <p className="text-sm text-muted-foreground">
+            {error?.status === 401 || error?.status === 403
+              ? "دسترسی ادمین لازم است. لطفاً دوباره وارد شوید."
+              : `خطا در بارگذاری محصولات${error?.message ? `: ${error.message}` : ""}`}
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => mutate()}>
+            تلاش مجدد
+          </Button>
+        </Card>
       ) : products.length === 0 ? (
         <Card className="flex flex-col items-center gap-2 p-12 text-center">
           <Package className="h-8 w-8 text-muted-foreground" />
