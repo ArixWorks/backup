@@ -6,8 +6,7 @@ import { Logo } from "@/components/logo"
 import { ProfileMenu } from "@/components/profile-menu"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
-import { useShellWidthClass } from "@/lib/use-shell-width"
-import { cn } from "@/lib/utils"
+import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer"
 
 /**
  * Deliberately minimal Telegram Mini App header: brand, wallet balance, and
@@ -19,12 +18,11 @@ export function SiteHeader() {
   const { user } = useSession()
   const { priceCompact, t } = useI18n()
   const balance = priceCompact(user?.balances?.availableBalance ?? 0)
-  const widthClass = useShellWidthClass()
 
   return (
     <header className="glass sticky top-0 z-40 pt-safe">
       <div
-        className={cn("mx-auto flex h-16 w-full items-center justify-between gap-3", widthClass)}
+        className="mx-auto flex h-16 w-full max-w-[var(--shell-max)] items-center justify-between gap-3 web:lg:h-[var(--header-h-web)] web:lg:max-w-[var(--content-max)]"
         style={{
           // Base 20px gutter PLUS any device safe-area inset, so the header
           // never hugs the screen edges on phones without a side notch.
@@ -32,14 +30,18 @@ export function SiteHeader() {
           paddingRight: "calc(max(env(safe-area-inset-right), var(--tg-safe-right, 0px)) + 1.25rem)",
         }}
       >
-        {/* Brand */}
-        <Link
-          href="/"
-          aria-label="SubIO"
-          className="active:scale-press flex shrink-0 items-center transition-transform"
-        >
-          <Logo />
-        </Link>
+        {/* Brand + mobile menu. The hamburger opens the nav Drawer on phones and
+            is hidden at lg+, where the persistent Sidebar owns navigation. */}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <MobileNavDrawer />
+          <Link
+            href="/"
+            aria-label="SubIO"
+            className="active:scale-press flex shrink-0 items-center transition-transform web:lg:hidden"
+          >
+            <Logo />
+          </Link>
+        </div>
 
         {/* Account cluster — every control shares the same 36px height so the
             wallet pill and the avatar sit on one perfectly aligned baseline. */}
