@@ -9,10 +9,10 @@ import { fetcher, apiPost, apiPatch, ApiError } from "@/lib/api-client"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { ImageUpload } from "@/components/admin/image-upload"
+import { RichContentEditor } from "@/components/rich-content"
 import {
   CopilotProvider,
   CopilotLauncher,
@@ -230,8 +230,13 @@ export function GiveawayForm({
         <Field label="زیرعنوان" hint="یک جمله‌ی کوتاه و جذاب">
           <Input value={form.subtitle} onChange={(e) => set("subtitle", e.target.value)} placeholder="فقط با عضویت در کانال شرکت کن!" />
         </Field>
-        <Field label="توضیحات">
-          <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} />
+        <Field label="توضیحات" hint="ویرایشگر کامل با پشتیبانی از رسانه، جدول و دستیار هوشمند">
+          <RichContentEditor
+            value={form.description}
+            onChange={(v) => set("description", v)}
+            draftKey={`giveaway-${giveawayId ?? "new"}-description`}
+            placeholder="جزئیات قرعه‌کشی، جوایز و شرایط را بنویسید…"
+          />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="تصویر کاور" hint="نسبت ۱۶:۹ پیشنهاد می‌شود">

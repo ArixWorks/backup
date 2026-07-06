@@ -3,6 +3,7 @@ import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { getGiveawayById, updateGiveaway, deleteGiveaway, getGiveawayStats } from "@/lib/core/giveaway"
+import { richTextField } from "@/lib/rich-content/zod"
 
 export const dynamic = "force-dynamic"
 
