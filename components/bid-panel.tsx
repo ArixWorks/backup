@@ -64,7 +64,7 @@ export function BidPanel({
     }
   }
 
-  async function buyNow() {
+  async function buyNowAction() {
     if (!user) return toast.error(t("buy.loginFirst"))
     setBuying(true)
     try {
