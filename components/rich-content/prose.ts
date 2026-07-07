@@ -22,12 +22,12 @@ export const richContentProse = [
   "[&_mark]:rounded [&_mark]:bg-primary/20 [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:text-foreground",
   "[&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2",
   "[&_kbd]:rounded [&_kbd]:border [&_kbd]:border-border [&_kbd]:bg-muted [&_kbd]:px-1.5 [&_kbd]:py-0.5 [&_kbd]:font-mono [&_kbd]:text-xs",
-  // lists
-  "[&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pe-5",
-  "[&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:pe-5",
+  // lists — markers sit at the inline-start edge, so pad the start side (RTL-safe)
+  "[&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:ps-5",
+  "[&_ol]:list-decimal [&_ol]:space-y-1 [&_ol]:ps-5",
   "[&_li]:marker:text-primary",
-  // quotes
-  "[&_blockquote]:border-primary/50 [&_blockquote]:border-e-4 [&_blockquote]:pe-4 [&_blockquote]:text-foreground/80 [&_blockquote]:italic",
+  // quotes — accent bar sits on the inline-start edge (RTL-safe)
+  "[&_blockquote]:border-primary/50 [&_blockquote]:border-s-4 [&_blockquote]:ps-4 [&_blockquote]:text-foreground/80 [&_blockquote]:italic",
   "[&_hr]:my-6 [&_hr]:border-border",
   // figures / images
   "[&_figure]:my-4 [&_figure]:space-y-2",
