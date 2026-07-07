@@ -5,8 +5,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Plus, Search, Package, AlertTriangle, Trash2 } from "lucide-react"
-import { fetcher, apiDelete, ApiError } from "@/lib/api-client"
+import { Plus, Search, Package, AlertTriangle, Trash2, Eye, EyeOff } from "lucide-react"
+import { fetcher, apiDelete, apiPatch, ApiError } from "@/lib/api-client"
 import { formatToman, formatNumber } from "@/lib/format"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -50,6 +50,17 @@ export default function AdminProductsPage() {
       await mutate()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "خطا در حذف")
+    }
+  }
+
+  async function toggleHidden(p: Product) {
+    const next = !p.hidden
+    try {
+      await apiPatch(`/api/v1/admin/products/${p.id}`, { hidden: next })
+      toast.success(next ? "محصول از نمایش کاربران مخفی شد" : "محصول برای کاربران نمایش داده شد")
+      await mutate()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در تغییر وضعیت نمایش")
     }
   }
 
@@ -202,6 +213,15 @@ export default function AdminProductsPage() {
                   ) : null}
                 </div>
               </Link>
+              <button
+                type="button"
+                onClick={() => toggleHidden(p)}
+                aria-label={p.hidden ? `نمایش ${p.title} به کاربران` : `مخفی‌کردن ${p.title} از کاربران`}
+                title={p.hidden ? "نمایش به کاربران" : "مخفی‌کردن از کاربران"}
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                {p.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
               <button
                 type="button"
                 onClick={() => removeOne(p)}
