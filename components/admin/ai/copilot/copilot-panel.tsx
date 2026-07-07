@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, Loader2, Wand2, CircleDot, AlertCircle } from "lucide-react"
+import { Sparkles, Loader2, Wand2, CircleDot, AlertCircle, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -37,7 +37,17 @@ const MODE_LABEL: Record<CopilotApplyMode, string> = {
 }
 
 export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { def, mode, adapter, setDraft, busy, setBusy, pendingEdits, entityId } = useCopilot()
+  const { def, mode, adapter, draft, setDraft, applySelected, busy, setBusy, pendingEdits, entityId } =
+    useCopilot()
+  const hasDraft = !!draft
+
+  function applyAllAndClose() {
+    if (!draft) return
+    applySelected(Object.keys(draft.fields))
+    setDraft(null)
+    toast.success("پیشنهاد هوش مصنوعی روی فرم اعمال شد")
+    onClose()
+  }
   // "improve" (edit pages) and "edit" both work over existing data.
   const isEditMode = mode !== "create"
   const [brief, setBrief] = useState("")
@@ -150,23 +160,39 @@ export function CopilotPanel({ open, onClose }: { open: boolean; onClose: () => 
           <Button variant="outline" onClick={onClose} disabled={busy}>
             بستن
           </Button>
-          {isEditMode ? (
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => generate(false)} disabled={busy}>
-                <Sparkles className="size-4" />
-                بازتولید
+          <div className="flex flex-wrap items-center gap-2">
+            {isEditMode ? (
+              <>
+                <Button variant="secondary" onClick={() => generate(false)} disabled={busy}>
+                  <Sparkles className="size-4" />
+                  بازتولید
+                </Button>
+                <Button
+                  variant={hasDraft ? "secondary" : "default"}
+                  onClick={() => generate(true)}
+                  disabled={busy}
+                >
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+                  بهبود با هوش مصنوعی
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant={hasDraft ? "secondary" : "default"}
+                onClick={() => generate(false)}
+                disabled={busy}
+              >
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {hasDraft ? "بازتولید" : "ایجاد با هوش مصنوعی"}
               </Button>
-              <Button onClick={() => generate(true)} disabled={busy}>
-                {busy ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-                بهبود با هوش مصنوعی
+            )}
+            {hasDraft ? (
+              <Button onClick={applyAllAndClose} disabled={busy}>
+                <Check className="size-4" />
+                اعمال و بستن
               </Button>
-            </div>
-          ) : (
-            <Button onClick={() => generate(false)} disabled={busy}>
-              {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-              ایجاد با هوش مصنوعی
-            </Button>
-          )}
+            ) : null}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
