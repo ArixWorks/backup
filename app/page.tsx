@@ -13,7 +13,6 @@ import {
   Store,
   UserPlus,
 } from "lucide-react"
-import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import { RecommendedRail } from "@/components/recommended-rail"
@@ -51,22 +50,13 @@ const quickActions: { href: string; label: MessageKey; icon: typeof Plus }[] = [
 ]
 
 export default function HomePage() {
-  const { user } = useSession()
   const { t } = useI18n()
-
-  const discount = user?.membership?.discountPercent ?? 0
 
   return (
     <Stagger className="space-y-7">
-      {/* ── Profile + wallet-balance hero (identity ⇄ balance in one row) ── */}
+      {/* ── Profile + wallet-balance hero (identity ⇄ balance ⇄ tier discount) ── */}
       <FadeItem>
         <ProfileBalanceHero />
-        {discount > 0 ? (
-          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-gold">
-            <BadgePercent className="h-3.5 w-3.5 text-primary" />
-            {t("membership.discount").replace("{n}", String(discount))}
-          </div>
-        ) : null}
       </FadeItem>
 
       {/* ── Quick actions (frequent tasks) ── */}
