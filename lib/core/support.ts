@@ -6,6 +6,23 @@ import { audit } from "./audit"
 export const SUPPORT_CATEGORIES = ["GENERAL", "PAYMENT", "ORDER", "REFUND", "TECHNICAL"] as const
 export type SupportCategoryValue = (typeof SUPPORT_CATEGORIES)[number]
 
+/**
+ * Canonical subject used for a banned user's "contact support / appeal" thread.
+ * A banned user is locked out of the whole bot, so this dedicated thread is the
+ * only channel they can reach an admin through. We reuse one open thread per
+ * user (instead of spawning a ticket per message) so the conversation stays a
+ * single two-way channel.
+ */
+export const BAN_APPEAL_SUBJECT = "درخواست بررسی مسدودیت حساب"
+
+/** The still-open ban-appeal thread for a user, or null. Not owner-throwing. */
+export async function getOpenBanAppeal(userId: string) {
+  return prisma.supportTicket.findFirst({
+    where: { userId, subject: BAN_APPEAL_SUBJECT, status: { not: "CLOSED" } },
+    orderBy: { lastReplyAt: "desc" },
+  })
+}
+
 function normalizeCategory(value?: string): SupportCategoryValue {
   return (SUPPORT_CATEGORIES as readonly string[]).includes(value ?? "")
     ? (value as SupportCategoryValue)
@@ -172,6 +189,15 @@ export async function staffReply(input: {
     ticketId: ticket.publicId,
     subject: ticket.subject,
     message: body,
+  })
+  // Push the reply into the owner's Telegram chat so the conversation is truly
+  // two-way in the bot (critical for banned users, who can't use the dashboard).
+  const { notifySupportReply } = await import("@/lib/telegram/notify")
+  await notifySupportReply(ticket.userId, {
+    subject: ticket.subject,
+    body,
+    isBanAppeal: ticket.subject === BAN_APPEAL_SUBJECT,
+    closed: Boolean(input.close),
   })
   return message
 }
