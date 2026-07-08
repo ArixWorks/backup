@@ -206,11 +206,11 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                           {i === 0 ? <Trophy className="h-2.5 w-2.5" /> : formatNumber(i + 1)}
                         </span>
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col text-right">
                         <span dir="auto" className="text-sm font-medium">
                           {b.name}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span dir="auto" className="text-xs text-muted-foreground">
                           {formatRelative(b.createdAt)}
                           {b.isAuto && ` • ${t("adetail.auto")}`}
                         </span>
