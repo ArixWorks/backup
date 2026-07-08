@@ -11,10 +11,11 @@ import {
 } from "./metrics"
 import { getBusinessMetrics, businessToSamples } from "./business"
 import { checkAll, type HealthResult } from "./health"
-import { readHeartbeat } from "./heartbeat"
+import { readHeartbeat, touchHeartbeat } from "./heartbeat"
 import { evaluateMetricAlerts, evaluateHealthAlerts, seedDefaultAlertRules } from "./alerts"
 import { readEmailBounceRate } from "@/lib/email/analytics"
 import { emitOps } from "@/lib/core/events"
+import { cache } from "@/lib/redis"
 
 /**
  * One full monitoring cycle: collect real metrics (system + app + business),
@@ -129,4 +130,64 @@ export async function runCollection(): Promise<{
     health,
     alerts: { fired: metricAlerts.fired + healthAlerts.fired, resolved: metricAlerts.resolved + healthAlerts.resolved },
   }
+}
+
+// ---------------------------------------------------------------------------
+// On-demand collection (keeps the dashboard populated without relying on a
+// fast external scheduler).
+// ---------------------------------------------------------------------------
+
+/** Minimum gap between on-demand collections triggered by dashboard reads. */
+const FRESH_INTERVAL_MS = 15_000
+
+// In-process guards: coalesce the parallel requests fired by a single dashboard
+// load into ONE collection, and throttle subsequent polls per instance.
+let lastRunAt = 0
+let inFlight: Promise<void> | null = null
+
+/**
+ * Ensure recent monitoring data exists, collecting on demand when it's stale.
+ *
+ * This is what makes `/admin/ops` show real, current data the moment it is
+ * opened — even on serverless where a per-minute cron may not be running, and
+ * on a fresh database with no samples yet. It is safe to call from every read
+ * endpoint: concurrent callers share a single in-flight run, and runs are
+ * throttled to at most once per `FRESH_INTERVAL_MS` per instance (plus a
+ * best-effort cross-instance lock when Redis is available).
+ *
+ * Errors never propagate — monitoring reads must succeed even if a probe fails.
+ */
+export async function ensureFreshCollection(): Promise<void> {
+  if (inFlight) return inFlight
+  if (Date.now() - lastRunAt < FRESH_INTERVAL_MS) return
+
+  // Best-effort cross-instance throttle. With Redis this prevents several
+  // serverless isolates from collecting at once; in memory mode it's a no-op
+  // guard local to this instance (harmless duplicate work at worst).
+  const gotLock = await cache
+    .setIfAbsent("ops:collect:lock", String(Date.now()), 12)
+    .catch(() => true)
+  if (!gotLock) {
+    lastRunAt = Date.now()
+    return
+  }
+
+  inFlight = (async () => {
+    const startedAt = Date.now()
+    let failed = 0
+    try {
+      await runCollection()
+    } catch (e) {
+      failed = 1
+      console.log("[v0] ensureFreshCollection error:", (e as Error).message)
+    } finally {
+      // Record a cron heartbeat so the "cron" service reports live while the
+      // dashboard is driving collection (mirrors what the scheduled cron does),
+      // keeping the overall platform status accurate instead of UNKNOWN.
+      void touchHeartbeat("cron", { durationMs: Date.now() - startedAt, failures: failed })
+      lastRunAt = Date.now()
+      inFlight = null
+    }
+  })()
+  return inFlight
 }
