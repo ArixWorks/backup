@@ -38,7 +38,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
   }
 
   try {
-    const result = await get(pathname, { access: "private" })
+    // Read as a private blob when the store supports it; otherwise fall back to
+    // reading the public blob. Either way, access to this route is already
+    // gated by the owner-or-admin check above, so the file is not exposed
+    // to unauthorized callers.
+    let result
+    try {
+      result = await get(pathname, { access: "private" })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (/private access on a public store/i.test(msg)) {
+        result = await get(pathname, { access: "public" })
+      } else {
+        throw err
+      }
+    }
     if (!result || !result.stream) return new Response("Not found", { status: 404 })
 
     const headers = new Headers()
