@@ -5,7 +5,6 @@ import type { PointerEvent, ReactNode } from "react"
 import {
   motion,
   useMotionValue,
-  useReducedMotion,
   useSpring,
   useTransform,
 } from "motion/react"
@@ -50,9 +49,11 @@ export function PremiumHeroCard({
   blooms?: boolean
   "aria-label"?: string
 }) {
-  const reduce = useReducedMotion()
   const tier = useMotionTier()
-  const interactive = !reduce && tier !== "minimal"
+  // Follow the *resolved* motion tier (which already folds in OS Reduce-Motion
+  // for Auto users and an explicit opt-in otherwise) — never gate on the raw OS
+  // media query here, or an explicit "Cinematic" choice would be ignored.
+  const interactive = tier !== "minimal"
 
   // Pointer-driven tilt (degrees) + normalized glow position (%).
   const rx = useMotionValue(0)
@@ -71,12 +72,26 @@ export function PremiumHeroCard({
   // Engaged scale (1 → 1.025) derived from the lift signal.
   const scale = useTransform(sLift, [0, 1], [1, 1.025])
 
-  // Accent glow that trails the finger / cursor across the interior.
+  // Primary aurora halo that trails the finger / cursor across the interior —
+  // large and clearly visible so the surface reads as living, moving light.
   const pointerGlow = useTransform(
     [sgx, sgy] as const,
     ([x, y]: number[]) =>
-      `radial-gradient(240px circle at ${x}% ${y}%, color-mix(in oklch, var(--tier-glow) 30%, transparent), transparent 68%)`,
+      `radial-gradient(320px circle at ${x}% ${y}%, color-mix(in oklch, var(--tier-glow) 55%, transparent), transparent 70%)`,
   )
+
+  // A second, counter-drifting halo (mirrored across the card) adds depth so it
+  // feels like layered aurora rather than a single spotlight.
+  const pointerGlowB = useTransform(
+    [sgx, sgy] as const,
+    ([x, y]: number[]) =>
+      `radial-gradient(260px circle at ${100 - x}% ${100 - y}%, color-mix(in oklch, var(--primary) 30%, transparent), transparent 72%)`,
+  )
+
+  // Parallax offset for the ambient bloom layer so the halos physically shift
+  // toward the pointer (not just recolor). Range kept small to avoid edge gaps.
+  const auroraX = useTransform(sgx, [0, 100], [-22, 22])
+  const auroraY = useTransform(sgy, [0, 100], [-18, 18])
 
   // Glossy specular highlight (a bright, tight glare) that skates across the
   // glass following the pointer — the signature "premium 3D card" sheen.
@@ -148,12 +163,25 @@ export function PremiumHeroCard({
         onPointerUp={resetPointer}
         onPointerCancel={resetPointer}
       >
-        <LivingSurface intensity={intensity} lines={lines} particles={particles} blooms={blooms} />
-        {/* Accent glow that drifts under the pointer / finger. */}
+        {/* Ambient bloom/particle layer, parallax-shifted toward the pointer so
+            the halos physically drift with the cursor / touch. */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{ x: auroraX, y: auroraY }}
+        >
+          <LivingSurface intensity={intensity} lines={lines} particles={particles} blooms={blooms} />
+        </motion.div>
+        {/* Layered aurora halos that trail the pointer / finger. */}
         <motion.span
           aria-hidden
           className="pointer-events-none absolute inset-0 z-[1]"
           style={{ background: pointerGlow }}
+        />
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[1]"
+          style={{ background: pointerGlowB }}
         />
         {/* Glossy specular glare skating across the glass. */}
         <motion.span

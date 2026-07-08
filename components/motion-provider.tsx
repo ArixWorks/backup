@@ -72,8 +72,11 @@ function detectCapabilityTier(): MotionTier {
   // Desktop Telegram / web clients are virtually always capable.
   if (platform === "tdesktop" || platform === "macos" || platform === "web") return "cinematic"
 
-  if (cores <= 4 || mem <= 2) return "minimal"
-  if (cores <= 6 || mem <= 4) return "balanced"
+  // Only genuinely weak hardware drops to minimal. Mid-range phones (which very
+  // commonly report 4 logical cores) keep the signature brand motion at
+  // `balanced`; the live FPS guard can still step this down if it hitches.
+  if (cores <= 2 || mem <= 1) return "minimal"
+  if (cores <= 4 || mem <= 3) return "balanced"
   return "cinematic"
 }
 
@@ -160,10 +163,16 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
   }, [pref, reducedMotion])
 
   // Resolve the effective tier.
+  //
+  // Precedence: an *explicit* user choice always wins — if someone deliberately
+  // turns effects up to Cinematic in settings, we honor it even when the OS has
+  // "Reduce Motion" on (a conscious opt-in overrides the global default). Only
+  // in Auto do we defer to the OS accessibility preference, then to the live
+  // device/FPS ceiling.
   const tier: MotionTier = useMemo(() => {
+    if (pref !== "auto") return pref
     if (reducedMotion) return "minimal"
-    if (pref === "auto") return perfCeiling
-    return pref
+    return perfCeiling
   }, [pref, reducedMotion, perfCeiling])
 
   // Publish to the document so CSS + Telegram chrome can react.
