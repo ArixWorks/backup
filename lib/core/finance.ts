@@ -30,11 +30,6 @@ export interface CreateDepositInput {
   receiptUrl?: string
 }
 
-/** A short uppercase code the user references in their transfer note. */
-function uniqueTag(): string {
-  return secureSlug("").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() || "TX0000"
-}
-
 /**
  * Convert an IRT amount into another currency's minor units, then nudge the
  * trailing two digits to a unique value so each pending crypto deposit has a
@@ -106,8 +101,9 @@ export async function createDepositRequest(input: CreateDepositInput): Promise<D
     payNetwork = null
     expiresAt = null // Stars invoices manage their own lifetime
   } else {
-    // CARD: pay the exact IRT amount, reference a unique transfer-note code.
-    payTag = uniqueTag()
+    // CARD: pay the exact IRT amount to the destination card. Iranian bank
+    // transfers have no user-enterable reference/tracking code, so we don't
+    // generate one — the admin matches the deposit by amount + receipt.
     payAddress = slot.address
   }
 
