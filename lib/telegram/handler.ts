@@ -196,6 +196,39 @@ async function maintenanceBlock(telegramId: number, chatId: number): Promise<boo
   return true
 }
 
+/** Localized "you are banned" copy for the bot ban gate. */
+function bannedCopy(locale: Locale): { title: string; body: string } {
+  switch (locale) {
+    case "en":
+      return { title: "You are blocked", body: "You have been blocked and can no longer access this bot's services." }
+    case "ru":
+      return { title: "Вы заблокированы", body: "Вы были заблокированы и больше не можете пользоваться услугами этого бота." }
+    case "hi":
+      return { title: "Aap block ho gaye hain", body: "Aapko block kar diya gaya hai aur ab aap is bot ki services access nahin kar sakte." }
+    default:
+      return { title: "شما مسدود شدید", body: "شما مسدود شدید و امکان دسترسی به خدمات این بات را ندارید." }
+  }
+}
+
+/**
+ * Ban gate. A banned (status = BANNED) user must not be able to use ANY bot
+ * command or button — mirrors the web app's real-time ban overlay. Admins are
+ * never banned. Returns true when the caller must stop. The notice leads with
+ * animated emoji (Telegram renders 🚫⛔ etc. as animated on supported clients)
+ * so the block reads as an event, not a plain error.
+ */
+async function bannedBlock(telegramId: number, chatId: number): Promise<boolean> {
+  const user = await findUser(telegramId)
+  if (!user || user.status !== "BANNED") return false
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const { title, body } = bannedCopy(locale)
+  // Animated-style emoji band + a clear stop sign header.
+  const html = `🚫 <b>${esc(title)}</b> 🚫\n\n⛔️ ${esc(body)}\n\n🔒 🚷 🛑`
+  await sendMessage(chatId, html)
+  return true
+}
+
 /** Localized "bulk discount" note (plain text, safe to pass as a render var). */
 function bulkNote(locale: Locale, percent: number, min: number): string {
   switch (locale) {
@@ -589,7 +622,7 @@ function gwLabels(locale: Locale) {
     case "hi":
       return {
         prize: "इनाम", winners: "विजेता", participants: "प्रतिभागी",
-        drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप शामिल हैं",
+        drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप ���ामिल हैं",
         open: "ऐप में खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
         ended: "यह गिववे समाप्त हो गया", retry: "✅ मैंने जॉइन किया — पुनः प्रयास",
         entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",
@@ -751,6 +784,8 @@ async function handleMessage(msg: TgMessage) {
   if (!from) return
   // Maintenance mode: block non-admins before any command handling.
   if (await maintenanceBlock(from.id, chatId)) return
+  // Ban gate: a blocked user cannot run any command (including /start).
+  if (await bannedBlock(from.id, chatId)) return
   const text = (msg.text || "").trim()
   const c = await cfg()
 
@@ -1072,7 +1107,7 @@ function secLabels(locale: Locale): SecLabelBag {
       couponApplied: "Купон", couponOk: "Купон применён.", couponInvalid: "Купон недействителен.", couponNoProduct: "Сначала откройте товар.",
       bidPrompt: "Введите сумму ставки. Минимум:", bidInvalid: "Введите корректную сумму.", bidPlaced: "Ставка принята.", buyNowDone: "Куплено через «Купить сейчас»!",
       watchOn: "Добавлено в избранное.", watchOff: "Удалено из избранного.",
-      depositChoose: "Выберите способ пополнения:", depInstrTitle: "Инструкция по оплате", depAmount: "Сумма", depAddress: "Получатель",
+      depositChoose: "Выбе��ите способ пополнения:", depInstrTitle: "Инструкция по оплате", depAmount: "Сумма", depAddress: "Получатель",
       depNetwork: "Сеть", depTag: "Код", depNote: "После оплаты нажмите «Я оплатил» или пришлите чек.", toman: "Томан",
       receiptPrompt: "Пришлите фото чека об оплате.", receiptSaved: "Чек получен. Скоро проверим.", receiptPhotoOnly: "Пришлите, пожалуйста, фото.",
       paidClaimed: "Спасибо! Мы проверим оплату и пополним кошелёк.", paidClaimedShort: "Принято", methodUnavailable: "Этот способ оплаты недоступен",
@@ -1453,6 +1488,11 @@ async function handleCallback(cb: TgCallback) {
   // Maintenance mode: block non-admins from any button action too.
   if (await maintenanceBlock(cb.from.id, chatId)) {
     await answerCallbackQuery(cb.id)
+    return
+  }
+  // Ban gate: a blocked user's button taps get the ban notice, not the action.
+  if (await bannedBlock(cb.from.id, chatId)) {
+    await answerCallbackQuery(cb.id, "🚫", true)
     return
   }
 
