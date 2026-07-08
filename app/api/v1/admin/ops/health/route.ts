@@ -1,6 +1,7 @@
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { getLatestHealth, checkAll, overallStatus } from "@/lib/monitoring/health"
+import { ensureFreshCollection } from "@/lib/monitoring/collect"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -12,6 +13,13 @@ export const runtime = "nodejs"
 export const GET = route(async (req: Request) => {
   await requireAdmin()
   const live = new URL(req.url).searchParams.get("live") === "1"
-  const services = live ? await checkAll() : await getLatestHealth()
+  if (live) {
+    const services = await checkAll()
+    return { overall: overallStatus(services), services }
+  }
+  // Default read: make sure a recent collection has run so the persisted
+  // snapshots reflect real, current service status instead of UNKNOWN.
+  await ensureFreshCollection()
+  const services = await getLatestHealth()
   return { overall: overallStatus(services), services }
 })

@@ -1,6 +1,7 @@
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { getCategoryKpis, getMetricSeries } from "@/lib/monitoring/queries"
+import { ensureFreshCollection } from "@/lib/monitoring/collect"
 import type { MetricCategory } from "@/lib/monitoring/registry"
 
 export const dynamic = "force-dynamic"
@@ -21,6 +22,9 @@ const RANGES: Record<string, { rangeMs: number; bucketMs: number }> = {
  */
 export const GET = route(async (req: Request) => {
   await requireAdmin()
+  // Ensure a fresh sample exists so latest-value KPIs (infra/app/business tabs)
+  // are populated even on the very first load. Throttled + coalesced.
+  await ensureFreshCollection()
   const url = new URL(req.url)
   const series = url.searchParams.get("series")
   const rangeKey = url.searchParams.get("range") ?? "1h"

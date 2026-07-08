@@ -13,6 +13,49 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOpsRealtime, type OpsEvent } from "./ops-realtime"
+import { useOpsData } from "./use-ops-data"
+
+type ErrorRow = { id: string; message: string; source: string; lastSeenAt: string; count: number }
+type AlertRow = {
+  id: string
+  status: string
+  startedAt: string
+  rule?: { name?: string } | null
+  message?: string | null
+}
+
+/**
+ * Seed the feed with the most recent real errors + alerts so the panel shows
+ * genuine activity immediately on load, instead of waiting for the next live
+ * event. Live events (from realtime) are merged on top and always win.
+ */
+function useSeedEvents(): OpsEvent[] {
+  const { data: errors } = useOpsData<{ events: ErrorRow[] }>(
+    "/api/v1/admin/ops/errors?limit=8",
+    { on: ["error"], refreshInterval: 30000 },
+  )
+  const { data: alerts } = useOpsData<{ events: AlertRow[] }>(
+    "/api/v1/admin/ops/alerts?limit=8",
+    { on: ["alert", "alert_resolved"], refreshInterval: 30000 },
+  )
+
+  const seeded: OpsEvent[] = []
+  for (const e of errors?.events ?? []) {
+    seeded.push({
+      kind: "error",
+      at: e.lastSeenAt,
+      payload: { title: e.message, type: "error", source: e.source, count: e.count },
+    })
+  }
+  for (const a of alerts?.events ?? []) {
+    seeded.push({
+      kind: a.status === "RESOLVED" ? "alert_resolved" : "alert",
+      at: a.startedAt,
+      payload: { title: a.rule?.name ?? a.message ?? "هشدار", type: "alert" },
+    })
+  }
+  return seeded
+}
 
 function iconFor(evt: OpsEvent) {
   if (evt.kind === "alert") return { Icon: TriangleAlert, cls: "text-destructive" }
@@ -39,7 +82,20 @@ function timeAgo(at: string): string {
 
 /** Realtime activity stream — orders, transactions, alerts, errors, etc. */
 export function ActivityFeed({ className }: { className?: string }) {
-  const { feed } = useOpsRealtime()
+  const { feed: liveFeed } = useOpsRealtime()
+  const seeded = useSeedEvents()
+
+  // Live events first (most recent), then seeded history; de-duplicate on
+  // kind+timestamp+title so a live event doesn't repeat its seeded twin.
+  const seen = new Set<string>()
+  const feed: OpsEvent[] = []
+  for (const evt of [...liveFeed, ...seeded]) {
+    const key = `${evt.kind}|${evt.at}|${String(evt.payload?.title ?? "")}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    feed.push(evt)
+  }
+  feed.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
   return (
     <div className={cn("flex flex-col", className)}>
