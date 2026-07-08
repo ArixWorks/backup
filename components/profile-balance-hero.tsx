@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Activity, Wallet } from "lucide-react"
+import { Activity, BadgePercent, Wallet } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
@@ -24,6 +24,7 @@ export function ProfileBalanceHero() {
 
   const initials = (user?.displayName ?? "?").slice(0, 2)
   const handle = user?.telegramUsername ?? user?.alias ?? null
+  const discount = user?.membership?.discountPercent ?? 0
 
   return (
     <PremiumHeroCard aria-label={t("home.welcome")}>
@@ -96,6 +97,22 @@ export function ProfileBalanceHero() {
           </Link>
         </div>
       </div>
+
+      {/* ── Tier perk strip: the membership discount, folded neatly inside the
+          card as a slim shimmering banner instead of a stray pill below it. ── */}
+      {discount > 0 ? (
+        <Link
+          href="/rewards"
+          className="shimmer active:scale-press group mt-3 flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/[0.07] px-3 py-2 transition-colors hover:border-primary/45 hover:bg-primary/10"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/25">
+            <BadgePercent className="h-3.5 w-3.5" strokeWidth={2.4} />
+          </span>
+          <span dir="auto" className="min-w-0 flex-1 truncate text-[12px] font-bold text-gold">
+            {t("membership.discount").replace("{n}", String(discount))}
+          </span>
+        </Link>
+      ) : null}
     </PremiumHeroCard>
   )
 }
