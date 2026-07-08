@@ -181,7 +181,7 @@ const DEFAULTS: Record<string, string> = {
   // Top-up methods: card on by default, crypto/stars off until admin configures.
   [SETTING_KEYS.payCardEnabled]: "true",
   [SETTING_KEYS.payCardNumber]: "",
-  [SETTING_KEYS.payCardHolder]: "",
+  [SETTING_KEYS.payCardHolder]: "علیرضا سپاهی",
   [SETTING_KEYS.payCardBank]: "",
   [SETTING_KEYS.payUsdtEnabled]: "false",
   [SETTING_KEYS.payUsdtAddress]: "",

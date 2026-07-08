@@ -200,6 +200,7 @@ export function AddFundsSheet({
             <PayStep
               t={t}
               instructions={instructions}
+              holder={method?.holder ?? null}
               onDone={() => onOpenChange(false)}
               onChanged={onChanged}
             />
@@ -335,17 +336,22 @@ function MethodStep({
 function PayStep({
   t,
   instructions,
+  holder,
   onDone,
   onChanged,
 }: {
   t: ReturnType<typeof useI18n>["t"]
   instructions: Instructions
+  holder: string | null
   onDone: () => void
   onChanged: () => void
 }) {
   const isCard = instructions.method === "CARD"
   const isCrypto = instructions.method === "TON" || instructions.method === "USDT"
   const payDecimals = PAY_DECIMALS[instructions.payCurrency] ?? 2
+  // Iranian banks operate in Rial, so card-to-card transfers show the amount in
+  // Rial (Toman × 10). The wallet credit itself stays in Toman on the backend.
+  const cardRialAmount = Number(instructions.payAmount) * 10
 
   const [left, setLeft] = useState(() =>
     instructions.expiresAt ? msUntil(instructions.expiresAt) : 0,
@@ -405,16 +411,18 @@ function PayStep({
 
   return (
     <div className="space-y-4">
-      {/* Amount to send */}
+      {/* Amount to send — Rial for card (Iranian banks), pay currency otherwise */}
       <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center">
         <p className="text-xs text-muted-foreground">{t("wallet.sendExactly")}</p>
         <button
           type="button"
-          onClick={() => copy(String(instructions.payAmount), "amount")}
+          onClick={() => copy(String(isCard ? cardRialAmount : instructions.payAmount), "amount")}
           className="mt-1 flex w-full items-center justify-center gap-2 text-2xl font-extrabold tabular-nums text-foreground"
         >
-          {payAmountStr}{" "}
-          <span className="text-base font-bold text-primary">{instructions.payCurrency}</span>
+          {isCard ? formatMoney(cardRialAmount, 0) : payAmountStr}{" "}
+          <span className="text-base font-bold text-primary">
+            {isCard ? t("common.rial") : instructions.payCurrency}
+          </span>
           {copied === "amount" ? (
             <Check className="h-4 w-4 text-success" />
           ) : (
@@ -433,6 +441,7 @@ function PayStep({
           onCopy={() => copy(instructions.payAddress!, "addr")}
         />
       )}
+      {isCard && holder && <InfoRow label={t("wallet.cardHolder")} value={holder} />}
       {instructions.payNetwork && isCrypto && (
         <InfoRow label={t("wallet.network")} value={instructions.payNetwork} />
       )}

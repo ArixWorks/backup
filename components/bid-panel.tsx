@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Gavel, Loader2, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,15 @@ export function BidPanel({
 }: Props) {
   const { user, refresh } = useSession()
   const { t } = useI18n()
+  const router = useRouter()
+
+  // Shared helper: show a top-up-focused error with a shortcut to the wallet,
+  // so the user immediately understands they need to charge their account.
+  function topUpToast(message: string) {
+    toast.error(message, {
+      action: { label: t("wallet.addFunds"), onClick: () => router.push("/wallet") },
+    })
+  }
   // Money crosses the API as BigInt-serialized *strings*. Coerce every value to
   // a Number up front so all arithmetic is numeric — otherwise `min + inc * n`
   // becomes string concatenation (e.g. "50000" + 10000 -> "5000010000").
@@ -52,13 +62,27 @@ export function BidPanel({
     if (!Number.isFinite(value) || value < minNext) {
       return toast.error(t("bid.minBid", { amount: formatToman(minNext) }))
     }
+    // Guard against an insufficient wallet before hitting the server, so the
+    // user gets an immediate, localized prompt to top up their account.
+    if (available <= 0) {
+      return topUpToast(t("bid.emptyBalance"))
+    }
+    if (value > available) {
+      return topUpToast(t("bid.insufficient", { amount: formatToman(value - available) }))
+    }
     setLoading(true)
     try {
       await apiPost(`/api/v1/auctions/${auctionId}/bids`, { amount: value })
       toast.success(t("bid.placed"))
       await Promise.all([refresh(), onChanged()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("bid.errPlace"))
+      // A race (balance changed between check and submit) surfaces as
+      // INSUFFICIENT_FUNDS from the server — localize it and offer top-up.
+      if (err instanceof ApiError && err.code === "INSUFFICIENT_FUNDS") {
+        topUpToast(t("bid.needTopUp"))
+      } else {
+        toast.error(err instanceof ApiError ? err.message : t("bid.errPlace"))
+      }
     } finally {
       setLoading(false)
     }
@@ -66,13 +90,21 @@ export function BidPanel({
 
   async function buyNowAction() {
     if (!user) return toast.error(t("buy.loginFirst"))
+    // Same wallet guard for instant purchase: block early with a top-up prompt.
+    if (buyNow != null && available < buyNow) {
+      return topUpToast(available <= 0 ? t("bid.emptyBalance") : t("bid.needTopUp"))
+    }
     setBuying(true)
     try {
       await apiPost(`/api/v1/auctions/${auctionId}/buy-now`)
       toast.success(t("bid.buyNowSuccess"))
       await Promise.all([refresh(), onChanged()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("bid.errBuyNow"))
+      if (err instanceof ApiError && err.code === "INSUFFICIENT_FUNDS") {
+        topUpToast(t("bid.needTopUp"))
+      } else {
+        toast.error(err instanceof ApiError ? err.message : t("bid.errBuyNow"))
+      }
     } finally {
       setBuying(false)
     }
