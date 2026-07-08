@@ -16,7 +16,7 @@ export function ProductGallery({ images, alt }: { images: string[]; alt: string 
 
   return (
     <div className="space-y-3">
-      <div className="relative aspect-[3/2] overflow-hidden rounded-2xl border border-border bg-muted">
+      <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-muted">
         <Image
           src={current || "/placeholder.svg"}
           alt={alt}

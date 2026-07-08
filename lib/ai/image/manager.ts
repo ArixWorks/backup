@@ -7,6 +7,7 @@ import { resolveApiKey } from "../credentials"
 import { recordUsage } from "../usage"
 import { AiDisabledError, AiProviderError } from "../errors"
 import { getImageConfig, type ImageAspect, ASPECT_SIZE } from "./settings"
+import { aspectDirective } from "./constants"
 
 /**
  * Provider-agnostic image generation.
@@ -184,7 +185,7 @@ export async function generateAssetSet(
     try {
       const image = await generateSingleImage({
         ...opts,
-        prompt: `${basePrompt}\n\nComposition: ${t.label} (${t.aspect}).`,
+        prompt: `${basePrompt}\n\nComposition: ${t.label}. ${aspectDirective(t.aspect)}`,
         aspect: t.aspect,
         slot: t.slot,
       })

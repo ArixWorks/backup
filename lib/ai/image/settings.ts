@@ -25,8 +25,9 @@ export interface ImageConfig {
 function envDefaults(): Record<string, string> {
   return {
     [IMAGE_SETTING_KEYS.provider]: process.env.AI_IMAGE_PROVIDER || "gateway",
-    // A widely-available Gateway image model. Fully overridable from the panel.
-    [IMAGE_SETTING_KEYS.model]: process.env.AI_IMAGE_MODEL || "openai/gpt-image-1",
+    // Modern OpenAI image model. Supports exact arbitrary sizes so generated
+    // imagery matches the site's frames precisely. Overridable from the panel.
+    [IMAGE_SETTING_KEYS.model]: process.env.AI_IMAGE_MODEL || "openai/gpt-image-2",
   }
 }
 

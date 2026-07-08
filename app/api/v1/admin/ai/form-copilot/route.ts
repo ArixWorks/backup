@@ -138,9 +138,15 @@ export const POST = route(async (req: Request) => {
       }
 
     case "generate-image": {
-      const prompt =
-        body.prompt ||
-        buildImagePrompt({ slot: body.slot, form: body.form, entityId: body.entityId })
+      // Route even a manual prompt through the builder so the exact-size
+      // directive is always enforced.
+      const prompt = buildImagePrompt({
+        override: body.prompt,
+        slot: body.slot,
+        aspect: body.aspect,
+        form: body.form,
+        entityId: body.entityId,
+      })
       const folder = body.folder ?? "ai-images"
       if (body.variations && body.variations > 1) {
         return {
@@ -162,7 +168,14 @@ export const POST = route(async (req: Request) => {
     }
 
     case "generate-asset-set": {
-      const prompt = body.prompt || buildImagePrompt({ form: body.form, entityId: body.entityId })
+      // Multi-slot set: build a shared base prompt WITHOUT a size directive —
+      // generateAssetSet appends the correct per-slot directive to each image.
+      const prompt = buildImagePrompt({
+        override: body.prompt,
+        form: body.form,
+        entityId: body.entityId,
+        omitAspectRule: true,
+      })
       return {
         assets: await generateAssetSet(
           prompt,
