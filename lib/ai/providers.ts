@@ -93,8 +93,8 @@ export function getProviderDef(id: string): AiProviderDef | undefined {
 
 export const DEFAULT_PROVIDER = "gateway"
 /**
- * Requested project default. `openai/gpt-5.5` is not yet available on the
- * Gateway, so we ship `openai/gpt-5.2` (current flagship). Fully overridable
- * from env (`AI_DEFAULT_MODEL`) or the admin AI Settings panel.
+ * Project default text model. `openai/gpt-5.5` is the current flagship on the
+ * Gateway. Fully overridable from env (`AI_DEFAULT_MODEL`) or the admin AI
+ * Settings panel.
  */
-export const DEFAULT_MODEL = "openai/gpt-5.2"
+export const DEFAULT_MODEL = "openai/gpt-5.5"
