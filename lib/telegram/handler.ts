@@ -68,7 +68,7 @@ import {
   recordDailyLogin,
 } from "@/lib/core/gamification"
 import { attachReferral, rewardReferralJoin, getReferralStats } from "@/lib/core/rewards"
-import { notifyReferralJoined } from "./notify"
+import { notifyReferralJoined, notifyAdminsBanAppeal } from "./notify"
 import {
   getOrdersForUser,
   listAuctions,
@@ -92,6 +92,8 @@ import {
   getTicket,
   replyToTicket,
   closeTicket,
+  getOpenBanAppeal,
+  BAN_APPEAL_SUBJECT,
 } from "@/lib/core/support"
 import { getPaymentConfig } from "@/lib/core/settings"
 import { put } from "@vercel/blob"
@@ -196,37 +198,157 @@ async function maintenanceBlock(telegramId: number, chatId: number): Promise<boo
   return true
 }
 
-/** Localized "you are banned" copy for the bot ban gate. */
-function bannedCopy(locale: Locale): { title: string; body: string } {
+/** Localized copy for the professional ban notice + support/appeal flow. */
+function bannedCopy(locale: Locale): {
+  title: string
+  body: string
+  button: string
+  prompt: string
+  sent: string
+  tooShort: string
+} {
   switch (locale) {
     case "en":
-      return { title: "You are blocked", body: "You have been blocked and can no longer access this bot's services." }
+      return {
+        title: "Your account has been blocked",
+        body: "Please contact an admin to review the issue.",
+        button: "Contact support",
+        prompt: "Write your message for support — it will be sent to an admin:",
+        sent: "Your message was sent to support. The reply will arrive right here.",
+        tooShort: "Please write a bit more detail (at least 5 characters).",
+      }
     case "ru":
-      return { title: "Вы заблокированы", body: "Вы были заблокированы и больше не можете пользоваться услугами этого бота." }
+      return {
+        title: "Ваш аккаунт заблокирован",
+        body: "Пожалуйста, свяжитесь с администратором для решения вопроса.",
+        button: "Связаться с поддержкой",
+        prompt: "Напишите сообщение для поддержки — оно будет отправлено администратору:",
+        sent: "Ваше сообщение отправлено в поддержку. Ответ придёт прямо сюда.",
+        tooShort: "Пожалуйста, напишите подробнее (не менее 5 символов).",
+      }
     case "hi":
-      return { title: "Aap block ho gaye hain", body: "Aapko block kar diya gaya hai aur ab aap is bot ki services access nahin kar sakte." }
+      return {
+        title: "Aapka account block kar diya gaya hai",
+        body: "Samasya ki samiksha ke liye admin se sampark karein.",
+        button: "Support se sampark karein",
+        prompt: "Support ke liye apna sandesh likhein — yeh admin ko bheja jayega:",
+        sent: "Aapka sandesh support ko bhej diya gaya. Jawab yahin milega.",
+        tooShort: "Kripya thoda aur likhein (kam se kam 5 characters).",
+      }
     default:
-      return { title: "شما مسدود شدید", body: "شما مسدود شدید و امکان دسترسی به خدمات این بات را ندارید." }
+      return {
+        title: "اکانت شما مسدود شده",
+        body: "لطفا جهت بررسی مشکل با ادمین در ارتباط باشید.",
+        button: "ارتباط با پشتیبانی",
+        prompt: "پیام خود را برای پشتیبانی بنویسید تا برای ادمین ارسال شود:",
+        sent: "پیام شما برای پشتیبانی ارسال شد. پاسخ را همین‌جا دریافت می‌کنید.",
+        tooShort: "لطفاً کمی بیشتر توضیح دهید (حداقل ۵ نویسه).",
+      }
   }
 }
 
 /**
- * Ban gate. A banned (status = BANNED) user must not be able to use ANY bot
- * command or button — mirrors the web app's real-time ban overlay. Admins are
- * never banned. Returns true when the caller must stop. The notice leads with
- * animated emoji (Telegram renders 🚫⛔ etc. as animated on supported clients)
- * so the block reads as an event, not a plain error.
+ * Render the professional ban notice: a calm, branded card (no emoji spam) with
+ * a single "contact support" call to action. Tapping it opens the appeal flow.
  */
-async function bannedBlock(telegramId: number, chatId: number): Promise<boolean> {
+async function sendBanNotice(chatId: number, locale: Locale) {
+  const cp = bannedCopy(locale)
+  const html = `🔒 <b>${esc(cp.title)}</b>\n➖➖➖➖➖➖➖➖\n${esc(cp.body)}`
+  const markup = inlineKeyboard([[{ text: `💬 ${cp.button}`, callback_data: "ban_support", style: "primary" }]])
+  await sendMessage(chatId, html, { replyMarkup: markup })
+}
+
+/**
+ * Ban gate for text messages. A banned (status = BANNED) user is locked out of
+ * every command — mirrors the web app's real-time ban overlay — with ONE
+ * lifeline: a support/appeal thread. If they are mid-appeal (pending) or already
+ * have an open appeal thread, their text is routed into that thread so the user
+ * ↔ admin conversation is genuinely two-way. Otherwise the professional ban
+ * notice is shown. Returns true when the caller must stop.
+ */
+async function bannedMessageGate(telegramId: number, chatId: number, text: string): Promise<boolean> {
   const user = await findUser(telegramId)
   if (!user || user.status !== "BANNED") return false
   const c = await cfg()
   const locale = localeOf(c, user)
-  const { title, body } = bannedCopy(locale)
-  // Animated-style emoji band + a clear stop sign header.
-  const html = `🚫 <b>${esc(title)}</b> 🚫\n\n⛔️ ${esc(body)}\n\n🔒 🚷 🛑`
-  await sendMessage(chatId, html)
+  const clean = text.trim()
+  if (clean && !clean.startsWith("/")) {
+    const pending = await getPending(chatId)
+    if (pending?.kind === "awaiting_ban_appeal") {
+      await submitBanAppeal(chatId, user, locale, clean)
+      return true
+    }
+    const appeal = await getOpenBanAppeal(user.id)
+    if (appeal) {
+      await continueBanAppeal(chatId, user, locale, appeal.publicId, clean)
+      return true
+    }
+  }
+  await sendBanNotice(chatId, locale)
   return true
+}
+
+/**
+ * Ban gate for button taps. The only action a banned user may trigger is the
+ * "contact support" button, which arms the appeal flow. Every other tap gets
+ * the ban notice. Returns true when the caller must stop.
+ */
+async function bannedCallbackGate(cb: TgCallback, chatId: number): Promise<boolean> {
+  const user = await findUser(cb.from.id)
+  if (!user || user.status !== "BANNED") return false
+  const c = await cfg()
+  const locale = localeOf(c, user)
+  const cp = bannedCopy(locale)
+  if ((cb.data || "") === "ban_support") {
+    await setPending(chatId, { kind: "awaiting_ban_appeal" })
+    await answerCallbackQuery(cb.id)
+    await sendMessage(chatId, `✍️ ${esc(cp.prompt)}`)
+    return true
+  }
+  await answerCallbackQuery(cb.id, "🔒", true)
+  await sendBanNotice(chatId, locale)
+  return true
+}
+
+/** First appeal message → open (or reuse) the ban-appeal thread; alert admins. */
+async function submitBanAppeal(chatId: number, user: User, locale: Locale, text: string) {
+  const cp = bannedCopy(locale)
+  const msg = text.trim()
+  if (msg.length < 5) {
+    await sendMessage(chatId, `⚠️ ${esc(cp.tooShort)}`)
+    return
+  }
+  const existing = await getOpenBanAppeal(user.id)
+  let publicId: string
+  if (existing) {
+    await replyToTicket({ userId: user.id, publicId: existing.publicId, message: msg })
+    publicId = existing.publicId
+  } else {
+    const tk = await createTicket({ userId: user.id, subject: BAN_APPEAL_SUBJECT, message: msg })
+    publicId = tk.publicId
+  }
+  await clearPending(chatId)
+  await notifyAdminsBanAppeal(user.id, publicId, msg).catch(() => {})
+  await sendMessage(chatId, `✅ ${esc(cp.sent)}`)
+}
+
+/** Subsequent appeal message → append to the open thread; alert admins. */
+async function continueBanAppeal(
+  chatId: number,
+  user: User,
+  locale: Locale,
+  publicId: string,
+  text: string,
+) {
+  const cp = bannedCopy(locale)
+  try {
+    await replyToTicket({ userId: user.id, publicId, message: text.trim() })
+    await notifyAdminsBanAppeal(user.id, publicId, text.trim()).catch(() => {})
+    await sendMessage(chatId, `✅ ${esc(cp.sent)}`)
+  } catch {
+    // Thread was closed between messages → invite a fresh appeal.
+    await sendBanNotice(chatId, locale)
+  }
 }
 
 /** Localized "bulk discount" note (plain text, safe to pass as a render var). */
@@ -784,8 +906,9 @@ async function handleMessage(msg: TgMessage) {
   if (!from) return
   // Maintenance mode: block non-admins before any command handling.
   if (await maintenanceBlock(from.id, chatId)) return
-  // Ban gate: a blocked user cannot run any command (including /start).
-  if (await bannedBlock(from.id, chatId)) return
+  // Ban gate: a blocked user is locked out of every command (including /start),
+  // but keeps a support/appeal lifeline to reach an admin two-way.
+  if (await bannedMessageGate(from.id, chatId, msg.text || "")) return
   const text = (msg.text || "").trim()
   const c = await cfg()
 
@@ -1122,7 +1245,7 @@ function secLabels(locale: Locale): SecLabelBag {
       stOpen: "खुला", stPending: "लंबित", stClosed: "बंद",
       couponApplied: "कूपन", couponOk: "कूपन लागू हुआ।", couponInvalid: "यह कूपन मान्य नहीं है।", couponNoProduct: "पहले कोई उत्पाद खोलें।",
       bidPrompt: "अपनी बोली राशि दर्ज करें। न्यूनतम:", bidInvalid: "मान्य राशि दर्ज करें।", bidPlaced: "आपकी बोली दर्ज हुई।", buyNowDone: "अभी खरीदें से खरीदा गया!",
-      watchOn: "वॉचलिस्ट में जोड़ा गया।", watchOff: "वॉचलिस्ट से हटाया गया।",
+      watchOn: "वॉच��िस्ट में जोड़ा गया।", watchOff: "वॉचलिस्ट से हटाया गया।",
       depositChoose: "टॉप-अप विधि चुनें:", depInstrTitle: "भुगतान निर्देश", depAmount: "राशि", depAddress: "गंतव्य",
       depNetwork: "नेटवर्क", depTag: "संदर्भ", depNote: "भुगतान के बाद “मैंने भुगतान किया” दबाएँ या रसीद भेजें।", toman: "तोमान",
       receiptPrompt: "कृपया भुगतान रसीद की फ़ोटो भेजें।", receiptSaved: "रसीद मिल गई। हम जल्द जाँचेंगे।", receiptPhotoOnly: "कृपया एक फ़ोटो भेजें।",
@@ -1490,11 +1613,9 @@ async function handleCallback(cb: TgCallback) {
     await answerCallbackQuery(cb.id)
     return
   }
-  // Ban gate: a blocked user's button taps get the ban notice, not the action.
-  if (await bannedBlock(cb.from.id, chatId)) {
-    await answerCallbackQuery(cb.id, "🚫", true)
-    return
-  }
+  // Ban gate: a blocked user's button taps get the ban notice; only the
+  // "contact support" button is allowed through (opens the appeal flow).
+  if (await bannedCallbackGate(cb, chatId)) return
 
   const user = await findUser(cb.from.id)
   if (!user) {

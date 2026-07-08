@@ -1,7 +1,7 @@
 import "server-only"
 import { prisma } from "@/lib/db"
 import { getBotConfig } from "./settings"
-import { render } from "./format"
+import { render, esc } from "./format"
 import { sendMessage, sendPhoto, botConfigured, inlineKeyboard } from "./api"
 import { auctionButton, openAppKeyboard } from "./keyboards"
 import { formatToman } from "@/lib/format"
@@ -42,6 +42,71 @@ async function notify(
     }
   } catch (e) {
     console.log("[v0] notify error:", (e as Error).message)
+  }
+}
+
+/**
+ * Push an admin's support reply straight into the owner's Telegram chat so the
+ * conversation is two-way inside the bot. Deliberately NOT gated behind the
+ * `notifications` feature flag or a linked-account check beyond the chat id —
+ * a support answer is transactional and must always reach the user, especially
+ * a banned user whose only channel is the appeal thread. Best-effort.
+ */
+export async function notifySupportReply(
+  userId: string,
+  reply: { subject: string; body: string; isBanAppeal?: boolean; closed?: boolean },
+) {
+  try {
+    if (!botConfigured()) return
+    const chatId = await chatIdFor(userId)
+    if (!chatId) return
+    const safeBody = reply.body.length > 900 ? `${reply.body.slice(0, 900)}…` : reply.body
+    const head = reply.isBanAppeal
+      ? "🛡 <b>پاسخ پشتیبانی — بررسی مسدودیت</b>"
+      : "💬 <b>پاسخ پشتیبانی</b>"
+    const footer = reply.closed
+      ? "\n\n<i>این گفتگو بسته شد. در صورت نیاز می‌توانید پیام تازه‌ای بفرستید.</i>"
+      : "\n\n<i>برای ادامه‌ی گفتگو کافیست پاسخ خود را همین‌جا بنویسید.</i>"
+    const html = `${head}\n\n${esc(safeBody)}${footer}`
+    await sendMessage(chatId, html).catch(() => {})
+  } catch (e) {
+    console.log("[v0] notifySupportReply error:", (e as Error).message)
+  }
+}
+
+/**
+ * Alert every admin with a linked Telegram that a banned user submitted (or
+ * continued) a ban-appeal message, with a deep link to the admin support page.
+ * Best-effort; keeps admins in the loop without polling the dashboard.
+ */
+export async function notifyAdminsBanAppeal(fromUserId: string, publicId: string, preview: string) {
+  try {
+    if (!botConfigured()) return
+    const sender = await prisma.user.findUnique({
+      where: { id: fromUserId },
+      select: { displayName: true, alias: true, telegramId: true },
+    })
+    const who = sender?.displayName || sender?.alias || sender?.telegramId || "کاربر"
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
+      select: { id: true },
+    })
+    if (admins.length === 0) return
+    const snippet = preview.length > 300 ? `${preview.slice(0, 300)}…` : preview
+    const base = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "")
+    const html =
+      `🚨 <b>درخواست بررسی مسدودیت</b>\n\n` +
+      `👤 از: <b>${esc(String(who))}</b>\n` +
+      `📝 «${esc(snippet)}»`
+    const markup = base
+      ? inlineKeyboard([[{ text: "🛠 باز کردن پنل پشتیبانی", url: `${base}/admin/support` }]])
+      : undefined
+    for (const a of admins) {
+      const chatId = await chatIdFor(a.id)
+      if (chatId) await sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {})
+    }
+  } catch (e) {
+    console.log("[v0] notifyAdminsBanAppeal error:", (e as Error).message)
   }
 }
 
