@@ -995,25 +995,6 @@ html[data-motion='minimal'] {
     animation: bloom-breathe 6.5s ease-in-out infinite;
     will-change: opacity, transform;
   }
-
-  /* One-shot cinematic bloom when the membership tier changes. */
-  @keyframes tier-bloom {
-    0% {
-      opacity: 0;
-      transform: scale(0.7);
-    }
-    30% {
-      opacity: 0.85;
-    }
-    100% {
-      opacity: 0;
-      transform: scale(1.9);
-    }
-  }
-  .tier-bloom-flash {
-    animation: tier-bloom 1.1s var(--ease-out-quint) forwards;
-    will-change: opacity, transform;
-  }
 }
 
 /* Balanced motion: trim the heaviest Living Surface loops, keep blooms + lines. */
@@ -1024,16 +1005,14 @@ html[data-motion='minimal'] {
 [data-motion='minimal'] .flow-line,
 [data-motion='minimal'] .flow-line-slow,
 [data-motion='minimal'] .animate-drift,
-[data-motion='minimal'] .animate-bloom,
-[data-motion='minimal'] .tier-bloom-flash {
+[data-motion='minimal'] .animate-bloom {
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .flow-line,
   .flow-line-slow,
   .animate-drift,
-  .animate-bloom,
-  .tier-bloom-flash {
+  .animate-bloom {
     animation: none !important;
   }
 }
