@@ -12,6 +12,7 @@ import { WatchButton } from "@/components/watch-button"
 import { SegmentedCountdown } from "@/components/segmented-countdown"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { formatToman, formatDateTime, formatRelative, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
@@ -21,6 +22,8 @@ type Bid = {
   id: string
   amount: number
   alias: string
+  name: string
+  photoUrl: string | null
   isAuto: boolean
   createdAt: string
 }
@@ -184,18 +187,28 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                     className={`flex items-center justify-between px-4 py-3 ${i === 0 ? "bg-primary/5" : ""}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                          i === 0
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary text-muted-foreground"
-                        }`}
-                      >
-                        {i === 0 ? <Trophy className="h-4 w-4" /> : formatNumber(i + 1)}
-                      </span>
+                      <div className="relative shrink-0">
+                        <Avatar className="h-9 w-9 border border-border">
+                          {b.photoUrl && (
+                            <AvatarImage src={b.photoUrl} alt={b.name} referrerPolicy="no-referrer" />
+                          )}
+                          <AvatarFallback className="bg-secondary text-xs font-bold text-muted-foreground">
+                            {b.name.trim().charAt(0).toUpperCase() || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span
+                          className={`absolute -bottom-1 -left-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold ring-2 ring-card ${
+                            i === 0
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-secondary text-muted-foreground"
+                          }`}
+                        >
+                          {i === 0 ? <Trophy className="h-2.5 w-2.5" /> : formatNumber(i + 1)}
+                        </span>
+                      </div>
                       <div className="flex flex-col">
                         <span dir="auto" className="text-sm font-medium">
-                          {b.alias}
+                          {b.name}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {formatRelative(b.createdAt)}

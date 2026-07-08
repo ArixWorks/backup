@@ -270,7 +270,7 @@ export async function getAuctionDetail(auctionId: string) {
     where: { auctionId: auction.id },
     orderBy: { createdAt: "desc" },
     take: 25,
-    include: { user: { select: { alias: true } } },
+    include: { user: { select: { alias: true, displayName: true, photoUrl: true } } },
   })
 
   return {
@@ -279,7 +279,11 @@ export async function getAuctionDetail(auctionId: string) {
     bids: bids.map((b) => ({
       id: b.id,
       amount: b.amount,
+      // Show the participant's real name + Telegram profile photo. `alias`
+      // stays as a stable fallback for accounts without a display name.
       alias: b.user.alias,
+      name: b.user.displayName || b.user.alias,
+      photoUrl: b.user.photoUrl,
       isAuto: b.isAuto,
       createdAt: b.createdAt,
     })),
