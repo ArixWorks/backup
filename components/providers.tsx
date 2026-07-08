@@ -7,6 +7,7 @@ import { I18nProvider } from "@/components/i18n-provider"
 import { MotionProvider } from "@/components/motion-provider"
 import { MembershipThemeProvider } from "@/components/membership-theme-provider"
 import { ReferralCapture } from "@/components/referral-capture"
+import { BannedGate } from "@/components/auth/banned-gate"
 import { fetcher } from "@/lib/api-client"
 
 // App-wide SWR defaults. In a Telegram WebView the app is constantly
@@ -30,6 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <MembershipThemeProvider>
             <ReferralCapture />
             {children}
+            <BannedGate />
           </MembershipThemeProvider>
         </TelegramProvider>
         <Toaster

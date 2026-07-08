@@ -166,6 +166,9 @@ export type MessageKey =
   | "auth.signingIn"
   | "auth.widgetMissing"
   | "auth.logout"
+  | "banned.title"
+  | "banned.message"
+  | "banned.logout"
   | "profile.title"
   | "profile.account"
   | "profile.telegram"
@@ -916,6 +919,9 @@ type Catalog = Record<MessageKey, string>
   "auth.signingIn": "در حال ورود…",
   "auth.widgetMissing": "ورود تلگرام هنوز پیکربندی نشده است. لطفاً با ایمیل وارد شوید.",
   "auth.logout": "خروج از حساب",
+  "banned.title": "حساب شما مسدود شد",
+  "banned.message": "شما مسدود شدید و امکان دسترسی به خدمات این بات را ندارید.",
+  "banned.logout": "خروج از حساب",
   "profile.title": "پروفایل من",
   "profile.account": "حساب کاربری",
   "profile.telegram": "تلگرام",
@@ -1153,7 +1159,7 @@ type Catalog = Record<MessageKey, string>
   "auth.errMinPassword": "رمز عبور باید حداقل ۸ کاراکتر باشد",
   "auth.errPasswordMismatch": "تکرار رم�� عبور مطابقت ندارد",
   "auth.resetFailed": "بازنشانی رمز عبور ناموفق بود",
-  "verify.working": "در حال تأیید ایمیل…",
+  "verify.working": "در حا�� تأیید ایمیل…",
   "verify.invalidLink": "لینک تأیید نامعتبر است.",
   "verify.okTitle": "ایمیل شما ��أیید شد",
   "verify.okDesc": "اکنون می‌توانید با ایمیل و رمز عبور وارد شوید.",
@@ -1631,6 +1637,9 @@ type Catalog = Record<MessageKey, string>
   "auth.signingIn": "Signing in…",
   "auth.widgetMissing": "Telegram login isn't configured yet. Please sign in with email.",
   "auth.logout": "Log out",
+  "banned.title": "Your account is blocked",
+  "banned.message": "You have been blocked and can no longer access the services of this bot.",
+  "banned.logout": "Log out",
   "profile.title": "My profile",
   "profile.account": "Account",
   "profile.telegram": "Telegram",
@@ -2278,7 +2287,7 @@ type Catalog = Record<MessageKey, string>
   "reviews.commentPlaceholder": "Поделитесь впечатлением (необязательно)…",
   "reviews.submit": "Отправить",
   "reviews.delete": "Удалить отзыв",
-  "reviews.mustBuy": "Оставить отзыв могут только покупатели этого товара.",
+  "reviews.mustBuy": "Оставить отзыв могут только покупа��ели этого товара.",
   "reviews.you": "Вы",
   "reviews.thanks": "Спасибо за ваш отзыв!",
   "reviews.ratingsCount": "отзывов",
@@ -2303,7 +2312,7 @@ type Catalog = Record<MessageKey, string>
   "bid.emptyBalance": "Ваш кошелёк пуст. Пополните баланс, чтобы сделать ставку.",
   "bid.insufficient": "Не хватает {amount} томан для этой ставки. Пополните кошелёк.",
   "bid.needTopUp": "Недостаточно доступных средств. Пожалуйста, пополните кошелёк.",
-    "buy.bulkHint": "Оптовая скидка",
+    "buy.bulkHint": "Опто��ая скидка",
   "buy.subtotal": "Подытог",
   "coupon.placeholder": "Промокод",
   "coupon.apply": "Применить",
@@ -2343,6 +2352,9 @@ type Catalog = Record<MessageKey, string>
   "auth.signingIn": "Вход…",
   "auth.widgetMissing": "Вход через Telegram ещё не настроен. Войдите по эл. почте.",
   "auth.logout": "Выйти",
+  "banned.title": "Ваш аккаунт заблокирован",
+  "banned.message": "Вы были заблокированы и больше не можете пользоваться услугами этого бота.",
+  "banned.logout": "Выйти",
   "profile.title": "Мой профиль",
   "profile.account": "Аккаунт",
   "profile.telegram": "Telegram",
@@ -2592,7 +2604,7 @@ type Catalog = Record<MessageKey, string>
   "acctEmail.verified": "Подтверждён",
   "acctEmail.unverified": "Не подтверждён",
   "acctEmail.pending": "Ожидает подтверждения: ",
-  "acctEmail.sentNotice": "Письмо для подтверждения отправлено. Проверьте почту.",
+  "acctEmail.sentNotice": "Письмо для подтверждения отправлено. Провер��те почту.",
   "acctEmail.sendFailed": "Не удалось отправить письмо подтверждения",
   "acctEmail.errMinPassword": "Пароль должен содержать не менее 8 символов",
   "acctEmail.verifiedLocked": "Ваш email подтверждён и не может быть изменён.",
@@ -2791,7 +2803,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.participants": "Участники",
   "gwd.prize": "Приз",
   "gwd.mustJoin": "Вы должны подписаться на эти каналы",
-  "gwd.afterJoinRetry": "После подписки нажмите «Участвовать» снова",
+  "gwd.afterJoinRetry": "После подписки нажм��те «Участвовать» снова",
   "gwd.winners": "Победители",
   "gwd.noWinners": "Победители ��щё не объявлены",
   "gwd.alreadyEntered": "Вы уже участвуете",
@@ -3056,6 +3068,9 @@ type Catalog = Record<MessageKey, string>
   "auth.signingIn": "Sign in ho raha hai…",
   "auth.widgetMissing": "Telegram login abhi configure nahi hai. Kripya email se sign in karein.",
   "auth.logout": "Log out",
+  "banned.title": "Aapka account block ho gaya hai",
+  "banned.message": "Aapko block kar diya gaya hai aur ab aap is bot ki services access nahin kar sakte.",
+  "banned.logout": "Log out",
   "profile.title": "Meri profile",
   "profile.account": "Account",
   "profile.telegram": "Telegram",
