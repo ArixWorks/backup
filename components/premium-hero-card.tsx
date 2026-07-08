@@ -59,28 +59,55 @@ export function PremiumHeroCard({
   const ry = useMotionValue(0)
   const gx = useMotionValue(50)
   const gy = useMotionValue(50)
+  // Lift/scale: the card pops toward the viewer while engaged.
+  const lift = useMotionValue(0)
 
-  const srx = useSpring(rx, { stiffness: 150, damping: 16 })
-  const sry = useSpring(ry, { stiffness: 150, damping: 16 })
+  const srx = useSpring(rx, { stiffness: 170, damping: 15 })
+  const sry = useSpring(ry, { stiffness: 170, damping: 15 })
   const sgx = useSpring(gx, { stiffness: 120, damping: 22 })
   const sgy = useSpring(gy, { stiffness: 120, damping: 22 })
+  const sLift = useSpring(lift, { stiffness: 220, damping: 20 })
+
+  // Engaged scale (1 → 1.025) derived from the lift signal.
+  const scale = useTransform(sLift, [0, 1], [1, 1.025])
 
   // Accent glow that trails the finger / cursor across the interior.
   const pointerGlow = useTransform(
     [sgx, sgy] as const,
     ([x, y]: number[]) =>
-      `radial-gradient(240px circle at ${x}% ${y}%, color-mix(in oklch, var(--tier-glow) 28%, transparent), transparent 68%)`,
+      `radial-gradient(240px circle at ${x}% ${y}%, color-mix(in oklch, var(--tier-glow) 30%, transparent), transparent 68%)`,
   )
+
+  // Glossy specular highlight (a bright, tight glare) that skates across the
+  // glass following the pointer — the signature "premium 3D card" sheen.
+  const specular = useTransform(
+    [sgx, sgy] as const,
+    ([x, y]: number[]) =>
+      `radial-gradient(420px circle at ${x}% ${y}%, color-mix(in oklch, white 30%, transparent), transparent 55%)`,
+  )
+
+  // Dynamic grounding shadow: it shifts opposite the tilt so the floating panel
+  // feels physically lit from above and anchored in space.
+  const dropShadow = useTransform([srx, sry, sLift] as const, ([x, y, l]: number[]) => {
+    const ox = y * -1.6
+    const oy = x * 1.6 + 16 + l * 8
+    const blur = 34 + l * 16
+    return `${ox}px ${oy}px ${blur}px -14px color-mix(in oklch, var(--tier-glow) 55%, transparent)`
+  })
 
   function trackPointer(e: PointerEvent<HTMLElement>) {
     const r = e.currentTarget.getBoundingClientRect()
     const nx = (e.clientX - r.left) / r.width - 0.5
     const ny = (e.clientY - r.top) / r.height - 0.5
     // Corners lift toward / away from the viewer — the "floating panel" feel.
-    ry.set(nx * 11)
-    rx.set(-ny * 11)
+    ry.set(nx * 15)
+    rx.set(-ny * 15)
     gx.set((nx + 0.5) * 100)
     gy.set((ny + 0.5) * 100)
+  }
+
+  function engage() {
+    lift.set(1)
   }
 
   function resetPointer() {
@@ -88,6 +115,7 @@ export function PremiumHeroCard({
     ry.set(0)
     gx.set(50)
     gy.set(50)
+    lift.set(0)
   }
 
   const cardClass =
@@ -112,9 +140,12 @@ export function PremiumHeroCard({
       <motion.section
         aria-label={ariaLabel}
         className={`${cardClass} [transform-style:preserve-3d] will-change-transform`}
-        style={{ rotateX: srx, rotateY: sry }}
+        style={{ rotateX: srx, rotateY: sry, scale, boxShadow: dropShadow }}
+        onPointerEnter={engage}
+        onPointerDown={engage}
         onPointerMove={trackPointer}
         onPointerLeave={resetPointer}
+        onPointerUp={resetPointer}
         onPointerCancel={resetPointer}
       >
         <LivingSurface intensity={intensity} lines={lines} particles={particles} blooms={blooms} />
@@ -124,7 +155,13 @@ export function PremiumHeroCard({
           className="pointer-events-none absolute inset-0 z-[1]"
           style={{ background: pointerGlow }}
         />
-        <div className="relative z-[2] [transform:translateZ(30px)]">{children}</div>
+        {/* Glossy specular glare skating across the glass. */}
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[1] mix-blend-screen [transform:translateZ(60px)]"
+          style={{ background: specular }}
+        />
+        <div className="relative z-[2] [transform:translateZ(38px)]">{children}</div>
       </motion.section>
     </motion.div>
   )
