@@ -6,6 +6,7 @@
  */
 export { RichContentEditor, type RichContentEditorProps } from "./rich-content-editor"
 export { RichContent } from "./rich-content"
+export { CollapsibleContent } from "./collapsible-content"
 export { EnhancedTextarea } from "./enhanced-textarea"
 export { MediaManager } from "./media-manager"
 export type { MediaAssetDTO } from "./client-api"
