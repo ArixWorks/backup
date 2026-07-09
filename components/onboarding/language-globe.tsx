@@ -6,7 +6,8 @@ import { motion } from "motion/react"
 /**
  * Cinematic "global platform" hero for the language picker.
  *
- * A baked-lit golden globe slowly yaws inside two counter-rotating, tilted
+ * A golden globe continuously spins on its axis (a seamless world-map texture
+ * scrolls west-to-east behind spherical shading) inside two counter-rotating, tilted
  * orbital rings while gold particles twinkle, a soft double-bloom pulses behind
  * it, and two language glyph bubbles ("A" / "文") float at its sides. The whole
  * piece fills its flex parent (aspect-square, capped by max-h) so it scales down
@@ -74,18 +75,47 @@ export function LanguageGlobe() {
         </div>
       </div>
 
-      {/* The globe */}
-      <div className="absolute inset-[14%] [transform-style:preserve-3d]">
-        <div className="animate-globe relative h-full w-full">
-          <Image
-            src="/onboarding/globe-gold.png"
-            alt=""
-            fill
-            sizes="240px"
-            className="object-contain drop-shadow-[0_10px_36px_color-mix(in_oklch,var(--primary)_40%,transparent)]"
-            priority
+      {/* The globe — a real axial spin via a seamless scrolling world map,
+          shaded into a sphere with a highlight, limb darkening and a gold rim. */}
+      <div className="absolute inset-[14%] drop-shadow-[0_10px_36px_color-mix(in_oklch,var(--primary)_40%,transparent)]">
+        <div className="relative h-full w-full overflow-hidden rounded-full bg-background">
+          {/* Rotating surface: two identical map tiles sliding as one track */}
+          <div className="animate-globe flex h-full w-[200%]">
+            <div className="relative h-full w-1/2 shrink-0">
+              <Image
+                src="/onboarding/globe-gold-map.png"
+                alt=""
+                fill
+                sizes="240px"
+                className="object-cover"
+                priority
+              />
+            </div>
+            {/* Identical twin. The map's left & right edges are open black
+                ocean, so the join and the loop wrap are both invisible. */}
+            <div className="relative h-full w-1/2 shrink-0">
+              <Image
+                src="/onboarding/globe-gold-map.png"
+                alt=""
+                fill
+                sizes="240px"
+                className="object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Spherical shading: warm top-left highlight + edge limb darkening */}
+          <div
+            className="pointer-events-none absolute inset-0 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle at 34% 28%, color-mix(in oklch, var(--primary) 30%, transparent) 0%, transparent 44%), radial-gradient(circle at 50% 50%, transparent 50%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,0.9) 100%)",
+            }}
           />
         </div>
+
+        {/* Atmospheric gold rim */}
+        <div className="pointer-events-none absolute inset-0 rounded-full border border-primary/40 shadow-[inset_0_0_26px_color-mix(in_oklch,var(--primary)_25%,transparent)]" />
       </div>
 
       {/* Floating language glyph bubbles */}
