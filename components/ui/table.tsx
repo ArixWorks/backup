@@ -5,10 +5,60 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const state = React.useRef({ down: false, dragging: false, startX: 0, startLeft: 0 })
+
+  // Site-wide scrollbars are hidden and desktops have no touch, so wide tables
+  // would be impossible to pan. We enable click-and-drag panning for the mouse
+  // (native touch/trackpad scroll still works) with a small threshold so a real
+  // click on a button/link inside the table is never swallowed.
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== "mouse" || e.button !== 0) return
+    const el = ref.current
+    if (!el || el.scrollWidth <= el.clientWidth) return
+    state.current = { down: true, dragging: false, startX: e.clientX, startLeft: el.scrollLeft }
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const el = ref.current
+    if (!el || !state.current.down) return
+    const dx = e.clientX - state.current.startX
+    if (!state.current.dragging && Math.abs(dx) > 6) {
+      state.current.dragging = true
+      el.setPointerCapture(e.pointerId)
+      el.style.cursor = "grabbing"
+    }
+    if (state.current.dragging) {
+      // RTL-safe: scrollLeft delta behaves the same regardless of direction.
+      el.scrollLeft = state.current.startLeft - dx
+    }
+  }
+
+  function endDrag(e: React.PointerEvent<HTMLDivElement>) {
+    const el = ref.current
+    if (el) el.style.cursor = ""
+    if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+    state.current.down = false
+  }
+
+  function onClickCapture(e: React.MouseEvent<HTMLDivElement>) {
+    if (state.current.dragging) {
+      e.preventDefault()
+      e.stopPropagation()
+      state.current.dragging = false
+    }
+  }
+
   return (
     <div
+      ref={ref}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClickCapture={onClickCapture}
+      className="relative w-full overflow-x-auto overscroll-x-contain md:cursor-grab"
     >
       <table
         data-slot="table"
