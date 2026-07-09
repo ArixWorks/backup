@@ -575,6 +575,20 @@ export type MessageKey =
   | "wallet.depositCreated"
   | "wallet.uploading"
   | "wallet.back"
+  | "wallet.submittedTitle"
+  | "wallet.submittedBody"
+  | "wallet.gotIt"
+  | "wallet.close"
+  | "wallet.requestsTitle"
+  | "wallet.requestsEmpty"
+  | "wallet.statusAwaiting"
+  | "wallet.statusPending"
+  | "wallet.statusApproved"
+  | "wallet.statusRejected"
+  | "wallet.statusExpired"
+  | "wallet.rejectedTitle"
+  | "wallet.rejectedBody"
+  | "wallet.rejectReasonLabel"
   | "convert.enterAmount"
   | "convert.sameCurrency"
   | "convert.success"
@@ -941,7 +955,7 @@ type Catalog = Record<MessageKey, string>
   "join.notJoined": "هنوز عضو نشده‌اید — دوباره امتحان کن",
   "join.verified": "عضویت تأیید شد",
   "join.enter": "ورود به اپ",
-  "join.checkMe": "عضو شدم، بررسی کن",
+  "join.checkMe": "عضو شدم، بررسی ک��",
   "join.checking": "در حال بررسی…",
   "join.confirmed": "تأیید شد",
   "join.retry": "دوباره بررسی کن",
@@ -1147,7 +1161,7 @@ type Catalog = Record<MessageKey, string>
   "auth.backToLogin": "بازگشت به ورود",
   "auth.forgotTitle": "بازیابی رمز عبور",
   "auth.forgotDesc": "ایمیل حساب خود را وارد کنید تا لینک بازنشانی رمز عبور برایتان ارسال شود.",
-  "auth.forgotSentDesc": "اگر حسابی با این ایمیل وجود داشته باشد، لینک بازنشانی ارسال شد. صندوق ورودی خود را بررسی کنید.",
+  "auth.forgotSentDesc": "اگر حسابی با این ایمیل وجود داشته باشد، لینک بازنشانی ارسال شد. صندوق ورودی خود ر�� بررسی کنید.",
   "auth.sendResetLink": "ارسال لینک بازنشانی",
   "auth.resetTitle": "تنظیم رمز عبور جدید",
   "auth.resetRedirecting": "در حال انتقال به صفحه ورود…",
@@ -1328,6 +1342,20 @@ type Catalog = Record<MessageKey, string>
   "wallet.depositCreated": "درخواست واریز ثبت شد",
   "wallet.uploading": "در حال بارگذاری…",
   "wallet.back": "بازگشت",
+  "wallet.submittedTitle": "درخواست افزایش موجودی دریافت شد",
+  "wallet.submittedBody": "درخواست شما با موفقیت ثبت شد. پس از بررسی ادمین، نتیجه‌ی آن در کیف پول شما نمایش داده خواهد شد.",
+  "wallet.gotIt": "متوجه شدم",
+  "wallet.close": "بستن",
+  "wallet.requestsTitle": "درخواست‌های افزایش موجودی",
+  "wallet.requestsEmpty": "درخواستی ثبت نشده است.",
+  "wallet.statusAwaiting": "در انتظار پرداخت",
+  "wallet.statusPending": "در انتظار تأیید ادمین",
+  "wallet.statusApproved": "تأیید شد",
+  "wallet.statusRejected": "رد شد",
+  "wallet.statusExpired": "منقضی شد",
+  "wallet.rejectedTitle": "درخواست افزایش موجودی رد شد",
+  "wallet.rejectedBody": "متأسفانه درخواست افزایش موجودی شما توسط ادمین رد شد.",
+  "wallet.rejectReasonLabel": "دلیل رد درخواست",
   "convert.enterAmount": "مبلغ را وارد کنید",
   "convert.sameCurrency": "ارز مبدأ و مقصد یکسان است",
   "convert.success": "تبدیل ارز با موفقیت انجام شد",
@@ -2046,6 +2074,20 @@ type Catalog = Record<MessageKey, string>
   "wallet.depositCreated": "Top-up request created",
   "wallet.uploading": "Uploading…",
   "wallet.back": "Back",
+  "wallet.submittedTitle": "Top-up request received",
+  "wallet.submittedBody": "Your request was submitted successfully. Once an admin reviews it, the result will appear in your wallet.",
+  "wallet.gotIt": "Got it",
+  "wallet.close": "Close",
+  "wallet.requestsTitle": "Top-up requests",
+  "wallet.requestsEmpty": "No requests yet.",
+  "wallet.statusAwaiting": "Awaiting payment",
+  "wallet.statusPending": "Pending admin review",
+  "wallet.statusApproved": "Approved",
+  "wallet.statusRejected": "Rejected",
+  "wallet.statusExpired": "Expired",
+  "wallet.rejectedTitle": "Top-up request rejected",
+  "wallet.rejectedBody": "Unfortunately your top-up request was rejected by an admin.",
+  "wallet.rejectReasonLabel": "Reason for rejection",
   "convert.enterAmount": "Enter an amount",
   "convert.sameCurrency": "Source and target currency are the same",
   "convert.success": "Currency converted successfully",
@@ -2447,7 +2489,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.endsIn": "Окончание через",
   "adetail.reserveMet": "Резервная цена продавца достигнута",
   "adetail.reserveNotMet": "Резервная цена ещё не достигнута",
-  "adetail.minIncrement": "Мин. шаг",
+  "adetail.minIncrement": "Мин. ��аг",
   "adetail.winnersCount": "Победителей",
   "adetail.endTime": "Время окончания",
   "adetail.days": "дн",
@@ -2462,7 +2504,7 @@ type Catalog = Record<MessageKey, string>
   "wins.copy": "Копировать",
   "wins.pendingManual": "Ожидает ручной выдачи: {error}",
   "wins.pendingAuto": "Ваш приз скоро будет выдан командой поддержки.",
-  "wins.walletCredited": "{amount} туманов зачислено на ваш кошелёк.",
+  "wins.walletCredited": "{amount} туманов зачислено на ��аш кошелёк.",
   "wins.couponTitle": "Ваш промокод",
   "wins.claimTitle": "Данные для получения приза",
   "wins.position": "Место {n}",
@@ -2637,7 +2679,7 @@ type Catalog = Record<MessageKey, string>
   "a11y.mainNav": "Основная навигация",
   "a11y.collapseSidebar": "Свернуть боковую панель",
   "a11y.expandSidebar": "Развернуть боковую панель",
-  "a11y.openMenu": "Открыть меню",
+  "a11y.openMenu": "Открыть ме��ю",
   "a11y.closeMenu": "Закрыть меню",
   "nav.menu": "Меню",
   "a11y.supportOnline": "Онлайн-поддержка",
@@ -2691,7 +2733,7 @@ type Catalog = Record<MessageKey, string>
   "referral.copied": "Ссылка-приглашение скопирована",
   "referral.copyFailed": "Не удалось скопировать",
   "referral.shareText": "Присоединяйся к нам и участвуй в аукционах и специальных распродажах!",
-  "referral.shareTitle": "Пригласить друзей",
+  "referral.shareTitle": "Пригла��ить друзей",
   "referral.title": "Пригласить друзей",
   "referral.desc": "Поделитесь персональной ссылкой. Получайте награду за каждое успешное приглашение, а также постоянный кредит с",
   "referral.descEachPurchase": "каждой покупки",
@@ -2761,6 +2803,20 @@ type Catalog = Record<MessageKey, string>
   "wallet.depositCreated": "Запрос на пополнение создан",
   "wallet.uploading": "Загрузка…",
   "wallet.back": "Назад",
+  "wallet.submittedTitle": "Запрос на пополнение получен",
+  "wallet.submittedBody": "Ваш запрос успешно отправлен. После проверки администратором результат появится в вашем кошельке.",
+  "wallet.gotIt": "Понятно",
+  "wallet.close": "Закрыть",
+  "wallet.requestsTitle": "Запросы на пополнение",
+  "wallet.requestsEmpty": "Запросов пока нет.",
+  "wallet.statusAwaiting": "Ожидает оплаты",
+  "wallet.statusPending": "На проверке у администратора",
+  "wallet.statusApproved": "Одобрено",
+  "wallet.statusRejected": "Отклонено",
+  "wallet.statusExpired": "Истекло",
+  "wallet.rejectedTitle": "Запрос на пополнение отклонён",
+  "wallet.rejectedBody": "К сожалению, ваш запрос на пополнение был отклонён администратором.",
+  "wallet.rejectReasonLabel": "Причина отклонения",
   "convert.enterAmount": "Введите сумму",
   "convert.sameCurrency": "Исходная и целевая валюты совпадают",
   "convert.success": "Валюта успешно конвертирована",
@@ -3477,6 +3533,20 @@ type Catalog = Record<MessageKey, string>
   "wallet.depositCreated": "Top-up request ban gaya",
   "wallet.uploading": "Upload ho raha hai…",
   "wallet.back": "Back",
+  "wallet.submittedTitle": "Top-up request mil gaya",
+  "wallet.submittedBody": "Aapka request submit ho gaya hai. Admin review ke baad natija aapke wallet mein dikhega.",
+  "wallet.gotIt": "Samajh gaya",
+  "wallet.close": "Band karein",
+  "wallet.requestsTitle": "Top-up requests",
+  "wallet.requestsEmpty": "Abhi koi request nahi hai.",
+  "wallet.statusAwaiting": "Payment ka intezaar",
+  "wallet.statusPending": "Admin review pending",
+  "wallet.statusApproved": "Approve ho gaya",
+  "wallet.statusRejected": "Reject ho gaya",
+  "wallet.statusExpired": "Expire ho gaya",
+  "wallet.rejectedTitle": "Top-up request reject ho gaya",
+  "wallet.rejectedBody": "Afsos, aapka top-up request admin dwara reject kar diya gaya.",
+  "wallet.rejectReasonLabel": "Reject karne ki wajah",
   "convert.enterAmount": "Amount darj karein",
   "convert.sameCurrency": "Source aur target currency same hai",
   "convert.success": "Currency safaltapoorvak convert ho gayi",

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import useSWR from "swr"
 import { toast } from "sonner"
+import { motion } from "motion/react"
 import {
   Loader2,
   CreditCard,
@@ -13,6 +14,7 @@ import {
   ChevronLeft,
   Clock,
   ShieldCheck,
+  CheckCircle2,
 } from "lucide-react"
 import { fetcher, apiPost, apiPatch, ApiError } from "@/lib/api-client"
 import { uploadFile } from "@/lib/upload-client"
@@ -55,7 +57,7 @@ const METHOD_ICON: Record<string, { src?: string; lucide?: boolean }> = {
 
 const PAY_DECIMALS: Record<string, number> = { IRT: 0, USDT: 2, TON: 2, XTR: 0 }
 
-type Step = "amount" | "method" | "pay" | "stars"
+type Step = "amount" | "method" | "pay" | "stars" | "done"
 
 export function AddFundsSheet({
   open,
@@ -165,7 +167,7 @@ export function AddFundsSheet({
         className="bottom-0 left-1/2 top-auto max-h-[92vh] w-full max-w-md translate-x-[-50%] translate-y-0 overflow-x-hidden overflow-y-auto rounded-b-none rounded-t-3xl p-0 data-open:slide-in-from-bottom-4"
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          {step !== "amount" && (
+          {step !== "amount" && step !== "done" && (
             <Button
               variant="ghost"
               size="icon-sm"
@@ -201,9 +203,13 @@ export function AddFundsSheet({
               t={t}
               instructions={instructions}
               holder={method?.holder ?? null}
-              onDone={() => onOpenChange(false)}
+              onSubmitted={() => setStep("done")}
               onChanged={onChanged}
             />
+          )}
+
+          {step === "done" && (
+            <SubmittedStep t={t} amountToman={instructions?.amount ?? tomanAmount} onClose={() => onOpenChange(false)} />
           )}
         </div>
       </DialogContent>
@@ -357,13 +363,13 @@ function PayStep({
   t,
   instructions,
   holder,
-  onDone,
+  onSubmitted,
   onChanged,
 }: {
   t: ReturnType<typeof useI18n>["t"]
   instructions: Instructions
   holder: string | null
-  onDone: () => void
+  onSubmitted: () => void
   onChanged: () => void
 }) {
   const isCard = instructions.method === "CARD"
@@ -419,7 +425,7 @@ function PayStep({
       await apiPatch(`/api/v1/wallet/deposits/${instructions.id}`, { paid: true })
       toast.success(t("wallet.pendingReview"))
       onChanged()
-      onDone()
+      onSubmitted()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("wallet.topupError"))
     } finally {
@@ -518,6 +524,41 @@ function PayStep({
 
       <Button onClick={claimPaid} disabled={claiming} className="h-12 w-full text-base font-bold">
         {claiming ? <Loader2 className="h-4 w-4 animate-spin" /> : t("wallet.iPaid")}
+      </Button>
+    </div>
+  )
+}
+
+/* ---------- Step 4: submitted confirmation ---------- */
+function SubmittedStep({
+  t,
+  amountToman,
+  onClose,
+}: {
+  t: ReturnType<typeof useI18n>["t"]
+  amountToman: string | number
+  onClose: () => void
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-6 text-center">
+      <motion.span
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 320, damping: 18 }}
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10"
+      >
+        <CheckCircle2 className="h-9 w-9 text-success" />
+      </motion.span>
+      <div className="space-y-1">
+        <h3 className="text-lg font-bold text-foreground text-balance">{t("wallet.submittedTitle")}</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground text-pretty">{t("wallet.submittedBody")}</p>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl bg-muted px-4 py-2 text-sm font-bold tabular-nums text-foreground">
+        <Clock className="h-4 w-4 text-muted-foreground" />
+        {formatMoney(amountToman)} {t("common.toman")}
+      </div>
+      <Button onClick={onClose} className="mt-2 h-12 w-full text-base font-bold">
+        {t("wallet.gotIt")}
       </Button>
     </div>
   )
