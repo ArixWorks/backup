@@ -7,7 +7,12 @@ import { serializableTx } from "./ledger"
 import { audit } from "./audit"
 import { getRate, RATE_SCALE } from "./currencies"
 import { getPaymentConfig } from "./settings"
-import { notifyDepositApproved, notifyWithdrawApproved } from "@/lib/telegram/notify"
+import {
+  notifyDepositApproved,
+  notifyWithdrawApproved,
+  notifyDepositPending,
+  notifyDepositRejected,
+} from "@/lib/telegram/notify"
 import { createNotification } from "./notifications"
 import { sendDepositApprovedEmail, sendDepositRejectedEmail } from "@/lib/email"
 import { formatToman } from "@/lib/format"
@@ -113,6 +118,10 @@ export async function createDepositRequest(input: CreateDepositInput): Promise<D
       userId: input.userId,
       amount: input.amount,
       method,
+      // Card / crypto requests start as a private draft and are only submitted
+      // for admin review once the user confirms the transfer ("I've paid").
+      // Stars are settled by the Telegram webhook so they stay PENDING.
+      status: method === "STARS" ? "PENDING" : "AWAITING_PAYMENT",
       payCurrency,
       payAmount,
       payAddress,
@@ -148,19 +157,52 @@ export async function createDepositRequest(input: CreateDepositInput): Promise<D
   }
 }
 
-/** User attaches a receipt screenshot and/or marks the transfer as sent. */
-export async function claimDepositPaid(depositId: string, userId: string, receiptUrl?: string) {
+/**
+ * User attaches a receipt screenshot and/or marks the transfer as sent. This is
+ * the moment the request is actually submitted to the admin: a draft
+ * (`AWAITING_PAYMENT`) is promoted to `PENDING`. Only then does it appear in the
+ * admin review queue and a "request received" record/notification is created.
+ * `confirmPaid` distinguishes a receipt-only upload from the final confirm tap.
+ */
+export async function claimDepositPaid(
+  depositId: string,
+  userId: string,
+  receiptUrl?: string,
+  confirmPaid = true,
+) {
   const req = await prisma.depositRequest.findUnique({ where: { id: depositId } })
   if (!req || req.userId !== userId) throw new NotFoundError("درخواست واریز یافت نشد")
-  if (req.status !== "PENDING") throw new ConflictError("این درخواست قابل ویرایش نیست")
+  if (req.status !== "AWAITING_PAYMENT" && req.status !== "PENDING") {
+    throw new ConflictError("این درخواست قابل ویرایش نیست")
+  }
+  // A receipt upload before the final confirm keeps the request as a draft.
+  const submitting = confirmPaid && req.status === "AWAITING_PAYMENT"
   const updated = await prisma.depositRequest.update({
     where: { id: req.id },
     data: {
-      paidClaimedAt: new Date(),
+      status: submitting ? "PENDING" : req.status,
+      paidClaimedAt: confirmPaid ? new Date() : req.paidClaimedAt,
       receiptUrl: receiptUrl ?? req.receiptUrl,
     },
   })
-  await audit({ actorId: userId, action: "deposit.claimPaid", entity: "deposit", entityId: req.id })
+  await audit({
+    actorId: userId,
+    action: submitting ? "deposit.submit" : "deposit.claimPaid",
+    entity: "deposit",
+    entityId: req.id,
+  })
+  // On the transition draft -> submitted, record the request everywhere the
+  // user might look so they have proof it was registered.
+  if (submitting) {
+    await createNotification({
+      userId: updated.userId,
+      type: "DEPOSIT_PENDING",
+      title: "درخواست افزایش موجودی ثبت شد",
+      body: `درخواست افزایش موجودی به مبلغ ${formatToman(updated.amount)} تومان ثبت شد و در انتظار تأیید ادمین است.`,
+      href: "/wallet",
+    }).catch(() => {})
+    await notifyDepositPending(updated.userId, updated.amount).catch(() => {})
+  }
   return updated
 }
 
@@ -239,6 +281,16 @@ export async function rejectDeposit(depositId: string, adminId: string, reason?:
     data: { status: "REJECTED", reviewedById: adminId, reviewedAt: new Date(), rejectReason: reason },
   })
   await audit({ actorId: adminId, action: "deposit.reject", entity: "deposit", entityId: req.id, meta: { reason } })
+  await createNotification({
+    userId: updated.userId,
+    type: "DEPOSIT_REJECTED",
+    title: "درخواست افزایش موجودی رد شد",
+    body: updated.rejectReason
+      ? `درخواست افزایش موجودی ${formatToman(updated.amount)} تومان رد شد. دلیل: ${updated.rejectReason}`
+      : `درخواست افزایش موجودی ${formatToman(updated.amount)} تومان رد شد.`,
+    href: "/wallet",
+  }).catch(() => {})
+  await notifyDepositRejected(updated.userId, updated.amount, updated.rejectReason ?? undefined).catch(() => {})
   await sendDepositRejectedEmail({
     userId: updated.userId,
     depositId: updated.id,
@@ -344,17 +396,23 @@ export async function rejectWithdrawal(withdrawalId: string, adminId: string, re
 
 export async function listDeposits(status?: DepositStatus) {
   return prisma.depositRequest.findMany({
-    where: status ? { status } : undefined,
+    // Never surface unsubmitted drafts to admins — only requests the user has
+    // actually confirmed (PENDING and beyond).
+    where: status ? { status } : { status: { not: "AWAITING_PAYMENT" } },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: { user: { select: { displayName: true, alias: true } } },
   })
 }
 
-/** Mark stale, unclaimed crypto/card requests EXPIRED (cron-friendly, no credit). */
+/** Mark stale, unsubmitted card/crypto drafts EXPIRED (cron-friendly, no credit). */
 export async function expireStaleDeposits() {
   const res = await prisma.depositRequest.updateMany({
-    where: { status: "PENDING", paidClaimedAt: null, expiresAt: { lt: new Date() } },
+    where: {
+      status: { in: ["AWAITING_PAYMENT", "PENDING"] },
+      paidClaimedAt: null,
+      expiresAt: { lt: new Date() },
+    },
     data: { status: "EXPIRED" },
   })
   return res.count

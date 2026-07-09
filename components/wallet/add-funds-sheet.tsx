@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import useSWR from "swr"
 import { toast } from "sonner"
+import { motion } from "motion/react"
 import {
   Loader2,
   CreditCard,
@@ -13,6 +14,7 @@ import {
   ChevronLeft,
   Clock,
   ShieldCheck,
+  CheckCircle2,
 } from "lucide-react"
 import { fetcher, apiPost, apiPatch, ApiError } from "@/lib/api-client"
 import { uploadFile } from "@/lib/upload-client"
@@ -55,7 +57,7 @@ const METHOD_ICON: Record<string, { src?: string; lucide?: boolean }> = {
 
 const PAY_DECIMALS: Record<string, number> = { IRT: 0, USDT: 2, TON: 2, XTR: 0 }
 
-type Step = "amount" | "method" | "pay" | "stars"
+type Step = "amount" | "method" | "pay" | "stars" | "done"
 
 export function AddFundsSheet({
   open,
@@ -165,7 +167,7 @@ export function AddFundsSheet({
         className="bottom-0 left-1/2 top-auto max-h-[92vh] w-full max-w-md translate-x-[-50%] translate-y-0 overflow-x-hidden overflow-y-auto rounded-b-none rounded-t-3xl p-0 data-open:slide-in-from-bottom-4"
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-          {step !== "amount" && (
+          {step !== "amount" && step !== "done" && (
             <Button
               variant="ghost"
               size="icon-sm"
@@ -201,9 +203,13 @@ export function AddFundsSheet({
               t={t}
               instructions={instructions}
               holder={method?.holder ?? null}
-              onDone={() => onOpenChange(false)}
+              onSubmitted={() => setStep("done")}
               onChanged={onChanged}
             />
+          )}
+
+          {step === "done" && (
+            <SubmittedStep t={t} amountToman={instructions?.amount ?? tomanAmount} onClose={() => onOpenChange(false)} />
           )}
         </div>
       </DialogContent>
@@ -357,13 +363,13 @@ function PayStep({
   t,
   instructions,
   holder,
-  onDone,
+  onSubmitted,
   onChanged,
 }: {
   t: ReturnType<typeof useI18n>["t"]
   instructions: Instructions
   holder: string | null
-  onDone: () => void
+  onSubmitted: () => void
   onChanged: () => void
 }) {
   const isCard = instructions.method === "CARD"

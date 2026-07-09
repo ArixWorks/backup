@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic"
 
 const schema = z.object({
   receiptUrl: uploadedFileUrl.optional(),
+  // `paid: true` is the final "I've paid" confirmation that submits the request
+  // to the admin. A receipt upload alone (without `paid`) keeps it as a draft.
+  paid: z.boolean().optional(),
 })
 
 /** User marks a deposit as paid and/or attaches a receipt screenshot. */
@@ -17,5 +20,5 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   const { id } = await ctx.params
   const body = schema.parse(await req.json())
   await rateLimitBy(user.id, { bucket: "wallet:deposit:claim", limit: 30, windowSec: 600 })
-  return claimDepositPaid(id, user.id, body.receiptUrl)
+  return claimDepositPaid(id, user.id, body.receiptUrl, body.paid === true)
 })

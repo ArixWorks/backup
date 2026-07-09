@@ -30,7 +30,9 @@ export type BotTextKey =
   | "notifAuctionStarted"
   | "notifAuctionWon"
   | "notifOrderDelivered"
+  | "notifDepositPending"
   | "notifDepositApproved"
+  | "notifDepositRejected"
   | "notifWithdrawApproved"
   | "notifReferralJoined"
   | "notifReferralPurchase"
@@ -202,8 +204,12 @@ export const DEFAULT_CONFIG: BotConfig = {
       "{trophy} *تبریک! برنده شدی* {party}\n\n{gavel} {title}\nمبلغ نهایی: *{price}* تومان\n\nسفارشت در حال آماده‌سازیه {box}",
     notifOrderDelivered:
       "{gift} *سفارشت تحویل داده شد!* {party}\n\n{box} {title}\nاطلاعات تحویل رو در اپ ببین {sparkles}",
+    notifDepositPending:
+      "{clock} *درخواست افزایش موجودی ثبت شد*\n\n{money} مبلغ *{amount}* تومان\n\nدرخواستت با موفقیت دریافت شد و در انتظار بررسی ادمینه. نتیجه‌ی نهایی به‌زودی در کیف پولت نمایش داده می‌شه {sparkles}",
     notifDepositApproved:
       "{check} *واریز تأیید شد* {party}\n\n{money} مبلغ *{amount}* تومان به کیف پولت اضافه شد.",
+    notifDepositRejected:
+      "{cross} *درخواست افزایش موجودی رد شد*\n\n{money} مبلغ *{amount}* تومان\n\n{warning} دلیل: {reason}\n\nدر صورت واریز واقعی، رسید معتبر رو از طریق پشتیبانی ارسال کن.",
     notifWithdrawApproved: "{check} *برداشت شما انجام شد* {sparkles}\n\n{money} مبلغ: *{amount}* تومان",
   notifReferralJoined:
     "{party} *دعوت موفق!*\n\nدوستت *{name}* با لینک تو وارد ربات شد و عضو کانال‌ها شد {sparkles}\n{money} *{bonus}* تومان پاداش به کیف پولت اضافه شد!",

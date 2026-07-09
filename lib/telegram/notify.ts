@@ -118,8 +118,19 @@ export async function notifyOrderDelivered(userId: string, title: string, photo?
   await notify(userId, "notifOrderDelivered", { title }, { photo })
 }
 
+export async function notifyDepositPending(userId: string, amount: bigint) {
+  await notify(userId, "notifDepositPending", { amount: formatToman(amount) })
+}
+
 export async function notifyDepositApproved(userId: string, amount: bigint) {
   await notify(userId, "notifDepositApproved", { amount: formatToman(amount) })
+}
+
+export async function notifyDepositRejected(userId: string, amount: bigint, reason?: string) {
+  await notify(userId, "notifDepositRejected", {
+    amount: formatToman(amount),
+    reason: reason?.trim() || "دلیلی ثبت نشده است",
+  })
 }
 
 export async function notifyWithdrawApproved(userId: string, amount: bigint) {
@@ -198,7 +209,7 @@ export async function notifyGiveawayWon(
       `🎉🏆 <b>تبریک! شما برنده شدید</b> 🏆🎉\n\n` +
       `در قرعه‌کشی «<b>${title}</b>» برنده‌ی زیر شدید:\n` +
       `🎁 <b>${prizeLabel}</b>\n\n` +
-      `برای مشاهده‌ی جزئیات و دریافت جایزه روی دکمه‌ی زیر بزنید.`
+      `برای مشاهده‌ی جزئیات و دریافت جایزه روی دکمه��ی زیر بزنید.`
     const markup = openAppKeyboard(cfg, `/giveaways/${slug}`)
     if (photo) {
       await sendPhoto(chatId, photo, html, { replyMarkup: markup }).catch(() =>
