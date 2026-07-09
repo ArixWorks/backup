@@ -3,8 +3,8 @@
 import useSWR, { mutate as globalMutate } from "swr"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Search, Ban, CheckCircle2, Wallet, Crown } from "lucide-react"
-import { fetcher, apiPost } from "@/lib/api-client"
+import { Search, Ban, CheckCircle2, Wallet, Crown, Trash2 } from "lucide-react"
+import { fetcher, apiPost, apiDelete } from "@/lib/api-client"
 import { formatToman, formatNumber, formatDateTime } from "@/lib/format"
 import { effectiveTier, tierLabelFor, type Tier } from "@/lib/tiers"
 import { Card } from "@/components/ui/card"
@@ -65,6 +65,25 @@ export default function AdminUsersPage() {
   const [vipUser, setVipUser] = useState<AdminUser | null>(null)
   const [vipDays, setVipDays] = useState("")
   const [vipBusy, setVipBusy] = useState(false)
+
+  const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
+  async function submitDelete() {
+    if (!deleteUser) return
+    setDeleteBusy(true)
+    try {
+      await apiDelete(`/api/v1/admin/users/${deleteUser.id}`)
+      toast.success("کاربر برای همیشه حذف شد")
+      setDeleteUser(null)
+      mutate()
+      globalMutate("/api/v1/admin/stats")
+    } catch (e: any) {
+      toast.error(e.message ?? "خطا در حذف کاربر")
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   async function submitVip(action: "grant" | "revoke") {
     if (!vipUser) return
@@ -255,6 +274,17 @@ export default function AdminUsersPage() {
                           )}
                         </Button>
                       )}
+                      {u.role !== "ADMIN" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1.5 text-destructive"
+                          onClick={() => setDeleteUser(u)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          حذف
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -350,6 +380,35 @@ export default function AdminUsersPage() {
             )}
             <Button onClick={() => submitVip("grant")} disabled={vipBusy}>
               {vipBusy ? "در حال ثبت…" : vipUser?.vipManual ? "تمدید/به‌روزرسانی" : "فعال‌سازی VIP"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteUser} onOpenChange={(o) => !o && setDeleteUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              حذف کامل کاربر — {deleteUser?.displayName}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              این عملیات غیرقابل بازگشت است. تمام اطلاعات کاربر شامل کیف پول، سفارش‌ها،
+              پیشنهادها، امتیازها و سوابق به‌طور کامل از دیتابیس حذف می‌شود.
+            </div>
+            <p className="text-xs text-muted-foreground">
+              اگر این فرد دوباره ربات یا وب‌اپ را باز کند، مانند یک کاربر تازه‌وارد با حساب و
+              کیف پول جدید شناخته می‌شود.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setDeleteUser(null)}>
+              انصراف
+            </Button>
+            <Button variant="destructive" onClick={submitDelete} disabled={deleteBusy}>
+              {deleteBusy ? "در حال حذف…" : "حذف دائمی"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -99,6 +99,42 @@ export async function setUserStatus(userId: string, status: "ACTIVE" | "BANNED",
   return updated
 }
 
+/**
+ * Permanently delete a user and ALL of their data from the database.
+ *
+ * Every required relation to `User` is declared `onDelete: Cascade` in the
+ * schema (wallets, ledger accounts, orders, deliveries, bids, deposits,
+ * withdrawals, refunds, tickets, reviews, coupon redemptions, notifications,
+ * stock alerts, category follows, auth tokens, giveaway entries/wins, points,
+ * badges, missions, conversions…), so a single delete self-cleans everything.
+ * Optional back-references are preserved safely: `AuditLog.actor` and
+ * `User.referredBy` are `SetNull`, so audit history and other users' referral
+ * chains stay intact (just detached).
+ *
+ * Because the Telegram identity row is removed too, the next time this person
+ * opens the bot / Mini App `resolveTelegramUser` treats them as a brand-new
+ * user (fresh wallet, fresh onboarding).
+ */
+export async function deleteUser(userId: string, adminId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, displayName: true, alias: true, telegramId: true },
+  })
+  if (!user) throw new NotFoundError("کاربر یافت نشد")
+  if (user.role === "ADMIN") throw new ValidationError("نمی‌توان حساب مدیر را حذف کرد")
+  if (userId === adminId) throw new ValidationError("نمی‌توانید حساب خودتان را حذف کنید")
+
+  await prisma.user.delete({ where: { id: userId } })
+  await audit({
+    actorId: adminId,
+    action: "user.delete",
+    entity: "user",
+    entityId: userId,
+    meta: { displayName: user.displayName, alias: user.alias, telegramId: user.telegramId },
+  })
+  return { deleted: true }
+}
+
 /** Manual balance adjustment (credit or debit) with an immutable ledger entry. */
 export async function adjustBalance(userId: string, delta: bigint, reason: string, adminId: string) {
   if (delta === 0n) throw new ValidationError("مبلغ نمی‌تواند صفر باشد")
