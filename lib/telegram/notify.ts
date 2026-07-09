@@ -209,7 +209,7 @@ export async function notifyGiveawayWon(
       `🎉🏆 <b>تبریک! شما برنده شدید</b> 🏆🎉\n\n` +
       `در قرعه‌کشی «<b>${title}</b>» برنده‌ی زیر شدید:\n` +
       `🎁 <b>${prizeLabel}</b>\n\n` +
-      `برای مشاهده‌ی جزئیات و دریافت جایزه روی دکمه��ی زیر بزنید.`
+      `برای مشاهده‌ی جزئیات و دریافت جایزه روی دکمه‌ی زیر بزنید.`
     const markup = openAppKeyboard(cfg, `/giveaways/${slug}`)
     if (photo) {
       await sendPhoto(chatId, photo, html, { replyMarkup: markup }).catch(() =>

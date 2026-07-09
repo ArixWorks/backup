@@ -346,7 +346,7 @@ export function GiveawayForm({
           <h3 className="font-bold">کانال‌های اجباری</h3>
           <Button type="button" variant="outline" size="sm" onClick={addChannel} className="gap-1">
             <Plus className="h-3.5 w-3.5" />
-            افزود��
+            افزودن
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">

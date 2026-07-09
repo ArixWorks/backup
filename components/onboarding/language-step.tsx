@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import { motion } from "motion/react"
-import { Check, ChevronLeft, Headphones, Shield, Sparkles, Zap } from "lucide-react"
+import { ChevronLeft, Headphones, Shield, Sparkles, Zap } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 import { LOCALE_NAMES, type Locale } from "@/lib/i18n/locales"
 import { LanguageGlobe } from "./language-globe"
@@ -30,9 +30,9 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
   }
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-[clamp(0.65rem,2.4vh,1.5rem)] text-center">
-      {/* Cinematic hero — absorbs leftover height and scales down when short */}
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center pt-1">
+    <div className="flex min-h-full w-full flex-col items-center justify-center gap-[clamp(0.75rem,2.4vh,1.5rem)] py-2 text-center">
+      {/* Cinematic hero — fixed, shrinkable footprint so the cards below never get pushed off-screen */}
+      <div className="flex h-[clamp(7.5rem,24vh,13rem)] w-full shrink-0 items-center justify-center pt-1">
         <LanguageGlobe />
       </div>
 
@@ -53,8 +53,9 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
         </p>
       </motion.div>
 
-      {/* Language cards */}
-      <div className="grid w-full shrink-0 grid-cols-2 gap-2.5">
+      {/* Language cards — flag + name only, centered; the active language is
+          shown purely through color so the layout stays clean on every size. */}
+      <div className="grid w-full shrink-0 grid-cols-2 gap-3">
         {DISPLAY_ORDER.map((code, i) => {
           const active = selected === code
           return (
@@ -69,69 +70,41 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.96 }}
               className={cn(
-                "glass group relative flex items-center gap-2.5 overflow-hidden rounded-2xl border px-3 py-3 text-start transition-colors duration-300",
+                "glass group relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border px-3 py-4 transition-colors duration-300",
                 active
-                  ? "border-primary/70 bg-primary/[0.07] scale-[1.02]"
-                  : "border-border/60 hover:border-primary/45",
+                  ? "border-primary bg-primary/10 text-primary shadow-[0_0_20px_color-mix(in_oklch,var(--primary)_25%,transparent)]"
+                  : "border-border/60 text-foreground hover:border-primary/45",
               )}
             >
-              {/* Active glow + moving sheen */}
+              {/* Soft glow behind the active card */}
               {active && (
-                <>
-                  <span
-                    aria-hidden
-                    className="animate-glow pointer-events-none absolute -inset-px rounded-2xl bg-[radial-gradient(120%_120%_at_50%_0%,color-mix(in_oklch,var(--primary)_32%,transparent),transparent_70%)]"
-                  />
-                  <span className="sheen pointer-events-none absolute inset-0 rounded-2xl" />
-                </>
+                <span
+                  aria-hidden
+                  className="animate-glow pointer-events-none absolute -inset-px rounded-2xl bg-[radial-gradient(120%_120%_at_50%_0%,color-mix(in_oklch,var(--primary)_26%,transparent),transparent_70%)]"
+                />
               )}
 
               {/* 3D flag that ripples in the wind — active waves livelier */}
               <span
                 aria-hidden
-                className="relative flex h-11 w-11 shrink-0 items-center justify-center [perspective:340px]"
+                className="relative flex h-12 w-12 shrink-0 items-center justify-center [perspective:340px]"
               >
                 <span
-                  className="animate-flag-wind relative block h-11 w-11"
+                  className="animate-flag-wind relative block h-12 w-12"
                   style={{ animationDuration: active ? "2.4s" : "3.6s" }}
                 >
                   <Image
                     src={FLAG[code] || "/placeholder.svg"}
                     alt=""
                     fill
-                    sizes="44px"
+                    sizes="48px"
                     className="object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.28)]"
                   />
                 </span>
               </span>
 
-              <span className="relative flex-1 text-[0.95rem] font-bold text-foreground">
+              <span className="relative text-[0.95rem] font-bold leading-tight">
                 {LOCALE_NAMES[code]}
-              </span>
-
-              {/* Country code badge */}
-              <span className="relative rounded-md bg-background/55 px-1.5 py-0.5 text-[10px] font-semibold tracking-wider text-muted-foreground ring-1 ring-border/50">
-                {COUNTRY_CODE[code]}
-              </span>
-
-              {/* Animated selection check */}
-              <span
-                className={cn(
-                  "relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all duration-300",
-                  active
-                    ? "bg-primary text-primary-foreground shadow-[0_0_12px_color-mix(in_oklch,var(--primary)_60%,transparent)]"
-                    : "border-2 border-muted-foreground/40",
-                )}
-              >
-                {active && (
-                  <motion.span
-                    initial={{ scale: 0, rotate: -90 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 22 }}
-                  >
-                    <Check className="h-3 w-3" strokeWidth={3.5} />
-                  </motion.span>
-                )}
               </span>
             </motion.button>
           )
@@ -201,14 +174,6 @@ const FLAG: Record<Locale, string> = {
   en: "/onboarding/flags/en.png",
   ru: "/onboarding/flags/ru.png",
   hi: "/onboarding/flags/hi.png",
-}
-
-/** ISO country code shown as a small badge on each card. */
-const COUNTRY_CODE: Record<Locale, string> = {
-  fa: "IR",
-  en: "GB",
-  ru: "RU",
-  hi: "IN",
 }
 
 /** Trust badges anchoring the foot of the screen (localized live via t()). */
