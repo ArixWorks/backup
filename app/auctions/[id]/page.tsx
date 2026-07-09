@@ -6,7 +6,7 @@ import Link from "next/link"
 import useSWR from "swr"
 import { ArrowRight, Gavel, Clock, Users, ShieldAlert, TrendingUp, Zap, Calendar, Trophy } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
-import { RichContent } from "@/components/rich-content"
+import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { BidPanel } from "@/components/bid-panel"
 import { WatchButton } from "@/components/watch-button"
 import { SegmentedCountdown } from "@/components/segmented-countdown"
@@ -158,7 +158,9 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           {a.description && (
             <section className="card-premium space-y-2 rounded-2xl border border-border p-5">
               <h2 className="text-sm font-bold text-muted-foreground">{t("adetail.overview")}</h2>
-              <RichContent content={a.description} className="text-foreground/90" />
+              <CollapsibleContent>
+                <RichContent content={a.description} className="text-foreground/90" />
+              </CollapsibleContent>
             </section>
           )}
 

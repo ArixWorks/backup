@@ -13,7 +13,7 @@ import { Countdown } from "@/components/countdown"
 import { formatNumber } from "@/lib/format"
 import { useSession } from "@/hooks/use-session"
 import { FadeItem } from "@/components/motion"
-import { RichContent } from "@/components/rich-content"
+import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 
@@ -184,7 +184,9 @@ export function GiveawayDetail({
       {giveaway.description && (
         <FadeItem>
           <div className="card-premium rounded-2xl border border-border p-4">
-            <RichContent content={giveaway.description} />
+            <CollapsibleContent>
+              <RichContent content={giveaway.description} />
+            </CollapsibleContent>
           </div>
         </FadeItem>
       )}
