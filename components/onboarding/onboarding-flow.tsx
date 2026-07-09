@@ -6,19 +6,18 @@ import { AnimatePresence, motion } from "motion/react"
 import { fetcher, apiPost } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { LanguageStep } from "./language-step"
-import { TutorialStep } from "./tutorial-step"
 import { SuccessStep } from "./success-step"
 
 type OnboardingStatus = {
   needsOnboarding: boolean
 }
 
-type Step = "language" | "tutorial" | "success"
+type Step = "language" | "success"
 
 /**
  * First-run onboarding flow, shown as a blocking fullscreen overlay for
  * signed-in users who haven't completed it yet. Sequence:
- *   language picker → guided tutorial → "you're all set" success → mark complete.
+ *   language picker → "you're all set" success → mark complete.
  *
  * The forced-channel membership gate is deliberately NOT part of this flow — it
  * lives in <ChannelGate/> as a dedicated verification screen that runs AFTER
@@ -72,13 +71,7 @@ export function OnboardingFlow() {
           className="relative mx-auto flex h-dvh w-full max-w-md flex-col overflow-y-auto px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
         >
           {resolvedStep === "language" && (
-            <LanguageStep onContinue={() => setStep("tutorial")} />
-          )}
-          {resolvedStep === "tutorial" && (
-            <TutorialStep
-              onDone={() => setStep("success")}
-              onSkip={() => setStep("success")}
-            />
+            <LanguageStep onContinue={() => setStep("success")} />
           )}
           {resolvedStep === "success" && (
             <SuccessStep busy={finishing} onStart={complete} />

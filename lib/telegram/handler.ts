@@ -744,7 +744,7 @@ function gwLabels(locale: Locale) {
     case "hi":
       return {
         prize: "इनाम", winners: "विजेता", participants: "प्रतिभागी",
-        drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप ���ामिल हैं",
+        drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप शामिल हैं",
         open: "ऐप में खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
         ended: "यह गिववे समाप्त हो गया", retry: "✅ मैंने जॉइन किया — पुनः प्रयास",
         entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",
@@ -1230,7 +1230,7 @@ function secLabels(locale: Locale): SecLabelBag {
       couponApplied: "Купон", couponOk: "Купон применён.", couponInvalid: "Купон недействителен.", couponNoProduct: "Сначала откройте товар.",
       bidPrompt: "Введите сумму ставки. Минимум:", bidInvalid: "Введите корректную сумму.", bidPlaced: "Ставка принята.", buyNowDone: "Куплено через «Купить сейчас»!",
       watchOn: "Добавлено в избранное.", watchOff: "Удалено из избранного.",
-      depositChoose: "Выбе��ите способ пополнения:", depInstrTitle: "Инструкция по оплате", depAmount: "Сумма", depAddress: "Получатель",
+      depositChoose: "Выберите способ пополнения:", depInstrTitle: "Инструкция по оплате", depAmount: "Сумма", depAddress: "Получатель",
       depNetwork: "Сеть", depTag: "Код", depNote: "После оплаты нажмите «Я оплатил» или пришлите чек.", toman: "Томан",
       receiptPrompt: "Пришлите фото чека об оплате.", receiptSaved: "Чек получен. Скоро проверим.", receiptPhotoOnly: "Пришлите, пожалуйста, фото.",
       paidClaimed: "Спасибо! Мы проверим оплату и пополним кошелёк.", paidClaimedShort: "Принято", methodUnavailable: "Этот способ оплаты недоступен",
@@ -1245,7 +1245,7 @@ function secLabels(locale: Locale): SecLabelBag {
       stOpen: "खुला", stPending: "लंबित", stClosed: "बंद",
       couponApplied: "कूपन", couponOk: "कूपन लागू हुआ।", couponInvalid: "यह कूपन मान्य नहीं है।", couponNoProduct: "पहले कोई उत्पाद खोलें।",
       bidPrompt: "अपनी बोली राशि दर्ज करें। न्यूनतम:", bidInvalid: "मान्य राशि दर्ज करें।", bidPlaced: "आपकी बोली दर्ज हुई।", buyNowDone: "अभी खरीदें से खरीदा गया!",
-      watchOn: "वॉच��िस्ट में जोड़ा गया।", watchOff: "वॉचलिस्ट से हटाया गया।",
+      watchOn: "वॉचलिस्ट में जोड़ा गया।", watchOff: "वॉचलिस्ट से हटाया गया।",
       depositChoose: "टॉप-अप विधि चुनें:", depInstrTitle: "भुगतान निर्देश", depAmount: "राशि", depAddress: "गंतव्य",
       depNetwork: "नेटवर्क", depTag: "संदर्भ", depNote: "भुगतान के बाद “मैंने भुगतान किया” दबाएँ या रसीद भेजें।", toman: "तोमान",
       receiptPrompt: "कृपया भुगतान रसीद की फ़ोटो भेजें।", receiptSaved: "रसीद मिल गई। हम जल्द जाँचेंगे।", receiptPhotoOnly: "कृपया एक फ़ोटो भेजें।",
