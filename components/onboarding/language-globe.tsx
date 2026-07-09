@@ -79,11 +79,14 @@ export function LanguageGlobe() {
           shaded into a sphere with a highlight, limb darkening and a gold rim. */}
       <div className="absolute inset-[14%] drop-shadow-[0_10px_36px_color-mix(in_oklch,var(--primary)_40%,transparent)]">
         <div className="relative h-full w-full overflow-hidden rounded-full bg-background">
-          {/* Rotating surface: two identical map tiles sliding as one track */}
+          {/* Rotating surface: two identical seamless equirectangular map tiles
+              sliding as one track. Each tile is a flat 2:1 world map; scrolling
+              them behind the circular clip + spherical shading reads as the
+              planet turning on its axis. */}
           <div className="animate-globe flex h-full w-[200%]">
             <div className="relative h-full w-1/2 shrink-0">
               <Image
-                src="/onboarding/globe-gold-map.png"
+                src="/onboarding/globe-gold-equirect.png"
                 alt=""
                 fill
                 sizes="240px"
@@ -91,11 +94,11 @@ export function LanguageGlobe() {
                 priority
               />
             </div>
-            {/* Identical twin. The map's left & right edges are open black
-                ocean, so the join and the loop wrap are both invisible. */}
+            {/* Identical twin so the loop wrap is invisible: the equirect map's
+                left & right edges connect seamlessly. */}
             <div className="relative h-full w-1/2 shrink-0">
               <Image
-                src="/onboarding/globe-gold-map.png"
+                src="/onboarding/globe-gold-equirect.png"
                 alt=""
                 fill
                 sizes="240px"
@@ -109,7 +112,7 @@ export function LanguageGlobe() {
             className="pointer-events-none absolute inset-0 rounded-full"
             style={{
               background:
-                "radial-gradient(circle at 34% 28%, color-mix(in oklch, var(--primary) 30%, transparent) 0%, transparent 44%), radial-gradient(circle at 50% 50%, transparent 50%, rgba(0,0,0,0.5) 80%, rgba(0,0,0,0.9) 100%)",
+                "radial-gradient(circle at 32% 26%, color-mix(in oklch, var(--primary) 34%, transparent) 0%, transparent 46%), radial-gradient(circle at 50% 50%, transparent 62%, rgba(0,0,0,0.28) 84%, rgba(0,0,0,0.62) 100%)",
             }}
           />
         </div>
