@@ -17,6 +17,8 @@ import {
 } from "@/components/wallet/balances-panel"
 import { StatementPanel } from "@/components/wallet/statement-panel"
 import { AddFundsSheet } from "@/components/wallet/add-funds-sheet"
+import { RequestsPanel } from "@/components/wallet/requests-panel"
+import { RejectionWatcher } from "@/components/wallet/rejection-watcher"
 
 type WalletData = {
   balances: { totalBalance: number; frozenBalance: number; availableBalance: number }
@@ -72,6 +74,8 @@ export default function WalletPage() {
           {t("wallet.addFunds")}
         </Button>
 
+        <RequestsPanel />
+
         <Link
           href="/rewards"
           className="card-premium active:scale-press flex items-center gap-3 rounded-2xl border border-primary/30 p-4 transition-colors"
@@ -97,6 +101,9 @@ export default function WalletPage() {
       />
 
       <AddFundsSheet open={addOpen} onOpenChange={setAddOpen} onChanged={refreshAll} />
+
+      {/* Surfaces admin rejections as a blocking alert, then refreshes balances. */}
+      <RejectionWatcher onAcknowledged={refreshAll} />
     </div>
   )
 }
