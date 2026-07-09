@@ -229,6 +229,15 @@ function AmountStep({
   tomanAmount: number
   onContinue: () => void
 }) {
+  // Group the integer part into 3-digit blocks for readability (e.g. 5000000 -> 5,000,000).
+  // The raw `input` stays free of separators so numeric parsing keeps working.
+  const displayValue = useMemo(() => {
+    if (!input) return ""
+    const [intPart, decPart] = input.split(".")
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    return decPart !== undefined ? `${grouped}.${decPart}` : grouped
+  }, [input])
+
   return (
     <div className="space-y-4">
       <label className="block text-sm font-medium text-muted-foreground">
@@ -238,8 +247,19 @@ function AmountStep({
         autoFocus
         inputMode="decimal"
         placeholder="0"
-        value={input}
-        onChange={(e) => setInput(e.target.value.replace(/[^0-9.]/g, ""))}
+        value={displayValue}
+        onChange={(e) => {
+          let raw = e.target.value.replace(/[^0-9.]/g, "")
+          // Toman amounts are whole numbers; only USD keeps a decimal part.
+          if (isToman) raw = raw.replace(/\./g, "")
+          else {
+            const firstDot = raw.indexOf(".")
+            if (firstDot !== -1) {
+              raw = raw.slice(0, firstDot + 1) + raw.slice(firstDot + 1).replace(/\./g, "")
+            }
+          }
+          setInput(raw)
+        }}
         className="h-14 text-center text-2xl font-bold tabular-nums"
       />
       <div className="grid grid-cols-4 gap-2">
