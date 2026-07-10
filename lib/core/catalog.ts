@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { NotFoundError } from "./errors"
-import { finalizeAuction } from "./auction"
+import { finalizeAuction, handleWinnerDefault } from "./auction"
 import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
 import { smartBuyNowPrice, incrementForPrice, nextMinimumBid } from "./auction/pricing"
 import { isTerminalStatus } from "./auction/lifecycle"
@@ -315,6 +315,27 @@ export async function getAuctionDetail(auctionId: string) {
     })
   }
   if (!auction) throw new NotFoundError("Auction not found")
+
+  // Lazy winner-default: a PAYMENT_PENDING auction (deposit / partial-freeze
+  // mode) whose payment or second-chance deadline has elapsed is defaulted
+  // on-read, mirroring the lazy-finalize above. This makes the winner-default
+  // lifecycle robust even if the scheduled cron is delayed or unavailable.
+  if (
+    auction.status === "PAYMENT_PENDING" &&
+    auction.paymentDeadlineAt &&
+    new Date() >= auction.paymentDeadlineAt
+  ) {
+    try {
+      await handleWinnerDefault(auction.id)
+    } catch {
+      /* ignore; the cron will retry */
+    }
+    auction = await prisma.auction.findUnique({
+      where: { id: auctionId },
+      include: { product: true, _count: { select: { bids: true } } },
+    })
+    if (!auction) throw new NotFoundError("Auction not found")
+  }
 
   const bids = await prisma.bid.findMany({
     where: { auctionId: auction.id },
