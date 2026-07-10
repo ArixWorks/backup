@@ -266,6 +266,7 @@ export type MessageKey =
   | "adetail.endsIn"
   | "adetail.reserveMet"
   | "adetail.reserveNotMet"
+  | "adetail.reserveHidden"
   | "adetail.minIncrement"
   | "adetail.winnersCount"
   | "adetail.endTime"
@@ -834,7 +835,7 @@ type Catalog = Record<MessageKey, string>
   "tier.gold": "طلایی",
   "tier.diamond": "دایموند",
   "tier.vip": "وی‌آی‌پی",
-  "membership.title": "سطح عضویت",
+  "membership.title": "سطح عض��یت",
   "membership.discount": "{n}٪ تخفیف روی محصولات",
   "membership.vipExclusive": "عضویت اختصاصی ویژه",
   "home.welcome": "خوش آمدید",
@@ -870,7 +871,7 @@ type Catalog = Record<MessageKey, string>
   "detail.back": "بازگشت به فروشگاه",
   "detail.description": "توضیحات",
   "detail.tags": "برچسب‌ها",
-  "detail.share": "اشتراک‌گذاری",
+  "detail.share": "اشتراک���گذاری",
   "detail.shareCopied": "لینک کپی شد",
   "detail.notFound": "این محصول یافت نشد یا دیگر در دسترس نیست.",
   "detail.eachFrom": "هر واحد از",
@@ -1048,6 +1049,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.endsIn": "پایان تا",
   "adetail.reserveMet": "قیمت رزرو فروشنده تأمین شده است",
   "adetail.reserveNotMet": "قیمت رزرو هنوز تأمین نشده است",
+  "adetail.reserveHidden": "این مزایده دارای قیمت رزرو محرمانه است",
   "adetail.minIncrement": "حداقل افزایش",
   "adetail.winnersCount": "تعداد برنده",
   "adetail.endTime": "زمان پایان",
@@ -1419,7 +1421,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.joinChannelsFirst": "برای شرکت، اول در کانال‌های زیر عضو شو",
   "gwd.errEnter": "خطا در ثبت شرکت",
   "gwd.startRegUntil": "شروع ثبت‌نام تا",
-  "gwd.participants": "شرکت‌کنندگان",
+  "gwd.participants": "��رکت‌کنندگان",
   "gwd.prize": "جایزه",
   "gwd.mustJoin": "برای شرکت باید عضو این کانال‌ها باشی",
   "gwd.afterJoinRetry": "بعد از عضویت، دوباره دکمه شرکت را بزن.",
@@ -1801,6 +1803,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.endsIn": "Ends in",
   "adetail.reserveMet": "The seller's reserve price has been met",
   "adetail.reserveNotMet": "The reserve price has not been met yet",
+  "adetail.reserveHidden": "This auction has a confidential reserve price",
   "adetail.minIncrement": "Min. increment",
   "adetail.winnersCount": "Winners",
   "adetail.endTime": "End time",
@@ -2545,6 +2548,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.endsIn": "Окончание через",
   "adetail.reserveMet": "Резервная цена продавца достигнута",
   "adetail.reserveNotMet": "Резервная цена ещё не достигнута",
+  "adetail.reserveHidden": "У этого аукциона есть конфиденциальная резервная цена",
   "adetail.minIncrement": "Мин. шаг",
   "adetail.winnersCount": "Победителей",
   "adetail.endTime": "Время окончания",
@@ -3290,6 +3294,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.endsIn": "Khatam hone mein",
   "adetail.reserveMet": "Seller ki reserve price poori ho gayi hai",
   "adetail.reserveNotMet": "Reserve price abhi poori nahi hui hai",
+  "adetail.reserveHidden": "Is auction mein ek confidential reserve price hai",
   "adetail.minIncrement": "Min. increment",
   "adetail.winnersCount": "Winners",
   "adetail.endTime": "End time",
