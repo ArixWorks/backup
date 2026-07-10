@@ -17,6 +17,7 @@ type Props = {
   buyNowPrice: number | null
   minimumIncrement: number
   status: string
+  proxyBidEnabled?: boolean
   onChanged: () => void
 }
 
@@ -26,6 +27,7 @@ export function BidPanel({
   buyNowPrice,
   minimumIncrement,
   status,
+  proxyBidEnabled = false,
   onChanged,
 }: Props) {
   const { user, refresh } = useSession()
