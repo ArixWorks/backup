@@ -99,12 +99,12 @@ export function useDeviceTilt(options: DeviceTiltOptions): DeviceTiltState {
     tx,
     ty,
     enabled = true,
-    maxRotateX = 4.5,
-    maxRotateY = 6.5,
-    maxTranslate = 1.5,
-    smoothing = 0.18,
+    maxRotateX = 10,
+    maxRotateY = 14,
+    maxTranslate = 4,
+    smoothing = 0.22,
     refreshRate = 33,
-    referenceTilt = 18,
+    referenceTilt = 11,
   } = options
 
   const [supported, setSupported] = useState(false)
