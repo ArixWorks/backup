@@ -78,6 +78,9 @@ export type MessageKey =
   | "auctions.scheduled"
   | "auctions.ended"
   | "auctions.currentBid"
+  | "auctions.nextBid"
+  | "auctions.finalPrice"
+  | "auctions.startingPrice"
   | "auctions.startsAt"
   | "flash.title"
   | "flash.subtitle"
@@ -271,6 +274,10 @@ export type MessageKey =
   | "adetail.mins"
   | "adetail.secs"
   | "adetail.buyNowStat"
+  | "adetail.nextMinBid"
+  | "adetail.finalPrice"
+  | "adetail.winner"
+  | "adetail.soldViaBuyNow"
   | "adetail.overview"
   | "wins.signInRequired"
   | "wins.copied"
@@ -847,6 +854,9 @@ type Catalog = Record<MessageKey, string>
   "auctions.scheduled": "زمان‌بندی‌شده",
   "auctions.ended": "پایان‌یافته",
   "auctions.currentBid": "بالاترین پیشنهاد",
+  "auctions.nextBid": "حداقل پیشنهاد بعدی",
+  "auctions.finalPrice": "قیمت نهایی",
+  "auctions.startingPrice": "قیمت پایه",
   "auctions.startsAt": "شروع",
   "flash.title": "فروشگاه",
   "flash.subtitle": "خرید آنی با قیمت ثابت؛ محصولات تحویل خودکار بلافاصله پس از پرداخت ارسال می‌شوند.",
@@ -953,7 +963,7 @@ type Catalog = Record<MessageKey, string>
   "motion.cinematic": "سینمایی",
   "motion.balanced": "متعادل",
   "motion.minimal": "حداقلی",
-  "motion.hint": "حالت خودکار بر اساس توان دستگاه شما بهترین جلوه‌ها را انتخاب می‌کند.",
+  "motion.hint": "حالت خودکار بر اساس توان د��تگاه شما بهترین جلوه‌ها را انتخاب می‌کند.",
   "join.title": "فقط برای اعضا",
   "join.subtitle": "ب��ای استفاده از {brand} روی هر کانال بزن و عضو شو؛ بعد از بازگشت، تیک سبز روشن می‌شود.",
   "join.notJoined": "هنوز عضو نشده‌اید — دوباره امتحان کن",
@@ -1040,6 +1050,10 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "دقیقه",
   "adetail.secs": "ثانیه",
   "adetail.buyNowStat": "خرید فوری",
+  "adetail.nextMinBid": "حداقل پیشنهاد بعدی",
+  "adetail.finalPrice": "قیمت نهایی",
+  "adetail.winner": "برنده",
+  "adetail.soldViaBuyNow": "فروخته‌شده با خرید فوری",
   "adetail.overview": "توضیحات",
   "wins.signInRequired": "برای مشاهده‌ی جوایز، ابتدا وارد حساب کاربری خود شوید.",
   "wins.copied": "کپی شد",
@@ -1578,6 +1592,9 @@ type Catalog = Record<MessageKey, string>
   "auctions.scheduled": "Scheduled",
   "auctions.ended": "Ended",
   "auctions.currentBid": "Top bid",
+  "auctions.nextBid": "Next minimum bid",
+  "auctions.finalPrice": "Final price",
+  "auctions.startingPrice": "Starting price",
   "auctions.startsAt": "Starts",
   "flash.title": "Flash Sale",
   "flash.subtitle": "Instant fixed-price purchase; products are auto-delivered right after payment.",
@@ -1774,6 +1791,10 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "min",
   "adetail.secs": "sec",
   "adetail.buyNowStat": "Buy now",
+  "adetail.nextMinBid": "Next minimum bid",
+  "adetail.finalPrice": "Final price",
+  "adetail.winner": "Winner",
+  "adetail.soldViaBuyNow": "Sold via Buy Now",
   "adetail.overview": "Overview",
   "wins.signInRequired": "Sign in to view your prizes.",
   "wins.copied": "Copied",
@@ -2309,6 +2330,9 @@ type Catalog = Record<MessageKey, string>
   "auctions.scheduled": "Запланирован",
   "auctions.ended": "Завершён",
   "auctions.currentBid": "Высшая ставка",
+  "auctions.nextBid": "Следующая мин. ставка",
+  "auctions.finalPrice": "Итоговая цена",
+  "auctions.startingPrice": "Стартовая цена",
   "auctions.startsAt": "Начало",
   "flash.title": "Распродажа",
   "flash.subtitle": "Мгновенная покупка по фиксированной цене; товары доставляются сразу после оплаты.",
@@ -2505,6 +2529,10 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "мин",
   "adetail.secs": "сек",
   "adetail.buyNowStat": "Купить сейчас",
+  "adetail.nextMinBid": "Следующая мин. ставка",
+  "adetail.finalPrice": "Итоговая цена",
+  "adetail.winner": "Победитель",
+  "adetail.soldViaBuyNow": "Продано через «Купить сейчас»",
   "adetail.overview": "Описание",
   "wins.signInRequired": "Войдите, чтобы увидеть свои призы.",
   "wins.copied": "Скопировано",
@@ -2612,7 +2640,7 @@ type Catalog = Record<MessageKey, string>
   "ticket.removeAttach": "Удалить вложение",
   "ticket.closeTicket": "Закрыть обращение",
   "ticket.send": "Отправить",
-  "newTicket.errSubject": "Укажите более полную тему",
+  "newTicket.errSubject": "Укажите более полную т��му",
   "newTicket.errMessage": "Сообщение слишком короткое",
   "newTicket.success": "Обращение успешно создано",
   "newTicket.errSubmit": "Не удалось создать обращение",
@@ -2740,7 +2768,7 @@ type Catalog = Record<MessageKey, string>
   "menu.unmutedTitle": "Звук уведомлений включён",
   "referral.copied": "Ссылка-приглашение скопирована",
   "referral.copyFailed": "Не удалось скопировать",
-  "referral.shareText": "Присоединяйся к нам и участвуй в аукционах и специальных распродажах!",
+  "referral.shareText": "Присоединяйся к нам и участвуй в аукционах и специаль��ых распродажах!",
   "referral.shareTitle": "Пригласить друзей",
   "referral.title": "Пригласить друзей",
   "referral.desc": "Поделитесь персональной ссылкой. Получайте награду за каждое успешное приглашение, а такж�� постоянный кредит с",
@@ -2924,7 +2952,7 @@ type Catalog = Record<MessageKey, string>
   "refAct.purchased": "Купил",
   "refAct.daysAgo": "{count} дн. назад",
   "refAct.hoursAgo": "{count} ч. назад",
-  "refAct.minutesAgo": "{count} мин. назад",
+  "refAct.minutesAgo": "{count} м��н. назад",
   "refAct.now": "Только что",
   "refAct.empty": "Пока нет рефералов",
   "refAct.emptyDesc": "Когда вы пригласите друзей, их активность появится здесь.",
@@ -3041,6 +3069,9 @@ type Catalog = Record<MessageKey, string>
   "auctions.scheduled": "Scheduled",
   "auctions.ended": "Khatam",
   "auctions.currentBid": "Top boli",
+  "auctions.nextBid": "Agli minimum boli",
+  "auctions.finalPrice": "Final price",
+  "auctions.startingPrice": "Starting price",
   "auctions.startsAt": "Shuru",
   "flash.title": "Flash Sale",
   "flash.subtitle": "Fixed price par turant kharidein; payment ke turant baad products auto-deliver ho jaate hain.",
@@ -3237,6 +3268,10 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "min",
   "adetail.secs": "sec",
   "adetail.buyNowStat": "Abhi khareedein",
+  "adetail.nextMinBid": "Agli minimum boli",
+  "adetail.finalPrice": "Final price",
+  "adetail.winner": "Winner",
+  "adetail.soldViaBuyNow": "Buy Now se bika",
   "adetail.overview": "Vivaran",
   "wins.signInRequired": "Apne prizes dekhne ke liye sign in karein.",
   "wins.copied": "Copy ho gaya",

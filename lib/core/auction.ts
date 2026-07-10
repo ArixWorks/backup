@@ -18,6 +18,8 @@ import { notifyAuctionWon } from "@/lib/telegram/notify"
 import { formatToman } from "@/lib/format"
 import { recordAuctionEvent } from "./auction/events"
 import { computeWinnerFromStandings } from "./auction/winner"
+import { getAuctionPolicy } from "./auction/policy"
+import { assertBuyNowAllowed } from "./auction/pricing"
 
 type Tx = Prisma.TransactionClient
 
@@ -272,6 +274,27 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
         await assertUserActive(opts.userId, tx)
         if (!auction.buyNowPrice) throw new ValidationError("Buy-now is not enabled")
 
+        // Smart Buy Now guard (root cause fix, Problem 1): the price charged is
+        // recomputed from the live market via the pricing engine, so Buy Now can
+        // never settle below the current bid / next valid bid. When the active
+        // strategy has withdrawn Buy Now for this state, reject the purchase.
+        const policy = await getAuctionPolicy(auction.policyJson, tx)
+        const hasBids = (await tx.bid.count({ where: { auctionId: auction.id } })) > 0
+        const guard = assertBuyNowAllowed(
+          {
+            startPrice: auction.startPrice,
+            currentPrice: auction.currentPrice,
+            hasBids,
+            initialBuyNowPrice: auction.buyNowPrice,
+            reservePrice: auction.reservePrice ?? null,
+          },
+          policy,
+        )
+        if (!guard.allowed || guard.price === null) {
+          throw new ValidationError("خرید فوری برای این مزایده در حال حاضر امکان‌پذیر نیست")
+        }
+        const buyNowCharge = guard.price
+
         // Release every current frozen holder; the auction is closing now.
         const holders = await standings(auction.id, auction.quantity, tx)
         for (const h of holders) {
@@ -286,17 +309,17 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
             auctionId: auction.id,
             type: "BUY_NOW",
             status: "PAID",
-            amount: auction.buyNowPrice,
+            amount: buyNowCharge,
             quantity: 1,
           },
         })
 
-        await spendAvailable(opts.userId, auction.buyNowPrice, tx, {
+        await spendAvailable(opts.userId, buyNowCharge, tx, {
           type: "order",
           id: created.id,
         })
 
-        await deliverForOrder(created.id, auction.productId, opts.userId, auction.buyNowPrice, tx, auction.product.deliveryType)
+        await deliverForOrder(created.id, auction.productId, opts.userId, buyNowCharge, tx, auction.product.deliveryType)
 
         // Winner engine: Buy Now buyer is the authoritative final winner. Store
         // the result explicitly so the UI never infers the winner from bids.
@@ -305,20 +328,20 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
           data: {
             status: "FINALIZED",
             finalizedAt: new Date(),
-            currentPrice: auction.buyNowPrice,
+            currentPrice: buyNowCharge,
             winnerUserId: opts.userId,
-            finalPrice: auction.buyNowPrice,
+            finalPrice: buyNowCharge,
             endReason: "BUY_NOW",
           },
         })
 
         // Timeline: Buy Now completion + winner selection.
         await recordAuctionEvent(
-          { auctionId: auction.id, type: "BUY_NOW_COMPLETED", userId: opts.userId, amount: auction.buyNowPrice },
+          { auctionId: auction.id, type: "BUY_NOW_COMPLETED", userId: opts.userId, amount: buyNowCharge },
           tx,
         )
         await recordAuctionEvent(
-          { auctionId: auction.id, type: "WINNER_SELECTED", userId: opts.userId, amount: auction.buyNowPrice, meta: { endReason: "BUY_NOW" } },
+          { auctionId: auction.id, type: "WINNER_SELECTED", userId: opts.userId, amount: buyNowCharge, meta: { endReason: "BUY_NOW" } },
           tx,
         )
 
