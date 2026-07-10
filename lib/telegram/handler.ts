@@ -67,8 +67,13 @@ import {
   claimMission,
   recordDailyLogin,
 } from "@/lib/core/gamification"
-import { attachReferral, rewardReferralJoin, getReferralStats } from "@/lib/core/rewards"
-import { notifyReferralJoined, notifyAdminsBanAppeal } from "./notify"
+import { attachReferral, getReferralStats } from "@/lib/core/rewards"
+import { onChannelMembershipVerified } from "@/lib/core/referral"
+import {
+  notifyReferralInviteVerified,
+  notifyReferralL2Reward,
+  notifyAdminsBanAppeal,
+} from "./notify"
 import {
   getOrdersForUser,
   listAuctions,
@@ -486,20 +491,28 @@ async function showWelcome(chatId: number, user: User, isNew: boolean) {
 }
 
 /**
- * Pay the inviter's "friend joined" reward (stage A) once a referred user has
- * fully completed onboarding (started the bot AND passed the forced-join gate),
- * then push the inviter a notification. Idempotent (guarded in rewardReferralJoin)
- * and best-effort — it must never break the onboarding flow.
+ * Mark a referral as VALID once the invited user passes the mandatory
+ * forced-join gate. This is the only place an invite becomes valid:
+ *  - the DIRECT inviter gets a notification (never a reward), and
+ *  - if this user is a second-level trigger, their root inviter's Level-2
+ *    reward flow runs (risk-checked, credited via the Wallet engine).
+ * Idempotent (guarded in onChannelMembershipVerified) and best-effort — it must
+ * never break the onboarding flow.
  */
 async function completeReferralJoin(user: User) {
   try {
-    const result = await rewardReferralJoin(user.id)
-    if (result.rewarded && result.referrerId) {
-      await notifyReferralJoined(
-        result.referrerId,
-        result.friendName || user.displayName,
-        result.bonus ?? 0n,
+    const result = await onChannelMembershipVerified(user.id)
+    if (result.transitioned && result.notifyInviterId) {
+      await notifyReferralInviteVerified(
+        result.notifyInviterId,
+        result.invitedName || user.displayName,
       )
+    }
+    // If a second-level reward was auto-approved and credited, congratulate the
+    // root inviter (the beneficiary). Review/blocked outcomes stay silent.
+    const sl = result.secondLevel
+    if (sl?.credited && sl.beneficiaryId && sl.amount && sl.amount > 0n) {
+      await notifyReferralL2Reward(sl.beneficiaryId, sl.amount)
     }
   } catch (e) {
     console.log("[v0] completeReferralJoin error:", (e as Error).message)
@@ -755,7 +768,7 @@ function gwLabels(locale: Locale) {
         drawAt: "زمان قرعه‌کشی", enter: "🎉 شرکت در قرعه‌کشی", entered: "✅ شما ثبت‌نام کرده‌اید",
         open: "مشاهده در اپ", results: "🏆 مشاهده نتایج", join: "ابتدا در کانال‌ها عضو شوید",
         ended: "این قرعه‌کشی به پایان رسیده است", retry: "✅ عضو شدم — تلاش مجدد",
-        entrySaved: "ثبت شد! شرکت شما با موفقیت انجام شد. موفق باشید 🍀",
+        entrySaved: "ثبت شد! شرکت شما با موفقیت انجام شد. م��فق باشید 🍀",
         joinNeeded: "در کانال‌های الزامی عضو شو و سپس دوباره تلاش کن.",
       }
   }
@@ -925,7 +938,12 @@ async function handleMessage(msg: TgMessage) {
     // forced-join gate (see completeReferralJoin below). Safe no-op if the user
     // is already referred or the code is their own / unknown.
     if (payload && payload.startsWith("ref_")) {
-      await attachReferral(user.id, payload.slice(4)).catch(() => {})
+      // Capture a telegram-origin anti-abuse context (device fingerprint = the
+      // Telegram user id, which is stable per account). No IP is available here.
+      await attachReferral(user.id, payload.slice(4), {
+        source: "telegram",
+        deviceId: String(from.id),
+      }).catch(() => {})
     }
 
     // Step 1 — first contact: force a language choice before anything else.

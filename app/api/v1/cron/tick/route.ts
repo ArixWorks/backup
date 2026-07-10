@@ -115,6 +115,17 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] AI automations error:", (e as Error).message)
   }
 
+  // Re-evaluate second-level referral rewards that were parked purely for a
+  // maturity/cooldown gate (not a hard abuse signal) and whose gate has since
+  // cleared → auto-approve + credit the now-clean ones. Best-effort.
+  let referralRewards: { scanned: number; approved: number } = { scanned: 0, approved: 0 }
+  try {
+    const { processPendingReferralRewards } = await import("@/lib/core/referral")
+    referralRewards = await processPendingReferralRewards()
+  } catch (e) {
+    console.log("[v0] referral reward re-eval error:", (e as Error).message)
+  }
+
   return {
     activated: activated.activated,
     notified,
@@ -124,6 +135,7 @@ export const POST = route(async (req: Request) => {
     backup,
     email,
     automations,
+    referralRewards,
   }
     })
   } catch (err) {

@@ -42,6 +42,9 @@ export const SETTING_KEYS = {
   referralMaxPerUser: "referral.maxPerUser",
   // Anti-fraud: minimum account age (minutes) before a user may attach a code.
   referralMinAccountAgeMin: "referral.minAccountAgeMin",
+  // Level-2 referral engine policy (JSON blob). See lib/core/referral/policy.ts
+  // for the shape + defaults. Stored as one key so the whole policy is atomic.
+  referralL2Policy: "referral.l2.policy",
 
   // --- Gamification ---
   loyaltyEnabled: "loyalty.enabled", // "true" | "false"
@@ -155,6 +158,8 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.referralEnabled]: "true",
   [SETTING_KEYS.referralMaxPerUser]: "0", // unlimited by default
   [SETTING_KEYS.referralMinAccountAgeMin]: "0", // no delay by default
+  // Empty string → referral engine uses its built-in DEFAULT_REFERRAL_POLICY.
+  [SETTING_KEYS.referralL2Policy]: "",
 
   // Gamification defaults (Toman amounts; tiers combine points AND spend).
   [SETTING_KEYS.loyaltyEnabled]: "true",

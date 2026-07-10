@@ -145,6 +145,19 @@ export async function notifyReferralJoined(referrerId: string, friendName: strin
   })
 }
 
+/**
+ * Direct invite completed (notification only, no reward): tell the inviter their
+ * invited user passed the mandatory channel gate. Fired ONLY after verification.
+ */
+export async function notifyReferralInviteVerified(referrerId: string, friendName: string) {
+  await notify(referrerId, "notifReferralInviteVerified", { name: friendName })
+}
+
+/** Level-2 — tell the root inviter a second-level reward was credited. */
+export async function notifyReferralL2Reward(beneficiaryId: string, amount: bigint) {
+  await notify(beneficiaryId, "notifReferralL2Reward", { amount: formatToman(amount) })
+}
+
 /** Stage B — tell the inviter their friend made a first purchase (big bonus). */
 export async function notifyReferralPurchase(referrerId: string, friendName: string, bonus: bigint) {
   await notify(referrerId, "notifReferralPurchase", {

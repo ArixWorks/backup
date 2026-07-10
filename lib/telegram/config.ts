@@ -35,6 +35,8 @@ export type BotTextKey =
   | "notifDepositRejected"
   | "notifWithdrawApproved"
   | "notifReferralJoined"
+  | "notifReferralInviteVerified"
+  | "notifReferralL2Reward"
   | "notifReferralPurchase"
   | "notifReferralCommission"
   | "referralHome"
@@ -201,7 +203,7 @@ export const DEFAULT_CONFIG: BotConfig = {
     notifAuctionStarted:
       "{bell} *مزایده شروع شد!*\n\n{gavel} {title}\nقیمت پایه: *{price}* تومان\n\nهمین حالا پیشنهاد بده {fire}",
     notifAuctionWon:
-      "{trophy} *تبریک! برنده شدی* {party}\n\n{gavel} {title}\nمبلغ نهایی: *{price}* تومان\n\nسفارشت در حال آماده‌سازیه {box}",
+      "{trophy} *تبریک! برنده ش��ی* {party}\n\n{gavel} {title}\nمبلغ نهایی: *{price}* تومان\n\nسفارشت در حال آماده‌سازیه {box}",
     notifOrderDelivered:
       "{gift} *سفارشت تحویل داده شد!* {party}\n\n{box} {title}\nاطلاعات تحویل رو در اپ ببین {sparkles}",
     notifDepositPending:
@@ -213,6 +215,10 @@ export const DEFAULT_CONFIG: BotConfig = {
     notifWithdrawApproved: "{check} *برداشت شما انجام شد* {sparkles}\n\n{money} مبلغ: *{amount}* تومان",
   notifReferralJoined:
     "{party} *دعوت موفق!*\n\nدوستت *{name}* با لینک تو وارد ربات شد و عضو کانال‌ها شد {sparkles}\n{money} *{bonus}* تومان پاداش به کیف پولت اضافه شد!",
+  notifReferralInviteVerified:
+    "{party} *دعوت شما تکمیل شد!*\n\nکاربر دعوت‌شده‌ی شما *{name}* پس از عضویت در کانال‌های اجباری، دعوت را تکمیل کرد {sparkles}\n\nپاداش شما زمانی فعال می‌شود که این کاربر یک دعوت معتبر دیگر ثبت کند {fire}",
+  notifReferralL2Reward:
+    "{trophy} *پاداش دعوت سطح دو!*\n\nاز زنجیره‌ی دعوت شما یک کاربر معتبر جدید عضو شد {party}\n{money} *{amount}* تومان پاداش به کیف پولت اضافه شد!",
   notifReferralPurchase:
     "{trophy} *عالیه!* دوستت *{name}* اولین خریدش رو انجام داد {party}\n\n{money} *{bonus}* تومان پاداش دعوت گرفتی!\nدوستان بیشتری دعوت کن و بیشتر کسب کن {fire}",
   notifReferralCommission:
