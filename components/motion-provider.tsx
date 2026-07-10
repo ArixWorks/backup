@@ -110,9 +110,15 @@ function sampleFrameRate(durationMs = 1800): Promise<MotionTier> {
 }
 
 export function MotionProvider({ children }: { children: React.ReactNode }) {
-  const [pref, setPrefState] = useState<MotionPref>("auto")
+  // Out of the box every new user gets the full CINEMATIC experience. This is
+  // only a *default* though — it is not the same as a deliberate "Cinematic"
+  // pick in settings: the default still yields to OS Reduce-Motion and to the
+  // live FPS guard on genuinely weak hardware. `chosen` tracks whether the user
+  // has explicitly selected a mode (an explicit pick always wins outright).
+  const [pref, setPrefState] = useState<MotionPref>("cinematic")
+  const [chosen, setChosen] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
-  // Tier ceiling discovered by the live FPS guard (Auto mode only).
+  // Tier ceiling discovered by the live FPS guard.
   const [perfCeiling, setPerfCeiling] = useState<MotionTier>("cinematic")
   const guardRan = useRef(false)
 
@@ -120,7 +126,10 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
-      if (isMotionPref(stored)) setPrefState(stored)
+      if (isMotionPref(stored)) {
+        setPrefState(stored)
+        setChosen(true)
+      }
     } catch {
       /* ignore */
     }
@@ -135,11 +144,20 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener?.("change", update)
   }, [])
 
-  // Run the FPS guard once after first paint when on Auto and motion is allowed.
+  // The effective tier depends on the live FPS ceiling whenever the user has
+  // NOT made an explicit non-auto pick — i.e. explicit "Auto", or the untouched
+  // cinematic default. An explicit Cinematic/Balanced/Minimal pick is honored
+  // verbatim and needs no sampling.
+  const usesPerfCeiling = pref === "auto" || !chosen
+
+  // Run the FPS guard once after first paint when motion is allowed.
   useEffect(() => {
-    if (guardRan.current || reducedMotion || pref !== "auto") return
+    if (guardRan.current || reducedMotion || !usesPerfCeiling) return
     guardRan.current = true
-    const cap = detectCapabilityTier()
+    // Only the explicit "Auto" mode pre-demotes by the hardware heuristic. The
+    // cinematic default starts at the top and is stepped down solely by real
+    // measured jank, so most phones keep the full experience out of the box.
+    const cap = pref === "auto" ? detectCapabilityTier() : "cinematic"
     // Don't bother sampling on devices we already know are constrained.
     if (cap === "minimal") {
       setPerfCeiling("minimal")
@@ -160,20 +178,24 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
       cancelled = true
       window.clearTimeout(id)
     }
-  }, [pref, reducedMotion])
+  }, [pref, reducedMotion, usesPerfCeiling])
 
   // Resolve the effective tier.
   //
-  // Precedence: an *explicit* user choice always wins — if someone deliberately
-  // turns effects up to Cinematic in settings, we honor it even when the OS has
-  // "Reduce Motion" on (a conscious opt-in overrides the global default). Only
-  // in Auto do we defer to the OS accessibility preference, then to the live
-  // device/FPS ceiling.
+  // Precedence:
+  //   1. An *explicit* non-auto pick always wins — if someone deliberately
+  //      turns effects up to Cinematic (or down) in settings, we honor it even
+  //      when the OS has "Reduce Motion" on (a conscious opt-in overrides the
+  //      global default).
+  //   2. Otherwise (explicit "Auto", or the untouched cinematic default) we
+  //      defer to OS Reduce-Motion, then to the live device/FPS ceiling. The
+  //      default's ceiling starts at cinematic, so new users get the full
+  //      experience unless their device actually drops frames.
   const tier: MotionTier = useMemo(() => {
-    if (pref !== "auto") return pref
+    if (chosen && pref !== "auto") return pref
     if (reducedMotion) return "minimal"
     return perfCeiling
-  }, [pref, reducedMotion, perfCeiling])
+  }, [chosen, pref, reducedMotion, perfCeiling])
 
   // Publish to the document so CSS + Telegram chrome can react.
   useEffect(() => {
@@ -182,6 +204,7 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
 
   const setPref = useCallback((next: MotionPref) => {
     setPrefState(next)
+    setChosen(true)
     try {
       localStorage.setItem(STORAGE_KEY, next)
     } catch {
