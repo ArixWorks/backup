@@ -82,6 +82,13 @@ export type MessageKey =
   | "auctions.finalPrice"
   | "auctions.startingPrice"
   | "auctions.startsAt"
+  | "auctions.sold"
+  | "auctions.endingSoon"
+  | "auctions.reserveNotMetShort"
+  | "auctions.stampSold"
+  | "auctions.stampEnded"
+  | "auctions.stampUnsold"
+  | "auctions.stampCancelled"
   | "flash.title"
   | "flash.subtitle"
   | "flash.empty"
@@ -865,6 +872,13 @@ type Catalog = Record<MessageKey, string>
   "auctions.finalPrice": "قیمت نهایی",
   "auctions.startingPrice": "قیمت پایه",
   "auctions.startsAt": "شروع",
+  "auctions.sold": "فروخته شد",
+  "auctions.endingSoon": "رو به پایان",
+  "auctions.reserveNotMetShort": "به حدنصاب نرسید",
+  "auctions.stampSold": "فروخته شد",
+  "auctions.stampEnded": "پایان یافت",
+  "auctions.stampUnsold": "بدون فروش",
+  "auctions.stampCancelled": "لغو شد",
   "flash.title": "فروشگاه",
   "flash.subtitle": "خرید آنی با قیمت ثابت؛ محصولات تحویل خودکار بلافاصله پس از پرداخت ارسال می‌شوند.",
   "flash.empty": "محصولی در فروشگاه موجود نیست.",
@@ -1610,6 +1624,13 @@ type Catalog = Record<MessageKey, string>
   "auctions.finalPrice": "Final price",
   "auctions.startingPrice": "Starting price",
   "auctions.startsAt": "Starts",
+  "auctions.sold": "Sold",
+  "auctions.endingSoon": "Ending soon",
+  "auctions.reserveNotMetShort": "Reserve not met",
+  "auctions.stampSold": "SOLD",
+  "auctions.stampEnded": "ENDED",
+  "auctions.stampUnsold": "UNSOLD",
+  "auctions.stampCancelled": "CANCELLED",
   "flash.title": "Flash Sale",
   "flash.subtitle": "Instant fixed-price purchase; products are auto-delivered right after payment.",
   "flash.empty": "No active flash sales.",
@@ -2355,6 +2376,13 @@ type Catalog = Record<MessageKey, string>
   "auctions.finalPrice": "Итоговая цена",
   "auctions.startingPrice": "Стартовая цена",
   "auctions.startsAt": "Начало",
+  "auctions.sold": "Продано",
+  "auctions.endingSoon": "Скоро завершится",
+  "auctions.reserveNotMetShort": "Резерв не достигнут",
+  "auctions.stampSold": "ПРОДАНО",
+  "auctions.stampEnded": "ЗАВЕРШЁН",
+  "auctions.stampUnsold": "НЕ ПРОДАНО",
+  "auctions.stampCancelled": "ОТМЕНЁН",
   "flash.title": "Распродажа",
   "flash.subtitle": "Мгновенная покупка по фиксированной цене; товары доставляются сразу после оплаты.",
   "flash.empty": "Нет активных распродаж.",
@@ -2520,7 +2548,7 @@ type Catalog = Record<MessageKey, string>
   "payload.note": "Примечание",
   "payload.url": "Ссылка",
   "account.title": "Настройки аккаунта и безопасности",
-  "account.subtitle": "Управляйте способами входа и безопасностью аккаунта",
+  "account.subtitle": "Управляйте сп��собами входа и безопасностью аккаунта",
   "account.activeMethods": "Активные способы входа",
   "account.noMethods": "Пока нет ни одного полного способа входа. Чтобы защитить аккаунт, подтвердите эл. почту или подключите Telegram.",
   "account.logoutAll": "Выйти на всех устройствах",
@@ -3101,6 +3129,13 @@ type Catalog = Record<MessageKey, string>
   "auctions.finalPrice": "Final price",
   "auctions.startingPrice": "Starting price",
   "auctions.startsAt": "Shuru",
+  "auctions.sold": "Bik gaya",
+  "auctions.endingSoon": "Jald khatam",
+  "auctions.reserveNotMetShort": "Reserve poori nahi hui",
+  "auctions.stampSold": "BIK GAYA",
+  "auctions.stampEnded": "KHATAM",
+  "auctions.stampUnsold": "UNSOLD",
+  "auctions.stampCancelled": "CANCELLED",
   "flash.title": "Flash Sale",
   "flash.subtitle": "Fixed price par turant kharidein; payment ke turant baad products auto-deliver ho jaate hain.",
   "flash.empty": "Koi active flash sale nahi hai.",

@@ -1,10 +1,16 @@
 "use client"
 
-import { use, type ReactNode } from "react"
+import { use, useEffect, useState, type ReactNode } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import useSWR from "swr"
-import { ArrowRight, Gavel, Clock, Users, ShieldAlert, TrendingUp, Zap, Calendar, Trophy } from "lucide-react"
+import { ArrowRight, Gavel, Clock, Users, ShieldAlert, TrendingUp, Zap, Calendar, Trophy, XCircle } from "lucide-react"
+import {
+  deriveAuctionDisplayState,
+  isEndingSoon,
+  IMAGE_TREATMENT_CLASS,
+  TONE_PILL_CLASS,
+} from "@/lib/core/auction/display-state"
 import { fetcher } from "@/lib/api-client"
 import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { BidPanel } from "@/components/bid-panel"
@@ -16,7 +22,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { formatToman, formatDateTime, formatRelative, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
-import type { MessageKey } from "@/lib/i18n/messages"
 
 type Bid = {
   id: string
@@ -56,22 +61,6 @@ type AuctionDetail = {
   bids: Bid[]
 }
 
-const statusLabels: Record<string, MessageKey> = {
-  SCHEDULED: "auctions.scheduled",
-  ACTIVE: "auctions.live",
-  ENDED: "auctions.ended",
-  FINALIZED: "auctions.finalized",
-  CANCELLED: "auctions.cancelled",
-}
-
-const statusStyles: Record<string, string> = {
-  ACTIVE: "border-success/40 bg-success/15 text-success",
-  SCHEDULED: "border-primary/40 bg-primary/15 text-primary",
-  ENDED: "border-border bg-secondary text-muted-foreground",
-  FINALIZED: "border-border bg-secondary text-muted-foreground",
-  CANCELLED: "border-destructive/40 bg-destructive/15 text-destructive",
-}
-
 export default function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useI18n()
   const { id } = use(params)
@@ -81,6 +70,23 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     { refreshInterval: 5000 },
   )
   const a = data?.data
+
+  // Time-based urgency (client-only to stay hydration-safe). Reads fresh data
+  // inside the effect so the hook order never depends on the loading state.
+  const [endingSoon, setEndingSoon] = useState(false)
+  useEffect(() => {
+    const au = data?.data
+    const liveNonTerminal =
+      au != null && au.status === "ACTIVE" && au.finalPrice == null && au.endReason == null
+    if (!au || !liveNonTerminal) {
+      setEndingSoon(false)
+      return
+    }
+    const tick = () => setEndingSoon(isEndingSoon({ isLive: true }, au.endTime))
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [data])
 
   if (isLoading || !a) {
     return (
@@ -103,29 +109,26 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  const isLive = a.status === "ACTIVE"
-  const countdownTarget = a.status === "SCHEDULED" ? a.startTime : a.endTime
-  const showCountdown = a.status === "SCHEDULED" || a.status === "ACTIVE"
-
-  // Terminal state = the auction has settled. Prefer the authoritative
-  // finalPrice/endReason over any top-bid inference. `reserveFailed` means it
-  // ended below reserve → no winner, no final price.
-  const isTerminal =
-    a.finalPrice != null ||
-    a.endReason != null ||
-    ["ENDED", "FINALIZED", "CANCELLED", "SOLD", "SETTLED", "PAID", "PAYMENT_PENDING", "RESERVE_NOT_MET", "DEFAULTED"].includes(
-      a.status,
-    )
-  const reserveFailed = a.endReason === "RESERVE_NOT_MET"
+  // Single source of truth for presentation (shared with the card + bot).
+  const ds = deriveAuctionDisplayState({
+    status: a.status,
+    endReason: a.endReason,
+    finalPrice: a.finalPrice,
+    bidCount: a.bidCount,
+  })
+  const isLive = ds.isLive
+  const isTerminal = ds.isTerminal
+  const countdownTarget = ds.isScheduled ? a.startTime : a.endTime
+  const showCountdown = ds.isScheduled || ds.isLive
   const priceLabel = isTerminal
-    ? reserveFailed
-      ? t("adetail.reserveNotMet")
-      : t("adetail.finalPrice")
+    ? ds.hasWinner
+      ? t("adetail.finalPrice")
+      : t("adetail.reserveNotMet")
     : a.bidCount > 0
       ? t("adetail.topBidNow")
       : t("adetail.basePrice")
-  // Show the settled final price when we have one; otherwise the live/current price.
-  const priceValue = isTerminal && a.finalPrice != null && !reserveFailed ? a.finalPrice : a.currentPrice
+  // Show the settled final price when we have a winner; otherwise the live price.
+  const priceValue = ds.hasWinner && a.finalPrice != null ? a.finalPrice : a.currentPrice
 
   return (
     <div className="space-y-6">
@@ -144,16 +147,51 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
             {a.title}
           </h1>
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${
-              statusStyles[a.status] ?? "border-border bg-secondary text-muted-foreground"
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${TONE_PILL_CLASS[ds.tone]}`}
           >
-            {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />}
-            {statusLabels[a.status] ? t(statusLabels[a.status]) : a.status}
+            {isLive && endingSoon ? (
+              <>
+                <Clock className="h-3 w-3" />
+                {t("auctions.endingSoon")}
+              </>
+            ) : (
+              <>
+                {isLive && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />}
+                {ds.hasWinner && <Trophy className="h-3 w-3" />}
+                {t(ds.statusKey as Parameters<typeof t>[0])}
+              </>
+            )}
           </span>
         </div>
         {showCountdown && <WatchButton auctionId={a.id} className="shrink-0" />}
       </div>
+
+      {/* Terminal outcome banner — a clear, prominent close-out state. */}
+      {isTerminal && (
+        <div
+          className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 ${TONE_PILL_CLASS[ds.tone]}`}
+          role="status"
+        >
+          {ds.hasWinner ? (
+            <Trophy className="h-5 w-5 shrink-0" />
+          ) : ds.phase === "cancelled" ? (
+            <XCircle className="h-5 w-5 shrink-0" />
+          ) : (
+            <ShieldAlert className="h-5 w-5 shrink-0" />
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-extrabold leading-tight">
+              {t(ds.statusKey as Parameters<typeof t>[0])}
+            </p>
+            {ds.hasWinner && a.finalPrice != null && (
+              <p className="text-xs font-medium opacity-90">
+                {t("adetail.finalPrice")}: {formatToman(a.finalPrice)} {t("common.toman")}
+                {a.winner && <span dir="auto"> · {a.winner.name}</span>}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         {/* Left: media + info + history */}
@@ -165,11 +203,16 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 alt={a.title}
                 fill
                 sizes="(max-width: 1024px) 100vw, 60vw"
-                className="object-cover"
+                className={`object-cover transition-all duration-500 ${IMAGE_TREATMENT_CLASS[ds.imageTreatment]}`}
                 priority
               />
             )}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/70 via-transparent to-transparent" />
+            {ds.showStamp && ds.stampKey && (
+              <span className="auction-stamp" data-tone={ds.tone}>
+                {t(ds.stampKey as Parameters<typeof t>[0])}
+              </span>
+            )}
             <div className="absolute bottom-3 left-3 flex items-center gap-2">
               <DeliveryBadge type={a.deliveryType} />
               {a.category && (
@@ -264,7 +307,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-baseline gap-1.5">
                 <span
                   className={`text-3xl font-extrabold tabular-nums ${
-                    reserveFailed ? "text-muted-foreground" : "text-primary"
+                    isTerminal && !ds.hasWinner ? "text-muted-foreground" : "text-primary"
                   }`}
                 >
                   {formatToman(priceValue)}
@@ -359,10 +402,22 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Countdown */}
           {showCountdown && (
-            <div className="card-premium space-y-3 rounded-2xl border border-border p-5">
-              <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <div
+              className={`card-premium space-y-3 rounded-2xl border border-border p-5 ${
+                endingSoon ? "auction-urgent" : ""
+              }`}
+            >
+              <span
+                className={`flex items-center gap-1.5 text-xs font-medium ${
+                  endingSoon ? "text-destructive" : "text-muted-foreground"
+                }`}
+              >
                 <Clock className="h-4 w-4" />
-                {a.status === "SCHEDULED" ? t("adetail.startsIn") : t("adetail.endsIn")}
+                {ds.isScheduled
+                  ? t("adetail.startsIn")
+                  : endingSoon
+                    ? t("auctions.endingSoon")
+                    : t("adetail.endsIn")}
               </span>
               <SegmentedCountdown target={countdownTarget} onComplete={() => mutate()} />
             </div>
