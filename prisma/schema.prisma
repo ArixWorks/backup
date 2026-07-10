@@ -128,6 +128,10 @@ enum AuctionEventType {
   AUCTION_REOPENED
   PENALTY_APPLIED
   USER_RESTRICTED
+  // Anti-fraud (PR6). RISK_FLAGGED marks a scored suspicious bid (blocking or
+  // not); BID_BLOCKED marks a bid rejected for high-confidence collusion.
+  RISK_FLAGGED
+  BID_BLOCKED
 }
 
 enum OrderType {
@@ -416,6 +420,54 @@ model ReferralRiskSignal {
   @@index([ipHash])
   @@index([subnetHash])
   @@index([deviceHash])
+}
+
+// Hashed anti-fraud signals captured per bid (PR6). Mirrors ReferralRiskSignal:
+// IP/subnet/user-agent/device are one-way hashed so multi-account collusion
+// clusters can be detected within an auction without retaining raw PII.
+model AuctionBidSignal {
+  id         String   @id @default(cuid())
+  auctionId  String
+  userId     String
+  source     String   @default("web")
+  ipHash     String?
+  subnetHash String?
+  uaHash     String?
+  deviceHash String?
+  createdAt  DateTime @default(now())
+
+  @@index([auctionId, userId])
+  @@index([auctionId, ipHash])
+  @@index([auctionId, subnetHash])
+  @@index([auctionId, deviceHash])
+}
+
+// Scored anti-fraud flags for admin review (PR6). Non-blocking soft signals are
+// persisted here for the ops/admin surface; high-confidence collusion is also
+// flagged (with action BLOCK_BID) in addition to the bid being rejected.
+// Scalar userId/auctionId (no relations) — backup/restore-safe, consistent with
+// the rest of the auction engine.
+model AuctionRiskFlag {
+  id         String    @id @default(cuid())
+  auctionId  String
+  userId     String
+  // 0 (clean) .. 100 (high-confidence fraud).
+  score      Int
+  // Machine-readable dominant reason, e.g. "same_device_cluster".
+  reason     String
+  // Human-friendly contributing signals, for the admin review UI.
+  signals    String[]  @default([])
+  // Resolved RiskAction at flag time (ALLOW..BLOCK_USER_FROM_AUCTION).
+  action     String
+  // Whether the bid was actually blocked as a result.
+  blocked    Boolean   @default(false)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([auctionId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([resolvedAt])
 }
 
 // Single-use tokens for email verification and password reset. Only the SHA-256

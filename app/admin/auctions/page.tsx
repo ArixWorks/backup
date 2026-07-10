@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils"
 import { useBulkSelection } from "@/lib/hooks/use-bulk-selection"
 import { SelectionCheckbox } from "@/components/admin/bulk/selection-checkbox"
 import { BulkActionsBar, type BulkDeleteResult } from "@/components/admin/bulk/bulk-actions-bar"
+import { AuctionFraudFlags } from "@/components/admin/auction-fraud-flags"
 
 type Product = {
   id: string
@@ -148,6 +149,8 @@ export default function AdminAuctionsPage() {
           مزایده جدید
         </Link>
       </header>
+
+      <AuctionFraudFlags />
 
       {auctions.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 p-2 px-3 backdrop-blur-sm">
