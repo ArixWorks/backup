@@ -17,6 +17,7 @@ type Props = {
   buyNowPrice: number | null
   minimumIncrement: number
   status: string
+  proxyBidEnabled?: boolean
   onChanged: () => void
 }
 
@@ -26,6 +27,7 @@ export function BidPanel({
   buyNowPrice,
   minimumIncrement,
   status,
+  proxyBidEnabled = false,
   onChanged,
 }: Props) {
   const { user, refresh } = useSession()
@@ -48,6 +50,10 @@ export function BidPanel({
   const [amount, setAmount] = useState<string>(String(minNext))
   const [loading, setLoading] = useState(false)
   const [buying, setBuying] = useState(false)
+  // Proxy / auto-bidding (PR5): optional ceiling the engine bids up to on the
+  // user's behalf. Only offered when the auction policy enables it.
+  const [useMax, setUseMax] = useState(false)
+  const [maxAmount, setMaxAmount] = useState<string>("")
 
   useEffect(() => {
     setAmount(String(minNext))
@@ -62,18 +68,32 @@ export function BidPanel({
     if (!Number.isFinite(value) || value < minNext) {
       return toast.error(t("bid.minBid", { amount: formatToman(minNext) }))
     }
+    // Resolve an optional proxy ceiling. When enabled it must be >= the entered
+    // bid, and the wallet must be able to cover the full ceiling (PR5 freezes
+    // the entire max so the eventual winner is always fully funded).
+    const proxyOn = proxyBidEnabled && useMax && maxAmount.trim() !== ""
+    const maxValue = proxyOn ? Number(maxAmount) : null
+    if (proxyOn) {
+      if (!Number.isFinite(maxValue!) || maxValue! < value) {
+        return toast.error(t("bid.maxTooLow"))
+      }
+    }
+    const holdNeeded = maxValue ?? value
     // Guard against an insufficient wallet before hitting the server, so the
     // user gets an immediate, localized prompt to top up their account.
     if (available <= 0) {
       return topUpToast(t("bid.emptyBalance"))
     }
-    if (value > available) {
-      return topUpToast(t("bid.insufficient", { amount: formatToman(value - available) }))
+    if (holdNeeded > available) {
+      return topUpToast(t("bid.insufficient", { amount: formatToman(holdNeeded - available) }))
     }
     setLoading(true)
     try {
-      await apiPost(`/api/v1/auctions/${auctionId}/bids`, { amount: value })
-      toast.success(t("bid.placed"))
+      await apiPost(`/api/v1/auctions/${auctionId}/bids`, {
+        amount: value,
+        ...(maxValue != null ? { maxAmount: maxValue } : {}),
+      })
+      toast.success(proxyOn ? t("bid.maxPlaced") : t("bid.placed"))
       await Promise.all([refresh(), onChanged()])
     } catch (err) {
       // A race (balance changed between check and submit) surfaces as
@@ -165,6 +185,33 @@ export function BidPanel({
           ))}
         </div>
       </div>
+
+      {proxyBidEnabled && (
+        <div className="space-y-2 rounded-lg border border-border bg-secondary/40 p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={useMax}
+              onChange={(e) => setUseMax(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            {t("bid.enableMax")}
+          </label>
+          {useMax && (
+            <>
+              <Input
+                inputMode="numeric"
+                value={maxAmount}
+                onChange={(e) => setMaxAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder={t("bid.maxPlaceholder")}
+                className="tabular-nums font-semibold"
+                aria-label={t("bid.maxLabel")}
+              />
+              <p className="text-xs leading-5 text-muted-foreground">{t("bid.maxHint")}</p>
+            </>
+          )}
+        </div>
+      )}
 
       <Button onClick={placeBid} disabled={loading} className="w-full gap-2" size="lg">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gavel className="h-4 w-4" />}

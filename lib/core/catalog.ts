@@ -284,6 +284,9 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     quantity: a.quantity,
     bidCount: a._count.bids,
     antiSnipingSeconds: a.antiSnipingSeconds,
+    // Proxy / auto-bidding is offered in the UI only for single-item auctions
+    // and only when the resolved policy enables it (PR5).
+    proxyBidEnabled: policy ? policy.proxyBidEnabled && a.quantity === 1 : false,
   }
 }
 

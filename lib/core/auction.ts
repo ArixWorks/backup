@@ -19,7 +19,8 @@ import { formatToman } from "@/lib/format"
 import { recordAuctionEvent } from "./auction/events"
 import { computeWinnerFromStandings } from "./auction/winner"
 import { getAuctionPolicy } from "./auction/policy"
-import { assertBuyNowAllowed, nextMinimumBid } from "./auction/pricing"
+import { assertBuyNowAllowed, incrementForPrice, nextMinimumBid } from "./auction/pricing"
+import { resolveProxyBids, type ProxyAgent } from "./auction/proxy"
 import { computeSoftCloseExtension, computePaymentDeadline, isTerminalStatus } from "./auction/lifecycle"
 import {
   computeBidFreezeTarget,
@@ -102,6 +103,39 @@ async function loadLiveAuction(auctionId: string, tx: Tx) {
   return auction
 }
 
+/**
+ * Build the proxy-agent set for an auction: one entry per bidder with their
+ * effective ceiling (highest maxAmount or manual bid), current visible amount,
+ * and the time they committed to that ceiling (for eBay-style tie-breaking).
+ */
+async function loadProxyAgents(auctionId: string, tx: Tx): Promise<ProxyAgent[]> {
+  const bids = await tx.bid.findMany({
+    where: { auctionId },
+    select: { userId: true, amount: true, maxAmount: true, createdAt: true },
+    orderBy: { createdAt: "asc" },
+  })
+  const map = new Map<string, ProxyAgent>()
+  for (const b of bids) {
+    const ceiling = b.maxAmount && b.maxAmount > b.amount ? b.maxAmount : b.amount
+    const existing = map.get(b.userId)
+    if (!existing) {
+      map.set(b.userId, {
+        userId: b.userId,
+        ceiling,
+        currentAmount: b.amount,
+        committedAt: b.createdAt.getTime(),
+      })
+    } else {
+      if (ceiling > existing.ceiling) {
+        existing.ceiling = ceiling
+        existing.committedAt = b.createdAt.getTime()
+      }
+      if (b.amount > existing.currentAmount) existing.currentAmount = b.amount
+    }
+  }
+  return [...map.values()]
+}
+
 function ensureActive(auction: { startTime: Date; endTime: Date; status: string }) {
   const now = new Date()
   if (auction.status === "CANCELLED") throw new ValidationError("Auction is cancelled")
@@ -162,15 +196,23 @@ export async function placeBid(opts: {
           )
         }
 
-        // Reserve tracking: detect when THIS bid first lifts the auction to/over
-        // the reserve, so the timeline can emit a single RESERVE_MET event.
-        const reserveJustMet =
-          policy.reservePriceEnabled &&
-          auction.reservePrice != null &&
-          auction.currentPrice < auction.reservePrice &&
-          opts.amount >= auction.reservePrice
+        // Proxy / auto-bid ceiling validation (PR5). A max bid is only accepted
+        // when the policy enables proxy bidding, on single-item auctions, and it
+        // must sit at or above the entered bid.
+        if (opts.maxAmount != null) {
+          if (!policy.proxyBidEnabled) {
+            throw new ValidationError("پیشنهاد خودکار (سقف پیشنهاد) برای این مزایده فعال نیست")
+          }
+          if (auction.quantity !== 1) {
+            throw new ValidationError("پیشنهاد خودکار فقط برای مزایده‌های تک‌واحدی در دسترس است")
+          }
+          if (opts.maxAmount < opts.amount) {
+            throw new ValidationError("سقف پیشنهاد نمی‌تواند کمتر از مبلغ پیشنهاد شما باشد")
+          }
+        }
 
-        // Record the bid.
+        // Record the incoming (visible) bid at the entered amount. Any ceiling
+        // is stored on the row; the proxy engine reads it below.
         await tx.bid.create({
           data: {
             auctionId: auction.id,
@@ -184,36 +226,108 @@ export async function placeBid(opts: {
         // Loyalty: progress the "place a bid" mission (best-effort, in-tx).
         await progressMission(opts.userId, "PLACE_BID", 1, tx).catch(() => {})
 
-        // Update auction price with optimistic version guard.
+        // Emit the incoming bid on the timeline first (chronological order),
+        // before any proxy auto-bids it triggers.
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "BID_PLACED", userId: opts.userId, amount: opts.amount },
+          tx,
+        )
+
+        // Who was leading before this action, for the outbid notification.
+        const prevLeaderId = (await standings(auction.id, 1, tx))[0]?.userId ?? null
+
+        // --- Proxy / auto-bid resolution (PR5) ---
+        // Single-item auctions only, when the policy enables proxy bidding. The
+        // engine settles the price eBay-style between the top two max-bid agents
+        // and emits auto-bids so the visible price + standings reflect it. Multi-
+        // winner auctions never use proxy (PR4 forces their full-freeze path).
+        const proxyActive = policy.proxyBidEnabled && auction.quantity === 1
+        let effectivePrice = opts.amount
+        let winnerCeiling =
+          opts.maxAmount && opts.maxAmount > opts.amount ? opts.maxAmount : opts.amount
+        if (proxyActive) {
+          const agents = await loadProxyAgents(auction.id, tx)
+          const resolution = resolveProxyBids(agents, auction.startPrice, (p) =>
+            incrementForPrice(p, policy),
+          )
+          if (resolution) {
+            for (const ab of resolution.autoBids) {
+              await tx.bid.create({
+                data: {
+                  auctionId: auction.id,
+                  userId: ab.userId,
+                  amount: ab.amount,
+                  isAuto: true,
+                  maxAmount: null,
+                },
+              })
+              await recordAuctionEvent(
+                { auctionId: auction.id, type: "BID_PLACED", userId: ab.userId, amount: ab.amount },
+                tx,
+              )
+            }
+            if (resolution.settlePrice > effectivePrice) effectivePrice = resolution.settlePrice
+            winnerCeiling = resolution.leaderCeiling
+          }
+        }
+
+        // Reserve tracking: emit a single RESERVE_MET event when the effective
+        // (post-proxy) price first lifts the auction to/over the reserve.
+        const reserveJustMet =
+          policy.reservePriceEnabled &&
+          auction.reservePrice != null &&
+          auction.currentPrice < auction.reservePrice &&
+          effectivePrice >= auction.reservePrice
+
+        // Update auction price to the effective (post-proxy) price with an
+        // optimistic version guard.
         const priceUpdate = await tx.auction.updateMany({
           where: { id: auction.id, version: auction.version },
-          data: { currentPrice: opts.amount, version: { increment: 1 } },
+          data: { currentPrice: effectivePrice, version: { increment: 1 } },
         })
         if (priceUpdate.count !== 1) {
           throw new ConflictError("Auction changed concurrently, retry")
         }
 
-        // Bring the bidder's hold up to the policy-driven freeze target. In the
-        // default full-freeze mode this equals the bid (unchanged behaviour); in
-        // an opt-in deposit / partial mode it is only the deposit/partial hold.
-        const freezeTarget = computeBidFreezeTarget({
-          bidAmount: opts.amount,
-          startPrice: auction.startPrice,
-          quantity: auction.quantity,
-          policy,
-        })
-        await setAuctionFrozen(opts.userId, auction.id, freezeTarget, tx)
-
-        // Release whoever is now just outside the winning set.
-        const winners = await standings(auction.id, auction.quantity, tx)
-        const winnerIds = new Set(winners.map((w) => w.userId))
-        const boundary = await standings(auction.id, auction.quantity + 1, tx)
-        const displaced = boundary[auction.quantity]
+        // Freeze reconciliation.
         let displacedUserId: string | null = null
-        if (displaced && !winnerIds.has(displaced.userId)) {
-          await setAuctionFrozen(displaced.userId, auction.id, 0n, tx)
-          // Don't notify the bidder about outbidding themselves.
-          if (displaced.userId !== opts.userId) displacedUserId = displaced.userId
+        if (proxyActive) {
+          // Full-ceiling freeze: the current leader holds a freeze up to their
+          // committed ceiling (so the eventual winner is always fully funded —
+          // PR4 guarantee), and every other bidder is released. Freezing the
+          // leader's ceiling here also enforces that a max bid must be backed by
+          // real available funds (insufficient funds rolls the whole bid back).
+          const leaderId = (await standings(auction.id, 1, tx))[0]?.userId ?? opts.userId
+          const others = await standings(auction.id, 1000, tx)
+          for (const o of others) {
+            if (o.userId === leaderId) continue
+            const frozen = await currentAuctionFrozen(o.userId, auction.id, tx)
+            if (frozen > 0n) await setAuctionFrozen(o.userId, auction.id, 0n, tx)
+          }
+          await setAuctionFrozen(leaderId, auction.id, winnerCeiling, tx)
+          if (prevLeaderId && prevLeaderId !== leaderId && prevLeaderId !== opts.userId) {
+            displacedUserId = prevLeaderId
+          }
+        } else {
+          // Non-proxy path (unchanged): bring the bidder's hold up to the policy
+          // freeze target and release whoever is pushed out of the winning set.
+          const freezeTarget = computeBidFreezeTarget({
+            bidAmount: opts.amount,
+            startPrice: auction.startPrice,
+            quantity: auction.quantity,
+            policy,
+          })
+          await setAuctionFrozen(opts.userId, auction.id, freezeTarget, tx)
+
+          const winners = await standings(auction.id, auction.quantity, tx)
+          const winnerIds = new Set(winners.map((w) => w.userId))
+          const boundary = await standings(auction.id, auction.quantity + 1, tx)
+          const displaced = boundary[auction.quantity]
+          if (displaced && !winnerIds.has(displaced.userId)) {
+            await setAuctionFrozen(displaced.userId, auction.id, 0n, tx)
+            // Don't notify the bidder about outbidding themselves.
+            if (displaced.userId !== opts.userId) displacedUserId = displaced.userId
+          }
         }
 
         // Soft-close / anti-sniping (PR3): the lifecycle engine decides whether a
@@ -240,21 +354,17 @@ export async function placeBid(opts: {
           })
         }
 
-        // Timeline (Phase 16): record the bid, any outbid, and any extension.
-        // In-tx so the timeline commits atomically with the bid.
-        await recordAuctionEvent(
-          { auctionId: auction.id, type: "BID_PLACED", userId: opts.userId, amount: opts.amount },
-          tx,
-        )
+        // Timeline (Phase 16): the incoming BID_PLACED (and any proxy auto-bids)
+        // were already recorded above; here we add reserve/outbid/extension.
         if (reserveJustMet) {
           await recordAuctionEvent(
-            { auctionId: auction.id, type: "RESERVE_MET", userId: opts.userId, amount: opts.amount },
+            { auctionId: auction.id, type: "RESERVE_MET", userId: opts.userId, amount: effectivePrice },
             tx,
           )
         }
         if (displacedUserId) {
           await recordAuctionEvent(
-            { auctionId: auction.id, type: "USER_OUTBID", userId: displacedUserId, amount: opts.amount },
+            { auctionId: auction.id, type: "USER_OUTBID", userId: displacedUserId, amount: effectivePrice },
             tx,
           )
         }
@@ -283,7 +393,7 @@ export async function placeBid(opts: {
 
         return {
           auctionId: auction.id,
-          amount: opts.amount,
+          amount: effectivePrice,
           endTime,
           bidderAlias,
           displacedUserId,

@@ -21,7 +21,10 @@ export const POST = route(
       userId: user.id,
       auctionId: id,
       amount: BigInt(body.amount),
-      maxAmount: body.maxAmount != null ? BigInt(body.maxAmount) : undefined,
+      maxAmount:
+        body.maxAmount != null && `${body.maxAmount}`.trim() !== ""
+          ? BigInt(body.maxAmount)
+          : undefined,
     })
   },
 )

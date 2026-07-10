@@ -48,6 +48,7 @@ type AuctionDetail = {
   status: string
   quantity: number
   bidCount: number
+  proxyBidEnabled: boolean
   // Authoritative settlement result (never inferred from the top bid).
   winnerUserId: string | null
   finalPrice: number | null
@@ -359,6 +360,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
             buyNowPrice={a.buyNowAvailable ? a.buyNowPrice : null}
             minimumIncrement={a.minimumIncrement}
             status={a.status}
+            proxyBidEnabled={a.proxyBidEnabled}
             onChanged={() => mutate()}
           />
         </div>
