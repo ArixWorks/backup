@@ -216,7 +216,7 @@ export const DEFAULT_CONFIG: BotConfig = {
   notifReferralJoined:
     "{party} *دعوت موفق!*\n\nدوستت *{name}* با لینک تو وارد ربات شد و عضو کانال‌ها شد {sparkles}\n{money} *{bonus}* تومان پاداش به کیف پولت اضافه شد!",
   notifReferralInviteVerified:
-    "{party} *دعوت شما تکمیل شد!*\n\nکاربر دعوت‌شده‌ی شما *{name}* پس از عضویت در کانال‌های اجباری، دعوت را تکمیل کرد {sparkles}\n\nپاداش شما زمانی فعال می‌شود که این کاربر یک دعوت معتبر دیگر ثبت کند {fire}",
+    "{party} *دعوت شما تکمیل شد!*\n\nکاربر دعوت‌شده‌ی شما *{name}* ، دعوت شما را پذیرفت و عضو جامعه SubIO شد {sparkles}\n\nپاداش شما زمانی فعال می‌شود که این کاربر یک دعوت معتبر دیگر ثبت کند {fire}",
   notifReferralL2Reward:
     "{trophy} *پاداش دعوت سطح دو!*\n\nاز زنجیره‌ی دعوت شما یک کاربر معتبر جدید عضو شد {party}\n{money} *{amount}* تومان پاداش به کیف پولت اضافه شد!",
   notifReferralPurchase:
