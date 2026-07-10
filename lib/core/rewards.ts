@@ -11,6 +11,10 @@ import {
   toBool,
   toNumber,
 } from "./settings"
+import { getReferralPolicy } from "./referral/policy"
+import { recordRelation } from "./referral/relations"
+import { captureSignal } from "./referral/signals"
+import type { RiskContext } from "./referral/types"
 
 type Tx = Prisma.TransactionClient
 
@@ -223,7 +227,11 @@ export interface AttachReferralResult {
  * Suspicious attempts are recorded in the audit log. Safe no-op (returns a
  * reason) when the attach is rejected.
  */
-export async function attachReferral(userId: string, code: string): Promise<AttachReferralResult> {
+export async function attachReferral(
+  userId: string,
+  code: string,
+  ctx?: RiskContext,
+): Promise<AttachReferralResult> {
   const normalized = code.trim().toUpperCase()
   if (!normalized) return { attached: false, reason: "empty" }
 
@@ -279,6 +287,27 @@ export async function attachReferral(userId: string, code: string): Promise<Atta
     where: { id: userId },
     data: { referredById: referrer.id },
   })
+
+  // Record the (invited → direct inviter → root inviter) relation as a pending,
+  // UNVERIFIED referral and capture hashed anti-abuse signals. This does NOT
+  // notify the inviter and does NOT create any reward — the invite only becomes
+  // valid once the invited user passes the mandatory channel gate (see
+  // onChannelMembershipVerified). Best-effort: never fail the attach itself.
+  try {
+    const policy = await getReferralPolicy()
+    if (policy.enabled) {
+      await recordRelation({
+        invitedUserId: userId,
+        parentInviterId: referrer.id,
+        rootInviterId: referrer.referredById ?? null,
+        policy,
+      })
+      await captureSignal(userId, ctx)
+    }
+  } catch (e) {
+    console.log("[v0] attachReferral relation/signal capture error:", (e as Error).message)
+  }
+
   return { attached: true, reason: "ok" }
 }
 

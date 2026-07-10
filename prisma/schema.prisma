@@ -261,6 +261,117 @@ model User {
   @@index([referredById])
 }
 
+// ---------------------------------------------------------------------------
+// Multi-level referral engine (Level-2 reward + anti-abuse)
+// ---------------------------------------------------------------------------
+// A referral is NOT completed at attach time. It only becomes valid once the
+// invited user passes the mandatory forced-channel gate. The direct inviter
+// gets a notification (no reward); a reward is created for the ROOT inviter
+// only when a *second-level* invited user also passes the channel gate.
+
+enum ReferralRelationStatus {
+  // Invite recorded but the invited user has not yet passed the channel gate.
+  WAITING_FOR_CHANNEL_MEMBERSHIP
+  // Invited user passed the mandatory channel gate (invite is now valid).
+  CHANNEL_MEMBERSHIP_VERIFIED
+  // Verified and eligible to activate a second-level reward for the root inviter.
+  WAITING_FOR_SECOND_LEVEL_ACTIVATION
+  // This user's verification has triggered the root inviter's Level-2 reward.
+  SECOND_LEVEL_TRIGGERED
+}
+
+enum ReferralRewardStatus {
+  // Created, awaiting risk evaluation.
+  PENDING
+  // Held for admin review (suspicious/uncertain risk result).
+  PENDING_REVIEW
+  // Clean + all gates satisfied → wallet credited.
+  AUTO_APPROVED
+  // Approved by an admin → wallet credited.
+  APPROVED
+  // Admin declined a reviewed reward (no credit).
+  REJECTED
+  // High-confidence abuse → permanently blocked (no credit).
+  BLOCKED
+}
+
+// One row per invited user, capturing the (invited → direct inviter → root
+// inviter) chain. Parent/root are stored as scalar ids (no self-relation) so a
+// partial backup/restore can never dangle a FK. Idempotent on invitedUserId.
+model ReferralRelation {
+  id              String                 @id @default(cuid())
+  invitedUserId   String                 @unique
+  // Direct inviter (level-1). The user whose code the invited user used.
+  parentInviterId String
+  // Root inviter (level-2 = parent's inviter). Null for a top-level invite.
+  rootInviterId   String?
+  // Depth of the invited user within the chain (1 = direct invite).
+  level           Int                    @default(1)
+  status          ReferralRelationStatus @default(WAITING_FOR_CHANNEL_MEMBERSHIP)
+  // Timestamp the invited user passed the mandatory channel gate.
+  channelVerifiedAt DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([parentInviterId])
+  @@index([rootInviterId])
+  @@index([status])
+}
+
+// A pending/settled second-level reward owned by the ROOT inviter, triggered by
+// a specific second-level invited user. Idempotent via the unique triggerKey so
+// replays/concurrency can never double-pay.
+model ReferralReward {
+  id             String               @id @default(cuid())
+  // Deterministic idempotency key, e.g. "L2:<rootInviterId>:<triggerUserId>".
+  triggerKey     String               @unique
+  // Reward recipient (root inviter).
+  beneficiaryId  String
+  // The second-level invited user whose verification triggered this reward.
+  triggerUserId  String
+  // The direct inviter in the middle of the chain (beneficiary → middle → trigger).
+  middleUserId   String
+  amount         BigInt
+  currency       String               @default("IRT")
+  status         ReferralRewardStatus  @default(PENDING)
+  // Numeric risk score (0..100) and machine reason from the risk engine.
+  riskScore      Int                   @default(0)
+  riskReason     String?
+  // Set once the wallet has actually been credited (guards credit-once).
+  creditedAt     DateTime?
+  // Admin who approved/rejected a reviewed reward, if any.
+  decidedById    String?
+  decidedAt      DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([beneficiaryId])
+  @@index([triggerUserId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Hashed anti-abuse signals captured at attach/verification time. No raw PII is
+// stored — IP/subnet/user-agent are one-way hashed so clusters can be detected
+// without retaining identifiable network data.
+model ReferralRiskSignal {
+  id            String   @id @default(cuid())
+  // The invited user this signal was captured for.
+  subjectUserId String
+  // Origin of the invite ("web" | "telegram").
+  source        String   @default("web")
+  ipHash        String?
+  subnetHash    String?
+  uaHash        String?
+  deviceHash    String?
+  createdAt     DateTime @default(now())
+
+  @@index([subjectUserId])
+  @@index([ipHash])
+  @@index([subnetHash])
+  @@index([deviceHash])
+}
+
 // Single-use tokens for email verification and password reset. Only the SHA-256
 // hash of the token is stored, so a database leak cannot reveal usable links.
 model AuthToken {
