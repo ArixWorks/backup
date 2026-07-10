@@ -695,7 +695,9 @@ async function showAuctionDetail(chatId: number, user: User, auctionId: string, 
   if (a.buyNowPrice) lines.push(`${emo(c, "cart")} ${esc(L.buyNow)}: <b>${esc(price(c, locale, a.buyNowPrice))}</b>`)
   lines.push(`${emo(c, "clock")} ${esc(L.ends)}: ${esc(ends)}`)
   lines.push(`${emo(c, "eye")} ${esc(L.bids)}: ${esc(String(a.bidCount))}`)
-  if (a.hasReserve && !a.reserveMet) lines.push(`${emo(c, "warning")} ${esc(L.reserveNo)}`)
+  // Reserve status respects the policy visibility (PR7): only shown when the
+  // server reveals a "not_met" state (HIDDEN mode resolves to "hidden").
+  if (a.reserve.state === "not_met") lines.push(`${emo(c, "warning")} ${esc(L.reserveNo)}`)
   if (!active && a.status !== "SCHEDULED") lines.push(`\n${emo(c, "cross")} ${esc(L.ended)}`)
   const markup = auctionDetailKeyboard(
     c,

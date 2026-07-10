@@ -41,8 +41,7 @@ type AuctionDetail = {
   minimumIncrement: number
   buyNowPrice: number | null
   buyNowAvailable: boolean
-  hasReserve: boolean
-  reserveMet: boolean
+  reserve: { exists: boolean; state: "met" | "not_met" | "hidden"; amount: number | null }
   startTime: string
   endTime: string
   status: string
@@ -331,14 +330,29 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               />
             </dl>
 
-            {a.hasReserve && (
+            {a.reserve.exists && (
               <div
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
-                  a.reserveMet ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+                  a.reserve.state === "met"
+                    ? "bg-success/15 text-success"
+                    : a.reserve.state === "not_met"
+                      ? "bg-warning/15 text-warning"
+                      : "bg-muted text-muted-foreground"
                 }`}
               >
                 <ShieldAlert className="h-4 w-4 shrink-0" />
-                {a.reserveMet ? t("adetail.reserveMet") : t("adetail.reserveNotMet")}
+                <span>
+                  {a.reserve.state === "met"
+                    ? t("adetail.reserveMet")
+                    : a.reserve.state === "not_met"
+                      ? t("adetail.reserveNotMet")
+                      : t("adetail.reserveHidden")}
+                  {a.reserve.amount != null && (
+                    <span className="ms-1 font-semibold tabular-nums">
+                      {`(${formatToman(a.reserve.amount)})`}
+                    </span>
+                  )}
+                </span>
               </div>
             )}
           </div>

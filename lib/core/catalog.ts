@@ -5,7 +5,8 @@ import { finalizeAuction, handleWinnerDefault } from "./auction"
 import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
 import { smartBuyNowPrice, incrementForPrice, nextMinimumBid } from "./auction/pricing"
 import { isTerminalStatus } from "./auction/lifecycle"
-import type { AuctionPolicy } from "./auction/types"
+import { computeReserveDisplay } from "./auction/reserve"
+import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -272,8 +273,17 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     minNextBid,
     buyNowPrice,
     buyNowAvailable,
-    hasReserve: a.reservePrice != null,
-    reserveMet: a.reservePrice == null ? true : a.currentPrice >= a.reservePrice,
+    // Reserve display (PR7): computed server-side against the policy visibility
+    // so hidden data (exact amount, and in HIDDEN mode even the met/not-met
+    // status) never reaches the client. Legacy callers with no policy fall back
+    // to the default HIDDEN_OR_PARTIAL behaviour.
+    reserve: computeReserveDisplay({
+      reservePrice: a.reservePrice ?? null,
+      currentPrice: a.currentPrice,
+      visibility: policy?.reservePriceVisibility ?? "HIDDEN_OR_PARTIAL",
+      isTerminal: isTerminalStatus(a.status),
+      endReason: (a.endReason as AuctionEndReason | null) ?? null,
+    }),
     // Authoritative settlement result — never inferred from the top bid.
     winnerUserId: a.winnerUserId,
     finalPrice: a.finalPrice,
