@@ -84,6 +84,7 @@ import {
 import { listFlashSales } from "@/lib/core/catalog"
 import { listWatchlist, isWatching, addToWatchlist, removeFromWatchlist } from "@/lib/core/watchlist"
 import { placeBid, buyNow } from "@/lib/core/auction"
+import { deriveAuctionDisplayState } from "@/lib/core/auction/display-state"
 import { evaluateCoupon } from "@/lib/core/coupons"
 import {
   listNotifications,
@@ -585,13 +586,13 @@ async function showOrders(chatId: number, user: User, editId?: number) {
 function aucLabels(locale: Locale) {
   switch (locale) {
     case "en":
-      return { price: "Current price", next: "Min next bid", buyNow: "Buy now", ends: "Ends", bids: "Bids", scheduled: "Starts", ended: "Auction ended", reserveNo: "Reserve not met" }
+      return { price: "Current price", next: "Min next bid", buyNow: "Buy now", ends: "Ends", bids: "Bids", scheduled: "Starts", ended: "Auction ended", reserveNo: "Reserve not met", sold: "Sold", cancelled: "Cancelled", endingSoon: "Ending soon" }
     case "ru":
-      return { price: "Текущая цена", next: "Мин. ставка", buyNow: "Купить сейчас", ends: "Окончание", bids: "Ставки", scheduled: "Старт", ended: "Аукцион завершён", reserveNo: "Резерв не достигнут" }
+      return { price: "Текущая цена", next: "Мин. ставка", buyNow: "Купить сейчас", ends: "Окончание", bids: "Ставки", scheduled: "Старт", ended: "Аукцион завершён", reserveNo: "Резерв не достигнут", sold: "Продано", cancelled: "Отменён", endingSoon: "Скоро завершится" }
     case "hi":
-      return { price: "मौजूदा कीमत", next: "न्यूनतम अगली बोली", buyNow: "अभी खरीदें", ends: "समाप्ति", bids: "बोलियाँ", scheduled: "शुरू", ended: "नीलामी समाप्त", reserveNo: "रिज़र्व पूरा नहीं" }
+      return { price: "मौजूदा कीमत", next: "न्यूनतम अगली बोली", buyNow: "अभी खरीदें", ends: "समाप्ति", bids: "बोलियाँ", scheduled: "शुरू", ended: "नीलामी समाप्त", reserveNo: "रिज़र्व पूरा नहीं", sold: "बिक गया", cancelled: "रद्द", endingSoon: "जल्द खत्म" }
     default:
-      return { price: "قیمت فعلی", next: "حداقل پیشنهاد بعدی", buyNow: "خرید فوری", ends: "پایان", bids: "پیشنهادها", scheduled: "شروع", ended: "مزایده پایان یافت", reserveNo: "به حد رزرو نرسیده" }
+      return { price: "قیمت فعلی", next: "حداقل پیشنهاد بعدی", buyNow: "خرید فوری", ends: "پایان", bids: "پیشنهادها", scheduled: "شروع", ended: "مزایده پایان یافت", reserveNo: "به حد رزرو نرسیده", sold: "فروخته شد", cancelled: "لغو شد", endingSoon: "رو به پایان" }
   }
 }
 
@@ -698,7 +699,27 @@ async function showAuctionDetail(chatId: number, user: User, auctionId: string, 
   // Reserve status respects the policy visibility (PR7): only shown when the
   // server reveals a "not_met" state (HIDDEN mode resolves to "hidden").
   if (a.reserve.state === "not_met") lines.push(`${emo(c, "warning")} ${esc(L.reserveNo)}`)
-  if (!active && a.status !== "SCHEDULED") lines.push(`\n${emo(c, "cross")} ${esc(L.ended)}`)
+  // Phase-driven close-out line (display-state engine): SOLD / not-met / cancelled
+  // / generic ended — mirrors the web card & detail page so the outcome reads
+  // consistently everywhere.
+  const ds = deriveAuctionDisplayState({
+    status: a.status,
+    endReason: a.endReason,
+    finalPrice: a.finalPrice != null ? Number(a.finalPrice) : null,
+    bidCount: a.bidCount,
+  })
+  if (ds.isTerminal) {
+    if (ds.hasWinner) {
+      const finalTxt = a.finalPrice != null ? `: <b>${esc(price(c, locale, a.finalPrice))}</b>` : ""
+      lines.push(`\n${emo(c, "trophy")} ${esc(L.sold)}${finalTxt}`)
+    } else if (ds.phase === "cancelled") {
+      lines.push(`\n${emo(c, "cross")} ${esc(L.cancelled)}`)
+    } else if (ds.phase === "reserve_not_met") {
+      lines.push(`\n${emo(c, "warning")} ${esc(L.reserveNo)}`)
+    } else {
+      lines.push(`\n${emo(c, "cross")} ${esc(L.ended)}`)
+    }
+  }
   const markup = auctionDetailKeyboard(
     c,
     a.id,
@@ -760,9 +781,9 @@ function gwLabels(locale: Locale) {
       return {
         prize: "इनाम", winners: "विजेता", participants: "प्रतिभागी",
         drawAt: "ड्रॉ", enter: "🎉 भाग लें", entered: "✅ आप शामिल हैं",
-        open: "ऐप में खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
+        open: "ऐप म��ं खोलें", results: "🏆 परिणाम देखें", join: "पहले चैनल जॉइन करें",
         ended: "यह गिववे समाप्त हो गया", retry: "✅ मैंने जॉइन किया — पुनः प्रयास",
-        entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैनल जॉइन करें, फिर पुनः प्रयास करें।",
+        entrySaved: "हो गया! आप शामिल हैं। शुभकामनाएँ 🍀", joinNeeded: "चैन��� जॉइन करें, फिर पुनः प्रयास करें।",
       }
     default:
       return {

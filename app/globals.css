@@ -1361,3 +1361,51 @@ body::-webkit-scrollbar,
 .rc-editor .ProseMirror .selectedCell:after {
   content: ""; position: absolute; inset: 0; background: color-mix(in oklab, var(--primary) 18%, transparent); pointer-events: none;
 }
+
+/* ============================================================================
+   AUCTION OUTCOME STAMP + URGENCY
+   Diagonal "SOLD / ENDED / UNSOLD / CANCELLED" stamp overlaid on a settled
+   auction's media, plus a pulsing ring for auctions that are ending soon.
+   Tone is driven by the --stamp-color custom property set inline per phase. */
+.auction-stamp {
+  --stamp-color: var(--muted-foreground);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  padding: 0.25rem 1.1rem;
+  border: 3px solid var(--stamp-color);
+  border-radius: 0.5rem;
+  color: var(--stamp-color);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: clamp(0.9rem, 2.4vw, 1.4rem);
+  line-height: 1;
+  white-space: nowrap;
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 10px -4px color-mix(in oklab, var(--stamp-color) 60%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+.auction-stamp[data-tone='success'] { --stamp-color: var(--success); }
+.auction-stamp[data-tone='warning'] { --stamp-color: var(--warning); }
+.auction-stamp[data-tone='danger'] { --stamp-color: var(--destructive); }
+.auction-stamp[data-tone='neutral'] { --stamp-color: var(--muted-foreground); }
+
+/* Pulsing attention ring for auctions in their final stretch. */
+@keyframes auction-urgent-ring {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--destructive) 45%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--destructive) 12%, transparent); }
+}
+.auction-urgent {
+  animation: auction-urgent-ring 1.8s ease-in-out infinite;
+  border-color: color-mix(in oklab, var(--destructive) 55%, transparent) !important;
+}
+[data-motion='minimal'] .auction-urgent {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auction-urgent { animation: none !important; }
+}
