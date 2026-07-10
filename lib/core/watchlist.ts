@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { NotFoundError } from "./errors"
 import { summarizeForWatchlist } from "./catalog"
+import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
 
 /** Add an auction to the user's watchlist (idempotent). */
 export async function addToWatchlist(userId: string, auctionId: string) {
@@ -39,7 +40,10 @@ export async function listWatchlist(userId: string) {
       },
     },
   })
-  return entries.map((e) => summarizeForWatchlist(e.auction))
+  const globalPolicy = await getGlobalAuctionPolicy()
+  return entries.map((e) =>
+    summarizeForWatchlist(e.auction, resolveAuctionPolicy(globalPolicy, e.auction.policyJson)),
+  )
 }
 
 /**

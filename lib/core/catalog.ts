@@ -2,6 +2,9 @@ import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { NotFoundError } from "./errors"
 import { finalizeAuction } from "./auction"
+import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
+import { smartBuyNowPrice } from "./auction/pricing"
+import type { AuctionPolicy } from "./auction/types"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -192,25 +195,59 @@ export async function listAuctions() {
     include: { product: true, _count: { select: { bids: true } } },
     orderBy: { endTime: "asc" },
   })
-  return auctions.map(summarizeAuction)
+  // Load the global policy once and resolve per-auction overrides, so smart
+  // Buy Now pricing is consistent with what the engine enforces on purchase.
+  const globalPolicy = await getGlobalAuctionPolicy()
+  return auctions.map((a) => summarizeAuction(a, resolveAuctionPolicy(globalPolicy, a.policyJson)))
 }
 
-function summarizeAuction(a: {
+type AuctionSummaryInput = {
   id: string
+  policyJson: string | null
   product: { slug: string; title: string; description: string | null; category: string | null; coverImage: string | null; deliveryType: string }
   startPrice: bigint
   currentPrice: bigint
   minimumIncrement: bigint
   buyNowPrice: bigint | null
   reservePrice: bigint | null
+  winnerUserId: string | null
+  finalPrice: bigint | null
+  endReason: string | null
   startTime: Date
   endTime: Date
   status: string
   quantity: number
   antiSnipingSeconds: number
   _count: { bids: number }
-}) {
+}
+
+function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
   const hasBids = a._count.bids > 0
+  const currentPrice = hasBids ? a.currentPrice : a.startPrice
+  // Bid increments stay on the existing per-auction column in this PR (tiered
+  // increments land in PR3). Only Buy Now becomes smart/dynamic here.
+  const minNextBid = hasBids ? a.currentPrice + a.minimumIncrement : a.startPrice
+
+  // Smart Buy Now: recompute the offered price (and availability) from the live
+  // market via the pricing engine. Falls back to the static column when no
+  // policy is supplied (legacy callers not yet migrated).
+  let buyNowPrice = a.buyNowPrice
+  let buyNowAvailable = a.buyNowPrice != null
+  if (policy) {
+    const smart = smartBuyNowPrice(
+      {
+        startPrice: a.startPrice,
+        currentPrice: a.currentPrice,
+        hasBids,
+        initialBuyNowPrice: a.buyNowPrice,
+        reservePrice: a.reservePrice ?? null,
+      },
+      policy,
+    )
+    buyNowPrice = smart.price
+    buyNowAvailable = smart.available
+  }
+
   return {
     id: a.id,
     slug: a.product.slug,
@@ -220,12 +257,17 @@ function summarizeAuction(a: {
     coverImage: a.product.coverImage,
     deliveryType: a.product.deliveryType,
     startPrice: a.startPrice,
-    currentPrice: hasBids ? a.currentPrice : a.startPrice,
+    currentPrice,
     minimumIncrement: a.minimumIncrement,
-    minNextBid: hasBids ? a.currentPrice + a.minimumIncrement : a.startPrice,
-    buyNowPrice: a.buyNowPrice,
+    minNextBid,
+    buyNowPrice,
+    buyNowAvailable,
     hasReserve: a.reservePrice != null,
     reserveMet: a.reservePrice == null ? true : a.currentPrice >= a.reservePrice,
+    // Authoritative settlement result — never inferred from the top bid.
+    winnerUserId: a.winnerUserId,
+    finalPrice: a.finalPrice,
+    endReason: a.endReason,
     startTime: a.startTime,
     endTime: a.endTime,
     status: a.status,
@@ -236,8 +278,8 @@ function summarizeAuction(a: {
 }
 
 /** Public summary helper reused by the watchlist module. */
-export function summarizeForWatchlist(a: Parameters<typeof summarizeAuction>[0]) {
-  return summarizeAuction(a)
+export function summarizeForWatchlist(a: AuctionSummaryInput, policy?: AuctionPolicy) {
+  return summarizeAuction(a, policy)
 }
 
 /** Auction detail including (aliased) bid history. Lazily finalizes if ended. */
@@ -273,9 +315,23 @@ export async function getAuctionDetail(auctionId: string) {
     include: { user: { select: { alias: true, displayName: true, photoUrl: true } } },
   })
 
+  const policy = await resolveAuctionPolicy(await getGlobalAuctionPolicy(), auction.policyJson)
+
+  // Resolve the winner's public identity from the authoritative winnerUserId
+  // (never inferred from the top bid). Only surfaced once finalized.
+  let winner: { alias: string; name: string; photoUrl: string | null } | null = null
+  if (auction.winnerUserId) {
+    const w = await prisma.user.findUnique({
+      where: { id: auction.winnerUserId },
+      select: { alias: true, displayName: true, photoUrl: true },
+    })
+    if (w) winner = { alias: w.alias, name: w.displayName || w.alias, photoUrl: w.photoUrl }
+  }
+
   return {
-    ...summarizeAuction(auction),
+    ...summarizeAuction(auction, policy),
     finalizedAt: auction.finalizedAt,
+    winner,
     bids: bids.map((b) => ({
       id: b.id,
       amount: b.amount,
