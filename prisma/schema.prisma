@@ -120,6 +120,14 @@ enum AuctionEventType {
   SECOND_CHANCE_OFFER
   SETTLED
   CANCELLED
+  // Winner-default lifecycle (PR4). Only ever emitted for deposit / partial
+  // freeze auctions where an unpaid-winner scenario can exist.
+  WINNER_DEFAULTED
+  SECOND_CHANCE_ACCEPTED
+  SECOND_CHANCE_EXPIRED
+  AUCTION_REOPENED
+  PENALTY_APPLIED
+  USER_RESTRICTED
 }
 
 enum OrderType {
@@ -229,6 +237,9 @@ model User {
   alias              String     @unique // public pseudonym shown in bid history
   role               UserRole   @default(USER)
   status             UserStatus @default(ACTIVE)
+  // Temporary auction ban applied by the RESTRICT_USER winner-default action.
+  // Null / past = unrestricted; a future timestamp blocks new bids until then.
+  auctionRestrictedUntil DateTime?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -829,6 +840,11 @@ model Auction {
   softCloseExtensions Int          @default(0)
   // When the winner must complete payment by (set at settlement time).
   paymentDeadlineAt  DateTime?
+  // Second Chance Offer (PR4): the bidder currently holding an active offer and
+  // the deadline by which they must accept. Both null unless an offer is live.
+  // Scalar id (no relation) — consistent with winnerUserId + backup-safe.
+  secondChanceUserId     String?
+  secondChanceDeadlineAt DateTime?
   // Per-auction policy override, merged over the global auction policy.
   // JSON blob (partial AuctionPolicy). Null → inherit the global policy.
   policyJson         String?

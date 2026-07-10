@@ -20,7 +20,12 @@ import { recordAuctionEvent } from "./auction/events"
 import { computeWinnerFromStandings } from "./auction/winner"
 import { getAuctionPolicy } from "./auction/policy"
 import { assertBuyNowAllowed, nextMinimumBid } from "./auction/pricing"
-import { computeSoftCloseExtension, isTerminalStatus } from "./auction/lifecycle"
+import { computeSoftCloseExtension, computePaymentDeadline, isTerminalStatus } from "./auction/lifecycle"
+import {
+  computeBidFreezeTarget,
+  computeWinnerObligation,
+  freezeModeCanUnderfund,
+} from "./auction/settlement"
 
 type Tx = Prisma.TransactionClient
 
@@ -112,6 +117,10 @@ async function assertUserActive(userId: string, tx: Tx) {
   const user = await tx.user.findUnique({ where: { id: userId } })
   if (!user) throw new NotFoundError("User not found")
   if (user.status === "BANNED") throw new ForbiddenError("User is banned")
+  // Temporary auction ban from the RESTRICT_USER winner-default action.
+  if (user.auctionRestrictedUntil && user.auctionRestrictedUntil > new Date()) {
+    throw new ForbiddenError("شما به‌طور موقت از شرکت در مزایده‌ها محروم هستید")
+  }
 }
 
 /**
@@ -182,8 +191,16 @@ export async function placeBid(opts: {
           throw new ConflictError("Auction changed concurrently, retry")
         }
 
-        // Bring the bidder's hold up to their new bid (freeze the difference).
-        await setAuctionFrozen(opts.userId, auction.id, opts.amount, tx)
+        // Bring the bidder's hold up to the policy-driven freeze target. In the
+        // default full-freeze mode this equals the bid (unchanged behaviour); in
+        // an opt-in deposit / partial mode it is only the deposit/partial hold.
+        const freezeTarget = computeBidFreezeTarget({
+          bidAmount: opts.amount,
+          startPrice: auction.startPrice,
+          quantity: auction.quantity,
+          policy,
+        })
+        await setAuctionFrozen(opts.userId, auction.id, freezeTarget, tx)
 
         // Release whoever is now just outside the winning set.
         const winners = await standings(auction.id, auction.quantity, tx)
@@ -289,7 +306,7 @@ export async function placeBid(opts: {
         userId: result.displacedUserId,
         type: "AUCTION_OUTBID",
         title: "پیشنهاد شما رد شد",
-        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به جمع برندگان پیشنهاد جدید بدهید.`,
+        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به ج��ع برندگان پیشنهاد جدید بدهید.`,
         href: `/auctions/${result.auctionId}`,
       }).catch(() => {})
       await sendAuctionOutbidEmail({
@@ -456,6 +473,10 @@ export async function finalizeAuction(auctionId: string) {
           throw new ValidationError("Auction has not ended yet")
         }
 
+        // Resolve the effective policy so the freeze target used at settlement
+        // matches exactly what was frozen while bidding (single source of truth).
+        const policy = await getAuctionPolicy(auction.policyJson, tx)
+
         const ranked = await standings(auction.id, auction.quantity, tx)
         const eligible = ranked.filter(
           (r) => !auction.reservePrice || r.amount >= auction.reservePrice,
@@ -470,30 +491,68 @@ export async function finalizeAuction(auctionId: string) {
           }
         }
 
-        // Settle each winner: convert their frozen hold into a purchase.
+        // Settle each winner. In the DEFAULT full-freeze mode every winner is
+        // fully funded (held == bid) and is captured + delivered instantly — the
+        // safe, unpaid-winner-proof behaviour, byte-for-byte unchanged. Only an
+        // explicit deposit / partial-freeze policy can leave a single winner
+        // underfunded, in which case the auction enters PAYMENT_PENDING and the
+        // deadline / default / second-chance lifecycle (see auction/payment.ts)
+        // takes over. `computeBidFreezeTarget` hard-guarantees full freeze for
+        // multi-winner auctions, so at most ONE pending winner is ever possible.
+        const settledWinners: { userId: string; amount: bigint }[] = []
+        let pendingWinner: { userId: string; amount: bigint; deposit: bigint } | null = null
+
         for (const w of eligible) {
-          await setAuctionFrozen(w.userId, auction.id, w.amount, tx) // normalize hold
-          const order = await tx.order.create({
-            data: {
-              publicId: secureSlug("ord"),
-              userId: w.userId,
-              productId: auction.productId,
-              auctionId: auction.id,
-              type: "AUCTION_WIN",
-              status: "PAID",
-              amount: w.amount,
-              quantity: 1,
-            },
+          const target = computeBidFreezeTarget({
+            bidAmount: w.amount,
+            startPrice: auction.startPrice,
+            quantity: auction.quantity,
+            policy,
           })
-          await captureFrozenPurchase(w.userId, w.amount, tx, { type: "auction", id: auction.id })
-          await deliverForOrder(
-            order.id,
-            auction.productId,
-            w.userId,
-            w.amount,
-            tx,
-            auction.product.deliveryType,
-          )
+          await setAuctionFrozen(w.userId, auction.id, target, tx) // normalize hold to policy target
+          const obligation = computeWinnerObligation({ finalPrice: w.amount, heldDeposit: target })
+
+          if (obligation.fullyFunded) {
+            const order = await tx.order.create({
+              data: {
+                publicId: secureSlug("ord"),
+                userId: w.userId,
+                productId: auction.productId,
+                auctionId: auction.id,
+                type: "AUCTION_WIN",
+                status: "PAID",
+                amount: w.amount,
+                quantity: 1,
+              },
+            })
+            await captureFrozenPurchase(w.userId, w.amount, tx, { type: "auction", id: auction.id })
+            await deliverForOrder(
+              order.id,
+              auction.productId,
+              w.userId,
+              w.amount,
+              tx,
+              auction.product.deliveryType,
+            )
+            settledWinners.push({ userId: w.userId, amount: w.amount })
+          } else {
+            // Underfunded winner: keep the deposit frozen, open a PENDING order,
+            // and wait for the balance to be paid before the deadline. Nothing is
+            // captured or delivered yet.
+            await tx.order.create({
+              data: {
+                publicId: secureSlug("ord"),
+                userId: w.userId,
+                productId: auction.productId,
+                auctionId: auction.id,
+                type: "AUCTION_WIN",
+                status: "PENDING",
+                amount: w.amount,
+                quantity: 1,
+              },
+            })
+            pendingWinner = { userId: w.userId, amount: w.amount, deposit: obligation.heldDeposit }
+          }
         }
 
         // Winner engine: resolve the authoritative single-winner spotlight
@@ -508,16 +567,20 @@ export async function finalizeAuction(auctionId: string) {
           boughtNow: null,
         })
 
-        // Lifecycle (PR3): map the winner result onto a precise terminal status.
-        // - RESERVE_NOT_MET  → ended below reserve, no sale.
-        // - a winner exists   → SETTLED (funds captured + delivered in this tx).
+        // Lifecycle: map the winner result onto a precise terminal status.
+        // - RESERVE_NOT_MET   → ended below reserve, no sale.
+        // - underfunded winner → PAYMENT_PENDING (awaiting balance payment).
+        // - a funded winner    → SETTLED (funds captured + delivered in this tx).
         // - no bids / no winner → FINALIZED (neutral ended, nothing sold).
+        const paymentDeadlineAt = pendingWinner ? computePaymentDeadline(policy) : null
         const terminalStatus =
           winnerResult.endReason === "RESERVE_NOT_MET"
             ? "RESERVE_NOT_MET"
-            : winnerResult.winnerUserId
-              ? "SETTLED"
-              : "FINALIZED"
+            : pendingWinner
+              ? "PAYMENT_PENDING"
+              : winnerResult.winnerUserId
+                ? "SETTLED"
+                : "FINALIZED"
 
         await tx.auction.update({
           where: { id: auction.id },
@@ -527,14 +590,40 @@ export async function finalizeAuction(auctionId: string) {
             winnerUserId: winnerResult.winnerUserId,
             finalPrice: winnerResult.finalPrice,
             endReason: winnerResult.endReason,
+            paymentDeadlineAt,
           },
         })
 
-        // Timeline: auction ended, then winner / reserve-not-met outcome.
+        // Timeline: auction ended, then winner / reserve-not-met / pending outcome.
         await recordAuctionEvent({ auctionId: auction.id, type: "AUCTION_ENDED" }, tx)
         if (winnerResult.endReason === "RESERVE_NOT_MET") {
           await recordAuctionEvent(
             { auctionId: auction.id, type: "RESERVE_NOT_MET", amount: top?.amount ?? null },
+            tx,
+          )
+        } else if (pendingWinner) {
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "WINNER_SELECTED",
+              userId: pendingWinner.userId,
+              amount: pendingWinner.amount,
+              meta: { endReason: "HIGHEST_BID" },
+            },
+            tx,
+          )
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "PAYMENT_PENDING",
+              userId: pendingWinner.userId,
+              amount: pendingWinner.amount,
+              meta: {
+                deposit: pendingWinner.deposit.toString(),
+                remaining: (pendingWinner.amount - pendingWinner.deposit).toString(),
+                deadlineAt: paymentDeadlineAt?.toISOString() ?? null,
+              },
+            },
             tx,
           )
         } else if (winnerResult.winnerUserId) {
@@ -555,7 +644,7 @@ export async function finalizeAuction(auctionId: string) {
               type: "SETTLED",
               userId: winnerResult.winnerUserId,
               amount: winnerResult.finalPrice,
-              meta: { winners: eligible.length },
+              meta: { winners: settledWinners.length },
             },
             tx,
           )
@@ -573,10 +662,18 @@ export async function finalizeAuction(auctionId: string) {
 
         return {
           finalized: true,
-          winners: eligible.length,
+          winners: settledWinners.length,
           title: auction.product.title,
           coverImage: auction.product.coverImage,
-          winnerList: eligible.map((e) => ({ userId: e.userId, amount: e.amount })),
+          winnerList: settledWinners,
+          pendingWinner: pendingWinner
+            ? {
+                userId: pendingWinner.userId,
+                amount: pendingWinner.amount,
+                remaining: pendingWinner.amount - pendingWinner.deposit,
+                deadlineAt: paymentDeadlineAt,
+              }
+            : null,
           loserIds,
         }
       },

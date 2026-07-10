@@ -69,6 +69,7 @@ export const DEFAULT_AUCTION_POLICY: AuctionPolicy = {
   paymentDefaultAction: "SECOND_CHANCE",
   secondChanceOfferEnabled: true,
   secondChanceWindowMinutes: 60,
+  defaultRestrictionDays: 30,
 
   // Proxy bidding: schema is ready (Bid.maxAmount / Bid.isAuto) but full
   // execution stays OFF until its dedicated PR. Foundation-only for now.
@@ -160,6 +161,7 @@ export function normalizeAuctionPolicy(raw: unknown): AuctionPolicy {
   out.maxSoftCloseExtensions = Math.max(0, Math.round(out.maxSoftCloseExtensions))
   out.paymentDeadlineMinutes = Math.max(0, Math.round(out.paymentDeadlineMinutes))
   out.secondChanceWindowMinutes = Math.max(0, Math.round(out.secondChanceWindowMinutes))
+  out.defaultRestrictionDays = Math.max(0, Math.round(out.defaultRestrictionDays))
   out.endingSoonThresholdSeconds = Math.max(0, Math.round(out.endingSoonThresholdSeconds))
   out.criticalThresholdSeconds = Math.max(0, Math.round(out.criticalThresholdSeconds))
   // Critical threshold must not exceed ending-soon threshold.

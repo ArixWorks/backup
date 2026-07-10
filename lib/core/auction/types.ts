@@ -130,6 +130,8 @@ export interface AuctionPolicy {
   paymentDefaultAction: PaymentDefaultAction
   secondChanceOfferEnabled: boolean
   secondChanceWindowMinutes: number
+  /** Days a defaulting winner is barred from bidding (RESTRICT_USER action). */
+  defaultRestrictionDays: number
 
   // Proxy / auto bid (Phase 11 — feature-flagged, schema is already ready)
   proxyBidEnabled: boolean
