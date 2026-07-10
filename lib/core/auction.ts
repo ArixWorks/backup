@@ -16,6 +16,8 @@ import { progressMission } from "./gamification"
 import { createManualDelivery, NoInventoryError, reserveAndDeliverAuto } from "./delivery"
 import { notifyAuctionWon } from "@/lib/telegram/notify"
 import { formatToman } from "@/lib/format"
+import { recordAuctionEvent } from "./auction/events"
+import { computeWinnerFromStandings } from "./auction/winner"
 
 type Tx = Prisma.TransactionClient
 
@@ -175,12 +177,41 @@ export async function placeBid(opts: {
 
         // Anti-sniping: extend the auction if the bid lands in the final window.
         let endTime = auction.endTime
+        let extended = false
         if (auction.antiSnipingEnabled && auction.autoExtend) {
           const remainingMs = auction.endTime.getTime() - Date.now()
           if (remainingMs <= auction.antiSnipingSeconds * 1000) {
             endTime = new Date(auction.endTime.getTime() + auction.antiSnipingSeconds * 1000)
-            await tx.auction.update({ where: { id: auction.id }, data: { endTime } })
+            extended = true
+            await tx.auction.update({
+              where: { id: auction.id },
+              data: { endTime, softCloseExtensions: { increment: 1 } },
+            })
           }
+        }
+
+        // Timeline (Phase 16): record the bid, any outbid, and any extension.
+        // In-tx so the timeline commits atomically with the bid.
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "BID_PLACED", userId: opts.userId, amount: opts.amount },
+          tx,
+        )
+        if (displacedUserId) {
+          await recordAuctionEvent(
+            { auctionId: auction.id, type: "USER_OUTBID", userId: displacedUserId, amount: opts.amount },
+            tx,
+          )
+        }
+        if (extended) {
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "AUCTION_EXTENDED",
+              amount: null,
+              meta: { extensionSeconds: auction.antiSnipingSeconds, endTime: endTime.toISOString() },
+            },
+            tx,
+          )
         }
 
         const bidderAlias = (await tx.user.findUnique({ where: { id: opts.userId } }))!.alias
@@ -267,10 +298,29 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
 
         await deliverForOrder(created.id, auction.productId, opts.userId, auction.buyNowPrice, tx, auction.product.deliveryType)
 
+        // Winner engine: Buy Now buyer is the authoritative final winner. Store
+        // the result explicitly so the UI never infers the winner from bids.
         await tx.auction.update({
           where: { id: auction.id },
-          data: { status: "FINALIZED", finalizedAt: new Date(), currentPrice: auction.buyNowPrice },
+          data: {
+            status: "FINALIZED",
+            finalizedAt: new Date(),
+            currentPrice: auction.buyNowPrice,
+            winnerUserId: opts.userId,
+            finalPrice: auction.buyNowPrice,
+            endReason: "BUY_NOW",
+          },
         })
+
+        // Timeline: Buy Now completion + winner selection.
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "BUY_NOW_COMPLETED", userId: opts.userId, amount: auction.buyNowPrice },
+          tx,
+        )
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "WINNER_SELECTED", userId: opts.userId, amount: auction.buyNowPrice, meta: { endReason: "BUY_NOW" } },
+          tx,
+        )
 
         return created
       },
@@ -376,10 +426,48 @@ export async function finalizeAuction(auctionId: string) {
           )
         }
 
+        // Winner engine: resolve the authoritative single-winner spotlight
+        // (multi-winner settlement above still credits every eligible bidder).
+        // `ranked[0]` is the overall highest bid; the winner engine applies the
+        // reserve rule to decide HIGHEST_BID vs RESERVE_NOT_MET.
+        const top = ranked[0] ?? null
+        const winnerResult = computeWinnerFromStandings({
+          topBidderId: top?.userId ?? null,
+          topAmount: top?.amount ?? null,
+          reservePrice: auction.reservePrice ?? null,
+          boughtNow: null,
+        })
+
         await tx.auction.update({
           where: { id: auction.id },
-          data: { status: "FINALIZED", finalizedAt: new Date() },
+          data: {
+            status: "FINALIZED",
+            finalizedAt: new Date(),
+            winnerUserId: winnerResult.winnerUserId,
+            finalPrice: winnerResult.finalPrice,
+            endReason: winnerResult.endReason,
+          },
         })
+
+        // Timeline: auction ended, then winner / reserve-not-met outcome.
+        await recordAuctionEvent({ auctionId: auction.id, type: "AUCTION_ENDED" }, tx)
+        if (winnerResult.endReason === "RESERVE_NOT_MET") {
+          await recordAuctionEvent(
+            { auctionId: auction.id, type: "RESERVE_NOT_MET", amount: top?.amount ?? null },
+            tx,
+          )
+        } else if (winnerResult.winnerUserId) {
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "WINNER_SELECTED",
+              userId: winnerResult.winnerUserId,
+              amount: winnerResult.finalPrice,
+              meta: { endReason: "HIGHEST_BID" },
+            },
+            tx,
+          )
+        }
 
         // Distinct bidders who participated but did not win (for "lost" notices).
         const allBidders = await tx.bid.findMany({
@@ -474,8 +562,10 @@ export async function cancelAuctionAndRelease(auctionId: string) {
 
         await tx.auction.update({
           where: { id: auction.id },
-          data: { status: "CANCELLED" },
+          data: { status: "CANCELLED", endReason: "CANCELLED" },
         })
+
+        await recordAuctionEvent({ auctionId: auction.id, type: "CANCELLED" }, tx)
 
         return { cancelled: true, released }
       },
