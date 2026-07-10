@@ -2,11 +2,13 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { placeBid } from "@/lib/core/auction"
-import { rateLimitBy } from "@/lib/api/rate-limit"
+import { rateLimitBy, clientIp } from "@/lib/api/rate-limit"
 
 const schema = z.object({
   amount: z.union([z.string(), z.number()]),
   maxAmount: z.union([z.string(), z.number()]).optional(),
+  // Optional client-supplied device fingerprint for anti-fraud clustering.
+  deviceId: z.string().trim().max(200).optional(),
 })
 
 export const POST = route(
@@ -25,6 +27,12 @@ export const POST = route(
         body.maxAmount != null && `${body.maxAmount}`.trim() !== ""
           ? BigInt(body.maxAmount)
           : undefined,
+      context: {
+        source: "web",
+        ip: clientIp(req),
+        userAgent: req.headers.get("user-agent"),
+        deviceId: body.deviceId ?? null,
+      },
     })
   },
 )

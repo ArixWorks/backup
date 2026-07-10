@@ -21,6 +21,8 @@ import { computeWinnerFromStandings } from "./auction/winner"
 import { getAuctionPolicy } from "./auction/policy"
 import { assertBuyNowAllowed, incrementForPrice, nextMinimumBid } from "./auction/pricing"
 import { resolveProxyBids, type ProxyAgent } from "./auction/proxy"
+import { captureBidSignal, auctionClusterCounts, type BidRiskContext } from "./auction/signals"
+import { scoreBidRisk, type BidRiskResult } from "./auction/fraud"
 import { computeSoftCloseExtension, computePaymentDeadline, isTerminalStatus } from "./auction/lifecycle"
 import {
   computeBidFreezeTarget,
@@ -164,14 +166,29 @@ async function assertUserActive(userId: string, tx: Tx) {
  * transaction. Freezes only the difference vs the bidder's existing hold and
  * releases the bidder pushed out of the winning set. Applies anti-sniping.
  */
+/**
+ * Internal signal used to unwind the bid transaction when the anti-fraud engine
+ * blocks a bid. Carries the scored result so the durable BLOCK flag can be
+ * persisted OUTSIDE the rolled-back transaction (in the catch handler).
+ */
+class BidBlockedError extends Error {
+  constructor(readonly result: BidRiskResult) {
+    super("BID_BLOCKED")
+    this.name = "BidBlockedError"
+  }
+}
+
 export async function placeBid(opts: {
   userId: string
   auctionId: string
   amount: bigint
   maxAmount?: bigint
   isAuto?: boolean
+  /** Web request context (hashed for anti-fraud cluster detection, PR6). */
+  context?: BidRiskContext
 }) {
-  return withLock(lockKey(opts.auctionId), async () => {
+  try {
+    return await withLock(lockKey(opts.auctionId), async () => {
     return serializableTx(
       async (tx) => {
         const auction = await loadLiveAuction(opts.auctionId, tx)
@@ -211,6 +228,36 @@ export async function placeBid(opts: {
           }
         }
 
+        // --- Anti-fraud evaluation (PR6) ---
+        // When enabled, capture the bidder's hashed network/device signal and
+        // score it against OTHER accounts already bidding on THIS auction. High-
+        // confidence multi-account collusion (shared device, or shared IP+UA)
+        // blocks the bid; softer signals are flagged for admin review only.
+        let fraudResult: BidRiskResult | null = null
+        if (policy.auctionAntiFraudEnabled) {
+          const sig = await captureBidSignal(auction.id, opts.userId, opts.context, tx)
+          const cluster = await auctionClusterCounts(auction.id, opts.userId, sig, tx)
+          const bidder = await tx.user.findUnique({
+            where: { id: opts.userId },
+            select: { createdAt: true },
+          })
+          const windowStart = new Date(Date.now() - 60_000)
+          const recentBidsByUser = await tx.bid.count({
+            where: { auctionId: auction.id, userId: opts.userId, createdAt: { gte: windowStart } },
+          })
+          fraudResult = scoreBidRisk({
+            cluster,
+            accountAgeMs: bidder ? Date.now() - bidder.createdAt.getTime() : -1,
+            recentBidsByUser,
+            policyAction: policy.antiFraudDefaultAction,
+          })
+          if (fraudResult.block) {
+            // Roll the whole bid back; the durable BLOCK flag is persisted in the
+            // catch handler so it survives the rollback.
+            throw new BidBlockedError(fraudResult)
+          }
+        }
+
         // Record the incoming (visible) bid at the entered amount. Any ceiling
         // is stored on the row; the proxy engine reads it below.
         await tx.bid.create({
@@ -232,6 +279,27 @@ export async function placeBid(opts: {
           { auctionId: auction.id, type: "BID_PLACED", userId: opts.userId, amount: opts.amount },
           tx,
         )
+
+        // Persist a non-blocking anti-fraud flag (PR6) for admin review, atomic
+        // with the accepted bid. Only soft/medium signals reach here (blocks
+        // throw earlier). score===0 means clean → nothing to record.
+        if (fraudResult && fraudResult.score > 0) {
+          await tx.auctionRiskFlag.create({
+            data: {
+              auctionId: auction.id,
+              userId: opts.userId,
+              score: fraudResult.score,
+              reason: fraudResult.reason,
+              signals: fraudResult.signals,
+              action: fraudResult.action,
+              blocked: false,
+            },
+          })
+          await recordAuctionEvent(
+            { auctionId: auction.id, type: "RISK_FLAGGED", userId: opts.userId, amount: opts.amount },
+            tx,
+          )
+        }
 
         // Who was leading before this action, for the outbid notification.
         const prevLeaderId = (await standings(auction.id, 1, tx))[0]?.userId ?? null
@@ -430,7 +498,46 @@ export async function placeBid(opts: {
       })
     }
     return result
-  })
+    })
+  } catch (e) {
+    if (e instanceof BidBlockedError) {
+      // Persist a DURABLE block record outside the rolled-back transaction so
+      // the attempt is visible to admins and the bidder's signal keeps
+      // strengthening cluster detection for repeat attempts. Best-effort.
+      const r = e.result
+      try {
+        await captureBidSignal(opts.auctionId, opts.userId, opts.context, prisma)
+        await prisma.auctionRiskFlag.create({
+          data: {
+            auctionId: opts.auctionId,
+            userId: opts.userId,
+            score: r.score,
+            reason: r.reason,
+            signals: r.signals,
+            action: r.action,
+            blocked: true,
+          },
+        })
+        await recordAuctionEvent(
+          { auctionId: opts.auctionId, type: "BID_BLOCKED", userId: opts.userId, amount: opts.amount },
+          prisma,
+        )
+        await audit({
+          actorId: opts.userId,
+          action: "auction.bid.blocked",
+          entity: "auction",
+          entityId: opts.auctionId,
+          meta: { score: r.score, reason: r.reason, signals: r.signals },
+        })
+      } catch (err) {
+        console.log("[v0] bid-block persist error:", (err as Error).message)
+      }
+      throw new ValidationError(
+        "این پیشنهاد به دلیل شناسایی فعالیت مشکوک (چند حساب مرتبط) مسدود شد. در صورت اشتباه با پشتیبانی تماس بگیرید.",
+      )
+    }
+    throw e
+  }
 }
 
 /** Immediate purchase at the buy-now price; ends the auction. */
