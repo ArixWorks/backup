@@ -6,6 +6,7 @@ import {
   clearMembershipCache,
   forcedJoinActive,
 } from "@/lib/telegram/membership"
+import { onChannelMembershipVerified } from "@/lib/core/referral"
 
 export const dynamic = "force-dynamic"
 
@@ -33,6 +34,15 @@ export async function POST() {
 
   await clearMembershipCache(user.telegramId)
   const result = await checkMemberships(cfg, user.telegramId, { force: true })
+
+  // The user just passed the mandatory channel gate → validate any pending
+  // referral (notify direct inviter, trigger Level-2 reward). Idempotent and
+  // best-effort so it can never block the gate response.
+  if (result.ok) {
+    void onChannelMembershipVerified(user.id).catch((e) =>
+      console.log("[v0] channels/verify referral bridge error:", (e as Error).message),
+    )
+  }
 
   return NextResponse.json({
     ok: true,

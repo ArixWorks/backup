@@ -6,6 +6,7 @@ import {
   forcedJoinActive,
   getEnrichedChannels,
 } from "@/lib/telegram/membership"
+import { onChannelMembershipVerified } from "@/lib/core/referral"
 
 export const dynamic = "force-dynamic"
 
@@ -48,6 +49,15 @@ export async function GET() {
 
   const result = await checkMemberships(cfg, user.telegramId!)
   const passed = result.ok
+
+  // Catch users who are already members (and therefore may never POST to
+  // /verify): validate any pending referral here too. Idempotent + best-effort.
+  if (passed) {
+    void onChannelMembershipVerified(user.id).catch((e) =>
+      console.log("[v0] channels/gate referral bridge error:", (e as Error).message),
+    )
+  }
+
   // Only pay for the extra Telegram metadata calls when we actually need to
   // render the gate (i.e. the user still has channels to join).
   const channels = passed ? [] : await getEnrichedChannels(cfg)

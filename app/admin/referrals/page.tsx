@@ -5,6 +5,9 @@ import { Share2, Users, CheckCircle2, Banknote, ShieldAlert, Crown } from "lucid
 import { fetcher } from "@/lib/api-client"
 import { formatToman, formatNumber } from "@/lib/format"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ReferralRewardQueue } from "@/components/admin/referral-reward-queue"
+import { ReferralPolicyEditor } from "@/components/admin/referral-policy-editor"
 
 type TopReferrer = {
   id: string
@@ -45,11 +48,19 @@ export default function AdminReferralsPage() {
         <h1 className="text-2xl font-extrabold">سیستم دعوت</h1>
       </div>
 
-      {isLoading || !o ? (
-        <Skeleton className="h-64 w-full rounded-xl" />
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <Tabs defaultValue="overview" dir="rtl">
+        <TabsList>
+          <TabsTrigger value="overview">نمای کلی</TabsTrigger>
+          <TabsTrigger value="rewards">پاداش سطح دو</TabsTrigger>
+          <TabsTrigger value="policy">سیاست‌ها</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-4 space-y-5">
+          {isLoading || !o ? (
+            <Skeleton className="h-64 w-full rounded-xl" />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <StatCard
               icon={Users}
               label="کل دعوت‌شده‌ها"
@@ -131,9 +142,19 @@ export default function AdminReferralsPage() {
                 ))}
               </ul>
             )}
-          </section>
-        </>
-      )}
+              </section>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="rewards" className="mt-4">
+          <ReferralRewardQueue />
+        </TabsContent>
+
+        <TabsContent value="policy" className="mt-4">
+          <ReferralPolicyEditor />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { getReferralStats, attachReferral } from "@/lib/core/rewards"
 import { getBotConfig } from "@/lib/telegram/settings"
+import { clientIp } from "@/lib/api/rate-limit"
 
 export const dynamic = "force-dynamic"
 
@@ -17,9 +18,15 @@ export const GET = route(async () => {
 const schema = z.object({ code: z.string().trim().min(1).max(40) })
 
 // Attach a referrer to the current user via a code (no-op if already referred).
+// A web-origin anti-abuse context (hashed IP/subnet/user-agent) is captured so
+// the risk engine can later detect same-device / same-network clusters.
 export const POST = route(async (req: Request) => {
   const user = await requireUser()
   const { code } = schema.parse(await req.json())
-  const result = await attachReferral(user.id, code)
+  const result = await attachReferral(user.id, code, {
+    source: "web",
+    ip: clientIp(req),
+    userAgent: req.headers.get("user-agent"),
+  })
   return result
 })
