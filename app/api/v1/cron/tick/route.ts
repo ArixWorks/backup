@@ -1,6 +1,11 @@
 import { route } from "@/lib/api/handler"
 import { requireCronAuth } from "@/lib/api/cron-auth"
-import { activateDueAuctions, tickDueAuctions, notifyEndingSoonAuctions } from "@/lib/core/auction"
+import {
+  activateDueAuctions,
+  tickDueAuctions,
+  notifyEndingSoonAuctions,
+  processPaymentDeadlines,
+} from "@/lib/core/auction"
 import { tickGiveaways } from "@/lib/core/giveaway"
 import { collectStartNotifications } from "@/lib/core/watchlist"
 import { emit, Channels } from "@/lib/core/events"
@@ -69,6 +74,16 @@ export const POST = route(async (req: Request) => {
 
   const ticked = await tickDueAuctions()
 
+  // Winner-default lifecycle: apply the configured default action to any
+  // deposit/partial-freeze auction whose payment (or second-chance) deadline
+  // has elapsed. A no-op for the default full-freeze mode (nothing ever pends).
+  let paymentDeadlines: { processed: number } = { processed: 0 }
+  try {
+    paymentDeadlines = await processPaymentDeadlines()
+  } catch (e) {
+    console.log("[v0] payment deadline processing error:", (e as Error).message)
+  }
+
   // Giveaway lifecycle: open scheduled, close to LOCKED at draw time, send the
   // pre-draw admin alert, and auto-draw any campaign flagged autoDraw.
   const giveaways = await tickGiveaways()
@@ -131,6 +146,7 @@ export const POST = route(async (req: Request) => {
     notified,
     endingSoon: endingSoon.notified,
     ...ticked,
+    paymentDeadlines: paymentDeadlines.processed,
     giveaways,
     backup,
     email,
