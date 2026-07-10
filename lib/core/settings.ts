@@ -46,6 +46,10 @@ export const SETTING_KEYS = {
   // for the shape + defaults. Stored as one key so the whole policy is atomic.
   referralL2Policy: "referral.l2.policy",
 
+  // Global Smart Auction Engine policy (JSON blob). See lib/core/auction/policy.ts
+  // for the shape + defaults. Per-auction overrides live in Auction.policyJson.
+  auctionPolicy: "auction.policy",
+
   // --- Gamification ---
   loyaltyEnabled: "loyalty.enabled", // "true" | "false"
   // Points earned per 1000 Toman spent on a purchase.
@@ -160,6 +164,8 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.referralMinAccountAgeMin]: "0", // no delay by default
   // Empty string → referral engine uses its built-in DEFAULT_REFERRAL_POLICY.
   [SETTING_KEYS.referralL2Policy]: "",
+  // Empty string → auction engine uses its built-in DEFAULT_AUCTION_POLICY.
+  [SETTING_KEYS.auctionPolicy]: "",
 
   // Gamification defaults (Toman amounts; tiers combine points AND spend).
   [SETTING_KEYS.loyaltyEnabled]: "true",

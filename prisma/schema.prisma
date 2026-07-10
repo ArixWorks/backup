@@ -85,6 +85,41 @@ enum AuctionStatus {
   ENDED
   FINALIZED
   CANCELLED
+  // Extended settlement lifecycle (additive — set only by the new lifecycle
+  // engine). Legacy rows keep using the states above; readers must tolerate
+  // both the legacy and the extended set.
+  SOLD // ended via Buy Now (or single-winner sale) — awaiting/!needing payment
+  PAYMENT_PENDING // winner selected, waiting on payment within the deadline
+  PAID // winner paid; delivery/settlement in progress
+  SETTLED // fully settled (paid + delivered)
+  RESERVE_NOT_MET // ended below reserve price → no sale
+  DEFAULTED // winner missed the payment deadline
+}
+
+/** Why/how an auction reached its terminal state. Drives winner + card UI. */
+enum AuctionEndReason {
+  HIGHEST_BID
+  BUY_NOW
+  RESERVE_NOT_MET
+  CANCELLED
+}
+
+/** Timeline event kinds for the transparent auction activity log. */
+enum AuctionEventType {
+  AUCTION_STARTED
+  BID_PLACED
+  USER_OUTBID
+  BUY_NOW_COMPLETED
+  AUCTION_EXTENDED
+  RESERVE_MET
+  RESERVE_NOT_MET
+  AUCTION_ENDED
+  WINNER_SELECTED
+  PAYMENT_PENDING
+  PAYMENT_COMPLETED
+  SECOND_CHANCE_OFFER
+  SETTLED
+  CANCELLED
 }
 
 enum OrderType {
@@ -782,14 +817,51 @@ model Auction {
   // Idempotency flag: set true once the "ending soon" alert has been sent.
   endingSoonNotified Boolean       @default(false)
   finalizedAt        DateTime?
+
+  // --- Smart Auction Engine foundation (additive; safe defaults) ------------
+  // Dedicated winner result so the winner is never inferred from the top bid.
+  // Stored as a SCALAR id (no User relation) to keep backup/restore topo-sort
+  // simple and consistent with the referral engine's approach.
+  winnerUserId       String?
+  finalPrice         BigInt?
+  endReason          AuctionEndReason?
+  // Number of soft-close extensions already applied (capped by policy).
+  softCloseExtensions Int          @default(0)
+  // When the winner must complete payment by (set at settlement time).
+  paymentDeadlineAt  DateTime?
+  // Per-auction policy override, merged over the global auction policy.
+  // JSON blob (partial AuctionPolicy). Null → inherit the global policy.
+  policyJson         String?
+
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
   bids     Bid[]
   orders   Order[]
   watchers WatchlistEntry[]
+  events   AuctionEvent[]
 
   @@index([status, endTime])
+  @@index([winnerUserId])
+}
+
+/**
+ * Append-only auction activity timeline. Powers the transparent public timeline
+ * and admin analytics. `userId` is a SCALAR actor id (no relation) — backup-safe.
+ * `meta` carries optional JSON context (e.g. extension seconds, offer price).
+ */
+model AuctionEvent {
+  id        String           @id @default(cuid())
+  auctionId String
+  auction   Auction          @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  type      AuctionEventType
+  userId    String?
+  amount    BigInt?
+  meta      String?
+  createdAt DateTime         @default(now())
+
+  @@index([auctionId, createdAt])
+  @@index([type])
 }
 
 model Bid {
