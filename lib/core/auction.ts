@@ -20,7 +20,14 @@ import { recordAuctionEvent } from "./auction/events"
 import { computeWinnerFromStandings } from "./auction/winner"
 import { getAuctionPolicy } from "./auction/policy"
 import { assertBuyNowAllowed, nextMinimumBid } from "./auction/pricing"
-import { computeSoftCloseExtension, isTerminalStatus } from "./auction/lifecycle"
+import { computeSoftCloseExtension, computePaymentDeadline, isTerminalStatus } from "./auction/lifecycle"
+import {
+  computeBidFreezeTarget,
+  computeWinnerObligation,
+  resolveDefaultAction,
+  restrictionDays,
+} from "./auction/settlement"
+import { audit } from "./audit"
 
 type Tx = Prisma.TransactionClient
 
@@ -112,6 +119,10 @@ async function assertUserActive(userId: string, tx: Tx) {
   const user = await tx.user.findUnique({ where: { id: userId } })
   if (!user) throw new NotFoundError("User not found")
   if (user.status === "BANNED") throw new ForbiddenError("User is banned")
+  // Temporary auction ban from the RESTRICT_USER winner-default action.
+  if (user.auctionRestrictedUntil && user.auctionRestrictedUntil > new Date()) {
+    throw new ForbiddenError("شما به‌طور موقت از شرکت در مزایده‌ها محروم هستید")
+  }
 }
 
 /**
@@ -182,8 +193,16 @@ export async function placeBid(opts: {
           throw new ConflictError("Auction changed concurrently, retry")
         }
 
-        // Bring the bidder's hold up to their new bid (freeze the difference).
-        await setAuctionFrozen(opts.userId, auction.id, opts.amount, tx)
+        // Bring the bidder's hold up to the policy-driven freeze target. In the
+        // default full-freeze mode this equals the bid (unchanged behaviour); in
+        // an opt-in deposit / partial mode it is only the deposit/partial hold.
+        const freezeTarget = computeBidFreezeTarget({
+          bidAmount: opts.amount,
+          startPrice: auction.startPrice,
+          quantity: auction.quantity,
+          policy,
+        })
+        await setAuctionFrozen(opts.userId, auction.id, freezeTarget, tx)
 
         // Release whoever is now just outside the winning set.
         const winners = await standings(auction.id, auction.quantity, tx)
@@ -289,7 +308,7 @@ export async function placeBid(opts: {
         userId: result.displacedUserId,
         type: "AUCTION_OUTBID",
         title: "پیشنهاد شما رد شد",
-        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به جمع برندگان پیشنهاد جدید بدهید.`,
+        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به ج��ع برندگان پیشنهاد جدید بدهید.`,
         href: `/auctions/${result.auctionId}`,
       }).catch(() => {})
       await sendAuctionOutbidEmail({
@@ -456,6 +475,10 @@ export async function finalizeAuction(auctionId: string) {
           throw new ValidationError("Auction has not ended yet")
         }
 
+        // Resolve the effective policy so the freeze target used at settlement
+        // matches exactly what was frozen while bidding (single source of truth).
+        const policy = await getAuctionPolicy(auction.policyJson, tx)
+
         const ranked = await standings(auction.id, auction.quantity, tx)
         const eligible = ranked.filter(
           (r) => !auction.reservePrice || r.amount >= auction.reservePrice,
@@ -470,30 +493,68 @@ export async function finalizeAuction(auctionId: string) {
           }
         }
 
-        // Settle each winner: convert their frozen hold into a purchase.
+        // Settle each winner. In the DEFAULT full-freeze mode every winner is
+        // fully funded (held == bid) and is captured + delivered instantly — the
+        // safe, unpaid-winner-proof behaviour, byte-for-byte unchanged. Only an
+        // explicit deposit / partial-freeze policy can leave a single winner
+        // underfunded, in which case the auction enters PAYMENT_PENDING and the
+        // deadline / default / second-chance lifecycle (see auction/payment.ts)
+        // takes over. `computeBidFreezeTarget` hard-guarantees full freeze for
+        // multi-winner auctions, so at most ONE pending winner is ever possible.
+        const settledWinners: { userId: string; amount: bigint }[] = []
+        let pendingWinner: { userId: string; amount: bigint; deposit: bigint } | null = null
+
         for (const w of eligible) {
-          await setAuctionFrozen(w.userId, auction.id, w.amount, tx) // normalize hold
-          const order = await tx.order.create({
-            data: {
-              publicId: secureSlug("ord"),
-              userId: w.userId,
-              productId: auction.productId,
-              auctionId: auction.id,
-              type: "AUCTION_WIN",
-              status: "PAID",
-              amount: w.amount,
-              quantity: 1,
-            },
+          const target = computeBidFreezeTarget({
+            bidAmount: w.amount,
+            startPrice: auction.startPrice,
+            quantity: auction.quantity,
+            policy,
           })
-          await captureFrozenPurchase(w.userId, w.amount, tx, { type: "auction", id: auction.id })
-          await deliverForOrder(
-            order.id,
-            auction.productId,
-            w.userId,
-            w.amount,
-            tx,
-            auction.product.deliveryType,
-          )
+          await setAuctionFrozen(w.userId, auction.id, target, tx) // normalize hold to policy target
+          const obligation = computeWinnerObligation({ finalPrice: w.amount, heldDeposit: target })
+
+          if (obligation.fullyFunded) {
+            const order = await tx.order.create({
+              data: {
+                publicId: secureSlug("ord"),
+                userId: w.userId,
+                productId: auction.productId,
+                auctionId: auction.id,
+                type: "AUCTION_WIN",
+                status: "PAID",
+                amount: w.amount,
+                quantity: 1,
+              },
+            })
+            await captureFrozenPurchase(w.userId, w.amount, tx, { type: "auction", id: auction.id })
+            await deliverForOrder(
+              order.id,
+              auction.productId,
+              w.userId,
+              w.amount,
+              tx,
+              auction.product.deliveryType,
+            )
+            settledWinners.push({ userId: w.userId, amount: w.amount })
+          } else {
+            // Underfunded winner: keep the deposit frozen, open a PENDING order,
+            // and wait for the balance to be paid before the deadline. Nothing is
+            // captured or delivered yet.
+            await tx.order.create({
+              data: {
+                publicId: secureSlug("ord"),
+                userId: w.userId,
+                productId: auction.productId,
+                auctionId: auction.id,
+                type: "AUCTION_WIN",
+                status: "PENDING",
+                amount: w.amount,
+                quantity: 1,
+              },
+            })
+            pendingWinner = { userId: w.userId, amount: w.amount, deposit: obligation.heldDeposit }
+          }
         }
 
         // Winner engine: resolve the authoritative single-winner spotlight
@@ -508,16 +569,20 @@ export async function finalizeAuction(auctionId: string) {
           boughtNow: null,
         })
 
-        // Lifecycle (PR3): map the winner result onto a precise terminal status.
-        // - RESERVE_NOT_MET  → ended below reserve, no sale.
-        // - a winner exists   → SETTLED (funds captured + delivered in this tx).
+        // Lifecycle: map the winner result onto a precise terminal status.
+        // - RESERVE_NOT_MET   → ended below reserve, no sale.
+        // - underfunded winner → PAYMENT_PENDING (awaiting balance payment).
+        // - a funded winner    → SETTLED (funds captured + delivered in this tx).
         // - no bids / no winner → FINALIZED (neutral ended, nothing sold).
+        const paymentDeadlineAt = pendingWinner ? computePaymentDeadline(policy) : null
         const terminalStatus =
           winnerResult.endReason === "RESERVE_NOT_MET"
             ? "RESERVE_NOT_MET"
-            : winnerResult.winnerUserId
-              ? "SETTLED"
-              : "FINALIZED"
+            : pendingWinner
+              ? "PAYMENT_PENDING"
+              : winnerResult.winnerUserId
+                ? "SETTLED"
+                : "FINALIZED"
 
         await tx.auction.update({
           where: { id: auction.id },
@@ -527,14 +592,40 @@ export async function finalizeAuction(auctionId: string) {
             winnerUserId: winnerResult.winnerUserId,
             finalPrice: winnerResult.finalPrice,
             endReason: winnerResult.endReason,
+            paymentDeadlineAt,
           },
         })
 
-        // Timeline: auction ended, then winner / reserve-not-met outcome.
+        // Timeline: auction ended, then winner / reserve-not-met / pending outcome.
         await recordAuctionEvent({ auctionId: auction.id, type: "AUCTION_ENDED" }, tx)
         if (winnerResult.endReason === "RESERVE_NOT_MET") {
           await recordAuctionEvent(
             { auctionId: auction.id, type: "RESERVE_NOT_MET", amount: top?.amount ?? null },
+            tx,
+          )
+        } else if (pendingWinner) {
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "WINNER_SELECTED",
+              userId: pendingWinner.userId,
+              amount: pendingWinner.amount,
+              meta: { endReason: "HIGHEST_BID" },
+            },
+            tx,
+          )
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "PAYMENT_PENDING",
+              userId: pendingWinner.userId,
+              amount: pendingWinner.amount,
+              meta: {
+                deposit: pendingWinner.deposit.toString(),
+                remaining: (pendingWinner.amount - pendingWinner.deposit).toString(),
+                deadlineAt: paymentDeadlineAt?.toISOString() ?? null,
+              },
+            },
             tx,
           )
         } else if (winnerResult.winnerUserId) {
@@ -555,7 +646,7 @@ export async function finalizeAuction(auctionId: string) {
               type: "SETTLED",
               userId: winnerResult.winnerUserId,
               amount: winnerResult.finalPrice,
-              meta: { winners: eligible.length },
+              meta: { winners: settledWinners.length },
             },
             tx,
           )
@@ -573,10 +664,18 @@ export async function finalizeAuction(auctionId: string) {
 
         return {
           finalized: true,
-          winners: eligible.length,
+          winners: settledWinners.length,
           title: auction.product.title,
           coverImage: auction.product.coverImage,
-          winnerList: eligible.map((e) => ({ userId: e.userId, amount: e.amount })),
+          winnerList: settledWinners,
+          pendingWinner: pendingWinner
+            ? {
+                userId: pendingWinner.userId,
+                amount: pendingWinner.amount,
+                remaining: pendingWinner.amount - pendingWinner.deposit,
+                deadlineAt: paymentDeadlineAt,
+              }
+            : null,
           loserIds,
         }
       },
@@ -606,6 +705,21 @@ export async function finalizeAuction(auctionId: string) {
           currency: "IRT",
         })
       }
+      // Underfunded winner (deposit / partial-freeze mode): prompt to pay the
+      // remaining balance before the deadline. Only reachable when an opt-in
+      // policy created an unpaid-winner scenario.
+      if ("pendingWinner" in res && res.pendingWinner) {
+        const { createNotification } = await import("./notifications")
+        const pw = res.pendingWinner
+        await createNotification({
+          userId: pw.userId,
+          type: "AUCTION_WON",
+          title: "برنده شدید — پرداخت باقی‌مانده",
+          body: `شما در مزایده «${res.title}» برنده شدید. برای نهایی‌شدن خرید، مبلغ باقی‌مانده ${formatToman(pw.remaining)} تومان را تا مهلت تعیین‌شده پرداخت کنید.`,
+          href: "/orders",
+          image: res.coverImage,
+        }).catch(() => {})
+      }
       // Notify participants who did not win (funds already released above).
       if ("loserIds" in res && res.loserIds) {
         for (const loserId of res.loserIds) {
@@ -622,6 +736,495 @@ export async function finalizeAuction(auctionId: string) {
     }
     return res
   })
+}
+
+/**
+ * Complete a winner's outstanding balance for a PAYMENT_PENDING auction (deposit
+ * / partial-freeze mode only). Captures the held deposit + spends the remaining
+ * balance from available funds via the Wallet Engine, creates/settles the order,
+ * delivers, and moves the auction to SETTLED. Idempotent + serialized.
+ *
+ * `payerId` is the winner (self-service) OR the second-chance holder once an
+ * offer has been accepted — both are validated against the auction row.
+ */
+export async function payAuctionBalance(opts: { auctionId: string; userId: string }) {
+  return withLock(lockKey(opts.auctionId), async () => {
+    return serializableTx(
+      async (tx) => {
+        const auction = await loadLiveAuction(opts.auctionId, tx)
+        if (auction.status === "SETTLED") return { paid: false, alreadySettled: true }
+        if (auction.status !== "PAYMENT_PENDING") {
+          throw new ValidationError("این مزایده در وضعیت انتظار پرداخت نیست")
+        }
+        // Only the recorded winner may pay (winnerUserId is reassigned when a
+        // second-chance offer is accepted, so this covers both cases).
+        if (auction.winnerUserId !== opts.userId) {
+          throw new ForbiddenError("شما برنده این مزایده نیستید")
+        }
+        const finalPrice = auction.finalPrice ?? auction.currentPrice
+        const held = await currentAuctionFrozen(opts.userId, auction.id, tx)
+        const obligation = computeWinnerObligation({ finalPrice, heldDeposit: held })
+
+        // Capture the frozen deposit, then spend the remaining balance from
+        // available funds. Both go through the Wallet Engine (no direct math).
+        if (obligation.heldDeposit > 0n) {
+          await captureFrozenPurchase(opts.userId, obligation.heldDeposit, tx, {
+            type: "auction",
+            id: auction.id,
+          })
+        }
+        if (obligation.remaining > 0n) {
+          await spendAvailable(opts.userId, obligation.remaining, tx, {
+            type: "auction",
+            id: auction.id,
+          })
+        }
+
+        // Reuse the PENDING order opened at finalize time; create one only if it
+        // is somehow missing (defensive). Never leaves two orders per winner.
+        const existing = await tx.order.findFirst({
+          where: { auctionId: auction.id, userId: opts.userId, type: "AUCTION_WIN" },
+          orderBy: { createdAt: "desc" },
+        })
+        const order = existing
+          ? await tx.order.update({
+              where: { id: existing.id },
+              data: { status: "PAID", amount: finalPrice },
+            })
+          : await tx.order.create({
+              data: {
+                publicId: secureSlug("ord"),
+                userId: opts.userId,
+                productId: auction.productId,
+                auctionId: auction.id,
+                type: "AUCTION_WIN",
+                status: "PAID",
+                amount: finalPrice,
+                quantity: 1,
+              },
+            })
+        await deliverForOrder(
+          order.id,
+          auction.productId,
+          opts.userId,
+          finalPrice,
+          tx,
+          auction.product.deliveryType,
+        )
+
+        await tx.auction.update({
+          where: { id: auction.id },
+          data: {
+            status: "SETTLED",
+            paymentDeadlineAt: null,
+            secondChanceUserId: null,
+            secondChanceDeadlineAt: null,
+          },
+        })
+        await recordAuctionEvent(
+          {
+            auctionId: auction.id,
+            type: "PAYMENT_COMPLETED",
+            userId: opts.userId,
+            amount: finalPrice,
+          },
+          tx,
+        )
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "SETTLED", userId: opts.userId, amount: finalPrice },
+          tx,
+        )
+        await audit(
+          {
+            actorId: opts.userId,
+            action: "auction.payment.completed",
+            entity: "auction",
+            entityId: auction.id,
+            meta: { amount: finalPrice.toString(), remaining: obligation.remaining.toString() },
+          },
+          tx,
+        )
+        return {
+          paid: true,
+          title: auction.product.title,
+          coverImage: auction.product.coverImage,
+          userId: opts.userId,
+          amount: finalPrice,
+        }
+      },
+      { label: "auctionTx" },
+    )
+  }).then(async (res) => {
+    await emit(Channels.auction(opts.auctionId), { type: "AUCTION_FINALIZED", auctionId: opts.auctionId })
+    if (res.paid) {
+      const { createNotification } = await import("./notifications")
+      await createNotification({
+        userId: res.userId!,
+        type: "AUCTION_WON",
+        title: "پرداخت با موفقیت انجام شد",
+        body: `خرید شما در مزایده «${res.title}» نهایی شد.`,
+        href: "/orders",
+        image: res.coverImage,
+      }).catch(() => {})
+    }
+    return res
+  })
+}
+
+/**
+ * Accept a live Second Chance Offer: the offered bidder becomes the winner and
+ * enters the normal PAYMENT_PENDING → pay flow. Serialized + validated against
+ * the offer holder and its deadline.
+ */
+export async function acceptSecondChanceOffer(opts: { auctionId: string; userId: string }) {
+  return withLock(lockKey(opts.auctionId), async () => {
+    return serializableTx(
+      async (tx) => {
+        const auction = await loadLiveAuction(opts.auctionId, tx)
+        if (auction.status !== "PAYMENT_PENDING") {
+          throw new ValidationError("پیشنهاد فرصت دوم برای این مزایده فعال نیست")
+        }
+        if (auction.secondChanceUserId !== opts.userId) {
+          throw new ForbiddenError("پیشنهاد فرصت دومی برای شما ثبت نشده است")
+        }
+        if (auction.secondChanceDeadlineAt && auction.secondChanceDeadlineAt < new Date()) {
+          throw new ValidationError("مهلت پذیرش پیشنهاد فرصت دوم به پایان رسیده است")
+        }
+        // Promote the offer holder to winner and open a fresh payment deadline.
+        const policy = await getAuctionPolicy(auction.policyJson, tx)
+        const deadline = computePaymentDeadline(policy)
+        await tx.auction.update({
+          where: { id: auction.id },
+          data: {
+            winnerUserId: opts.userId,
+            paymentDeadlineAt: deadline,
+            secondChanceDeadlineAt: null,
+          },
+        })
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "SECOND_CHANCE_ACCEPTED", userId: opts.userId },
+          tx,
+        )
+        await audit(
+          {
+            actorId: opts.userId,
+            action: "auction.secondChance.accepted",
+            entity: "auction",
+            entityId: auction.id,
+          },
+          tx,
+        )
+        return { accepted: true }
+      },
+      { label: "auctionTx" },
+    )
+  })
+}
+
+/**
+ * Reject / decline a live Second Chance Offer. Immediately moves on to the next
+ * eligible bidder (or applies the fallback) instead of waiting for expiry.
+ */
+export async function rejectSecondChanceOffer(opts: { auctionId: string; userId: string }) {
+  return withLock(lockKey(opts.auctionId), async () => {
+    const outcome = await serializableTx(
+      async (tx) => {
+        const auction = await loadLiveAuction(opts.auctionId, tx)
+        if (auction.status !== "PAYMENT_PENDING" || auction.secondChanceUserId !== opts.userId) {
+          throw new ValidationError("پیشنهاد فرصت دومی برای شما فعال نیست")
+        }
+        await recordAuctionEvent(
+          { auctionId: auction.id, type: "SECOND_CHANCE_EXPIRED", userId: opts.userId },
+          tx,
+        )
+        // Release the declining bidder's hold and advance the chain.
+        await setAuctionFrozen(opts.userId, auction.id, 0n, tx)
+        return advanceAfterDefault(auction.id, opts.userId, tx)
+      },
+      { label: "auctionTx" },
+    )
+    return outcome
+  }).then(async (res) => {
+    await emit(Channels.auction(opts.auctionId), { type: "AUCTION_FINALIZED", auctionId: opts.auctionId })
+    await dispatchDefaultNotifications(res)
+    return res
+  })
+}
+
+/** Result of a default / second-chance advance step (drives notifications). */
+interface DefaultOutcome {
+  auctionId: string
+  title: string
+  coverImage: string | null
+  /** New second-chance offer holder, if the chain produced one. */
+  offeredUserId?: string | null
+  offerDeadlineAt?: Date | null
+  /** Terminal resolution when no further bidder / fallback applied. */
+  resolution?: "SECOND_CHANCE" | "REOPEN" | "CANCEL" | "PENALTY" | "RESTRICT_USER" | "SETTLED_ELSEWHERE"
+}
+
+/**
+ * Core winner-default state machine (runs INSIDE a serializable tx). Given the
+ * auction and the user who just defaulted/declined, either offers the next
+ * eligible bidder a second chance or applies the configured fallback action.
+ * Every branch routes money through the Wallet Engine and records timeline +
+ * audit entries. Returns a DefaultOutcome for out-of-tx notification dispatch.
+ */
+async function advanceAfterDefault(
+  auctionId: string,
+  defaultedUserId: string,
+  tx: Tx,
+): Promise<DefaultOutcome> {
+  const auction = await loadLiveAuction(auctionId, tx)
+  const policy = await getAuctionPolicy(auction.policyJson, tx)
+  const action = resolveDefaultAction(policy)
+  const base = { auctionId, title: auction.product.title, coverImage: auction.product.coverImage }
+
+  // Build the eligible fallback chain: distinct bidders (highest first) above
+  // reserve, excluding the defaulted user and anyone already offered/declined.
+  const alreadyTried = new Set<string>([defaultedUserId])
+  // Pull prior offer/decline history from the timeline so we never re-offer.
+  const priorOffers = await tx.auctionEvent.findMany({
+    where: { auctionId, type: { in: ["SECOND_CHANCE_OFFER", "SECOND_CHANCE_EXPIRED", "WINNER_DEFAULTED"] } },
+    select: { userId: true },
+  })
+  for (const e of priorOffers) if (e.userId) alreadyTried.add(e.userId)
+
+  if (action === "SECOND_CHANCE") {
+    // Release the defaulting winner's deposit before advancing the chain
+    // (SECOND_CHANCE forfeits nothing; PENALTY is the explicit forfeit action).
+    await setAuctionFrozen(defaultedUserId, auctionId, 0n, tx)
+    const ranked = await standings(auctionId, 50, tx)
+    const next = ranked.find(
+      (r) => !alreadyTried.has(r.userId) && (!auction.reservePrice || r.amount >= auction.reservePrice),
+    )
+    if (next) {
+      const deadline = new Date(Date.now() + Math.max(1, policy.secondChanceWindowMinutes) * 60_000)
+      await tx.auction.update({
+        where: { id: auctionId },
+        data: {
+          winnerUserId: null,
+          finalPrice: next.amount,
+          secondChanceUserId: next.userId,
+          secondChanceDeadlineAt: deadline,
+          paymentDeadlineAt: deadline,
+        },
+      })
+      await recordAuctionEvent(
+        {
+          auctionId,
+          type: "SECOND_CHANCE_OFFER",
+          userId: next.userId,
+          amount: next.amount,
+          meta: { deadlineAt: deadline.toISOString() },
+        },
+        tx,
+      )
+      await audit(
+        { action: "auction.secondChance.offered", entity: "auction", entityId: auctionId, meta: { userId: next.userId } },
+        tx,
+      )
+      return { ...base, offeredUserId: next.userId, offerDeadlineAt: deadline, resolution: "SECOND_CHANCE" }
+    }
+    // No eligible bidder left → fall through to a safe cancel/relist.
+    await applyTerminalDefault(auctionId, "CANCEL", tx)
+    return { ...base, resolution: "CANCEL" }
+  }
+
+  if (action === "REOPEN") {
+    await applyTerminalDefault(auctionId, "REOPEN", tx)
+    return { ...base, resolution: "REOPEN" }
+  }
+  if (action === "PENALTY") {
+    await applyTerminalDefault(auctionId, "PENALTY", tx, { defaultedUserId, policy })
+    return { ...base, resolution: "PENALTY" }
+  }
+  if (action === "RESTRICT_USER") {
+    await applyTerminalDefault(auctionId, "RESTRICT_USER", tx, { defaultedUserId, policy })
+    return { ...base, resolution: "RESTRICT_USER" }
+  }
+  await applyTerminalDefault(auctionId, "CANCEL", tx)
+  return { ...base, resolution: "CANCEL" }
+}
+
+/**
+ * Apply a terminal (non-second-chance) default resolution inside a tx. Releases
+ * any remaining holds, optionally forfeits a deposit (PENALTY) or restricts the
+ * defaulting user (RESTRICT_USER), and settles the auction into a final state.
+ */
+async function applyTerminalDefault(
+  auctionId: string,
+  action: "CANCEL" | "REOPEN" | "PENALTY" | "RESTRICT_USER",
+  tx: Tx,
+  extra?: { defaultedUserId: string; policy: Awaited<ReturnType<typeof getAuctionPolicy>> },
+) {
+  const auction = await loadLiveAuction(auctionId, tx)
+
+  // PENALTY forfeits the defaulting winner's frozen deposit to the platform
+  // (capture with no delivery) before releasing everyone else. All other actions
+  // release the defaulter's hold in full.
+  if (action === "PENALTY" && extra) {
+    const held = await currentAuctionFrozen(extra.defaultedUserId, auctionId, tx)
+    if (held > 0n) {
+      // Capture with refType "auction" so currentAuctionFrozen nets it to zero
+      // and the release loop below does not try to unfreeze it a second time.
+      await captureFrozenPurchase(extra.defaultedUserId, held, tx, { type: "auction", id: auctionId })
+    }
+    await recordAuctionEvent(
+      { auctionId, type: "PENALTY_APPLIED", userId: extra.defaultedUserId, amount: held },
+      tx,
+    )
+    await audit(
+      { action: "auction.default.penalty", entity: "auction", entityId: auctionId, meta: { userId: extra.defaultedUserId, forfeited: held.toString() } },
+      tx,
+    )
+  }
+
+  if (action === "RESTRICT_USER" && extra) {
+    const until = new Date(Date.now() + restrictionDays(extra.policy) * 24 * 60 * 60_000)
+    await tx.user.update({ where: { id: extra.defaultedUserId }, data: { auctionRestrictedUntil: until } })
+    await recordAuctionEvent(
+      { auctionId, type: "USER_RESTRICTED", userId: extra.defaultedUserId, meta: { until: until.toISOString() } },
+      tx,
+    )
+    await audit(
+      { action: "auction.default.restrictUser", entity: "user", entityId: extra.defaultedUserId, meta: { until: until.toISOString(), auctionId } },
+      tx,
+    )
+  }
+
+  // Release every hold still frozen against this auction (defaulter included,
+  // unless PENALTY already captured it).
+  const holders = await standings(auctionId, auction.quantity + 10, tx)
+  for (const h of holders) {
+    const frozen = await currentAuctionFrozen(h.userId, auctionId, tx)
+    if (frozen > 0n) await setAuctionFrozen(h.userId, auctionId, 0n, tx)
+  }
+
+  if (action === "REOPEN") {
+    // Relist: clear winner/settlement fields and schedule a fresh window.
+    const policy = await getAuctionPolicy(auction.policyJson, tx)
+    void policy
+    await tx.auction.update({
+      where: { id: auctionId },
+      data: {
+        status: "SCHEDULED",
+        winnerUserId: null,
+        finalPrice: null,
+        endReason: null,
+        paymentDeadlineAt: null,
+        secondChanceUserId: null,
+        secondChanceDeadlineAt: null,
+        currentPrice: auction.startPrice,
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 24 * 60 * 60_000),
+        softCloseExtensions: 0,
+        endingSoonNotified: false,
+      },
+    })
+    await recordAuctionEvent({ auctionId, type: "AUCTION_REOPENED" }, tx)
+    await audit({ action: "auction.default.reopen", entity: "auction", entityId: auctionId }, tx)
+    return
+  }
+
+  // CANCEL / PENALTY / RESTRICT_USER all end the sale as CANCELLED.
+  await tx.auction.update({
+    where: { id: auctionId },
+    data: {
+      status: "CANCELLED",
+      endReason: "CANCELLED",
+      paymentDeadlineAt: null,
+      secondChanceUserId: null,
+      secondChanceDeadlineAt: null,
+    },
+  })
+  await recordAuctionEvent({ auctionId, type: "CANCELLED" }, tx)
+}
+
+/** Best-effort notification dispatch for a default/second-chance outcome. */
+async function dispatchDefaultNotifications(res: DefaultOutcome) {
+  const { createNotification } = await import("./notifications")
+  if (res.offeredUserId) {
+    await createNotification({
+      userId: res.offeredUserId,
+      type: "AUCTION_WON",
+      title: "پیشنهاد فرصت دوم",
+      body: `برنده قبلی مزایده «${res.title}» پرداخت را کامل نکرد. اکنون نوبت شماست — تا مهلت تعیین‌شده پرداخت را انجام دهید.`,
+      href: "/orders",
+      image: res.coverImage,
+    }).catch(() => {})
+  }
+}
+
+/**
+ * Handle a defaulting winner whose payment deadline has passed (deposit /
+ * partial-freeze mode only). Emits WINNER_DEFAULTED then runs the configured
+ * default action. Serialized + idempotent. Returns the outcome for the caller.
+ */
+export async function handleWinnerDefault(auctionId: string) {
+  return withLock(lockKey(auctionId), async () => {
+    return serializableTx(
+      async (tx) => {
+        const auction = await loadLiveAuction(auctionId, tx)
+        if (auction.status !== "PAYMENT_PENDING") return null
+        // Only act once the payment deadline has truly elapsed.
+        if (auction.paymentDeadlineAt && auction.paymentDeadlineAt > new Date()) return null
+
+        const defaultedUserId = auction.winnerUserId ?? auction.secondChanceUserId
+        if (!defaultedUserId) return null
+
+        await recordAuctionEvent(
+          { auctionId, type: "WINNER_DEFAULTED", userId: defaultedUserId },
+          tx,
+        )
+        await audit(
+          { action: "auction.winner.defaulted", entity: "auction", entityId: auctionId, meta: { userId: defaultedUserId } },
+          tx,
+        )
+        // Notify the defaulter (best-effort, out of tx below via outcome flag).
+        const outcome = await advanceAfterDefault(auctionId, defaultedUserId, tx)
+        return { defaultedUserId, outcome }
+      },
+      { label: "auctionTx" },
+    )
+  }).then(async (r) => {
+    if (!r) return { handled: false }
+    await emit(Channels.auction(auctionId), { type: "AUCTION_FINALIZED", auctionId })
+    const { createNotification } = await import("./notifications")
+    await createNotification({
+      userId: r.defaultedUserId,
+      type: "AUCTION_LOST",
+      title: "مهلت پرداخت به پایان رسید",
+      body: `به دلیل عدم تکمیل پرداخت در مزایده «${r.outcome.title}»، برد شما لغو شد.`,
+      href: "/auctions",
+      image: r.outcome.coverImage,
+    }).catch(() => {})
+    await dispatchDefaultNotifications(r.outcome)
+    return { handled: true, resolution: r.outcome.resolution }
+  })
+}
+
+/**
+ * Cron entry: process every PAYMENT_PENDING auction whose payment (or active
+ * second-chance offer) deadline has elapsed, applying the configured default
+ * action. Safe to call every tick; each auction is serialized + idempotent.
+ */
+export async function processPaymentDeadlines(): Promise<{ processed: number }> {
+  const due = await prisma.auction.findMany({
+    where: { status: "PAYMENT_PENDING", paymentDeadlineAt: { lte: new Date() } },
+    select: { id: true },
+    take: 100,
+  })
+  let processed = 0
+  for (const a of due) {
+    try {
+      const r = await handleWinnerDefault(a.id)
+      if (r.handled) processed++
+    } catch {
+      // Skip and let the next tick retry.
+    }
+  }
+  return { processed }
 }
 
 /**
