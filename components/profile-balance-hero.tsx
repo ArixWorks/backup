@@ -27,7 +27,7 @@ export function ProfileBalanceHero() {
   const discount = user?.membership?.discountPercent ?? 0
 
   return (
-    <PremiumHeroCard aria-label={t("home.welcome")}>
+    <PremiumHeroCard aria-label={t("home.welcome")} deviceTilt>
       {/* ── Content row ── */}
       <div className="flex items-center justify-between gap-3">
         {/* Identity cluster */}

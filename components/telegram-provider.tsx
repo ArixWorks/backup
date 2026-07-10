@@ -71,6 +71,26 @@ type TelegramWebApp = {
   offEvent?: (event: string, handler: () => void) => void
   colorScheme?: string
   themeParams?: Record<string, string>
+  /**
+   * Device orientation tracking (Bot API 8.0+). Once `start()` succeeds the
+   * client emits `deviceOrientationChanged` and refreshes the live `alpha` /
+   * `beta` / `gamma` fields (radians). Undefined on older clients / desktop.
+   */
+  DeviceOrientation?: {
+    isStarted?: boolean
+    absolute?: boolean
+    /** Rotation around the Z axis (radians). */
+    alpha?: number
+    /** Front-to-back tilt around the X axis (radians). */
+    beta?: number
+    /** Left-to-right tilt around the Y axis (radians). */
+    gamma?: number
+    start: (
+      params: { refresh_rate?: number; need_absolute?: boolean },
+      callback?: (started: boolean) => void,
+    ) => void
+    stop: (callback?: (stopped: boolean) => void) => void
+  }
 }
 
 declare global {

@@ -11,6 +11,7 @@ import {
 
 import { LivingSurface } from "@/components/living-surface"
 import { useMotionTier } from "@/components/motion-provider"
+import { useDeviceTilt } from "@/components/use-device-tilt"
 
 /**
  * PremiumHeroCard — the canonical tier-reactive hero surface.
@@ -40,11 +41,19 @@ export function PremiumHeroCard({
   children,
   className = "",
   intensity = "soft",
+  deviceTilt = false,
   "aria-label": ariaLabel,
 }: {
   children: ReactNode
   className?: string
   intensity?: "soft" | "normal" | "bold"
+  /**
+   * Opt-in physical tilt: inside the Telegram Mini App on a phone, the card's
+   * 3D tilt follows the device's orientation sensor instead of the pointer.
+   * Silently ignored on desktop / web / reduced-motion (falls back to the
+   * existing pointer + idle-float behavior).
+   */
+  deviceTilt?: boolean
   "aria-label"?: string
 }) {
   const tier = useMotionTier()
@@ -76,6 +85,19 @@ export function PremiumHeroCard({
   const sgx = useSpring(gx, lightSpring)
   const sgy = useSpring(gy, lightSpring)
   const sEngaged = useSpring(engaged, { stiffness: 120, damping: 24 })
+
+  // Optional physical-tilt input (Telegram Mini App on a phone). When it takes
+  // over it drives the SAME rx/ry/tx/ty motion values, so the springs, edge
+  // light, and grounding shadow below all react for free. `enabled` folds in
+  // the resolved motion tier so reduced-motion / minimal never starts a sensor.
+  const deviceTiltApi = useDeviceTilt({
+    rx,
+    ry,
+    tx,
+    ty,
+    enabled: interactive && deviceTilt,
+  })
+  const sensorOwns = interactive && deviceTilt && deviceTiltApi.supported
 
   // Gentle pop toward the viewer while engaged (1 → 1.012, barely-there).
   const scale = useTransform(sEngaged, [0, 1], [1, 1.012])
@@ -111,24 +133,33 @@ export function PremiumHeroCard({
     const r = e.currentTarget.getBoundingClientRect()
     const nx = (e.clientX - r.left) / r.width - 0.5
     const ny = (e.clientY - r.top) / r.height - 0.5
-    // Gentle: shallow tilt + a few px of whole-card glide toward the pointer.
-    ry.set(nx * 6)
-    rx.set(-ny * 6)
-    tx.set(nx * 7)
-    ty.set(ny * 5)
+    // When the orientation sensor owns the transform, the pointer only steers
+    // the edge light — it must not fight the sensor for rx/ry/tx/ty.
+    if (!sensorOwns) {
+      // Gentle: shallow tilt + a few px of whole-card glide toward the pointer.
+      ry.set(nx * 6)
+      rx.set(-ny * 6)
+      tx.set(nx * 7)
+      ty.set(ny * 5)
+    }
     gx.set((nx + 0.5) * 100)
     gy.set((ny + 0.5) * 100)
   }
 
   function engage() {
     engaged.set(1)
+    // First touch doubles as the iOS gesture that unlocks the sensor.
+    if (sensorOwns && deviceTiltApi.needsGesture) deviceTiltApi.enable()
   }
 
   function resetPointer() {
-    rx.set(0)
-    ry.set(0)
-    tx.set(0)
-    ty.set(0)
+    // Leave rx/ry/tx/ty to the sensor when it is in control.
+    if (!sensorOwns) {
+      rx.set(0)
+      ry.set(0)
+      tx.set(0)
+      ty.set(0)
+    }
     gx.set(50)
     gy.set(50)
     engaged.set(0)
