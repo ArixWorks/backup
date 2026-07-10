@@ -55,6 +55,9 @@ const statusLabels: Record<string, string> = {
   ACTIVE: "فعال",
   ENDED: "پایان‌یافته",
   FINALIZED: "نهایی‌شده",
+  SOLD: "فروخته‌شده",
+  SETTLED: "تسویه‌شده",
+  RESERVE_NOT_MET: "به حد رزرو نرسید",
   CANCELLED: "لغوشده",
 }
 
@@ -65,8 +68,11 @@ function statusTone(s: string): string {
     case "SCHEDULED":
       return "border-chart-4/40 text-chart-4"
     case "CANCELLED":
+    case "RESERVE_NOT_MET":
       return "border-destructive/40 text-destructive"
     case "FINALIZED":
+    case "SOLD":
+    case "SETTLED":
       return "border-primary/40 text-primary"
     default:
       return "border-border text-muted-foreground"

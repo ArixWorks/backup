@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db"
 import { NotFoundError } from "./errors"
 import { finalizeAuction } from "./auction"
 import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
-import { smartBuyNowPrice } from "./auction/pricing"
+import { smartBuyNowPrice, incrementForPrice, nextMinimumBid } from "./auction/pricing"
+import { isTerminalStatus } from "./auction/lifecycle"
 import type { AuctionPolicy } from "./auction/types"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
@@ -224,9 +225,18 @@ type AuctionSummaryInput = {
 function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
   const hasBids = a._count.bids > 0
   const currentPrice = hasBids ? a.currentPrice : a.startPrice
-  // Bid increments stay on the existing per-auction column in this PR (tiered
-  // increments land in PR3). Only Buy Now becomes smart/dynamic here.
-  const minNextBid = hasBids ? a.currentPrice + a.minimumIncrement : a.startPrice
+  // Tiered/fixed bid increments (PR3): when a policy is available, the minimum
+  // next bid and the advertised increment come from the pricing engine, so the
+  // UI shows exactly what `placeBid` enforces. Falls back to the per-auction
+  // column for legacy callers that don't pass a policy.
+  const minNextBid = policy
+    ? nextMinimumBid({ startPrice: a.startPrice, currentPrice: a.currentPrice, hasBids }, policy)
+    : hasBids
+      ? a.currentPrice + a.minimumIncrement
+      : a.startPrice
+  const advertisedIncrement = policy
+    ? incrementForPrice(currentPrice, policy)
+    : a.minimumIncrement
 
   // Smart Buy Now: recompute the offered price (and availability) from the live
   // market via the pricing engine. Falls back to the static column when no
@@ -258,7 +268,7 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     deliveryType: a.product.deliveryType,
     startPrice: a.startPrice,
     currentPrice,
-    minimumIncrement: a.minimumIncrement,
+    minimumIncrement: advertisedIncrement,
     minNextBid,
     buyNowPrice,
     buyNowAvailable,
@@ -290,12 +300,10 @@ export async function getAuctionDetail(auctionId: string) {
   })
   if (!auction) throw new NotFoundError("Auction not found")
 
-  // Lazy settlement: if the auction is past its end and not yet finalized.
-  if (
-    auction.status !== "FINALIZED" &&
-    auction.status !== "CANCELLED" &&
-    new Date() >= auction.endTime
-  ) {
+  // Lazy settlement: if the auction is past its end and not yet in a terminal
+  // state. Uses the lifecycle engine so every terminal status (FINALIZED, SOLD,
+  // SETTLED, RESERVE_NOT_MET, CANCELLED, …) is treated as "already settled".
+  if (!isTerminalStatus(auction.status) && new Date() >= auction.endTime) {
     try {
       await finalizeAuction(auction.id)
     } catch {

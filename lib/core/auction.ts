@@ -19,7 +19,8 @@ import { formatToman } from "@/lib/format"
 import { recordAuctionEvent } from "./auction/events"
 import { computeWinnerFromStandings } from "./auction/winner"
 import { getAuctionPolicy } from "./auction/policy"
-import { assertBuyNowAllowed } from "./auction/pricing"
+import { assertBuyNowAllowed, nextMinimumBid } from "./auction/pricing"
+import { computeSoftCloseExtension, isTerminalStatus } from "./auction/lifecycle"
 
 type Tx = Prisma.TransactionClient
 
@@ -97,7 +98,10 @@ async function loadLiveAuction(auctionId: string, tx: Tx) {
 function ensureActive(auction: { startTime: Date; endTime: Date; status: string }) {
   const now = new Date()
   if (auction.status === "CANCELLED") throw new ValidationError("Auction is cancelled")
-  if (auction.status === "FINALIZED" || auction.status === "ENDED") {
+  // Any terminal state (FINALIZED / SOLD / SETTLED / RESERVE_NOT_MET / …) or an
+  // ENDED row blocks new bids — resolved centrally by the lifecycle engine so a
+  // Buy-Now-sold auction can never accept a late bid before its end time.
+  if (isTerminalStatus(auction.status) || auction.status === "ENDED") {
     throw new ValidationError("Auction has ended")
   }
   if (now < auction.startTime) throw new ValidationError("Auction has not started")
@@ -129,15 +133,31 @@ export async function placeBid(opts: {
         ensureActive(auction)
         await assertUserActive(opts.userId, tx)
 
+        // Resolve the effective policy once (global + per-auction override), so
+        // the tiered increment and soft-close rules the engine enforces here are
+        // identical to what the pricing engine advertises to the UI.
+        const policy = await getAuctionPolicy(auction.policyJson, tx)
+
         const hasBids = (await tx.bid.count({ where: { auctionId: auction.id } })) > 0
-        const required = hasBids
-          ? auction.currentPrice + auction.minimumIncrement
-          : auction.startPrice
+        // Tiered/fixed minimum next bid comes from the pricing engine — no more
+        // flat `minimumIncrement` column arithmetic at the call site (PR3).
+        const required = nextMinimumBid(
+          { startPrice: auction.startPrice, currentPrice: auction.currentPrice, hasBids },
+          policy,
+        )
         if (opts.amount < required) {
           throw new ValidationError(
             `Bid must be at least ${required.toString()} Toman`,
           )
         }
+
+        // Reserve tracking: detect when THIS bid first lifts the auction to/over
+        // the reserve, so the timeline can emit a single RESERVE_MET event.
+        const reserveJustMet =
+          policy.reservePriceEnabled &&
+          auction.reservePrice != null &&
+          auction.currentPrice < auction.reservePrice &&
+          opts.amount >= auction.reservePrice
 
         // Record the bid.
         await tx.bid.create({
@@ -177,19 +197,28 @@ export async function placeBid(opts: {
           if (displaced.userId !== opts.userId) displacedUserId = displaced.userId
         }
 
-        // Anti-sniping: extend the auction if the bid lands in the final window.
+        // Soft-close / anti-sniping (PR3): the lifecycle engine decides whether a
+        // bid inside the closing window extends the auction, honouring the policy
+        // window, the per-extension duration AND the max-extensions cap (so a
+        // sniping war can no longer extend an auction indefinitely). The legacy
+        // per-auction anti-sniping columns are still respected as a hard toggle:
+        // if the row disables anti-sniping, no extension is applied.
         let endTime = auction.endTime
         let extended = false
-        if (auction.antiSnipingEnabled && auction.autoExtend) {
-          const remainingMs = auction.endTime.getTime() - Date.now()
-          if (remainingMs <= auction.antiSnipingSeconds * 1000) {
-            endTime = new Date(auction.endTime.getTime() + auction.antiSnipingSeconds * 1000)
-            extended = true
-            await tx.auction.update({
-              where: { id: auction.id },
-              data: { endTime, softCloseExtensions: { increment: 1 } },
-            })
-          }
+        const antiSnipeAllowed = auction.antiSnipingEnabled && auction.autoExtend
+        const extendedEnd = antiSnipeAllowed
+          ? computeSoftCloseExtension(
+              { endTime: auction.endTime, softCloseExtensions: auction.softCloseExtensions },
+              policy,
+            )
+          : null
+        if (extendedEnd) {
+          endTime = extendedEnd
+          extended = true
+          await tx.auction.update({
+            where: { id: auction.id },
+            data: { endTime, softCloseExtensions: { increment: 1 } },
+          })
         }
 
         // Timeline (Phase 16): record the bid, any outbid, and any extension.
@@ -198,6 +227,12 @@ export async function placeBid(opts: {
           { auctionId: auction.id, type: "BID_PLACED", userId: opts.userId, amount: opts.amount },
           tx,
         )
+        if (reserveJustMet) {
+          await recordAuctionEvent(
+            { auctionId: auction.id, type: "RESERVE_MET", userId: opts.userId, amount: opts.amount },
+            tx,
+          )
+        }
         if (displacedUserId) {
           await recordAuctionEvent(
             { auctionId: auction.id, type: "USER_OUTBID", userId: displacedUserId, amount: opts.amount },
@@ -210,7 +245,12 @@ export async function placeBid(opts: {
               auctionId: auction.id,
               type: "AUCTION_EXTENDED",
               amount: null,
-              meta: { extensionSeconds: auction.antiSnipingSeconds, endTime: endTime.toISOString() },
+              meta: {
+                extensionSeconds: policy.softCloseExtensionSeconds,
+                extensionNumber: auction.softCloseExtensions + 1,
+                maxExtensions: policy.maxSoftCloseExtensions,
+                endTime: endTime.toISOString(),
+              },
             },
             tx,
           )
@@ -323,10 +363,13 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
 
         // Winner engine: Buy Now buyer is the authoritative final winner. Store
         // the result explicitly so the UI never infers the winner from bids.
+        // Lifecycle (PR3): a Buy Now purchase settles immediately (funds spent +
+        // delivered in this tx), so the terminal status is SOLD with a BUY_NOW
+        // reason. `finalizedAt` still stamps the settlement time.
         await tx.auction.update({
           where: { id: auction.id },
           data: {
-            status: "FINALIZED",
+            status: "SOLD",
             finalizedAt: new Date(),
             currentPrice: buyNowCharge,
             winnerUserId: opts.userId,
@@ -402,7 +445,11 @@ export async function finalizeAuction(auctionId: string) {
     return serializableTx(
       async (tx) => {
         const auction = await loadLiveAuction(auctionId, tx)
-        if (auction.status === "FINALIZED" || auction.status === "CANCELLED") {
+        // Idempotency: any terminal state (FINALIZED, SOLD, SETTLED,
+        // RESERVE_NOT_MET, CANCELLED, …) means this auction is already settled.
+        // Resolved via the lifecycle engine so newly-introduced terminal states
+        // can never trigger a second settlement pass.
+        if (isTerminalStatus(auction.status)) {
           return { finalized: false, winners: 0 }
         }
         if (new Date() < auction.endTime) {
@@ -461,10 +508,21 @@ export async function finalizeAuction(auctionId: string) {
           boughtNow: null,
         })
 
+        // Lifecycle (PR3): map the winner result onto a precise terminal status.
+        // - RESERVE_NOT_MET  → ended below reserve, no sale.
+        // - a winner exists   → SETTLED (funds captured + delivered in this tx).
+        // - no bids / no winner → FINALIZED (neutral ended, nothing sold).
+        const terminalStatus =
+          winnerResult.endReason === "RESERVE_NOT_MET"
+            ? "RESERVE_NOT_MET"
+            : winnerResult.winnerUserId
+              ? "SETTLED"
+              : "FINALIZED"
+
         await tx.auction.update({
           where: { id: auction.id },
           data: {
-            status: "FINALIZED",
+            status: terminalStatus,
             finalizedAt: new Date(),
             winnerUserId: winnerResult.winnerUserId,
             finalPrice: winnerResult.finalPrice,
@@ -487,6 +545,17 @@ export async function finalizeAuction(auctionId: string) {
               userId: winnerResult.winnerUserId,
               amount: winnerResult.finalPrice,
               meta: { endReason: "HIGHEST_BID" },
+            },
+            tx,
+          )
+          // Settlement completed atomically (funds captured + delivered) → SETTLED.
+          await recordAuctionEvent(
+            {
+              auctionId: auction.id,
+              type: "SETTLED",
+              userId: winnerResult.winnerUserId,
+              amount: winnerResult.finalPrice,
+              meta: { winners: eligible.length },
             },
             tx,
           )
@@ -565,11 +634,13 @@ export async function cancelAuctionAndRelease(auctionId: string) {
       async (tx) => {
         const auction = await tx.auction.findUnique({ where: { id: auctionId } })
         if (!auction) throw new NotFoundError("مزایده یافت نشد")
-        if (auction.status === "FINALIZED") {
-          throw new ValidationError("مزایده نهایی‌شده قابل لغو نیست")
-        }
         if (auction.status === "CANCELLED") {
           return { cancelled: false, released: 0 }
+        }
+        // A settled auction (SOLD / SETTLED / RESERVE_NOT_MET / FINALIZED) can no
+        // longer be cancelled — funds are already captured or released.
+        if (isTerminalStatus(auction.status)) {
+          throw new ValidationError("مزایده نهایی‌شده قابل لغو نیست")
         }
 
         // Release every holder still carrying a frozen amount for this auction.
