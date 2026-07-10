@@ -991,6 +991,9 @@ async function advanceAfterDefault(
   for (const e of priorOffers) if (e.userId) alreadyTried.add(e.userId)
 
   if (action === "SECOND_CHANCE") {
+    // Release the defaulting winner's deposit before advancing the chain
+    // (SECOND_CHANCE forfeits nothing; PENALTY is the explicit forfeit action).
+    await setAuctionFrozen(defaultedUserId, auctionId, 0n, tx)
     const ranked = await standings(auctionId, 50, tx)
     const next = ranked.find(
       (r) => !alreadyTried.has(r.userId) && (!auction.reservePrice || r.amount >= auction.reservePrice),
@@ -1063,7 +1066,9 @@ async function applyTerminalDefault(
   if (action === "PENALTY" && extra) {
     const held = await currentAuctionFrozen(extra.defaultedUserId, auctionId, tx)
     if (held > 0n) {
-      await captureFrozenPurchase(extra.defaultedUserId, held, tx, { type: "auction_penalty", id: auctionId })
+      // Capture with refType "auction" so currentAuctionFrozen nets it to zero
+      // and the release loop below does not try to unfreeze it a second time.
+      await captureFrozenPurchase(extra.defaultedUserId, held, tx, { type: "auction", id: auctionId })
     }
     await recordAuctionEvent(
       { auctionId, type: "PENALTY_APPLIED", userId: extra.defaultedUserId, amount: held },
