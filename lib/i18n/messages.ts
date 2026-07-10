@@ -662,6 +662,12 @@ export type MessageKey =
   | "bid.emptyBalance"
   | "bid.insufficient"
   | "bid.needTopUp"
+  | "bid.enableMax"
+  | "bid.maxLabel"
+  | "bid.maxPlaceholder"
+  | "bid.maxHint"
+  | "bid.maxTooLow"
+  | "bid.maxPlaced"
   | "auth.errTelegram"
   | "auth.forgotLink"
   | "forcePwd.errMin"
@@ -1068,7 +1074,7 @@ type Catalog = Record<MessageKey, string>
   "wins.empty": "هنوز در هیچ قرعه‌کشی‌ای برنده نشده‌اید",
   "wins.emptyDesc": "در قرعه‌کشی‌های فعال شرکت کنید تا شانس بردن جوایز را داشته باشید.",
   "wins.emptyAction": "مشاهده قرعه‌کشی‌های فعال",
-  "watchlist.signInRequired": "برای مشاهده لیست پیگیری، ابتدا وارد حساب کاربری خود شوید.",
+  "watchlist.signInRequired": "برای مشاهده لیست پیگیری، ابت��ا وارد حساب کاربری خود شوید.",
   "watchlist.emptyDesc": "مزایده‌های موردعلاقه‌تان را دنبال کنید تا هنگام شروع، باخبر شوید.",
   "watchlist.flashProducts": "محصولات فروشگاه",
   "rewards.title": "باشگاه مشتریان",
@@ -1171,10 +1177,10 @@ type Catalog = Record<MessageKey, string>
   "newTicket.subject": "موضوع",
   "newTicket.subjectPlaceholder": "مثلاً: مشکل در شارژ کیف پول",
   "newTicket.desc": "شرح درخواست",
-  "newTicket.descPlaceholder": "جزئیات مشکل یا درخواست خود را بنویسید…",
+  "newTicket.descPlaceholder": "جزئیات مش��ل یا درخواست خود را بنویسید…",
   "newTicket.attachOptional": "پیوست (اختیاری)",
   "newTicket.sending": "در حال ارسال…",
-  "newTicket.submit": "ارسال تیکت",
+  "newTicket.submit": "ارسال تی��ت",
   "auth.genericError": "خطایی رخ داد",
   "auth.backToLogin": "بازگشت به ورود",
   "auth.forgotTitle": "بازیابی رمز عبور",
@@ -1418,7 +1424,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.mustJoin": "برای شرکت باید عضو این کانال‌ها باشی",
   "gwd.afterJoinRetry": "بعد از عضویت، دوباره دکمه شرکت را بزن.",
   "gwd.winners": "برندگان قرعه‌کشی",
-  "gwd.noWinners": "برنده‌ای ثبت نشده است.",
+  "gwd.noWinners": "برنده‌ای ثبت ن��ده است.",
   "gwd.alreadyEntered": "شرکت شما ثبت شده است",
   "gwd.notStarted": "ثبت‌نام هنوز شروع نشده است",
   "gwd.regClosed": "ثبت‌نام بسته شده و قرعه‌کشی در راه است",
@@ -1438,6 +1444,12 @@ type Catalog = Record<MessageKey, string>
   "bid.emptyBalance": "موجودی کیف پول شما صفر است. برای شرکت در مزایده ابتدا حساب خود را شارژ کنید.",
   "bid.insufficient": "موجودی شما {amount} تومان کم است. لطفاً کیف پول خود را شارژ کنید.",
   "bid.needTopUp": "موجودی قابل استفاده کافی نیست. لطفاً کیف پول خود را شارژ کنید.",
+  "bid.enableMax": "پیشنهاد خودکار (تعیین سقف)",
+  "bid.maxLabel": "حداکثر مبلغ پیشنهاد",
+  "bid.maxPlaceholder": "سقف مبلغی که حاضرید بپردازید",
+  "bid.maxHint": "سیستم به‌صورت خودکار و فقط به‌اندازهٔ لازم تا این سقف به‌جای شما پیشنهاد می‌دهد. کل مبلغ سقف تا پایان مزایده مسدود می‌شود.",
+  "bid.maxTooLow": "سقف پیشنهاد نمی‌تواند کمتر از مبلغ پیشنهاد شما باشد",
+  "bid.maxPlaced": "پیشنهاد خودکار شما ثبت شد",
   "auth.errTelegram": "خطا در ورود با تلگرام",
   "auth.forgotLink": "رمز عبور خود را فراموش کرده‌اید؟",
   "forcePwd.errMin": "رمز عبور جدید باید حداقل ۸ کاراکتر باشد",
@@ -1648,6 +1660,12 @@ type Catalog = Record<MessageKey, string>
   "bid.emptyBalance": "Your wallet is empty. Please top up your balance to place a bid.",
   "bid.insufficient": "You need {amount} more Toman for this bid. Please top up your wallet.",
   "bid.needTopUp": "Your available balance is not enough. Please top up your wallet.",
+  "bid.enableMax": "Automatic bidding (set a maximum)",
+  "bid.maxLabel": "Maximum bid amount",
+  "bid.maxPlaceholder": "The most you are willing to pay",
+  "bid.maxHint": "We bid automatically on your behalf, only as much as needed, up to this limit. The full maximum is held until the auction ends.",
+  "bid.maxTooLow": "Your maximum cannot be lower than your bid",
+  "bid.maxPlaced": "Your automatic bid was placed",
   "buy.bulkHint": "Bulk discount",
   "buy.subtotal": "Subtotal",
   "coupon.placeholder": "Discount code",
@@ -2386,6 +2404,12 @@ type Catalog = Record<MessageKey, string>
   "bid.emptyBalance": "Ваш кошелёк пуст. Пополните баланс, чтобы сделать ставку.",
   "bid.insufficient": "Не хватает {amount} томан для этой ставки. Пополните кошелёк.",
   "bid.needTopUp": "Недостаточно доступных средств. Пожалуйста, пополните кошелёк.",
+  "bid.enableMax": "Автоматическая ставка (задать максимум)",
+  "bid.maxLabel": "Максимальная сумма ставки",
+  "bid.maxPlaceholder": "Максимум, который вы готовы заплатить",
+  "bid.maxHint": "Система делает ставки за вас автоматически, только в необходимом размере, вплоть до этого предела. Вся максимальная сумма замораживается до конца аукциона.",
+  "bid.maxTooLow": "Максимум не может быть меньше вашей ставки",
+  "bid.maxPlaced": "Ваша автоматическая ставка принята",
     "buy.bulkHint": "Оптовая скидка",
   "buy.subtotal": "Подытог",
   "coupon.placeholder": "Промокод",
@@ -3125,6 +3149,12 @@ type Catalog = Record<MessageKey, string>
   "bid.emptyBalance": "Aapka wallet khali hai. Bid karne ke liye pehle balance top up karein.",
   "bid.insufficient": "Is bid ke liye {amount} Toman aur chahiye. Kripya apna wallet top up karein.",
   "bid.needTopUp": "Aapka available balance kaafi nahin hai. Kripya wallet top up karein.",
+  "bid.enableMax": "Automatic bidding (maximum set karein)",
+  "bid.maxLabel": "Adhiktam bid raashi",
+  "bid.maxPlaceholder": "Aap jitna dena chaahte hain uski seema",
+  "bid.maxHint": "Hum aapki taraf se apne-aap bid karte hain, sirf zaroorat ke hisaab se, is seema tak. Poori maximum raashi auction khatm hone tak hold rehti hai.",
+  "bid.maxTooLow": "Aapka maximum aapki bid se kam nahin ho sakta",
+  "bid.maxPlaced": "Aapki automatic bid lag gayi",
   "buy.bulkHint": "Bulk discount",
   "buy.subtotal": "Subtotal",
   "coupon.placeholder": "Discount code",
