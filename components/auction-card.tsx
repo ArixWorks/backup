@@ -22,12 +22,35 @@ export type AuctionSummary = {
   startTime: string
   bidCount: number
   quantity: number
+  // Authoritative settlement result (optional; present once finalized).
+  finalPrice?: number | null
+  endReason?: string | null
 }
 
 export function AuctionCard({ auction }: { auction: AuctionSummary }) {
   const { t, priceValue, currency } = useI18n()
   const live = auction.status === "ACTIVE"
   const scheduled = auction.status === "SCHEDULED"
+
+  // Terminal = settled. Prefer authoritative finalPrice/endReason.
+  const isTerminal =
+    auction.finalPrice != null ||
+    auction.endReason != null ||
+    ["ENDED", "FINALIZED", "CANCELLED", "SOLD", "SETTLED", "PAID", "PAYMENT_PENDING", "RESERVE_NOT_MET", "DEFAULTED"].includes(
+      auction.status,
+    )
+  const reserveFailed = auction.endReason === "RESERVE_NOT_MET"
+  // Headline price: final price when settled with a winner; starting price when
+  // live with no bids yet; otherwise the current top bid.
+  const headlineLabel = isTerminal
+    ? reserveFailed
+      ? t("auctions.ended")
+      : t("auctions.finalPrice")
+    : auction.bidCount > 0
+      ? t("auctions.currentBid")
+      : t("auctions.startingPrice")
+  const headlinePrice =
+    isTerminal && auction.finalPrice != null && !reserveFailed ? auction.finalPrice : auction.currentPrice
 
   return (
     <Link
@@ -75,12 +98,14 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
 
         <div className="mt-auto flex items-end justify-between gap-2">
           <div>
-            <span className="text-xs text-muted-foreground">
-              {t("auctions.currentBid")}
-            </span>
+            <span className="text-xs text-muted-foreground">{headlineLabel}</span>
             <div className="flex items-baseline gap-1">
-              <span className="text-lg font-extrabold tabular-nums text-primary">
-                {priceValue(auction.currentPrice)}
+              <span
+                className={`text-lg font-extrabold tabular-nums ${
+                  reserveFailed ? "text-muted-foreground" : "text-primary"
+                }`}
+              >
+                {priceValue(headlinePrice)}
               </span>
               <span className="text-xs text-muted-foreground">{currency}</span>
             </div>
@@ -95,13 +120,15 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
-          <Gavel className="h-3.5 w-3.5 text-primary" />
-          {t("auctions.currentBid")}:{" "}
-          <span className="font-medium text-foreground tabular-nums">
-            {priceValue(auction.minNextBid)} {currency}
-          </span>
-        </div>
+        {!isTerminal && (
+          <div className="flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+            <Gavel className="h-3.5 w-3.5 text-primary" />
+            {t("auctions.nextBid")}:{" "}
+            <span className="font-medium text-foreground tabular-nums">
+              {priceValue(auction.minNextBid)} {currency}
+            </span>
+          </div>
+        )}
       </div>
     </Link>
   )

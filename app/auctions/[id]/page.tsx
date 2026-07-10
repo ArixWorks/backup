@@ -40,6 +40,7 @@ type AuctionDetail = {
   minNextBid: number
   minimumIncrement: number
   buyNowPrice: number | null
+  buyNowAvailable: boolean
   hasReserve: boolean
   reserveMet: boolean
   startTime: string
@@ -47,6 +48,11 @@ type AuctionDetail = {
   status: string
   quantity: number
   bidCount: number
+  // Authoritative settlement result (never inferred from the top bid).
+  winnerUserId: string | null
+  finalPrice: number | null
+  endReason: string | null
+  winner: { alias: string; name: string; photoUrl: string | null } | null
   bids: Bid[]
 }
 
@@ -100,6 +106,26 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const isLive = a.status === "ACTIVE"
   const countdownTarget = a.status === "SCHEDULED" ? a.startTime : a.endTime
   const showCountdown = a.status === "SCHEDULED" || a.status === "ACTIVE"
+
+  // Terminal state = the auction has settled. Prefer the authoritative
+  // finalPrice/endReason over any top-bid inference. `reserveFailed` means it
+  // ended below reserve → no winner, no final price.
+  const isTerminal =
+    a.finalPrice != null ||
+    a.endReason != null ||
+    ["ENDED", "FINALIZED", "CANCELLED", "SOLD", "SETTLED", "PAID", "PAYMENT_PENDING", "RESERVE_NOT_MET", "DEFAULTED"].includes(
+      a.status,
+    )
+  const reserveFailed = a.endReason === "RESERVE_NOT_MET"
+  const priceLabel = isTerminal
+    ? reserveFailed
+      ? t("adetail.reserveNotMet")
+      : t("adetail.finalPrice")
+    : a.bidCount > 0
+      ? t("adetail.topBidNow")
+      : t("adetail.basePrice")
+  // Show the settled final price when we have one; otherwise the live/current price.
+  const priceValue = isTerminal && a.finalPrice != null && !reserveFailed ? a.finalPrice : a.currentPrice
 
   return (
     <div className="space-y-6">
@@ -234,19 +260,51 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           {/* Price highlight */}
           <div className="card-premium space-y-4 rounded-2xl border border-border p-5">
             <div>
-              <span className="text-xs text-muted-foreground">
-                {a.bidCount > 0 ? t("adetail.topBidNow") : t("adetail.basePrice")}
-              </span>
+              <span className="text-xs text-muted-foreground">{priceLabel}</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-extrabold tabular-nums text-primary">
-                  {formatToman(a.currentPrice)}
+                <span
+                  className={`text-3xl font-extrabold tabular-nums ${
+                    reserveFailed ? "text-muted-foreground" : "text-primary"
+                  }`}
+                >
+                  {formatToman(priceValue)}
                 </span>
                 <span className="text-sm text-muted-foreground">{t("common.toman")}</span>
               </div>
             </div>
 
+            {/* Winner spotlight — only when settled with an authoritative winner. */}
+            {isTerminal && a.winner && (
+              <div className="flex items-center gap-3 rounded-xl border border-success/40 bg-success/10 px-3 py-2.5">
+                <Avatar className="h-9 w-9 border border-success/40">
+                  {a.winner.photoUrl && (
+                    <AvatarImage src={a.winner.photoUrl} alt={a.winner.name} referrerPolicy="no-referrer" />
+                  )}
+                  <AvatarFallback className="bg-success/20 text-xs font-bold text-success">
+                    {a.winner.name.trim().charAt(0).toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex min-w-0 flex-col">
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-success">
+                    <Trophy className="h-3 w-3" />
+                    {a.endReason === "BUY_NOW" ? t("adetail.soldViaBuyNow") : t("adetail.winner")}
+                  </span>
+                  <span dir="auto" className="truncate text-sm font-bold">
+                    {a.winner.name}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Stat strip (Fragment style) */}
             <dl className="grid grid-cols-2 divide-x divide-border overflow-hidden rounded-xl border border-border rtl:divide-x-reverse">
+              {!isTerminal && (
+                <Stat
+                  icon={<Gavel className="h-3.5 w-3.5" />}
+                  label={t("adetail.nextMinBid")}
+                  value={`${formatToman(a.minNextBid)}`}
+                />
+              )}
               <Stat
                 icon={<TrendingUp className="h-3.5 w-3.5" />}
                 label={t("adetail.minIncrement")}
@@ -257,7 +315,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 label={t("adetail.winnersCount")}
                 value={formatNumber(a.quantity)}
               />
-              {a.buyNowPrice != null && (
+              {!isTerminal && a.buyNowAvailable && a.buyNowPrice != null && (
                 <Stat
                   icon={<Zap className="h-3.5 w-3.5" />}
                   label={t("adetail.buyNowStat")}
@@ -298,7 +356,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           <BidPanel
             auctionId={a.id}
             minNextBid={a.minNextBid}
-            buyNowPrice={a.buyNowPrice}
+            buyNowPrice={a.buyNowAvailable ? a.buyNowPrice : null}
             minimumIncrement={a.minimumIncrement}
             status={a.status}
             onChanged={() => mutate()}

@@ -315,7 +315,7 @@ export async function getAuctionDetail(auctionId: string) {
     include: { user: { select: { alias: true, displayName: true, photoUrl: true } } },
   })
 
-  const policy = await resolveAuctionPolicy(await getGlobalAuctionPolicy(), auction.policyJson)
+  const policy = resolveAuctionPolicy(await getGlobalAuctionPolicy(), auction.policyJson)
 
   // Resolve the winner's public identity from the authoritative winnerUserId
   // (never inferred from the top bid). Only surfaced once finalized.
