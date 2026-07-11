@@ -1288,7 +1288,7 @@ body::-webkit-scrollbar,
    Rich Content — shared styling for the semantic-HTML custom nodes.
    Applied identically to the server renderer (.rc-prose) and the editable
    surface (.rc-editor .ProseMirror) so authoring matches the published view.
-   ════════════════���═════════════════════════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════════════════════ */
 
 /* Callout boxes ---------------------------------------------------------- */
 .rc-prose [data-callout],

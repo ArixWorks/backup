@@ -486,7 +486,7 @@ export async function placeBid(opts: {
         userId: result.displacedUserId,
         type: "AUCTION_OUTBID",
         title: "پیشنهاد شما رد شد",
-        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به ج��ع برندگان پیشنهاد جدید بدهید.`,
+        body: `شخص دیگری در مزایده «${result.productTitle}» پیشنهاد بالاتری ثبت کرد. برای بازگشت به جمع برندگان پیشنهاد جدید بدهید.`,
         href: `/auctions/${result.auctionId}`,
       }).catch(() => {})
       await sendAuctionOutbidEmail({
