@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { EnhancedTextarea } from "@/components/rich-content"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AppearancePicker } from "@/components/admin/appearance-picker"
+import { DangerZone } from "@/components/admin/danger-zone"
 
 // Mirror of SETTING_KEYS on the server (lib/core/settings.ts).
 const KEYS = {
@@ -471,6 +472,8 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       )}
+
+      <DangerZone />
     </div>
   )
 }
