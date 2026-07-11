@@ -203,7 +203,7 @@ export const DEFAULT_CONFIG: BotConfig = {
     notifAuctionStarted:
       "{bell} *مزایده شروع شد!*\n\n{gavel} {title}\nقیمت پایه: *{price}* تومان\n\nهمین حالا پیشنهاد بده {fire}",
     notifAuctionWon:
-      "{trophy} *تبریک! برنده ش��ی* {party}\n\n{gavel} {title}\nمبلغ نهایی: *{price}* تومان\n\nسفارشت در حال آماده‌سازیه {box}",
+      "{trophy} *تبریک! برنده شدی* {party}\n\n{gavel} {title}\nمبلغ نهایی: *{price}* تومان\n\nسفارشت در حال آماده‌سازیه {box}",
     notifOrderDelivered:
       "{gift} *سفارشت تحویل داده شد!* {party}\n\n{box} {title}\nاطلاعات تحویل رو در اپ ببین {sparkles}",
     notifDepositPending:
