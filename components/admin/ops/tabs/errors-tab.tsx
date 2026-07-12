@@ -99,12 +99,18 @@ export function ErrorsTab() {
     setBusy(`ai:${id}`)
     try {
       const result = await apiPost<{ diagnosis: Diagnosis }>(`/api/v1/admin/ops/errors/${id}/diagnose`, {})
-      toast[result.diagnosis.status === "COMPLETED" ? "success" : "error"](
-        result.diagnosis.status === "COMPLETED" ? "تحلیل AI آماده شد" : "تحلیل AI تکمیل نشد؛ دوباره تلاش کنید",
-      )
-      await mutate()
       setExpanded(id)
-    } catch { toast.error("سرویس تحلیل AI در دسترس نیست") } finally { setBusy(null) }
+      if (result.diagnosis.status === "COMPLETED") {
+        toast.success("تحلیل AI آماده و ذخیره شد")
+      } else {
+        toast.error(result.diagnosis.failureReason ?? "تحلیل AI تکمیل نشد؛ دوباره تلاش کنید")
+      }
+      void mutate().catch(() => toast.warning("تحلیل ذخیره شد؛ برای نمایش نتیجه صفحه را تازه‌سازی کنید"))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "ارتباط با سرویس تحلیل AI ناموفق بود")
+    } finally {
+      setBusy(null)
+    }
   }
   async function approve(id: string) {
     setBusy(`approve:${id}`)
