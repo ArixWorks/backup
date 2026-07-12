@@ -35,6 +35,8 @@ export function priceFor(
 interface Reservation {
   token: string
   productId: string
+  // The chosen sale plan whose stock is held (null for legacy single-plan).
+  variantId: string | null
   userId: string
   quantity: number
   expiresAt: string
@@ -44,10 +46,29 @@ function reservationKey(token: string) {
   return `flashres:${token}`
 }
 
-async function loadActiveFixedSale(productId: string) {
+type LoadedVariant = {
+  id: string
+  price: bigint
+  stock: number
+  reservedStock: number
+  purchaseLimit: number | null
+  deliveryType: "MANUAL" | "AUTOMATIC"
+  version: number
+}
+
+/**
+ * Load an active fixed-price product plus the chosen sale plan (variant).
+ *
+ * Variants are the source of truth for price / stock / delivery / inventory.
+ * When `variantId` is omitted we fall back to the product's default plan (every
+ * fixed product gets one via the variants migration). If a product has no
+ * variants at all (a not-yet-migrated legacy row), `variant` is null and the
+ * caller uses the product-level FixedSale as before.
+ */
+async function loadActiveFixedSale(productId: string, variantId?: string | null) {
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    include: { fixedSale: true },
+    include: { fixedSale: true, variants: { where: { active: true }, orderBy: { displayOrder: "asc" } } },
   })
   if (!product || !product.fixedSale || product.saleMode !== "FIXED_PRICE") {
     throw new NotFoundError("Fixed-price product not found")
@@ -59,7 +80,28 @@ async function loadActiveFixedSale(productId: string) {
   const { startTime, endTime } = product.fixedSale
   if (startTime && now < startTime) throw new ValidationError("Sale has not started")
   if (endTime && now > endTime) throw new ValidationError("Sale has ended")
-  return product
+
+  let variant: LoadedVariant | null = null
+  if (product.variants.length > 0) {
+    const chosen = variantId
+      ? product.variants.find((v) => v.id === variantId)
+      : (product.variants.find((v) => v.isDefault) ?? product.variants[0])
+    if (!chosen) throw new ValidationError("Selected plan is not available")
+    variant = {
+      id: chosen.id,
+      price: chosen.price,
+      stock: chosen.stock,
+      reservedStock: chosen.reservedStock,
+      purchaseLimit: chosen.purchaseLimit,
+      deliveryType: chosen.deliveryType,
+      version: chosen.version,
+    }
+  } else if (variantId) {
+    // A plan was requested but the product has none — treat as unavailable.
+    throw new ValidationError("Selected plan is not available")
+  }
+
+  return { product, variant }
 }
 
 async function assertPurchaseLimit(
@@ -67,12 +109,15 @@ async function assertPurchaseLimit(
   productId: string,
   quantity: number,
   limit: number | null,
+  variantId?: string | null,
 ) {
   if (!limit) return
+  // Scope the per-user cap to the chosen plan when the product has variants, so
+  // each plan enforces its own limit; otherwise cap across the whole product.
   const agg = await prisma.order.aggregate({
     where: {
       userId,
-      productId,
+      ...(variantId ? { variantId } : { productId }),
       type: { in: ["FIXED_PURCHASE", "BUY_NOW"] },
       status: { notIn: ["CANCELLED", "REFUNDED"] },
     },
@@ -89,28 +134,36 @@ async function assertPurchaseLimit(
  * Increments reservedStock and stores a Redis token with TTL. If the token is
  * not confirmed before it expires, a worker (or the next purchase) releases it.
  */
-export async function reserveFixedSale(userId: string, productId: string, quantity = 1) {
+export async function reserveFixedSale(
+  userId: string,
+  productId: string,
+  quantity = 1,
+  variantId?: string | null,
+) {
   if (quantity < 1) throw new ValidationError("Quantity must be at least 1")
-  const product = await loadActiveFixedSale(productId)
+  const { product, variant } = await loadActiveFixedSale(productId, variantId)
   const sale = product.fixedSale!
-  await assertPurchaseLimit(userId, productId, quantity, sale.purchaseLimit)
+  const stockHolder = variant ?? sale
+  await assertPurchaseLimit(userId, productId, quantity, stockHolder.purchaseLimit, variant?.id)
 
   // Optimistic reservation: only succeed if enough unreserved stock remains.
-  const updated = await prisma.fixedSale.updateMany({
-    where: {
-      id: sale.id,
-      version: sale.version,
-      stock: { gte: sale.reservedStock + quantity },
-    },
-    data: { reservedStock: { increment: quantity }, version: { increment: 1 } },
-  })
+  // Held on the variant when the product has plans, else on the FixedSale row.
+  const updated = variant
+    ? await prisma.productVariant.updateMany({
+        where: { id: variant.id, version: variant.version, stock: { gte: variant.reservedStock + quantity } },
+        data: { reservedStock: { increment: quantity }, version: { increment: 1 } },
+      })
+    : await prisma.fixedSale.updateMany({
+        where: { id: sale.id, version: sale.version, stock: { gte: sale.reservedStock + quantity } },
+        data: { reservedStock: { increment: quantity }, version: { increment: 1 } },
+      })
   if (updated.count !== 1) {
     throw new ConflictError("Not enough stock to reserve, please retry")
   }
 
   const token = secureSlug("res")
   const expiresAt = new Date(Date.now() + RESERVATION_TTL_SECONDS * 1000).toISOString()
-  const reservation: Reservation = { token, productId, userId, quantity, expiresAt }
+  const reservation: Reservation = { token, productId, variantId: variant?.id ?? null, userId, quantity, expiresAt }
   await cache.set(reservationKey(token), JSON.stringify(reservation), RESERVATION_TTL_SECONDS)
   return reservation
 }
@@ -121,10 +174,17 @@ export async function releaseFixedReservation(token: string) {
   if (!raw) return
   const reservation = JSON.parse(raw) as Reservation
   await cache.del(reservationKey(token))
-  await prisma.fixedSale.updateMany({
-    where: { productId: reservation.productId },
-    data: { reservedStock: { decrement: reservation.quantity } },
-  })
+  if (reservation.variantId) {
+    await prisma.productVariant.updateMany({
+      where: { id: reservation.variantId },
+      data: { reservedStock: { decrement: reservation.quantity } },
+    })
+  } else {
+    await prisma.fixedSale.updateMany({
+      where: { productId: reservation.productId },
+      data: { reservedStock: { decrement: reservation.quantity } },
+    })
+  }
 }
 
 /**
@@ -138,15 +198,12 @@ export async function purchaseFixed(opts: {
   userId: string
   productId: string
   quantity?: number
+  variantId?: string | null
   reservationToken?: string
   couponCode?: string
 }) {
   const quantity = opts.quantity ?? 1
   if (quantity < 1) throw new ValidationError("Quantity must be at least 1")
-
-  const product = await loadActiveFixedSale(opts.productId)
-  const sale = product.fixedSale!
-  await assertPurchaseLimit(opts.userId, opts.productId, quantity, sale.purchaseLimit)
 
   let reservation: Reservation | null = null
   if (opts.reservationToken) {
@@ -154,7 +211,25 @@ export async function purchaseFixed(opts: {
     if (raw) reservation = JSON.parse(raw) as Reservation
   }
 
-  const { totalPrice } = priceFor(sale, quantity)
+  // Resolve the chosen plan. An explicit variantId wins; otherwise fall back to
+  // the reservation's plan (so a held plan is the one actually bought).
+  const wantedVariantId = opts.variantId ?? reservation?.variantId ?? null
+  const { product, variant } = await loadActiveFixedSale(opts.productId, wantedVariantId)
+  const sale = product.fixedSale!
+  const stockHolder = variant ?? sale
+  const deliveryType = variant ? variant.deliveryType : product.deliveryType
+  await assertPurchaseLimit(opts.userId, opts.productId, quantity, stockHolder.purchaseLimit, variant?.id)
+
+  // A reservation only backs this purchase when it matches the resolved plan.
+  if (reservation && (reservation.variantId ?? null) !== (variant?.id ?? null)) {
+    reservation = null
+  }
+
+  // Price comes from the plan; bulk-discount config stays product-level (FixedSale).
+  const { totalPrice } = priceFor(
+    { price: stockHolder.price, bulkMinQty: sale.bulkMinQty, bulkDiscountPercent: sale.bulkDiscountPercent },
+    quantity,
+  )
 
   let rewardSummary: Awaited<ReturnType<typeof applyPurchaseRewards>> | undefined
 
@@ -181,16 +256,16 @@ export async function purchaseFixed(opts: {
           }
         : { stock: { decrement: quantity }, soldCount: { increment: quantity }, version: { increment: 1 } }
 
-      const stockOk = await tx.fixedSale.updateMany({
-        where: reservation
-          ? { id: sale.id, stock: { gte: quantity }, reservedStock: { gte: quantity } }
-          : {
-              id: sale.id,
-              // available (non-reserved) stock must cover the purchase
-              stock: { gte: sale.reservedStock + quantity },
-            },
-        data: decrement,
-      })
+      // Decrement stock on the chosen plan (variant) when the product has
+      // plans, else on the product-level FixedSale row (legacy). Same oversell
+      // guard: a reservation-backed buy needs held stock; an unbacked buy needs
+      // enough non-reserved stock to cover the quantity.
+      const stockWhere = reservation
+        ? { stock: { gte: quantity }, reservedStock: { gte: quantity } }
+        : { stock: { gte: stockHolder.reservedStock + quantity } }
+      const stockOk = variant
+        ? await tx.productVariant.updateMany({ where: { id: variant.id, ...stockWhere }, data: decrement })
+        : await tx.fixedSale.updateMany({ where: { id: sale.id, ...stockWhere }, data: decrement })
       if (stockOk.count !== 1) {
         throw new ConflictError("Out of stock")
       }
@@ -227,6 +302,7 @@ export async function purchaseFixed(opts: {
           publicId: secureSlug("ord"),
           userId: opts.userId,
           productId: opts.productId,
+          variantId: variant?.id ?? null,
           type: "FIXED_PURCHASE",
           status: "PAID",
           amount: chargeTotal,
@@ -244,8 +320,8 @@ export async function purchaseFixed(opts: {
 
       // Deliver. For AUTOMATIC, a missing inventory item throws and rolls back
       // the entire transaction (charge + stock) -> automatic rollback.
-      if (product.deliveryType === "AUTOMATIC") {
-        await reserveAndDeliverAuto(created.id, product.id, tx)
+      if (deliveryType === "AUTOMATIC") {
+        await reserveAndDeliverAuto(created.id, product.id, tx, variant?.id)
       } else {
         await createManualDelivery(created.id, tx)
       }
@@ -262,7 +338,9 @@ export async function purchaseFixed(opts: {
   if (reservation) await cache.del(reservationKey(reservation.token))
 
   // Best-effort realtime stock update.
-  const fresh = await prisma.fixedSale.findUnique({ where: { id: sale.id } })
+  const fresh = variant
+    ? await prisma.productVariant.findUnique({ where: { id: variant.id } })
+    : await prisma.fixedSale.findUnique({ where: { id: sale.id } })
   if (fresh) {
     await emit(Channels.broadcast, {
       type: "STOCK_CHANGED",
@@ -328,7 +406,7 @@ export async function purchaseFixed(opts: {
   // from the admin fulfilment path (completeManualDelivery).
   try {
     const { createNotification } = await import("./notifications")
-    const delivered = product.deliveryType === "AUTOMATIC"
+    const delivered = deliveryType === "AUTOMATIC"
     await createNotification({
       userId: order.userId,
       type: delivered ? "ORDER_DELIVERED" : "GENERAL",
