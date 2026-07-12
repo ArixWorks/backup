@@ -1635,9 +1635,36 @@ model ErrorEvent {
   resolvedAt  DateTime?
   firstSeenAt DateTime    @default(now())
   lastSeenAt  DateTime    @default(now())
+  diagnoses   ErrorDiagnosis[]
 
   @@index([resolved, lastSeenAt])
   @@index([source, lastSeenAt])
+}
+
+model ErrorDiagnosis {
+  id             String     @id @default(cuid())
+  errorEventId   String
+  errorEvent     ErrorEvent @relation(fields: [errorEventId], references: [id], onDelete: Cascade)
+  status         String     @default("COMPLETED")
+  model          String?
+  provider       String?
+  area           String
+  likelyFile     String?
+  likelyFunction String?
+  rootCause      String
+  impact         String
+  confidence     Float
+  evidence       Json       @default("[]")
+  steps          Json       @default("[]")
+  canAutoFix     Boolean    @default(false)
+  failureReason  String?
+  diagnosedById  String
+  approvedById   String?
+  approvedAt     DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([errorEventId, createdAt])
 }
 
 // Threshold/anomaly rule that drives alerting.

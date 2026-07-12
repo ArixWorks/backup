@@ -24,6 +24,7 @@ export const GET = route(async (req: Request) => {
       where,
       orderBy: { lastSeenAt: "desc" },
       take: limit,
+      include: { diagnoses: { orderBy: { createdAt: "desc" }, take: 1 } },
     }),
     prisma.errorEvent.groupBy({
       by: ["source"],

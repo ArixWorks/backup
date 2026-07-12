@@ -51,6 +51,9 @@ export const dbTracker: ErrorTracker = {
           message: finalMessage,
           stack: stack?.slice(0, 8000),
           level,
+          context: (input.context ?? undefined) as object | undefined,
+          userId: input.userId ?? undefined,
+          release: input.release ?? undefined,
         },
       })
 
