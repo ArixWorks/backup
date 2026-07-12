@@ -10,6 +10,20 @@ import { richExcerpt } from "@/lib/rich-content/render"
 
 export type ProductLink = { label: string; url: string }
 
+/** A single purchasable sale plan (e.g. "1-month single device"). */
+export type PlanVariant = {
+  id: string
+  name: string
+  attributes: Record<string, unknown> | null
+  description: string | null
+  price: number
+  compareAtPrice: number | null
+  stock: number
+  purchaseLimit: number | null
+  deliveryType: string
+  soldCount?: number
+}
+
 export type FlashSale = {
   id: string
   slug: string
@@ -25,6 +39,7 @@ export type FlashSale = {
   soldDisplay?: number
   bulkMinQty?: number | null
   bulkDiscountPercent?: number | null
+  variants?: PlanVariant[]
 }
 
 export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?: () => void }) {

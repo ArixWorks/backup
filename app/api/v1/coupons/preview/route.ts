@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic"
 const schema = z.object({
   code: z.string().trim().min(1).max(40),
   productId: z.string().min(1),
+  variantId: z.string().trim().min(1).optional(),
   quantity: z.number().int().min(1).max(50).default(1),
 })
 
@@ -28,7 +29,25 @@ export const POST = route(async (req: Request) => {
   })
   if (!product?.fixedSale) throw new NotFoundError("Product not found")
 
-  const { totalPrice } = priceFor(product.fixedSale, body.quantity)
+  // When a plan is chosen its price is the base; bulk config stays product-level.
+  let unitPrice = product.fixedSale.price
+  if (body.variantId) {
+    const variant = await prisma.productVariant.findFirst({
+      where: { id: body.variantId, productId: body.productId },
+      select: { price: true },
+    })
+    if (!variant) throw new NotFoundError("Plan not found")
+    unitPrice = variant.price
+  }
+
+  const { totalPrice } = priceFor(
+    {
+      price: unitPrice,
+      bulkMinQty: product.fixedSale.bulkMinQty,
+      bulkDiscountPercent: product.fixedSale.bulkDiscountPercent,
+    },
+    body.quantity,
+  )
   const { preview } = await evaluateCoupon(prisma, body.code, totalPrice, user.id)
 
   return {

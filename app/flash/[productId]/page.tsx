@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useMemo, useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { toast } from "sonner"
@@ -8,6 +8,7 @@ import { ArrowRight, Package, PackageX, Tag, ExternalLink, Share2 } from "lucide
 import { fetcher } from "@/lib/api-client"
 import { EmptyState } from "@/components/empty-state"
 import { FlashBuyButton } from "@/components/flash-buy-button"
+import { PlanSelector } from "@/components/plan-selector"
 import { ProductWatchButton } from "@/components/product-watch-button"
 import { ProductGallery } from "@/components/product-gallery"
 import { RichContent, CollapsibleContent } from "@/components/rich-content"
@@ -33,12 +34,27 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
   const { productId } = use(params)
   const { t, priceValue, currency, num, dir } = useI18n()
   const [copied, setCopied] = useState(false)
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const { data, isLoading, error, mutate } = useSWR<{ data: FlashDetail }>(
     `/api/v1/flash-sales/${productId}`,
     fetcher,
     { refreshInterval: 15000 },
   )
   const p = data?.data
+
+  // Multi-plan products let the user choose which plan to buy. The default
+  // (first, in-stock when possible) is auto-selected so there is always a valid
+  // target. Single-plan products render exactly like before (no selector).
+  const variants = p?.variants ?? []
+  const hasPlans = variants.length > 0
+  const effectiveSelectedId = useMemo(() => {
+    if (!hasPlans) return null
+    if (selectedPlanId && variants.some((v) => v.id === selectedPlanId)) return selectedPlanId
+    return (variants.find((v) => v.stock > 0) ?? variants[0]).id
+  }, [hasPlans, selectedPlanId, variants])
+  const selectedVariant = hasPlans
+    ? (variants.find((v) => v.id === effectiveSelectedId) ?? null)
+    : null
 
   async function share() {
     const url = typeof window !== "undefined" ? window.location.href : ""
@@ -95,7 +111,11 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
     )
   }
 
-  const soldOut = p.stock <= 0
+  // Displayed price/stock follow the selected plan when the product has plans.
+  const shownPrice = selectedVariant ? selectedVariant.price : p.price
+  const shownStock = selectedVariant ? selectedVariant.stock : p.stock
+  const shownDelivery = selectedVariant ? selectedVariant.deliveryType : p.deliveryType
+  const soldOut = shownStock <= 0
   const hasBulk = !!p.bulkMinQty && !!p.bulkDiscountPercent
 
   return (
@@ -174,7 +194,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <DeliveryBadge type={p.deliveryType} />
+              <DeliveryBadge type={shownDelivery} />
               {p.category && <Badge variant="secondary">{p.category}</Badge>}
             </div>
 
@@ -189,18 +209,29 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
             )}
 
             <div>
-              <span className="text-xs text-muted-foreground">{currency}</span>
+              <span className="text-xs text-muted-foreground">
+                {selectedVariant && variants.length > 1 ? t("plan.from") : ""} {currency}
+              </span>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-3xl font-extrabold tabular-nums text-primary">
-                  {priceValue(p.price)}
+                  {priceValue(shownPrice)}
                 </span>
               </div>
-              {hasBulk && p.bulkUnitPrice != null && (
+              {hasBulk && p.bulkUnitPrice != null && !hasPlans && (
                 <p className="mt-1 text-xs text-success">
                   {p.bulkMinQty}+ : {t("detail.eachFrom")} {priceValue(p.bulkUnitPrice)} {currency}
                 </p>
               )}
             </div>
+
+            {/* Sale plan selector — only when the product offers multiple plans. */}
+            {hasPlans && (
+              <PlanSelector
+                variants={variants}
+                selectedId={effectiveSelectedId}
+                onSelect={setSelectedPlanId}
+              />
+            )}
 
             <div className="flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2.5 text-sm">
               <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -208,12 +239,18 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
                 {t("flash.stock")}
               </span>
               <span className="font-bold tabular-nums">
-                {soldOut ? t("flash.soldOut") : num(p.stock)}
+                {soldOut ? t("flash.soldOut") : num(shownStock)}
               </span>
             </div>
 
             <div dir={dir}>
-              <FlashBuyButton sale={p} onPurchased={() => mutate()} fullWidth />
+              <FlashBuyButton
+                sale={p}
+                variant={selectedVariant}
+                disabled={hasPlans && !selectedVariant}
+                onPurchased={() => mutate()}
+                fullWidth
+              />
             </div>
 
             {soldOut && (
