@@ -289,7 +289,12 @@ export default function NewProductPage() {
             </TabsList>
 
             <TabsContent value="flash" className="mt-4 space-y-4">
-              <Field label="قیمت (تومان)">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-[11px] leading-relaxed text-muted-foreground">
+                <span className="font-semibold text-foreground">چند قیمت برای یک محصول؟</span>{" "}
+                این قیمت، قیمت پایه است. پس از «ساخت محصول»، در صفحه ویرایش بخش «پلن‌های فروش» را باز کنید تا
+                پلن‌های مختلف (مثلاً ۱ ماهه، ۳ ماهه، ۱ ساله) هرکدام با قیمت و موجودی مستقل اضافه کنید.
+              </div>
+              <Field label="قیمت پایه (تومان)">
                 <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="750000" />
               </Field>
               <Field label="موجودی انبار">
