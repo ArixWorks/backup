@@ -22,7 +22,11 @@ export async function listProductsAdmin() {
 export async function getProductAdmin(id: string) {
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { fixedSale: true, auction: true },
+    include: {
+      fixedSale: true,
+      auction: true,
+      variants: { orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] },
+    },
   })
   if (!product) throw new NotFoundError("محصول یافت نشد")
   return product

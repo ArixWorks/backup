@@ -2,7 +2,9 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireAiAdmin } from "@/lib/ai/permissions"
 import {
+  buildPlansFromPrompt,
   generateAnnouncement,
+  generatePlanDescription,
   generateProductDescription,
   generateSeo,
   rewriteText,
@@ -64,6 +66,22 @@ const schema = z.discriminatedUnion("task", [
     targetLocale: z.string().optional(),
     locale: z.string().optional(),
   }),
+  z.object({
+    task: z.literal("plan_description"),
+    productTitle: z.string().min(2),
+    planName: z.string().optional(),
+    attributes: z.record(z.string(), z.unknown()).optional(),
+    notes: z.string().optional(),
+    tone: z.string().optional(),
+    locale: z.string().optional(),
+  }),
+  z.object({
+    task: z.literal("build_plans"),
+    productTitle: z.string().min(2),
+    prompt: z.string().min(2),
+    count: z.number().int().min(1).max(6).optional(),
+    locale: z.string().optional(),
+  }),
 ])
 
 export const POST = route(async (req: Request) => {
@@ -86,5 +104,9 @@ export const POST = route(async (req: Request) => {
       return generateAnnouncement(body, actor)
     case "inline":
       return runInlineAction(body, actor)
+    case "plan_description":
+      return generatePlanDescription(body, actor)
+    case "build_plans":
+      return buildPlansFromPrompt(body, actor)
   }
 })

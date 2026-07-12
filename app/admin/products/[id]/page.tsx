@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
+import { VariantsEditor } from "@/components/admin/products/variants-editor"
 
 type ProductLink = { label: string; url: string }
 
@@ -129,21 +130,29 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           />
 
           {product.saleMode === "FIXED_PRICE" && product.fixedSale && (
-            <FlashEditor
-              id={id}
-              sale={product.fixedSale}
-              initialLinks={product.links ?? []}
-              onSaved={mutate}
-            />
+            <>
+              <div className="relative">
+                <VariantsEditor productId={id} productTitle={product.title} />
+              </div>
+              <FlashEditor
+                id={id}
+                sale={product.fixedSale}
+                initialLinks={product.links ?? []}
+                onSaved={mutate}
+              />
+            </>
           )}
 
-          {product.deliveryType === "AUTOMATIC" ? (
-            <InventoryManager productId={id} />
-          ) : (
-            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              این محصول تحویل دستی دارد؛ نیازی به مخزن اکانت نیست.
-            </div>
-          )}
+          {/* Product-level pool is only for auctions; fixed-price inventory
+              lives per sale plan inside the plans editor above. */}
+          {product.saleMode !== "FIXED_PRICE" &&
+            (product.deliveryType === "AUTOMATIC" ? (
+              <InventoryManager productId={id} />
+            ) : (
+              <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                این محصول تحویل دستی دارد؛ نیازی به مخزن اکانت نیست.
+              </div>
+            ))}
         </>
       )}
     </div>
@@ -339,7 +348,12 @@ function FlashEditor({
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-5">
-      <h2 className="font-bold">قیمت، موجودی و فروش</h2>
+      <div>
+        <h2 className="font-bold">قیمت پایه، تخفیف عمده و لینک‌ها</h2>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          قیمت و موجودی واقعی از «پلن‌های فروش» بالا خوانده می‌شود. مقادیر زیر فقط زمانی استفاده می‌شوند که هیچ پلنی تعریف نشده باشد.
+        </p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="price">قیمت (تومان)</Label>

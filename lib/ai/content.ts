@@ -264,3 +264,107 @@ export async function generateAnnouncement(
   })
   return object
 }
+
+// ---------------------------------------------------------------------------
+// Task: sale-plan (variant) description
+// ---------------------------------------------------------------------------
+// Writes copy for ONE purchasable plan of a product (e.g. the "1-month single
+// device" plan of a VPN) given its structured attributes, so each plan reads
+// clearly instead of the admin re-describing the whole product every time.
+export const planDescriptionSchema = z.object({
+  name: z.string().describe("نام کوتاه و گویای پلن، حداکثر ۴۰ کاراکتر"),
+  description: z.string().describe("توضیح ۱ تا ۲ پاراگرافی مخصوص همین پلن"),
+  bullets: z.array(z.string()).min(2).max(6).describe("۲ تا ۶ ویژگی کلیدی همین پلن"),
+})
+export type PlanDescription = z.infer<typeof planDescriptionSchema>
+
+function attrsHint(attributes?: Record<string, unknown> | null) {
+  if (!attributes || Object.keys(attributes).length === 0) return ""
+  const parts = Object.entries(attributes)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => `${k}: ${typeof v === "boolean" ? (v ? "بله" : "خیر") : v}`)
+  return parts.length ? `مشخصات ساختاریافته پلن:\n${parts.join("\n")}` : ""
+}
+
+export async function generatePlanDescription(
+  input: {
+    productTitle: string
+    planName?: string
+    attributes?: Record<string, unknown> | null
+    notes?: string
+    tone?: string
+    locale?: string
+  },
+  actor: ContentActor,
+): Promise<PlanDescription> {
+  const locale = LOCALE_LABEL[input.locale ?? "fa"] ?? "فارسی"
+  const { object } = await runObject({
+    feature: "content.plan_description",
+    schema: planDescriptionSchema,
+    system: BASE_SYSTEM,
+    userId: actor.userId,
+    prompt: [
+      `برای یک پلن فروش مشخص از محصول زیر، متن به زبان ${locale} بنویس. فقط همین پلن را توصیف کن، نه کل محصول.`,
+      `محصول: ${input.productTitle}`,
+      input.planName ? `نام فعلی پلن: ${input.planName}` : "",
+      attrsHint(input.attributes),
+      input.notes ? `نکات مهم: ${input.notes}` : "",
+      toneHint(input.tone),
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  })
+  return object
+}
+
+// ---------------------------------------------------------------------------
+// Task: build sale-plan(s) from a free-text line
+// ---------------------------------------------------------------------------
+// The admin types a short line (e.g. "۱ ماهه تک‌کاربره ۹۰ هزار") and the AI
+// proposes a full plan — name, structured attributes, price and description.
+// `count > 1` returns a coherent tiered ladder in one shot (batch mode).
+const suggestedPlanSchema = z.object({
+  name: z.string().describe("نام کوتاه پلن"),
+  description: z.string().describe("توضیح کوتاه مخصوص پلن"),
+  bullets: z.array(z.string()).min(2).max(6),
+  attributes: z
+    .object({
+      duration: z.string().nullish().describe("مدت اشتراک مثل '1m'، '3m'، '1y'"),
+      devices: z.number().int().nullish().describe("تعداد دستگاه مجاز"),
+      accountType: z.enum(["shared", "private"]).nullish().describe("اختصاصی یا اشتراکی"),
+      credentialsControl: z.boolean().nullish().describe("امکان تغییر رمز توسط کاربر"),
+      twoFactor: z.boolean().nullish().describe("امکان فعال‌سازی تایید دومرحله‌ای"),
+      warranty: z.string().nullish().describe("مدت گارانتی/جایگزینی"),
+    })
+    .describe("مشخصات ساختاریافته پلن"),
+  suggestedPrice: z.number().int().nonnegative().nullish().describe("قیمت پیشنهادی به تومان اگر از متن قابل استنباط بود"),
+})
+export const buildPlansSchema = z.object({
+  plans: z.array(suggestedPlanSchema).min(1).max(6),
+})
+export type SuggestedPlan = z.infer<typeof suggestedPlanSchema>
+
+export async function buildPlansFromPrompt(
+  input: { productTitle: string; prompt: string; count?: number; locale?: string },
+  actor: ContentActor,
+): Promise<{ plans: SuggestedPlan[] }> {
+  const locale = LOCALE_LABEL[input.locale ?? "fa"] ?? "فارسی"
+  const count = Math.min(Math.max(input.count ?? 1, 1), 6)
+  const { object } = await runObject({
+    feature: "content.build_plans",
+    schema: buildPlansSchema,
+    system:
+      BASE_SYSTEM +
+      " تو در ساخت «پلن‌های فروش» برای یک محصول دیجیتال تخصص داری. هر پلن باید مشخصات ساختاریافته دقیق داشته باشد.",
+    userId: actor.userId,
+    prompt: [
+      count > 1
+        ? `برای محصول زیر دقیقاً ${count} پلن فروش پلکانی و منسجم به زبان ${locale} بساز.`
+        : `برای محصول زیر یک پلن فروش کامل به زبان ${locale} بساز.`,
+      `محصول: ${input.productTitle}`,
+      `توضیح ادمین: ${input.prompt}`,
+      "اگر قیمتی در متن آمده در suggestedPrice قرار بده، در غیر این صورت آن را خالی بگذار. هرگز قیمت غیرواقعی نساز.",
+    ].join("\n"),
+  })
+  return object
+}

@@ -238,9 +238,10 @@ export async function markDeliveryFailed(deliveryId: string, error: string, admi
 
 // --- Inventory pool ----------------------------------------------------------
 
-export async function listInventory(productId: string) {
+export async function listInventory(productId: string, variantId?: string | null) {
   return prisma.inventoryItem.findMany({
-    where: { productId },
+    // Scope to a specific sale plan when given; otherwise the whole product.
+    where: variantId ? { productId, variantId } : { productId },
     orderBy: { createdAt: "desc" },
     take: 500,
   })
@@ -253,16 +254,33 @@ export interface InventoryItemInput {
   note?: string
 }
 
-/** Bulk-add inventory items to a product's automatic-delivery pool. */
-export async function addInventoryItems(productId: string, items: InventoryItemInput[], adminId: string) {
+/**
+ * Bulk-add inventory items to a product's automatic-delivery pool. When a
+ * variantId is given the credentials are attached to that specific sale plan's
+ * pool; otherwise they belong to the product pool (legacy single-plan).
+ */
+export async function addInventoryItems(
+  productId: string,
+  items: InventoryItemInput[],
+  adminId: string,
+  variantId?: string | null,
+) {
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product) throw new NotFoundError("محصول یافت نشد")
+  if (variantId) {
+    const variant = await prisma.productVariant.findFirst({
+      where: { id: variantId, productId },
+      select: { id: true },
+    })
+    if (!variant) throw new NotFoundError("پلن یافت نشد")
+  }
   const clean = items.filter((i) => i.username || i.password || i.licenseKey || i.note)
   if (clean.length === 0) throw new ValidationError("حداقل یک آیتم معتبر وارد کنید")
 
   const created = await prisma.inventoryItem.createMany({
     data: clean.map((i) => ({
       productId,
+      variantId: variantId ?? null,
       username: i.username || null,
       password: i.password || null,
       licenseKey: i.licenseKey || null,
