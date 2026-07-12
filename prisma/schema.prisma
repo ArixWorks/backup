@@ -96,7 +96,9 @@ enum AuctionStatus {
   DEFAULTED // winner missed the payment deadline
 }
 
-/** Why/how an auction reached its terminal state. Drives winner + card UI. */
+/**
+ * Why/how an auction reached its terminal state. Drives winner + card UI.
+ */
 enum AuctionEndReason {
   HIGHEST_BID
   BUY_NOW
@@ -104,7 +106,9 @@ enum AuctionEndReason {
   CANCELLED
 }
 
-/** Timeline event kinds for the transparent auction activity log. */
+/**
+ * Timeline event kinds for the transparent auction activity log.
+ */
 enum AuctionEventType {
   AUCTION_STARTED
   BID_PLACED
@@ -213,39 +217,39 @@ enum SupportCategory {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                 String     @id @default(cuid())
-  email              String?    @unique
+  id                     String     @id @default(cuid())
+  email                  String?    @unique
   // Argon2id password hash for email/password login (null = Telegram-only account).
   // Legacy scrypt hashes are still accepted and transparently rehashed on next login.
-  passwordHash       String?
+  passwordHash           String?
   // True once the email address has been confirmed via a verification token.
   // A verified email is locked and can no longer be changed from the UI.
-  emailVerified      Boolean    @default(false)
+  emailVerified          Boolean    @default(false)
   // Forces a password change on next login (used for the seeded admin account).
-  mustChangePassword Boolean    @default(false)
+  mustChangePassword     Boolean    @default(false)
   // "telegram" | "password" — the method used for the most recent successful login.
-  lastLoginMethod    String?
+  lastLoginMethod        String?
   // Bumped to invalidate every existing signed session (logout from all devices).
-  tokenVersion       Int        @default(0)
-  telegramId         String?    @unique
+  tokenVersion           Int        @default(0)
+  telegramId             String?    @unique
   // Telegram chat id used for push notifications (usually equals telegramId for private chats).
-  telegramChatId     String?
-  telegramUsername   String?
-  photoUrl           String?
-  languageCode       String?
+  telegramChatId         String?
+  telegramUsername       String?
+  photoUrl               String?
+  languageCode           String?
   // True once the user manually picks a language, so Telegram's language_code stops overriding it.
-  localeManual       Boolean    @default(false)
-  isPremium          Boolean    @default(false)
-  username           String?    @unique
-  displayName        String
-  alias              String     @unique // public pseudonym shown in bid history
-  role               UserRole   @default(USER)
-  status             UserStatus @default(ACTIVE)
+  localeManual           Boolean    @default(false)
+  isPremium              Boolean    @default(false)
+  username               String?    @unique
+  displayName            String
+  alias                  String     @unique // public pseudonym shown in bid history
+  role                   UserRole   @default(USER)
+  status                 UserStatus @default(ACTIVE)
   // Temporary auction ban applied by the RESTRICT_USER winner-default action.
   // Null / past = unrestricted; a future timestamp blocks new bids until then.
   auctionRestrictedUntil DateTime?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
 
   // Referral program: each user has a shareable code; referredById points to
   // the inviter. referralRewarded flips true once the first-purchase bonus is paid.
@@ -287,25 +291,26 @@ model User {
   userBadges   UserBadge[]
   userMissions UserMission[]
 
-  wallets         Wallet[]
-  ledgerAccounts  LedgerAccount[]
-  conversions     CurrencyConversion[]
-  bids            Bid[]
-  orders          Order[]
-  watchlist       WatchlistEntry[]
-  auditLogs       AuditLog[]
-  deposits        DepositRequest[]
-  withdrawals     WithdrawalRequest[]
-  refunds         RefundRequest[]
-  tickets         SupportTicket[]
-  reviews         Review[]
-  redemptions     CouponRedemption[]
-  notifications   Notification[]
-  stockAlerts     StockAlert[]
-  categoryFollows CategoryFollow[]
-  authTokens      AuthToken[]
-  giveawayEntries GiveawayEntry[]
-  giveawayWins    GiveawayWinner[]
+  wallets             Wallet[]
+  ledgerAccounts      LedgerAccount[]
+  conversions         CurrencyConversion[]
+  bids                Bid[]
+  orders              Order[]
+  watchlist           WatchlistEntry[]
+  auditLogs           AuditLog[]
+  deposits            DepositRequest[]
+  withdrawals         WithdrawalRequest[]
+  refunds             RefundRequest[]
+  tickets             SupportTicket[]
+  reviews             Review[]
+  redemptions         CouponRedemption[]
+  notifications       Notification[]
+  stockAlerts         StockAlert[]
+  categoryFollows     CategoryFollow[]
+  authTokens          AuthToken[]
+  giveawayEntries     GiveawayEntry[]
+  giveawayWins        GiveawayWinner[]
+  broadcastRecipients BroadcastRecipient[]
 
   @@index([status])
   @@index([referredById])
@@ -349,19 +354,19 @@ enum ReferralRewardStatus {
 // inviter) chain. Parent/root are stored as scalar ids (no self-relation) so a
 // partial backup/restore can never dangle a FK. Idempotent on invitedUserId.
 model ReferralRelation {
-  id              String                 @id @default(cuid())
-  invitedUserId   String                 @unique
+  id                String                 @id @default(cuid())
+  invitedUserId     String                 @unique
   // Direct inviter (level-1). The user whose code the invited user used.
-  parentInviterId String
+  parentInviterId   String
   // Root inviter (level-2 = parent's inviter). Null for a top-level invite.
-  rootInviterId   String?
+  rootInviterId     String?
   // Depth of the invited user within the chain (1 = direct invite).
-  level           Int                    @default(1)
-  status          ReferralRelationStatus @default(WAITING_FOR_CHANNEL_MEMBERSHIP)
+  level             Int                    @default(1)
+  status            ReferralRelationStatus @default(WAITING_FOR_CHANNEL_MEMBERSHIP)
   // Timestamp the invited user passed the mandatory channel gate.
   channelVerifiedAt DateTime?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   @@index([parentInviterId])
   @@index([rootInviterId])
@@ -372,28 +377,28 @@ model ReferralRelation {
 // a specific second-level invited user. Idempotent via the unique triggerKey so
 // replays/concurrency can never double-pay.
 model ReferralReward {
-  id             String               @id @default(cuid())
+  id            String               @id @default(cuid())
   // Deterministic idempotency key, e.g. "L2:<rootInviterId>:<triggerUserId>".
-  triggerKey     String               @unique
+  triggerKey    String               @unique
   // Reward recipient (root inviter).
-  beneficiaryId  String
+  beneficiaryId String
   // The second-level invited user whose verification triggered this reward.
-  triggerUserId  String
+  triggerUserId String
   // The direct inviter in the middle of the chain (beneficiary → middle → trigger).
-  middleUserId   String
-  amount         BigInt
-  currency       String               @default("IRT")
-  status         ReferralRewardStatus  @default(PENDING)
+  middleUserId  String
+  amount        BigInt
+  currency      String               @default("IRT")
+  status        ReferralRewardStatus @default(PENDING)
   // Numeric risk score (0..100) and machine reason from the risk engine.
-  riskScore      Int                   @default(0)
-  riskReason     String?
+  riskScore     Int                  @default(0)
+  riskReason    String?
   // Set once the wallet has actually been credited (guards credit-once).
-  creditedAt     DateTime?
+  creditedAt    DateTime?
   // Admin who approved/rejected a reviewed reward, if any.
-  decidedById    String?
-  decidedAt      DateTime?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  decidedById   String?
+  decidedAt     DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@index([beneficiaryId])
   @@index([triggerUserId])
@@ -804,6 +809,56 @@ model Notification {
 // Doubles as the "product watchlist" (flash sales), parallel to WatchlistEntry
 // which covers auctions. notified flips true once a restock alert is sent and
 // resets when the product sells out again, enabling repeat alerts.
+model BroadcastCampaign {
+  id              String    @id @default(cuid())
+  title           String
+  status          String    @default("DRAFT")
+  channels        Json
+  audience        Json
+  telegramContent Json?
+  webContent      Json?
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  totalRecipients Int       @default(0)
+  pendingCount    Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  skippedCount    Int       @default(0)
+  lastError       String?
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  recipients BroadcastRecipient[]
+
+  @@index([status, scheduledAt])
+  @@index([createdAt])
+}
+
+model BroadcastRecipient {
+  id                 String            @id @default(cuid())
+  campaignId         String
+  campaign           BroadcastCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramChatId     String?
+  telegramStatus     String            @default("PENDING")
+  webStatus          String            @default("PENDING")
+  attempts           Int               @default(0)
+  telegramMessageIds Json?
+  error              String?
+  sentAt             DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, telegramStatus])
+  @@index([campaignId, webStatus])
+  @@index([userId])
+}
+
 model StockAlert {
   id        String   @id @default(cuid())
   userId    String
@@ -866,37 +921,37 @@ model FixedSale {
 // Additive & backup-safe: the product-level FixedSale keeps the sale window +
 // bulk pricing; single-plan products auto-migrate to one default variant.
 model ProductVariant {
-  id            String       @id @default(cuid())
-  productId     String
-  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   // Short plan name shown on the selector card, e.g. "۱ ماهه — تک دستگاه".
-  name          String
+  name           String
   // Structured, comparable plan attributes rendered in the comparison table.
   // Shape: { duration?, devices?, accountType?, credentialsControl?, twoFactor?,
   //          warranty?, [custom]: string|number|boolean }.
-  attributes    Json?
+  attributes     Json?
   // Primary (fa) plan description; per-locale copy lives in i18n.
-  description   String?
+  description    String?
   // Native multilingual plan copy: { fa?: {name,description}, en?, ru?, hi? }.
-  i18n          Json?
-  price         BigInt
+  i18n           Json?
+  price          BigInt
   // Optional strike-through / "was" price for a discount badge.
   compareAtPrice BigInt?
-  stock         Int          @default(0)
-  reservedStock Int          @default(0)
-  soldCount     Int          @default(0)
-  purchaseLimit Int?         // max units per user for this plan
+  stock          Int          @default(0)
+  reservedStock  Int          @default(0)
+  soldCount      Int          @default(0)
+  purchaseLimit  Int? // max units per user for this plan
   // Per-plan delivery. Defaults to the product's deliveryType on creation.
-  deliveryType  DeliveryType @default(MANUAL)
-  displayOrder  Int          @default(0)
-  active        Boolean      @default(true)
+  deliveryType   DeliveryType @default(MANUAL)
+  displayOrder   Int          @default(0)
+  active         Boolean      @default(true)
   // Marks the auto-migrated single default plan (hidden selector when it is the
   // only variant) so legacy single-plan products render exactly like before.
-  isDefault     Boolean      @default(false)
+  isDefault      Boolean      @default(false)
   // Optimistic-locking guard against concurrent stock mutations.
-  version       Int          @default(0)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  version        Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   inventoryItems InventoryItem[]
   orders         Order[]
@@ -934,13 +989,13 @@ model Auction {
   // Dedicated winner result so the winner is never inferred from the top bid.
   // Stored as a SCALAR id (no User relation) to keep backup/restore topo-sort
   // simple and consistent with the referral engine's approach.
-  winnerUserId       String?
-  finalPrice         BigInt?
-  endReason          AuctionEndReason?
+  winnerUserId           String?
+  finalPrice             BigInt?
+  endReason              AuctionEndReason?
   // Number of soft-close extensions already applied (capped by policy).
-  softCloseExtensions Int          @default(0)
+  softCloseExtensions    Int               @default(0)
   // When the winner must complete payment by (set at settlement time).
-  paymentDeadlineAt  DateTime?
+  paymentDeadlineAt      DateTime?
   // Second Chance Offer (PR4): the bidder currently holding an active offer and
   // the deadline by which they must accept. Both null unless an offer is live.
   // Scalar id (no relation) — consistent with winnerUserId + backup-safe.
@@ -948,10 +1003,10 @@ model Auction {
   secondChanceDeadlineAt DateTime?
   // Per-auction policy override, merged over the global auction policy.
   // JSON blob (partial AuctionPolicy). Null → inherit the global policy.
-  policyJson         String?
+  policyJson             String?
 
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   bids     Bid[]
   orders   Order[]
@@ -1013,24 +1068,24 @@ model WatchlistEntry {
 // ---------------------------------------------------------------------------
 
 model Order {
-  id        String      @id @default(cuid())
-  publicId  String      @unique // unguessable reference
+  id        String          @id @default(cuid())
+  publicId  String          @unique // unguessable reference
   userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
-  product   Product     @relation(fields: [productId], references: [id])
+  product   Product         @relation(fields: [productId], references: [id])
   // The chosen sale plan for FIXED_PRICE/BUY_NOW orders. Null for auction wins
   // and legacy single-plan orders created before variants existed.
   variantId String?
   variant   ProductVariant? @relation(fields: [variantId], references: [id])
   auctionId String?
-  auction   Auction?    @relation(fields: [auctionId], references: [id])
+  auction   Auction?        @relation(fields: [auctionId], references: [id])
   type      OrderType
-  status    OrderStatus @default(PENDING)
+  status    OrderStatus     @default(PENDING)
   amount    BigInt
-  quantity  Int         @default(1)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  quantity  Int             @default(1)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
   delivery Delivery?
 
@@ -1131,22 +1186,22 @@ model DepositRequest {
 }
 
 model WithdrawalRequest {
-  id           String           @id @default(cuid())
-  publicId     String           @unique
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount       BigInt
-  status       WithdrawalStatus @default(PENDING)
-  iban         String? // destination sheba/card
-  cardNumber   String?
-  note         String?
-  reviewedById String?
-  reviewedAt   DateTime?
-  rejectReason String?
+  id              String           @id @default(cuid())
+  publicId        String           @unique
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          BigInt
+  status          WithdrawalStatus @default(PENDING)
+  iban            String? // destination sheba/card
+  cardNumber      String?
+  note            String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectReason    String?
   // Set once the user has seen the in-app rejection popup so it shows only once.
   rejectionSeenAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([status, createdAt])
   @@index([userId, createdAt])

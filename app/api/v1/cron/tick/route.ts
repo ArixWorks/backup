@@ -120,6 +120,16 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] email queue processing error:", (e as Error).message)
   }
 
+  // Drain scheduled and active Telegram/web-app broadcast campaigns in small,
+  // idempotent batches. Best-effort so a recipient/API failure cannot stop cron.
+  let broadcasts: { campaigns: number; processed: number } = { campaigns: 0, processed: 0 }
+  try {
+    const { processBroadcastQueue } = await import("@/lib/broadcast/core")
+    broadcasts = await processBroadcastQueue()
+  } catch (e) {
+    console.log("[v0] broadcast queue processing error:", (e as Error).message)
+  }
+
   // Run due AI automations (daily digest, ticket triage, ...). Best-effort:
   // each automation is isolated and an AI failure must never break the tick.
   let automations: { ran: number } = { ran: 0 }
@@ -150,6 +160,7 @@ export const POST = route(async (req: Request) => {
     giveaways,
     backup,
     email,
+    broadcasts,
     automations,
     referralRewards,
   }

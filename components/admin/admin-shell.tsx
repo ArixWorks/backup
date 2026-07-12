@@ -33,6 +33,7 @@ import {
   BookOpen,
   Workflow,
   FileText,
+  Send,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -88,7 +89,8 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/admin/referrals", label: "سیستم دعوت", icon: Share2 },
       { href: "/admin/coupons", label: "کدهای تخفیف", icon: Ticket },
-      { href: "/admin/channel", label: "پست کانال", icon: Megaphone },
+      { href: "/admin/broadcasts", label: "مرکز پیام", icon: Megaphone },
+      { href: "/admin/channel", label: "پست کانال", icon: Send },
       { href: "/admin/email", label: "مدیریت ایمیل", icon: Mail },
       { href: "/admin/growth", label: "تحلیل رشد", icon: TrendingUp },
     ],
