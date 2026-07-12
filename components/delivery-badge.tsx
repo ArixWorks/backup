@@ -6,7 +6,8 @@ import { useI18n } from "@/components/i18n-provider"
 
 export function DeliveryBadge({ type, className }: { type: string; className?: string }) {
   const { t } = useI18n()
-  const auto = type === "AUTO_POOL"
+  // DeliveryType enum is MANUAL | AUTOMATIC; accept the legacy "AUTO_POOL" too.
+  const auto = type === "AUTOMATIC" || type === "AUTO_POOL"
   return (
     <span
       className={cn(
