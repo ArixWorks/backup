@@ -131,11 +131,41 @@ export function PlanSelector({
         </div>
       </div>
 
-      {/* Comparison table */}
+      {/* Comparison: stacked cards on phones, full matrix from tablet upward. */}
       {activeRows.length > 0 && variants.length > 1 && (
         <div className="min-w-0 max-w-full">
           <h3 className="mb-2 text-xs font-bold text-muted-foreground">{t("plan.compare")}</h3>
-          <div className="max-w-full overflow-x-auto rounded-xl border border-border">
+
+          <div className="grid gap-2 sm:hidden">
+            {variants.map((variant) => (
+              <section
+                key={variant.id}
+                aria-label={variant.name}
+                className={`overflow-hidden rounded-xl border ${
+                  variant.id === selectedId ? "border-primary bg-primary/5" : "border-border bg-secondary/20"
+                }`}
+              >
+                <h4
+                  dir="auto"
+                  className={`border-b border-border px-3 py-2.5 text-sm font-bold ${
+                    variant.id === selectedId ? "text-primary" : "text-foreground"
+                  }`}
+                >
+                  {variant.name}
+                </h4>
+                <dl className="divide-y divide-border">
+                  {activeRows.map((row) => (
+                    <div key={row.key} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2 text-xs">
+                      <dt className="shrink-0 text-muted-foreground">{t(row.label)}</dt>
+                      <dd className="min-w-0 text-end font-medium tabular-nums">{renderValue(row, variant)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
+          </div>
+
+          <div className="hidden max-w-full overflow-x-auto rounded-xl border border-border sm:block">
             <table className="w-full min-w-[420px] border-collapse text-xs">
               <thead>
                 <tr className="bg-secondary/50">
