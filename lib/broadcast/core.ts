@@ -11,7 +11,11 @@ const mediaSchema = z.object({
   caption: z.string().max(1024).optional(),
 })
 
-const buttonSchema = z.object({ text: z.string().min(1).max(64), url: z.string().url() })
+const buttonSchema = z.object({
+  text: z.string().min(1).max(64),
+  url: z.string().url(),
+  openIn: z.enum(["BROWSER", "MINI_APP"]).default("BROWSER"),
+})
 
 export const telegramContentSchema = z.object({
   html: z.string().max(4096).default(""),

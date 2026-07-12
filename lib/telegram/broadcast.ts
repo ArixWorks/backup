@@ -22,7 +22,14 @@ async function call(method: string, payload: Record<string, unknown>): Promise<T
 }
 
 function keyboard(content: TelegramContent) {
-  return content.buttons.length ? { inline_keyboard: content.buttons } : undefined
+  if (!content.buttons.length) return undefined
+  return {
+    inline_keyboard: content.buttons.map((row) => row.map((button) =>
+      button.openIn === "MINI_APP"
+        ? { text: button.text, web_app: { url: button.url } }
+        : { text: button.text, url: button.url },
+    )),
+  }
 }
 
 export async function sendBroadcastPayload(chatId: string, content: TelegramContent): Promise<number[]> {
