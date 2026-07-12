@@ -39,6 +39,8 @@ export function PlanSelector({
     [variants],
   )
 
+  const selectedVariant = variants.find((variant) => variant.id === selectedId) ?? variants[0]
+
   function renderValue(row: { key: string }, v: PlanVariant): React.ReactNode {
     const val = v.attributes?.[row.key]
     if (val === null || val === undefined || val === "") {
@@ -136,34 +138,34 @@ export function PlanSelector({
         <div className="min-w-0 max-w-full">
           <h3 className="mb-2 text-xs font-bold text-muted-foreground">{t("plan.compare")}</h3>
 
-          <div className="grid gap-2 sm:hidden">
-            {variants.map((variant) => (
-              <section
-                key={variant.id}
-                aria-label={variant.name}
-                className={`overflow-hidden rounded-xl border ${
-                  variant.id === selectedId ? "border-primary bg-primary/5" : "border-border bg-secondary/20"
-                }`}
-              >
-                <h4
-                  dir="auto"
-                  className={`border-b border-border px-3 py-2.5 text-sm font-bold ${
-                    variant.id === selectedId ? "text-primary" : "text-foreground"
-                  }`}
-                >
-                  {variant.name}
-                </h4>
-                <dl className="divide-y divide-border">
-                  {activeRows.map((row) => (
-                    <div key={row.key} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2 text-xs">
-                      <dt className="shrink-0 text-muted-foreground">{t(row.label)}</dt>
-                      <dd className="min-w-0 text-end font-medium tabular-nums">{renderValue(row, variant)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ))}
-          </div>
+          {selectedVariant ? (
+            <section
+              key={selectedVariant.id}
+              aria-label={selectedVariant.name}
+              aria-live="polite"
+              className="overflow-hidden rounded-xl border border-primary bg-primary/5 sm:hidden"
+            >
+              <h4 dir="auto" className="border-b border-border px-3 py-2.5 text-sm font-bold text-primary">
+                {selectedVariant.name}
+              </h4>
+              <dl className="divide-y divide-border">
+                {activeRows.map((row) => (
+                  <div key={row.key} className="flex min-w-0 items-center justify-between gap-3 px-3 py-2 text-xs">
+                    <dt className="shrink-0 text-muted-foreground">{t(row.label)}</dt>
+                    <dd className="min-w-0 text-end font-medium tabular-nums">{renderValue(row, selectedVariant)}</dd>
+                  </div>
+                ))}
+              </dl>
+              {selectedVariant.description ? (
+                <div className="border-t border-border px-3 py-3">
+                  <p className="mb-1 text-xs font-bold text-foreground">توضیحات پلن</p>
+                  <p dir="auto" className="text-pretty text-xs leading-relaxed text-muted-foreground">
+                    {selectedVariant.description}
+                  </p>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
           <div className="hidden max-w-full overflow-x-auto rounded-xl border border-border sm:block">
             <table className="w-full min-w-[420px] border-collapse text-xs">
