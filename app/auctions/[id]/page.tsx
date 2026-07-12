@@ -22,6 +22,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { formatToman, formatDateTime, formatRelative, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
+import { useSession } from "@/hooks/use-session"
+import { CelebrationOverlay } from "@/components/celebration-overlay"
 
 type Bid = {
   id: string
@@ -63,6 +65,7 @@ type AuctionDetail = {
 
 export default function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t } = useI18n()
+  const { user } = useSession()
   const { id } = use(params)
   const { data, isLoading, mutate } = useSWR<{ data: AuctionDetail }>(
     `/api/v1/auctions/${id}`,
@@ -74,6 +77,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   // Time-based urgency (client-only to stay hydration-safe). Reads fresh data
   // inside the effect so the hook order never depends on the loading state.
   const [endingSoon, setEndingSoon] = useState(false)
+  const [celebrating, setCelebrating] = useState(false)
   useEffect(() => {
     const au = data?.data
     const liveNonTerminal =
@@ -87,6 +91,18 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [data])
+
+  useEffect(() => {
+    if (!a?.winnerUserId || a.winnerUserId !== user?.id || a.finalPrice == null) return
+    const key = `celebrated:auction:${a.id}`
+    try {
+      if (sessionStorage.getItem(key)) return
+      sessionStorage.setItem(key, "1")
+    } catch {
+      // Session storage can be unavailable in hardened browsers; still celebrate.
+    }
+    setCelebrating(true)
+  }, [a?.finalPrice, a?.id, a?.winnerUserId, user?.id])
 
   if (isLoading || !a) {
     return (
@@ -132,6 +148,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
+      <CelebrationOverlay
+        open={celebrating}
+        kind="auction-win"
+        subject={a.title}
+        image={a.coverImage}
+        actionHref="/orders"
+        onClose={() => setCelebrating(false)}
+      />
       <Link
         href="/auctions"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"

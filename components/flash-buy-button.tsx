@@ -18,6 +18,7 @@ import { apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import type { FlashSale, PlanVariant } from "@/components/flash-card"
+import { CelebrationOverlay } from "@/components/celebration-overlay"
 
 type Step = "quantity" | "payment" | "done"
 
@@ -62,6 +63,7 @@ export function FlashBuyButton({
   }
 
   const [open, setOpen] = useState(false)
+  const [celebrating, setCelebrating] = useState(false)
   const [step, setStep] = useState<Step>("quantity")
   const [qty, setQty] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -145,6 +147,8 @@ export function FlashBuyButton({
         status: order?.delivery?.status ?? order?.status,
       })
       setStep("done")
+      setOpen(false)
+      setCelebrating(true)
       toast.success(t("buy.success"))
       await refresh()
       onPurchased?.()
@@ -361,6 +365,14 @@ export function FlashBuyButton({
           )}
         </DialogContent>
       </Dialog>
+      <CelebrationOverlay
+        open={celebrating}
+        kind="purchase"
+        subject={sale.title}
+        image={sale.coverImage}
+        actionHref="/orders"
+        onClose={() => setCelebrating(false)}
+      />
     </>
   )
 }

@@ -15,6 +15,7 @@ import { useSession } from "@/hooks/use-session"
 import { FadeItem } from "@/components/motion"
 import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { useI18n } from "@/components/i18n-provider"
+import { CelebrationOverlay } from "@/components/celebration-overlay"
 import type { MessageKey } from "@/lib/i18n/messages"
 
 type Channel = { id: string; title: string; url: string }
@@ -37,25 +38,8 @@ export type GiveawayDetailData = {
   status: string
   participants: number
   entered: boolean
+  currentUserWinner: boolean
   winners: Winner[]
-}
-
-async function fireConfetti() {
-  // Respect users who prefer reduced motion — skip the animation entirely.
-  if (
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-  ) {
-    return
-  }
-  const { default: confetti } = await import("canvas-confetti")
-  const end = Date.now() + 900
-  const colors = ["#e8b923", "#f5d76e", "#ffffff"]
-  ;(function frame() {
-    confetti({ particleCount: 4, angle: 60, spread: 60, origin: { x: 0 }, colors })
-    confetti({ particleCount: 4, angle: 120, spread: 60, origin: { x: 1 }, colors })
-    if (Date.now() < end) requestAnimationFrame(frame)
-  })()
 }
 
 export function GiveawayDetail({
@@ -69,6 +53,7 @@ export function GiveawayDetail({
   const { t } = useI18n()
   const [joining, setJoining] = useState(false)
   const [missing, setMissing] = useState<Channel[]>([])
+  const [celebration, setCelebration] = useState<"giveaway-entry" | "giveaway-win" | null>(null)
   const firedRef = useRef(false)
 
   const isActive = giveaway.status === "ACTIVE"
@@ -76,13 +61,19 @@ export function GiveawayDetail({
   const isFinished = giveaway.status === "FINISHED"
   const isLocked = giveaway.status === "LOCKED" || giveaway.status === "DRAWING"
 
-  // Celebrate once when a finished giveaway has winners revealed.
+  // Celebrate only the signed-in winner, once per browser session and giveaway.
   useEffect(() => {
-    if (isFinished && giveaway.winners.length > 0 && !firedRef.current) {
-      firedRef.current = true
-      void fireConfetti()
+    if (!isFinished || !giveaway.currentUserWinner || firedRef.current) return
+    const key = `celebrated:giveaway:${giveaway.id}`
+    firedRef.current = true
+    try {
+      if (sessionStorage.getItem(key)) return
+      sessionStorage.setItem(key, "1")
+    } catch {
+      // Session storage can be unavailable in hardened browsers; still celebrate.
     }
-  }, [isFinished, giveaway.winners.length])
+    setCelebration("giveaway-win")
+  }, [giveaway.currentUserWinner, giveaway.id, isFinished])
 
   async function handleJoin() {
     if (!user) return
@@ -94,7 +85,7 @@ export function GiveawayDetail({
       )
       if (res.data.joined) {
         toast.success(t("gwd.entered"))
-        void fireConfetti()
+        setCelebration("giveaway-entry")
         onChange()
       } else {
         setMissing(res.data.missing)
@@ -243,6 +234,15 @@ export function GiveawayDetail({
       </FadeItem>
 
       {/* Winners reveal */}
+      <CelebrationOverlay
+        open={celebration !== null}
+        kind={celebration ?? "giveaway-entry"}
+        subject={giveaway.prizeLabel}
+        image={giveaway.prizeImage || giveaway.coverImage}
+        actionHref={celebration === "giveaway-win" ? "/giveaways/wins" : undefined}
+        onClose={() => setCelebration(null)}
+      />
+
       {isFinished && (
         <FadeItem>
           <div className="card-premium gold-border space-y-3 rounded-2xl p-5">

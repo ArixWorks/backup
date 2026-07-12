@@ -486,6 +486,7 @@ export async function getPublicGiveaway(slug: string, userId?: string) {
     status: g.status,
     participants: g._count.entries,
     entered,
+    currentUserWinner: userId ? g.winners.some((winner) => winner.userId === userId) : false,
     winners: g.winners.map((w) => ({
       position: w.position,
       name: maskName(w.user.displayName),

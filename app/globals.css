@@ -85,6 +85,9 @@
   --duration-fast: 150ms; /* taps, hovers, icon swaps */
   --duration-base: 240ms; /* most UI transitions */
   --duration-slow: 420ms; /* page / surface transitions */
+  /* Celebration scenes deliberately reuse the active theme's five-color system:
+     overlay, card, foreground, primary, and success. */
+  --celebration-beam: color-mix(in oklab, var(--primary) 22%, transparent);
 
   /* ── Responsive layout system ────────────────────────────────────────────
      One source of truth for the responsive shell. Content column stays capped
@@ -113,6 +116,24 @@
   --space-fluid-sm: clamp(0.75rem, 0.6rem + 0.6vw, 1.25rem);
   --space-fluid-md: clamp(1rem, 0.75rem + 1.1vw, 2rem);
   --space-fluid-lg: clamp(1.5rem, 1rem + 2vw, 3.5rem);
+}
+
+.celebration-beam {
+  position: absolute;
+  width: min(34rem, 92vw);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--celebration-beam) 0deg 8deg,
+    transparent 8deg 23deg
+  );
+  mask-image: radial-gradient(circle, black 0 38%, transparent 72%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebration-beam { transform: none !important; }
 }
 
 /* ============================================================================
