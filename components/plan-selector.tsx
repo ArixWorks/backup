@@ -63,7 +63,7 @@ export function PlanSelector({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {/* Plan cards */}
       <div>
         <h2 className="mb-2 text-sm font-bold">{t("plan.choose")}</h2>
@@ -133,9 +133,9 @@ export function PlanSelector({
 
       {/* Comparison table */}
       {activeRows.length > 0 && variants.length > 1 && (
-        <div>
+        <div className="min-w-0 max-w-full">
           <h3 className="mb-2 text-xs font-bold text-muted-foreground">{t("plan.compare")}</h3>
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <div className="max-w-full overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[420px] border-collapse text-xs">
               <thead>
                 <tr className="bg-secondary/50">
