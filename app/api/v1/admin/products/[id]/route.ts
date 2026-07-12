@@ -10,6 +10,7 @@ import {
 } from "@/lib/core/admin-catalog"
 import { ValidationError } from "@/lib/core/errors"
 import { richTextField } from "@/lib/rich-content/zod"
+import { requireTestCleanupOwner } from "@/lib/core/admin/test-cleanup"
 
 export const dynamic = "force-dynamic"
 
@@ -82,10 +83,15 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   )
 })
 
-export const DELETE = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const admin = await requireAdmin()
+export const DELETE = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
+  let reversePurchases = false
+  try {
+    const body = await req.json()
+    reversePurchases = body?.reversePurchases === true
+  } catch {}
+  const admin = reversePurchases ? await requireTestCleanupOwner() : await requireAdmin()
   const { id } = await ctx.params
-  const result = await deleteProducts([id], admin.id)
+  const result = await deleteProducts([id], admin.id, { reversePurchases })
   // Single-target delete: surface the guard reason as a clear error.
   if (result.deleted.length === 0) {
     const reason = result.skipped[0]?.reason ?? "حذف ممکن نشد"

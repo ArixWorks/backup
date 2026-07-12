@@ -328,7 +328,11 @@ export interface DeleteResult {
  * cascade automatically via the schema. Deletion of each product is atomic; the
  * loop is best-effort so one failure does not abort the rest of the batch.
  */
-export async function deleteProducts(ids: string[], adminId: string): Promise<DeleteResult> {
+export async function deleteProducts(
+  ids: string[],
+  adminId: string,
+  options: { reversePurchases?: boolean } = {},
+): Promise<DeleteResult> {
   const unique = Array.from(new Set(ids.filter(Boolean)))
   const result: DeleteResult = { deleted: [], skipped: [] }
   if (unique.length === 0) return result
@@ -350,13 +354,21 @@ export async function deleteProducts(ids: string[], adminId: string): Promise<De
       result.skipped.push({ id, title: id, reason: "یافت نشد" })
       continue
     }
-    if (product._count.orders > 0) {
+    if (product._count.orders > 0 && !options.reversePurchases) {
       result.skipped.push({
         id,
         title: product.title,
         reason: `دارای ${product._count.orders} سفارش ثبت‌شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,
       })
       continue
+    }
+    if (product._count.orders > 0) {
+      const { cleanupProductOrders } = await import("./admin/test-cleanup")
+      const cleanup = await cleanupProductOrders(id, adminId)
+      if (cleanup.skipped.length > 0) {
+        result.skipped.push({ id, title: product.title, reason: cleanup.skipped[0].reason })
+        continue
+      }
     }
     try {
       await prisma.product.delete({ where: { id } })

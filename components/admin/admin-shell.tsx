@@ -34,6 +34,7 @@ import {
   Workflow,
   FileText,
   Send,
+  ShoppingBag,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -69,6 +70,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
       { href: "/admin/refunds", label: "بازگشت وجه", icon: Undo2, badge: "refunds" },
       { href: "/admin/deliveries", label: "تحویل سفارش", icon: Package, badge: "deliveries" },
+      { href: "/admin/orders", label: "خریدهای آزمایشی", icon: ShoppingBag },
       { href: "/admin/support", label: "تیکت‌ها", icon: LifeBuoy, badge: "tickets" },
     ],
   },

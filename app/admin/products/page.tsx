@@ -59,9 +59,14 @@ export default function AdminProductsPage() {
   const selection = useBulkSelection(products.map((p) => p.id))
 
   async function removeOne(p: Product) {
-    if (!confirm(`حذف «${p.title}»؟ این عملیات قابل بازگشت نیست.`)) return
+    let reversePurchases = false
+    if (p._count.orders > 0) {
+      const typed = prompt(`«${p.title}» دارای ${formatNumber(p._count.orders)} خرید است. برای بازپرداخت خریدها و حذف کامل محصول عبارت DELETE-WITH-PURCHASES را وارد کنید.`)
+      if (typed !== "DELETE-WITH-PURCHASES") return
+      reversePurchases = true
+    } else if (!confirm(`حذف «${p.title}»؟ این عملیات قابل بازگشت نیست.`)) return
     try {
-      await apiDelete(`/api/v1/admin/products/${p.id}`)
+      await apiDelete(`/api/v1/admin/products/${p.id}`, reversePurchases ? { reversePurchases: true } : undefined)
       toast.success("محصول حذف شد")
       await mutate()
     } catch (err) {
