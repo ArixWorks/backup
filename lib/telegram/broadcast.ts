@@ -8,6 +8,21 @@ const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null
 
 type TelegramMessage = { message_id: number }
 
+const CUSTOM_EMOJI_CODE = /\[(\d{5,32})\]/g
+const TG_EMOJI_TAG = /<tg-emoji\s+emoji-id="\d{5,32}">[\s\S]*?<\/tg-emoji>/gi
+
+/** Convert admin-friendly [custom_emoji_id] codes without touching existing tg-emoji tags. */
+function renderCustomEmojiCodes(html: string): string {
+  const preserved: string[] = []
+  const protectedHtml = html.replace(TG_EMOJI_TAG, (tag) => {
+    preserved.push(tag)
+    return `\uE000${preserved.length - 1}\uE001`
+  })
+  return protectedHtml
+    .replace(CUSTOM_EMOJI_CODE, '<tg-emoji emoji-id="$1">✨</tg-emoji>')
+    .replace(/\uE000(\d+)\uE001/g, (_, index: string) => preserved[Number(index)] || "")
+}
+
 async function call(method: string, payload: Record<string, unknown>): Promise<TelegramMessage | TelegramMessage[]> {
   if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
   const response = await fetch(`${API}/${method}`, {
@@ -24,15 +39,16 @@ async function call(method: string, payload: Record<string, unknown>): Promise<T
 function keyboard(content: TelegramContent) {
   if (!content.buttons.length) return undefined
   return {
-    inline_keyboard: content.buttons.map((row) => row.map((button) =>
-      button.openIn === "MINI_APP"
-        ? { text: button.text, web_app: { url: button.url } }
-        : { text: button.text, url: button.url },
-    )),
+    inline_keyboard: content.buttons.map((row) => row.map((button) => ({
+      text: button.text,
+      ...(button.openIn === "MINI_APP" ? { web_app: { url: button.url } } : { url: button.url }),
+      ...(button.style === "default" ? {} : { style: button.style }),
+    }))),
   }
 }
 
 export async function sendBroadcastPayload(chatId: string, content: TelegramContent): Promise<number[]> {
+  const html = renderCustomEmojiCodes(content.html)
   const common = {
     chat_id: chatId,
     parse_mode: "HTML",
@@ -42,23 +58,23 @@ export async function sendBroadcastPayload(chatId: string, content: TelegramCont
     reply_markup: keyboard(content),
   }
   if (content.media.length === 0) {
-    const result = await sendMessage(chatId, content.html || " ", { replyMarkup: keyboard(content), disablePreview: content.disablePreview }) as TelegramMessage
+    const result = await sendMessage(chatId, html || " ", { replyMarkup: keyboard(content), disablePreview: content.disablePreview }) as TelegramMessage
     return [result.message_id]
   }
   if (content.media.length === 1 && content.media[0].type === "photo") {
-    const result = await sendPhoto(chatId, content.media[0].url, content.media[0].caption || content.html, { replyMarkup: keyboard(content) }) as TelegramMessage
+    const result = await sendPhoto(chatId, content.media[0].url, content.media[0].caption || html, { replyMarkup: keyboard(content) }) as TelegramMessage
     return [result.message_id]
   }
   if (content.media.length > 1 && content.media.every((item) => item.type === "photo" || item.type === "video")) {
     const media = content.media.map((item, index) => ({
       type: item.type,
       media: item.url,
-      caption: index === 0 ? item.caption || content.html.slice(0, 1024) : item.caption,
+      caption: index === 0 ? item.caption || html.slice(0, 1024) : item.caption,
       parse_mode: "HTML",
     }))
     const result = await call("sendMediaGroup", { ...common, media }) as TelegramMessage[]
-    if (content.buttons.length || content.html.length > 1024) {
-      const followup = await sendMessage(chatId, content.html.length > 1024 ? content.html : "ادامه", { replyMarkup: keyboard(content), disablePreview: content.disablePreview }) as TelegramMessage
+    if (content.buttons.length || html.length > 1024) {
+      const followup = await sendMessage(chatId, html.length > 1024 ? html : "ادامه", { replyMarkup: keyboard(content), disablePreview: content.disablePreview }) as TelegramMessage
       return [...result.map((item) => item.message_id), followup.message_id]
     }
     return result.map((item) => item.message_id)
@@ -70,13 +86,13 @@ export async function sendBroadcastPayload(chatId: string, content: TelegramCont
     const result = await call(method, {
       ...common,
       [item.type === "photo" ? "photo" : item.type === "document" ? "document" : item.type]: item.url,
-      caption: item.caption || (index === 0 ? content.html.slice(0, 1024) : undefined),
+      caption: item.caption || (index === 0 ? html.slice(0, 1024) : undefined),
       reply_markup: index === content.media.length - 1 ? keyboard(content) : undefined,
     }) as TelegramMessage
     ids.push(result.message_id)
   }
-  if (content.html.length > 1024) {
-    const followup = await sendMessage(chatId, content.html, { replyMarkup: keyboard(content), disablePreview: content.disablePreview }) as TelegramMessage
+  if (html.length > 1024) {
+    const followup = await sendMessage(chatId, html, { replyMarkup: keyboard(content), disablePreview: content.disablePreview }) as TelegramMessage
     ids.push(followup.message_id)
   }
   return ids

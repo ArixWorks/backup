@@ -15,6 +15,7 @@ const buttonSchema = z.object({
   text: z.string().min(1).max(64),
   url: z.string().url(),
   openIn: z.enum(["BROWSER", "MINI_APP"]).default("BROWSER"),
+  style: z.enum(["default", "primary", "success", "danger"]).default("default"),
 })
 
 export const telegramContentSchema = z.object({

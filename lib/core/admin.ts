@@ -73,6 +73,10 @@ export async function listUsers(query?: string) {
             { displayName: { contains: query, mode: "insensitive" } },
             { alias: { contains: query, mode: "insensitive" } },
             { username: { contains: query, mode: "insensitive" } },
+            { telegramUsername: { contains: query.replace(/^@/, ""), mode: "insensitive" } },
+            { telegramId: { contains: query, mode: "insensitive" } },
+            { telegramChatId: { contains: query, mode: "insensitive" } },
+            { id: { equals: query } },
             { email: { contains: query, mode: "insensitive" } },
           ],
         }
