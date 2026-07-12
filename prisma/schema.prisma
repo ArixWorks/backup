@@ -661,6 +661,7 @@ model Product {
 
   fixedSale      FixedSale?
   auction        Auction?
+  variants       ProductVariant[]
   inventoryItems InventoryItem[]
   orders         Order[]
   reviews        Review[]
@@ -856,6 +857,54 @@ model FixedSale {
 }
 
 // ---------------------------------------------------------------------------
+// Product variants / sale plans
+// ---------------------------------------------------------------------------
+// A single FIXED_PRICE product can offer several purchasable plans (e.g. a VPN
+// sold as "1-month single-device" vs "full account, 10 devices"). Each variant
+// owns its own price, stock, delivery type and inventory pool so the customer
+// picks one plan instead of the admin creating separate confusing products.
+// Additive & backup-safe: the product-level FixedSale keeps the sale window +
+// bulk pricing; single-plan products auto-migrate to one default variant.
+model ProductVariant {
+  id            String       @id @default(cuid())
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Short plan name shown on the selector card, e.g. "۱ ماهه — تک دستگاه".
+  name          String
+  // Structured, comparable plan attributes rendered in the comparison table.
+  // Shape: { duration?, devices?, accountType?, credentialsControl?, twoFactor?,
+  //          warranty?, [custom]: string|number|boolean }.
+  attributes    Json?
+  // Primary (fa) plan description; per-locale copy lives in i18n.
+  description   String?
+  // Native multilingual plan copy: { fa?: {name,description}, en?, ru?, hi? }.
+  i18n          Json?
+  price         BigInt
+  // Optional strike-through / "was" price for a discount badge.
+  compareAtPrice BigInt?
+  stock         Int          @default(0)
+  reservedStock Int          @default(0)
+  soldCount     Int          @default(0)
+  purchaseLimit Int?         // max units per user for this plan
+  // Per-plan delivery. Defaults to the product's deliveryType on creation.
+  deliveryType  DeliveryType @default(MANUAL)
+  displayOrder  Int          @default(0)
+  active        Boolean      @default(true)
+  // Marks the auto-migrated single default plan (hidden selector when it is the
+  // only variant) so legacy single-plan products render exactly like before.
+  isDefault     Boolean      @default(false)
+  // Optimistic-locking guard against concurrent stock mutations.
+  version       Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  inventoryItems InventoryItem[]
+  orders         Order[]
+
+  @@index([productId, active, displayOrder])
+}
+
+// ---------------------------------------------------------------------------
 // Auctions
 // ---------------------------------------------------------------------------
 
@@ -970,6 +1019,10 @@ model Order {
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   productId String
   product   Product     @relation(fields: [productId], references: [id])
+  // The chosen sale plan for FIXED_PRICE/BUY_NOW orders. Null for auction wins
+  // and legacy single-plan orders created before variants existed.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
   auctionId String?
   auction   Auction?    @relation(fields: [auctionId], references: [id])
   type      OrderType
@@ -982,6 +1035,7 @@ model Order {
   delivery Delivery?
 
   @@index([userId, createdAt])
+  @@index([variantId])
 }
 
 model Delivery {
@@ -1004,6 +1058,10 @@ model InventoryItem {
   id         String          @id @default(cuid())
   productId  String
   product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // The sale plan this credential belongs to. Null for legacy items created
+  // before variants existed (backfilled to the default variant by migration).
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
   username   String?
   password   String?
   licenseKey String?
@@ -1015,6 +1073,7 @@ model InventoryItem {
   delivery Delivery?
 
   @@index([productId, status])
+  @@index([variantId, status])
 }
 
 // ---------------------------------------------------------------------------

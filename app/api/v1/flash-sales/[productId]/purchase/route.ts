@@ -7,6 +7,7 @@ import { withIdempotency, idempotencyKey, readIdempotencyHeader } from "@/lib/ap
 
 const schema = z.object({
   quantity: z.number().int().min(1).max(50).default(1),
+  variantId: z.string().trim().min(1).optional(),
   reservationToken: z.string().optional(),
   couponCode: z.string().trim().max(40).optional(),
 })
@@ -34,6 +35,7 @@ export const POST = route(
           userId: user.id,
           productId,
           quantity: body.quantity,
+          variantId: body.variantId,
           reservationToken: body.reservationToken,
           couponCode: body.couponCode,
         }),

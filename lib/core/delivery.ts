@@ -20,9 +20,15 @@ export async function reserveAndDeliverAuto(
   orderId: string,
   productId: string,
   db: Tx,
+  variantId?: string | null,
 ): Promise<void> {
+  // Scope the inventory pool to the chosen sale plan when the order carries a
+  // variant. Legacy single-plan orders (no variantId) fall back to the whole
+  // product pool, preserving pre-variants behaviour.
   const item = await db.inventoryItem.findFirst({
-    where: { productId, status: "AVAILABLE" },
+    where: variantId
+      ? { variantId, status: "AVAILABLE" }
+      : { productId, status: "AVAILABLE" },
     orderBy: { createdAt: "asc" },
   })
   if (!item) throw new NoInventoryError()
@@ -63,7 +69,16 @@ export async function createManualDelivery(orderId: string, db: Tx): Promise<voi
   await db.order.update({ where: { id: orderId }, data: { status: "PAID" } })
 }
 
-/** Count remaining single-use inventory items for a product. */
-export async function availableInventoryCount(productId: string, db: Tx): Promise<number> {
-  return db.inventoryItem.count({ where: { productId, status: "AVAILABLE" } })
+/**
+ * Count remaining single-use inventory items. Scoped to a sale plan when a
+ * variantId is given, otherwise counts the whole product pool (legacy).
+ */
+export async function availableInventoryCount(
+  productId: string,
+  db: Tx,
+  variantId?: string | null,
+): Promise<number> {
+  return db.inventoryItem.count({
+    where: variantId ? { variantId, status: "AVAILABLE" } : { productId, status: "AVAILABLE" },
+  })
 }

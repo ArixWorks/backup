@@ -100,6 +100,22 @@ export type MessageKey =
   | "detail.notFound"
   | "detail.eachFrom"
   | "detail.restockNotice"
+  | "plan.choose"
+  | "plan.compare"
+  | "plan.selected"
+  | "plan.from"
+  | "plan.each"
+  | "plan.perDevice"
+  | "plan.feature.duration"
+  | "plan.feature.devices"
+  | "plan.feature.accountType"
+  | "plan.feature.credentials"
+  | "plan.feature.twoFactor"
+  | "plan.feature.warranty"
+  | "plan.value.private"
+  | "plan.value.shared"
+  | "plan.value.yes"
+  | "plan.value.no"
   | "search.placeholder"
   | "search.all"
   | "search.noResults"
@@ -890,6 +906,22 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "این محصول یافت نشد یا دیگر در دسترس نیست.",
   "detail.eachFrom": "هر واحد از",
   "detail.restockNotice": "این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.",
+  "plan.choose": "پلن مورد نظر را انتخاب کنید",
+  "plan.compare": "مقایسه پلن‌ها",
+  "plan.selected": "انتخاب‌شده",
+  "plan.from": "شروع از",
+  "plan.each": "هر عدد",
+  "plan.perDevice": "دستگاه",
+  "plan.feature.duration": "مدت اشتراک",
+  "plan.feature.devices": "تعداد دستگاه",
+  "plan.feature.accountType": "نوع اکانت",
+  "plan.feature.credentials": "تغییر رمز عبور",
+  "plan.feature.twoFactor": "تایید دومرحله‌ای",
+  "plan.feature.warranty": "گارانتی",
+  "plan.value.private": "اختصاصی",
+  "plan.value.shared": "اشتراکی",
+  "plan.value.yes": "دارد",
+  "plan.value.no": "ندارد",
   "search.placeholder": "جستجوی محصول…",
   "search.all": "همه",
   "search.noResults": "نتیجه‌ای برای جستجوی شما یافت نشد.",
@@ -1642,6 +1674,22 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "This product was not found or is no longer available.",
   "detail.eachFrom": "Each from",
   "detail.restockNotice": "This product is out of stock. Turn on alerts to be notified when it is back.",
+  "plan.choose": "Choose your plan",
+  "plan.compare": "Compare plans",
+  "plan.selected": "Selected",
+  "plan.from": "From",
+  "plan.each": "each",
+  "plan.perDevice": "device",
+  "plan.feature.duration": "Duration",
+  "plan.feature.devices": "Devices",
+  "plan.feature.accountType": "Account type",
+  "plan.feature.credentials": "Change password",
+  "plan.feature.twoFactor": "Two-factor auth",
+  "plan.feature.warranty": "Warranty",
+  "plan.value.private": "Private",
+  "plan.value.shared": "Shared",
+  "plan.value.yes": "Yes",
+  "plan.value.no": "No",
   "search.placeholder": "Search products…",
   "search.all": "All",
   "search.noResults": "No results found for your search.",
@@ -2394,6 +2442,22 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "Товар не найден или больше недоступен.",
   "detail.eachFrom": "За единицу от",
   "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступлении.",
+  "plan.choose": "Выберите тариф",
+  "plan.compare": "Сравнить тарифы",
+  "plan.selected": "Выбрано",
+  "plan.from": "От",
+  "plan.each": "за шт.",
+  "plan.perDevice": "устройство",
+  "plan.feature.duration": "Срок",
+  "plan.feature.devices": "Устройства",
+  "plan.feature.accountType": "Тип аккаунта",
+  "plan.feature.credentials": "Смена пароля",
+  "plan.feature.twoFactor": "Двухфакторная аутентификация",
+  "plan.feature.warranty": "Гарантия",
+  "plan.value.private": "Личный",
+  "plan.value.shared": "Общий",
+  "plan.value.yes": "Да",
+  "plan.value.no": "Нет",
   "search.placeholder": "Поиск товаров…",
   "search.all": "Все",
   "search.noResults": "По вашему запросу ничего не найдено.",
@@ -3147,6 +3211,22 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "Yeh product nahi mila ya ab available nahi hai.",
   "detail.eachFrom": "Per unit se",
   "detail.restockNotice": "Yeh product stock mein nahi hai. Wapas aane par notify hone ke liye alert on karein.",
+  "plan.choose": "Apna plan chunein",
+  "plan.compare": "Plans ki tulna karein",
+  "plan.selected": "Chuna gaya",
+  "plan.from": "Se shuru",
+  "plan.each": "prati",
+  "plan.perDevice": "device",
+  "plan.feature.duration": "Avadhi",
+  "plan.feature.devices": "Devices",
+  "plan.feature.accountType": "Account prakaar",
+  "plan.feature.credentials": "Password badlein",
+  "plan.feature.twoFactor": "Two-factor auth",
+  "plan.feature.warranty": "Warranty",
+  "plan.value.private": "Private",
+  "plan.value.shared": "Shared",
+  "plan.value.yes": "Haan",
+  "plan.value.no": "Nahi",
   "search.placeholder": "Products khojein…",
   "search.all": "Sabhi",
   "search.noResults": "Aapki search ke liye koi result nahi mila.",

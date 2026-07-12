@@ -159,11 +159,29 @@ export async function getFlashDetail(idOrSlug: string) {
       active: true,
       hidden: false,
     },
-    include: { fixedSale: true },
+    include: {
+      fixedSale: true,
+      variants: { where: { active: true }, orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] },
+    },
   })
   if (!p || !p.fixedSale) return null
 
   const summary = summarizeFlash(p as unknown as FlashProductRow)
+
+  // Public sale plans: expose available (non-reserved) stock only, never the
+  // reserved holds. Prices stay BigInt and are serialized to strings upstream.
+  const variants = (p.variants ?? []).map((v) => ({
+    id: v.id,
+    name: v.name,
+    attributes: (v.attributes ?? null) as Record<string, unknown> | null,
+    description: v.description,
+    price: v.price,
+    compareAtPrice: v.compareAtPrice,
+    stock: Math.max(0, v.stock - v.reservedStock),
+    purchaseLimit: v.purchaseLimit,
+    deliveryType: v.deliveryType,
+    soldCount: v.soldCount,
+  }))
   const images = [p.coverImage, ...(p.gallery ?? [])].filter(
     (src, i, arr): src is string => !!src && arr.indexOf(src) === i,
   )
@@ -184,6 +202,7 @@ export async function getFlashDetail(idOrSlug: string) {
     tags: p.tags ?? [],
     createdAt: p.createdAt,
     bulkUnitPrice,
+    variants,
     ratingAvg: ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
     ratingCount: ratingAgg._count._all,
   }

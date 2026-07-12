@@ -17,7 +17,7 @@ import {
 import { apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
-import type { FlashSale } from "@/components/flash-card"
+import type { FlashSale, PlanVariant } from "@/components/flash-card"
 
 type Step = "quantity" | "payment" | "done"
 
@@ -25,15 +25,26 @@ const COMING_SOON_GATEWAYS = ["Binance Pay", "USDT", "CryptoBot"] as const
 
 export function FlashBuyButton({
   sale,
+  variant,
   onPurchased,
   fullWidth,
+  disabled,
 }: {
   sale: FlashSale
+  /** When set, purchase targets this specific sale plan (price/stock/limit). */
+  variant?: PlanVariant | null
   onPurchased?: () => void
   fullWidth?: boolean
+  disabled?: boolean
 }) {
   const { user, refresh } = useSession()
   const { t, priceValue, currency } = useI18n()
+
+  // The chosen plan is the source of truth for price/stock/limit when present;
+  // otherwise fall back to the product-level fixed sale (legacy single-plan).
+  const effPrice = variant ? variant.price : sale.price
+  const effStock = variant ? variant.stock : sale.stock
+  const effLimit = variant ? variant.purchaseLimit : sale.purchaseLimit
 
   // Map backend coupon error codes (carried in the error message) to localized text.
   const COUPON_CODES = [
@@ -59,19 +70,20 @@ export function FlashBuyButton({
   const [couponInput, setCouponInput] = useState("")
   const [couponLoading, setCouponLoading] = useState(false)
   const [applied, setApplied] = useState<{ code: string; discount: number } | null>(null)
-  const soldOut = sale.stock <= 0
+  const soldOut = effStock <= 0
 
   const maxQty = useMemo(() => {
-    const limit = sale.purchaseLimit ?? Infinity
-    return Math.max(1, Math.min(sale.stock, limit))
-  }, [sale.stock, sale.purchaseLimit])
+    const limit = effLimit ?? Infinity
+    return Math.max(1, Math.min(effStock, limit))
+  }, [effStock, effLimit])
 
-  // Bulk-aware unit price mirrors the bot's priceFor() logic.
+  // Bulk-aware unit price mirrors the bot's priceFor() logic. Bulk discount is a
+  // product-level config that applies on top of the chosen plan's unit price.
   const bulkApplies =
     !!sale.bulkMinQty && !!sale.bulkDiscountPercent && qty >= (sale.bulkMinQty ?? 0)
   const unitPrice = bulkApplies
-    ? Math.round(sale.price * (1 - (sale.bulkDiscountPercent as number) / 100))
-    : sale.price
+    ? Math.round(effPrice * (1 - (sale.bulkDiscountPercent as number) / 100))
+    : effPrice
   const subtotal = unitPrice * qty
   const discount = applied?.discount ?? 0
   const total = Math.max(0, subtotal - discount)
@@ -101,6 +113,7 @@ export function FlashBuyButton({
         code,
         productId: sale.id,
         quantity: qty,
+        ...(variant ? { variantId: variant.id } : {}),
       })
       setApplied({ code: res.data.code, discount: Number(res.data.discount) })
       toast.success(t("coupon.applied"))
@@ -123,6 +136,7 @@ export function FlashBuyButton({
     try {
       const res = await apiPost(`/api/v1/flash-sales/${sale.id}/purchase`, {
         quantity: qty,
+        ...(variant ? { variantId: variant.id } : {}),
         ...(applied ? { couponCode: applied.code } : {}),
       })
       const order = res.data
@@ -146,7 +160,7 @@ export function FlashBuyButton({
       <Button
         size={fullWidth ? "default" : "sm"}
         onClick={start}
-        disabled={soldOut}
+        disabled={soldOut || disabled}
         className={fullWidth ? "w-full gap-1.5" : "gap-1.5"}
       >
         <ShoppingCart className="h-4 w-4" />
@@ -192,7 +206,8 @@ export function FlashBuyButton({
                   </Button>
                 </div>
                 <p className="text-center text-xs text-muted-foreground">
-                  {t("flash.stock")}: {sale.stock}
+                  {variant ? `${variant.name} — ` : ""}
+                  {t("flash.stock")}: {effStock}
                 </p>
                 {bulkApplies && (
                   <p className="text-center text-xs font-medium text-success">
