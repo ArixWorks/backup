@@ -10,6 +10,7 @@ import {
 } from "motion/react"
 
 import { LivingSurface } from "@/components/living-surface"
+import { useI18n } from "@/components/i18n-provider"
 import { useMotionTier } from "@/components/motion-provider"
 import { useDeviceTilt } from "@/components/use-device-tilt"
 
@@ -57,6 +58,7 @@ export function PremiumHeroCard({
   "aria-label"?: string
 }) {
   const tier = useMotionTier()
+  const { t } = useI18n()
   // Follow the *resolved* motion tier (which already folds in OS Reduce-Motion
   // for Auto users and an explicit opt-in otherwise) — never gate on the raw OS
   // media query here, or an explicit "Cinematic" choice would be ignored.
@@ -97,7 +99,9 @@ export function PremiumHeroCard({
     ty,
     enabled: interactive && deviceTilt,
   })
-  const sensorOwns = interactive && deviceTilt && deviceTiltApi.supported
+  // Never surrender pointer/touch control until a real sensor reading arrives.
+  // This prevents iOS cards from becoming frozen while permission is pending.
+  const sensorOwns = interactive && deviceTilt && deviceTiltApi.active
 
   // Gentle pop toward the viewer while engaged (1 → 1.012, barely-there).
   const scale = useTransform(sEngaged, [0, 1], [1, 1.012])
@@ -148,8 +152,6 @@ export function PremiumHeroCard({
 
   function engage() {
     engaged.set(1)
-    // First touch doubles as the iOS gesture that unlocks the sensor.
-    if (sensorOwns && deviceTiltApi.needsGesture) deviceTiltApi.enable()
   }
 
   function resetPointer() {
@@ -228,6 +230,21 @@ export function PremiumHeroCard({
         />
 
         <div className="relative z-[2] [transform:translateZ(28px)]">{children}</div>
+        {deviceTiltApi.needsGesture && !deviceTiltApi.active ? (
+          <button
+            type="button"
+            className="absolute bottom-2 left-1/2 z-[4] -translate-x-1/2 rounded-full border border-border/70 bg-card/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={(event) => {
+              event.stopPropagation()
+              deviceTiltApi.enable()
+            }}
+          >
+            {t("motion.enableTilt")}
+          </button>
+        ) : null}
+        {deviceTiltApi.permissionDenied ? (
+          <p className="sr-only" role="status">{t("motion.permissionDenied")}</p>
+        ) : null}
       </motion.section>
     </motion.div>
   )

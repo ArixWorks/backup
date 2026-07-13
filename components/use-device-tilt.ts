@@ -52,10 +52,12 @@ export type DeviceTiltOptions = {
 export type DeviceTiltState = {
   /** A usable orientation source exists in this environment. */
   supported: boolean
-  /** Sensor is currently streaming and driving the motion values. */
+  /** Sensor has delivered real data and is driving the motion values. */
   active: boolean
   /** iOS-style gesture is still required before it can start. */
   needsGesture: boolean
+  /** iOS permission was denied or no sensor data arrived. */
+  permissionDenied: boolean
   /** Start the sensor (safe to call repeatedly; required on iOS). */
   enable: () => void
   /** Stop the sensor and release listeners. */
@@ -69,9 +71,10 @@ function clamp(v: number, min: number, max: number) {
 }
 
 function isIOS(platform: string | null): boolean {
-  if (platform) return platform === "ios"
+  if (platform === "ios") return true
   if (typeof navigator === "undefined") return false
-  return /iP(hone|ad|od)/i.test(navigator.userAgent)
+  return /iP(hone|ad|od)/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
 }
 
 function detectSupport(): { supported: boolean; kind: "telegram" | "web" | null; platform: string | null } {
@@ -110,6 +113,7 @@ export function useDeviceTilt(options: DeviceTiltOptions): DeviceTiltState {
   const [supported, setSupported] = useState(false)
   const [active, setActive] = useState(false)
   const [needsGesture, setNeedsGesture] = useState(false)
+  const [permissionDenied, setPermissionDenied] = useState(false)
 
   // Everything the animation loop touches lives in refs so the effect body runs
   // once and never rebinds listeners on a state change.
@@ -117,6 +121,7 @@ export function useDeviceTilt(options: DeviceTiltOptions): DeviceTiltState {
   const platformRef = useRef<string | null>(null)
   const rafRef = useRef<number | null>(null)
   const runningRef = useRef(false)
+  const readingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Latest raw reading (degrees) + the calibrated baseline + smoothed output.
   const rawRef = useRef<{ beta: number; gamma: number } | null>(null)
   const baseRef = useRef<{ beta: number; gamma: number } | null>(null)
@@ -166,22 +171,39 @@ export function useDeviceTilt(options: DeviceTiltOptions): DeviceTiltState {
     }
   }, [])
 
+  const markReading = useCallback(() => {
+    if (readingTimeoutRef.current) {
+      clearTimeout(readingTimeoutRef.current)
+      readingTimeoutRef.current = null
+    }
+    setActive(true)
+    setNeedsGesture(false)
+    setPermissionDenied(false)
+  }, [])
+
   // Telegram sensor event → cache the latest reading (radians → degrees).
   const onTelegramReading = useCallback(() => {
     const d = window.Telegram?.WebApp?.DeviceOrientation
     if (!d) return
     rawRef.current = { beta: (d.beta ?? 0) * RAD_TO_DEG, gamma: (d.gamma ?? 0) * RAD_TO_DEG }
-  }, [])
+    markReading()
+  }, [markReading])
 
   // Standard web sensor event → already in degrees.
   const onWebReading = useCallback((e: DeviceOrientationEvent) => {
-    rawRef.current = { beta: e.beta ?? 0, gamma: e.gamma ?? 0 }
-  }, [])
+    if (e.beta == null || e.gamma == null) return
+    rawRef.current = { beta: e.beta, gamma: e.gamma }
+    markReading()
+  }, [markReading])
 
   const disable = useCallback(() => {
     if (!runningRef.current) return
     runningRef.current = false
     stopLoop()
+    if (readingTimeoutRef.current) {
+      clearTimeout(readingTimeoutRef.current)
+      readingTimeoutRef.current = null
+    }
     const wa = window.Telegram?.WebApp
     if (kindRef.current === "telegram") {
       wa?.offEvent?.("deviceOrientationChanged", onTelegramReading)
@@ -207,50 +229,70 @@ export function useDeviceTilt(options: DeviceTiltOptions): DeviceTiltState {
   const enable = useCallback(() => {
     if (runningRef.current || !kindRef.current) return
     const wa = window.Telegram?.WebApp
+    const DOE = window.DeviceOrientationEvent as
+      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> })
+      | undefined
+
+    const attachWeb = () => {
+      kindRef.current = "web"
+      runningRef.current = true
+      window.addEventListener("deviceorientation", onWebReading, true)
+      setNeedsGesture(false)
+      startLoop()
+      readingTimeoutRef.current = setTimeout(() => {
+        if (!rawRef.current) {
+          disable()
+          setPermissionDenied(true)
+        }
+      }, 1800)
+    }
+
+    const requestWeb = () => {
+      if (DOE && typeof DOE.requestPermission === "function") {
+        DOE.requestPermission()
+          .then((res) => {
+            if (res === "granted") attachWeb()
+            else setPermissionDenied(true)
+          })
+          .catch(() => setPermissionDenied(true))
+      } else if (DOE) {
+        attachWeb()
+      } else {
+        setPermissionDenied(true)
+      }
+    }
 
     if (kindRef.current === "telegram") {
       const d = wa?.DeviceOrientation
-      if (!d) return
+      if (!d) {
+        requestWeb()
+        return
+      }
       runningRef.current = true
       wa?.onEvent?.("deviceOrientationChanged", onTelegramReading)
       try {
         d.start({ refresh_rate: refreshRate, need_absolute: false }, (ok) => {
           if (!ok) {
             disable()
+            requestWeb()
             return
           }
-          setActive(true)
-          setNeedsGesture(false)
           startLoop()
+          readingTimeoutRef.current = setTimeout(() => {
+            if (!rawRef.current) {
+              disable()
+              requestWeb()
+            }
+          }, 1200)
         })
       } catch {
         disable()
+        requestWeb()
       }
       return
     }
 
-    // Standard web fallback (iOS needs an explicit permission grant).
-    const DOE = window.DeviceOrientationEvent as
-      | (typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> })
-      | undefined
-    const attach = () => {
-      runningRef.current = true
-      window.addEventListener("deviceorientation", onWebReading, true)
-      setActive(true)
-      setNeedsGesture(false)
-      startLoop()
-    }
-    if (DOE && typeof DOE.requestPermission === "function") {
-      DOE.requestPermission()
-        .then((res) => {
-          if (res === "granted") attach()
-        })
-        .catch(() => {
-          /* denied — stay static */
-        })
-    } else {
-      attach()
-    }
+    requestWeb()
   }, [disable, onTelegramReading, onWebReading, refreshRate, startLoop])
 
   // Auto-start on Android (silent); iOS waits for enable() on first touch.
@@ -279,5 +321,5 @@ export function useDeviceTilt(options: DeviceTiltOptions): DeviceTiltState {
     }
   }, [supported, enabled, enable, disable])
 
-  return { supported, active, needsGesture, enable, disable }
+  return { supported, active, needsGesture, permissionDenied, enable, disable }
 }
