@@ -1,4 +1,5 @@
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
 import type { Metadata, Viewport } from 'next'
 import { Vazirmatn, Geist_Mono } from 'next/font/google'
@@ -81,7 +82,12 @@ export default async function RootLayout({
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        )}
       </body>
     </html>
   )

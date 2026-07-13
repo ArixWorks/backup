@@ -49,6 +49,7 @@
     "@types/canvas-confetti": "^1.9.0",
     "@vercel/analytics": "1.6.1",
     "@vercel/blob": "^2.4.1",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "^7.0.15",
     "argon2": "^0.44.0",
     "canvas-confetti": "^1.9.4",
