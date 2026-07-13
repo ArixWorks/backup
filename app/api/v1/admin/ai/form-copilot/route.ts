@@ -16,7 +16,7 @@ import { buildImagePrompt } from "@/lib/ai/image/prompt"
 import { IMAGE_ASPECTS } from "@/lib/ai/image/settings"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 120
+export const maxDuration = 240
 
 const jsonRecord = z.record(z.string(), z.unknown())
 

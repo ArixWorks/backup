@@ -264,6 +264,7 @@ export async function generateFormObject(input: RunAutofillInput): Promise<Copil
     prompt,
     refType: "copilot",
     refId: def.id,
+    timeoutMs: 180000,
   })
   return sanitizeFormObject(object, def)
 }
@@ -305,6 +306,7 @@ export async function improveFormObject(input: RunAutofillInput): Promise<Copilo
     prompt,
     refType: "copilot",
     refId: def.id,
+    timeoutMs: 180000,
   })
   return sanitizeFormObject(object, def)
 }
@@ -342,6 +344,7 @@ export async function regenerateField(input: {
     prompt,
     refType: "copilot",
     refId: def.id,
+    timeoutMs: 180000,
   })
   return sanitizeFormObject(object, def)
 }

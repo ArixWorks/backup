@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select"
 import { Field, Toggle } from "./fields"
 import { AI_KEYS, type ProviderDef } from "@/app/admin/ai/page"
+import { ModelTestControl } from "./model-test-control"
 
 export function AiModelConfig({
   form,
@@ -83,6 +84,7 @@ export function AiModelConfig({
             ))}
           </div>
         )}
+        <ModelTestControl model={form[AI_KEYS.model] ?? ""} capability="text" />
       </Field>
 
       <Field
@@ -97,6 +99,7 @@ export function AiModelConfig({
           className="font-mono"
           dir="ltr"
         />
+        <ModelTestControl model={form[AI_KEYS.fastModel] ?? ""} capability="text" />
       </Field>
 
       <Field
@@ -134,6 +137,7 @@ export function AiModelConfig({
             </button>
           ))}
         </div>
+        <ModelTestControl model={form[AI_KEYS.imageModel] ?? ""} capability="image" />
       </Field>
 
       <Field
@@ -148,6 +152,7 @@ export function AiModelConfig({
           className="font-mono"
           dir="ltr"
         />
+        <ModelTestControl model={form[AI_KEYS.embeddingModel] ?? ""} capability="embedding" />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

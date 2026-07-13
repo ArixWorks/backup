@@ -1,18 +1,10 @@
 import "server-only"
-import { createGateway, generateText } from "ai"
+import { createGateway, embed, generateImage, generateText } from "ai"
 import { withTimeout } from "@/lib/core/resilience"
 import { getProviderDef } from "./providers"
 import { resolveApiKey, setCredentialStatus } from "./credentials"
 
-/**
- * Test Connection for a provider. Because all traffic is routed through the
- * Vercel AI Gateway, connectivity is validated end-to-end against the real call
- * path: for "gateway" we list models with the resolved key; for any other
- * provider we send a tiny generation to one of its models through the gateway.
- *
- * Persists the outcome ("connected" | "error" | "invalid") so the admin panel
- * can show a live status badge per provider.
- */
+export type ModelTestCapability = "connection" | "text" | "image" | "embedding"
 
 export interface TestResult {
   ok: boolean
@@ -20,16 +12,29 @@ export interface TestResult {
   detail: string
   latencyMs: number
   model?: string
+  sample?: string
+  dimensions?: number
 }
 
-export async function testConnection(provider: string, model?: string): Promise<TestResult> {
+function safeMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  return raw
+    .replace(/(?:api[_ -]?key|token|authorization)[=: ]+[^\s,;]+/gi, "$1=[REDACTED]")
+    .slice(0, 300)
+}
+
+export async function testConnection(
+  provider: string,
+  model?: string,
+  capability: ModelTestCapability = "connection",
+): Promise<TestResult> {
   const def = getProviderDef(provider)
   const startedAt = Date.now()
   const apiKey = (await resolveApiKey("gateway")) ?? undefined
   const gw = createGateway(apiKey ? { apiKey } : {})
 
   try {
-    if (provider === "gateway") {
+    if (capability === "connection") {
       const meta = await withTimeout(15000, () => gw.getAvailableModels(), "ai:test:models")
       const count = meta.models?.length ?? 0
       const result: TestResult = {
@@ -42,50 +47,103 @@ export async function testConnection(provider: string, model?: string): Promise<
       return result
     }
 
-    const testModel = model || def?.suggestedModels[0]
+    const testModel = model?.trim() || def?.suggestedModels[0]
     if (!testModel) {
-      const result: TestResult = {
+      return {
         ok: false,
         status: "error",
         detail: "مدلی برای تست مشخص نشده است",
         latencyMs: Date.now() - startedAt,
       }
-      await setCredentialStatus(provider, "error", result.detail)
-      return result
     }
 
-    await withTimeout(
-      20000,
+    if (capability === "text") {
+      const response = await withTimeout(
+        120000,
+        (signal) =>
+          generateText({
+            model: gw(testModel),
+            prompt: "در یک جمله کوتاه فارسی بنویس: اتصال مدل با موفقیت آزمایش شد.",
+            maxOutputTokens: 64,
+            maxRetries: 0,
+            abortSignal: signal,
+          }),
+        "ai:test:text",
+      )
+      return {
+        ok: true,
+        status: "connected",
+        detail: "مدل متن پاسخ معتبر داد",
+        sample: response.text.trim().slice(0, 240),
+        latencyMs: Date.now() - startedAt,
+        model: testModel,
+      }
+    }
+
+    if (capability === "image") {
+      const response = await withTimeout(
+        180000,
+        (signal) =>
+          generateImage({
+            model: gw.imageModel(testModel),
+            prompt: "A minimal premium product photograph of a matte black ceramic cup on a neutral studio background, no text",
+            size: "1024x1024",
+            maxRetries: 0,
+            abortSignal: signal,
+          }),
+        "ai:test:image",
+      )
+      return {
+        ok: true,
+        status: "connected",
+        detail: "مدل تصویر خروجی معتبر تولید کرد (فایل ذخیره نشد)",
+        sample: response.image.mediaType ?? "image/png",
+        latencyMs: Date.now() - startedAt,
+        model: testModel,
+      }
+    }
+
+    const response = await withTimeout(
+      30000,
       (signal) =>
-        generateText({
-          model: gw(testModel),
-          prompt: "ping",
-          maxOutputTokens: 8,
+        embed({
+          model: gw.textEmbeddingModel(testModel),
+          value: "آزمایش اتصال مدل بردارسازی",
           maxRetries: 0,
           abortSignal: signal,
         }),
-      "ai:test:generate",
+      "ai:test:embedding",
     )
-    const result: TestResult = {
+    const dimensions = response.embedding.length
+    if (dimensions !== 1536) {
+      return {
+        ok: false,
+        status: "error",
+        detail: `مدل پاسخ داد اما بردار ${dimensions} بعدی است؛ پایگاه دانش فعلی دقیقاً ۱۵۳۶ بعد نیاز دارد`,
+        dimensions,
+        latencyMs: Date.now() - startedAt,
+        model: testModel,
+      }
+    }
+    return {
       ok: true,
       status: "connected",
-      detail: "اتصال با موفقیت برقرار شد",
+      detail: "مدل Embedding با ساختار پایگاه دانش سازگار است",
+      dimensions,
       latencyMs: Date.now() - startedAt,
       model: testModel,
     }
-    await setCredentialStatus(provider, "connected", result.detail)
-    return result
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const message = safeMessage(err)
     const invalid = /auth|api key|unauthor|forbidden|invalid|401|403/i.test(message)
     const status = invalid ? "invalid" : "error"
-    const result: TestResult = {
+    await setCredentialStatus(provider, status, message)
+    return {
       ok: false,
       status,
-      detail: message.slice(0, 300),
+      detail: message,
       latencyMs: Date.now() - startedAt,
+      model,
     }
-    await setCredentialStatus(provider, status, result.detail)
-    return result
   }
 }

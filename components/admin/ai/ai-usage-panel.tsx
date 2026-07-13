@@ -113,25 +113,32 @@ export function AiUsagePanel() {
                 {s.recent.map((r) => (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-xs"
+                    className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-xs"
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Badge
-                        variant={r.ok ? "secondary" : "destructive"}
-                        className="shrink-0 text-[10px]"
-                      >
-                        {r.ok ? "OK" : "خطا"}
-                      </Badge>
-                      <span className="font-bold">{r.feature}</span>
-                      <span className="truncate font-mono text-muted-foreground" dir="ltr">
-                        {r.model}
-                      </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Badge
+                          variant={r.ok ? "secondary" : "destructive"}
+                          className="shrink-0 text-[10px]"
+                        >
+                          {r.ok ? "OK" : "خطا"}
+                        </Badge>
+                        <span className="font-bold">{r.feature}</span>
+                        <span className="truncate font-mono text-muted-foreground" dir="ltr">
+                          {r.model}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3 text-muted-foreground tabular-nums">
+                        {r.totalTokens != null && <span>{nf.format(r.totalTokens)} tok</span>}
+                        <span>{usd(r.costUsd)}</span>
+                        {r.latencyMs != null && <span>{r.latencyMs}ms</span>}
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3 text-muted-foreground tabular-nums">
-                      {r.totalTokens != null && <span>{nf.format(r.totalTokens)} tok</span>}
-                      <span>{usd(r.costUsd)}</span>
-                      {r.latencyMs != null && <span>{r.latencyMs}ms</span>}
-                    </div>
+                    {!r.ok && r.errorMessage && (
+                      <p className="break-words rounded-md bg-destructive/10 px-2 py-1.5 text-[11px] leading-relaxed text-destructive" dir="auto">
+                        علت: {r.errorMessage}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
