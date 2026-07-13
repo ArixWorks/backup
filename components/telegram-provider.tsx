@@ -47,6 +47,7 @@ type Inset = { top: number; bottom: number; left: number; right: number }
 
 type TelegramWebApp = {
   initData: string
+  initDataUnsafe?: { start_param?: string }
   version?: string
   /**
    * Client platform: "android" | "ios" | "tdesktop" | "macos" | "weba" |
@@ -242,6 +243,14 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
               // so the gate sees the user immediately and never redirects.
               await mutate("/api/v1/auth/session")
               set("authenticated")
+
+              const startParam = wa.initDataUnsafe?.start_param
+              if (startParam?.startsWith("giveaway_")) {
+                const slug = startParam.slice("giveaway_".length)
+                if (/^[a-zA-Z0-9_-]+$/.test(slug) && window.location.pathname !== `/giveaways/${slug}`) {
+                  window.location.replace(`/giveaways/${slug}`)
+                }
+              }
             } else {
               // Verified-but-rejected (expired / bad signature / rate limited):
               // fall back to /login so email or the Login Widget can be used.

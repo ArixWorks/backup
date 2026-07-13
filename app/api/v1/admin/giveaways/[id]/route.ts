@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { getGiveawayById, updateGiveaway, deleteGiveaway, getGiveawayStats } from "@/lib/core/giveaway"
 import { richTextField } from "@/lib/rich-content/zod"
+import { getGiveawayChannelPublication } from "@/lib/core/giveaway-channel"
 
 export const dynamic = "force-dynamic"
 
@@ -41,7 +42,7 @@ const updateSchema = z.object({
 export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   await requireAdmin()
   const { id } = await ctx.params
-  const [giveaway, stats, winners] = await Promise.all([
+  const [giveaway, stats, winners, channelPublication] = await Promise.all([
     getGiveawayById(id),
     getGiveawayStats(id),
     prisma.giveawayWinner.findMany({
@@ -49,10 +50,12 @@ export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: stri
       orderBy: { position: "asc" },
       include: { user: { select: { displayName: true, telegramUsername: true, telegramId: true } } },
     }),
+    getGiveawayChannelPublication(id),
   ])
   return {
     giveaway,
     stats,
+    channelPublication,
     // Admins see the real winner identity (needed for manual prize delivery).
     winners: winners.map((w) => ({
       id: w.id,

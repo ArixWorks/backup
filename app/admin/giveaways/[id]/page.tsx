@@ -23,6 +23,7 @@ import {
   Download,
   Send,
   Package,
+  RadioTower,
 } from "lucide-react"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -70,6 +71,7 @@ type Detail = {
     requiredChannels: { id: string; title: string; url: string }[] | null
   }
   stats: { total: number; eligible: number; ineligible: number; winners: number }
+  channelPublication: { status: "NOT_SENT" | "SENT" | "FAILED"; sentAt?: string; error?: string }
   winners: Winner[]
 }
 
@@ -118,6 +120,21 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
       await mutate()
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "خطا")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function publishToChannel() {
+    if (!confirm("پیام این قرعه‌کشی در کانال اصلی ارسال شود؟")) return
+    setBusy("channel")
+    try {
+      await apiPost(`/api/v1/admin/giveaways/${id}/channel`, {})
+      toast.success("پیام قرعه‌کشی با موفقیت در کانال ارسال شد")
+      await mutate()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "ارسال پیام به کانال ناموفق بود")
+      await mutate()
     } finally {
       setBusy(null)
     }
@@ -231,6 +248,33 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
         <Link href={`/giveaways/${g.slug}`} className="text-primary hover:underline" target="_blank">
           مشاهده صفحه عمومی
         </Link>
+      </Card>
+
+      <Card className="flex flex-col gap-4 border-primary/30 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="flex items-center gap-2 font-bold">
+            <RadioTower className="h-5 w-5 text-primary" />
+            انتشار در کانال اصلی
+          </h2>
+          {detail.channelPublication.status === "SENT" ? (
+            <p className="text-sm text-success">پیام در {fmtDate(detail.channelPublication.sentAt!)} با دکمه شرکت در قرعه‌کشی ارسال شده است.</p>
+          ) : detail.channelPublication.status === "FAILED" ? (
+            <div className="space-y-1">
+              <p className="text-sm text-destructive">ارسال قبلی ناموفق بود؛ می‌توانید دوباره تلاش کنید.</p>
+              {detail.channelPublication.error && <p className="max-w-xl text-xs text-muted-foreground">{detail.channelPublication.error}</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">پس از انتشار قرعه‌کشی، پیام آن را همراه دکمه ورود مستقیم به Mini App ارسال کنید.</p>
+          )}
+        </div>
+        <Button
+          onClick={publishToChannel}
+          disabled={busy !== null || detail.channelPublication.status === "SENT" || ["DRAFT", "CANCELLED", "FINISHED"].includes(status)}
+          className="gap-2 sm:min-w-44"
+        >
+          {busy === "channel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {detail.channelPublication.status === "FAILED" ? "تلاش مجدد" : detail.channelPublication.status === "SENT" ? "ارسال شده" : "ارسال به کانال"}
+        </Button>
       </Card>
 
       {/* Stats */}
