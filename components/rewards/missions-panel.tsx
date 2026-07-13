@@ -29,7 +29,7 @@ function MissionIcon({ name }: { name: string }) {
 }
 
 function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () => void }) {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [claiming, setClaiming] = useState(false)
   const pct = Math.min(100, Math.round((mission.progress / mission.target) * 100))
 
@@ -40,7 +40,7 @@ function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () =>
       toast.success(t("missions.pointsReceived", { points: formatNumber(res.points) }))
       onClaimed()
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("missions.errClaim"))
+      toast.error(errorMessage(e))
     } finally {
       setClaiming(false)
     }

@@ -33,7 +33,7 @@ interface ReviewsResponse {
 }
 
 export function ReviewsSection({ productId }: { productId: string }) {
-  const { t, num, dir, locale } = useI18n()
+  const { t, num, dir, locale, errorMessage } = useI18n()
   const { data, isLoading, mutate } = useSWR<ReviewsResponse>(
     `/api/v1/flash-sales/${productId}/reviews`,
     fetcher,
@@ -64,7 +64,7 @@ export function ReviewsSection({ productId }: { productId: string }) {
       setOpen(false)
       mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Error")
+      toast.error(errorMessage(err))
     } finally {
       setSubmitting(false)
     }
@@ -77,7 +77,7 @@ export function ReviewsSection({ productId }: { productId: string }) {
       setOpen(false)
       mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Error")
+      toast.error(errorMessage(err))
     } finally {
       setSubmitting(false)
     }

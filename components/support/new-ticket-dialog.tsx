@@ -29,7 +29,7 @@ const CATEGORY_OPTIONS: { value: string; key: MessageKey }[] = [
 ]
 
 export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [open, setOpen] = useState(false)
   const [subject, setSubject] = useState("")
   const [category, setCategory] = useState("GENERAL")
@@ -61,7 +61,7 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
       setOpen(false)
       onCreated()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("newTicket.errSubmit"))
+      toast.error(errorMessage(err))
     } finally {
       setBusy(false)
     }

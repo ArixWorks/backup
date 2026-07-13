@@ -17,7 +17,7 @@ import { useI18n } from "@/components/i18n-provider"
  */
 export function CategoryFollowButton({ category }: { category: string }) {
   const { user } = useSession()
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [loading, setLoading] = useState(false)
   const enc = encodeURIComponent(category)
   const key = user && category ? `/api/v1/category-follow/${enc}` : null
@@ -37,7 +37,7 @@ export function CategoryFollowButton({ category }: { category: string }) {
       }
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("catFollow.errUpdate"))
+      toast.error(errorMessage(err))
     } finally {
       setLoading(false)
     }

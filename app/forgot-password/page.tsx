@@ -10,7 +10,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { AuthShell } from "@/components/auth/auth-shell"
 
 export default function ForgotPasswordPage() {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [email, setEmail] = useState("")
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       await apiPost("/api/v1/auth/password/forgot", { email: email.trim() })
       setSent(true)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("auth.genericError"))
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }

@@ -68,7 +68,7 @@ export function AddFundsSheet({
   onOpenChange: (v: boolean) => void
   onChanged: () => void
 }) {
-  const { t, locale } = useI18n()
+  const { t, errorMessage, locale } = useI18n()
   const { data: cfg } = useSWR<{ data: PaymentConfig }>(
     open ? "/api/v1/wallet/payment-config" : null,
     fetcher,
@@ -154,7 +154,7 @@ export function AddFundsSheet({
       toast.success(t("wallet.depositCreated"))
       onChanged()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("wallet.topupError"))
+      toast.error(errorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -372,6 +372,7 @@ function PayStep({
   onSubmitted: () => void
   onChanged: () => void
 }) {
+  const { errorMessage } = useI18n()
   const isCard = instructions.method === "CARD"
   const isCrypto = instructions.method === "TON" || instructions.method === "USDT"
   const payDecimals = PAY_DECIMALS[instructions.payCurrency] ?? 2
@@ -413,7 +414,7 @@ function PayStep({
       await apiPatch(`/api/v1/wallet/deposits/${instructions.id}`, { receiptUrl: url })
       toast.success(t("wallet.receiptUploaded"))
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("wallet.topupError"))
+      toast.error(errorMessage(err))
     } finally {
       setUploading(false)
     }
@@ -427,7 +428,7 @@ function PayStep({
       onChanged()
       onSubmitted()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("wallet.topupError"))
+      toast.error(errorMessage(err))
     } finally {
       setClaiming(false)
     }

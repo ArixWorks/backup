@@ -60,7 +60,7 @@ type Ticket = {
 }
 
 export default function TicketThreadPage({ params }: { params: Promise<{ publicId: string }> }) {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const { publicId } = use(params)
   const { data, isLoading, mutate } = useSWR<{ data: Ticket }>(
     `/api/v1/support/${publicId}`,
@@ -87,7 +87,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
       setFile(null)
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("ticket.errSend"))
+      toast.error(errorMessage(err))
     } finally {
       setBusy(false)
     }

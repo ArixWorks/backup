@@ -50,7 +50,7 @@ export function GiveawayDetail({
   onChange: () => void
 }) {
   const { user } = useSession()
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [joining, setJoining] = useState(false)
   const [missing, setMissing] = useState<Channel[]>([])
   const [celebration, setCelebration] = useState<"giveaway-entry" | "giveaway-win" | null>(null)
@@ -92,7 +92,7 @@ export function GiveawayDetail({
         toast.error(t("gwd.joinChannelsFirst"))
       }
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : t("gwd.errEnter"))
+      toast.error(errorMessage(e))
     } finally {
       setJoining(false)
     }

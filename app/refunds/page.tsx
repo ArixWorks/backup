@@ -45,7 +45,7 @@ function groupDigits(value: string, size: number) {
 
 export default function RefundsPage() {
   const { user, refresh } = useSession()
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const { data, isLoading, mutate } = useSWR<{ data: Refund[] }>(
     user ? "/api/v1/refunds" : null,
     fetcher,
@@ -95,7 +95,7 @@ export default function RefundsPage() {
       setFile(null)
       await Promise.all([mutate(), refresh()])
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("refunds.errSubmit"))
+      toast.error(errorMessage(err))
     } finally {
       setBusy(false)
     }

@@ -22,7 +22,7 @@ export function ProductWatchButton({
   className?: string
 }) {
   const { user } = useSession()
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [loading, setLoading] = useState(false)
   const key = user ? `/api/v1/product-watch/${productId}` : null
   const { data, mutate } = useSWR<{ ok: boolean; data: { watching: boolean } }>(key, fetcher)
@@ -41,7 +41,7 @@ export function ProductWatchButton({
       }
       await mutate()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("watch.errUpdate"))
+      toast.error(errorMessage(err))
     } finally {
       setLoading(false)
     }

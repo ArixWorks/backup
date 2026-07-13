@@ -15,7 +15,7 @@ import { AuthShell } from "@/components/auth/auth-shell"
 type PublicConfig = { data: { brandName?: string; botUsername?: string } }
 
 export function AuthForm() {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { mutate } = useSWRConfig()
@@ -48,7 +48,7 @@ export function AuthForm() {
         await apiPost("/api/v1/auth/telegram", payload)
         await finishLogin()
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : t("auth.errTelegram"))
+        setError(errorMessage(e))
         setBusy(false)
       }
     },
@@ -68,7 +68,7 @@ export function AuthForm() {
       })
       await finishLogin()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("auth.genericError"))
+      setError(errorMessage(err))
       setBusy(false)
     }
   }

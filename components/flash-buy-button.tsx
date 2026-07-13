@@ -39,7 +39,7 @@ export function FlashBuyButton({
   disabled?: boolean
 }) {
   const { user, refresh } = useSession()
-  const { t, priceValue, currency } = useI18n()
+  const { t, priceValue, currency, errorMessage } = useI18n()
 
   // The chosen plan is the source of truth for price/stock/limit when present;
   // otherwise fall back to the product-level fixed sale (legacy single-plan).
@@ -153,7 +153,7 @@ export function FlashBuyButton({
       await refresh()
       onPurchased?.()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("buy.insufficient"))
+      toast.error(errorMessage(err))
     } finally {
       setLoading(false)
     }

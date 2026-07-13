@@ -31,7 +31,7 @@ export function BidPanel({
   onChanged,
 }: Props) {
   const { user, refresh } = useSession()
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const router = useRouter()
 
   // Shared helper: show a top-up-focused error with a shortcut to the wallet,
@@ -101,7 +101,7 @@ export function BidPanel({
       if (err instanceof ApiError && err.code === "INSUFFICIENT_FUNDS") {
         topUpToast(t("bid.needTopUp"))
       } else {
-        toast.error(err instanceof ApiError ? err.message : t("bid.errPlace"))
+        toast.error(errorMessage(err))
       }
     } finally {
       setLoading(false)
@@ -123,7 +123,7 @@ export function BidPanel({
       if (err instanceof ApiError && err.code === "INSUFFICIENT_FUNDS") {
         topUpToast(t("bid.needTopUp"))
       } else {
-        toast.error(err instanceof ApiError ? err.message : t("bid.errBuyNow"))
+        toast.error(errorMessage(err))
       }
     } finally {
       setBuying(false)

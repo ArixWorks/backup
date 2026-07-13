@@ -11,7 +11,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { AuthShell } from "@/components/auth/auth-shell"
 
 function ResetInner() {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const params = useSearchParams()
   const router = useRouter()
   const token = params.get("token") ?? ""
@@ -41,7 +41,7 @@ function ResetInner() {
       setDone(true)
       setTimeout(() => router.replace("/login"), 1800)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("auth.resetFailed"))
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }

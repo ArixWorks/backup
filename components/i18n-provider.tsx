@@ -11,6 +11,7 @@ import {
   tgLangToLocale,
 } from "@/lib/i18n/locales"
 import { MESSAGES, interpolate, type MessageKey, type MessageVars } from "@/lib/i18n/messages"
+import { localizeApiError } from "@/lib/i18n/api-errors"
 import {
   formatPrice,
   formatPriceValue,
@@ -23,6 +24,7 @@ type I18nContextValue = {
   locale: Locale
   setLocale: (locale: Locale) => void
   t: (key: MessageKey, vars?: MessageVars) => string
+  errorMessage: (error: unknown) => string
   /** Format a Toman amount into the active locale's currency (with symbol/word). */
   price: (toman: bigint | number | string) => string
   /** Numeric-only price (no currency word). */
@@ -105,6 +107,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       locale,
       setLocale,
       t: (key, vars) => interpolate(catalog[key] ?? MESSAGES[DEFAULT_LOCALE][key] ?? key, vars),
+      errorMessage: (error) => localizeApiError(error, locale),
       price: (toman) => formatPrice(toman, locale, usdRate),
       priceValue: (toman) => formatPriceValue(toman, locale, usdRate),
       priceCompact: (toman) => formatPriceCompactParts(toman, locale, usdRate),

@@ -53,7 +53,7 @@ export function BalancesPanel({
   onSelect: (code: string) => void
   onChanged: () => void
 }) {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const meta = currencies.find((c) => c.code === selected)
   const decimals = meta?.decimals ?? 0
   const current =
@@ -175,7 +175,7 @@ function ConvertDialog({
   defaultFrom: string
   onDone: () => void
 }) {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const [open, setOpen] = useState(false)
   const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(currencies.find((c) => c.code !== defaultFrom)?.code ?? defaultFrom)
@@ -210,7 +210,7 @@ function ConvertDialog({
       setOpen(false)
       onDone()
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("convert.error"))
+      toast.error(errorMessage(err))
     } finally {
       setLoading(false)
     }

@@ -10,7 +10,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { AuthShell } from "@/components/auth/auth-shell"
 
 function VerifyInner() {
-  const { t } = useI18n()
+  const { t, errorMessage } = useI18n()
   const params = useSearchParams()
   const token = params.get("token") ?? ""
   const [status, setStatus] = useState<"working" | "ok" | "error">("working")
@@ -29,7 +29,7 @@ function VerifyInner() {
       .then(() => setStatus("ok"))
       .catch((e) => {
         setStatus("error")
-        setMessage(e instanceof ApiError ? e.message : t("verify.emailFailed"))
+        setMessage(errorMessage(e))
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
