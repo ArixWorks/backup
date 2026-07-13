@@ -182,7 +182,31 @@ const ticketTriage: AutomationHandler = {
   },
 }
 
-export const AUTOMATION_HANDLERS: AutomationHandler[] = [opsDigest, ticketTriage]
+const textIntegrityGuardian: AutomationHandler = {
+  key: "persian_text_integrity",
+  title: "پایش سلامت متن فارسی",
+  description: "هر ۱۰ دقیقه محتوای عمومی فارسی را بررسی می‌کند و پیشنهادهای اصلاح را برای تأیید مدیر می‌فرستد.",
+  defaultIntervalMin: 10,
+  run: async ({ config }) => {
+    const limit = typeof config.batchLimit === "number" ? Math.min(500, Math.max(20, config.batchLimit)) : 180
+    const { runTextIntegrityScan } = await import("@/lib/ai/text-integrity")
+    const result = await runTextIntegrityScan(limit)
+    if (result.newFindings > 0) {
+      await notifyAdmins({
+        title: `${result.newFindings} متن فارسی نیازمند بررسی`,
+        body: "پیشنهادهای اصلاح آماده‌اند و هیچ تغییری بدون تأیید شما اعمال نمی‌شود.",
+        href: "/admin/ai/text-integrity",
+      })
+    }
+    return {
+      status: result.suspiciousCount > 0 ? "ok" : "skipped",
+      summary: result.newFindings > 0 ? `${result.newFindings} پیشنهاد جدید` : "خرابی جدیدی پیدا نشد.",
+      detail: result,
+    }
+  },
+}
+
+export const AUTOMATION_HANDLERS: AutomationHandler[] = [opsDigest, ticketTriage, textIntegrityGuardian]
 
 export function getHandler(key: string): AutomationHandler | undefined {
   return AUTOMATION_HANDLERS.find((h) => h.key === key)
@@ -199,7 +223,11 @@ export async function syncAutomations(): Promise<void> {
   for (const h of AUTOMATION_HANDLERS) {
     await prisma.aiAutomation.upsert({
       where: { key: h.key },
-      create: { key: h.key, intervalMin: h.defaultIntervalMin, enabled: false },
+      create: {
+        key: h.key,
+        intervalMin: h.defaultIntervalMin,
+        enabled: h.key === "persian_text_integrity",
+      },
       update: {},
     })
   }

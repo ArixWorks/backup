@@ -2149,6 +2149,71 @@ enum ContentStatus {
   ARCHIVED
 }
 
+enum TextIntegritySource {
+  DATABASE
+  SOURCE_CODE
+}
+
+enum TextIntegrityStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  STALE
+  RESOLVED
+}
+
+enum TextIntegrityRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model TextIntegrityFinding {
+  id             String              @id @default(cuid())
+  source         TextIntegritySource
+  status         TextIntegrityStatus @default(PENDING)
+  locale         String              @default("fa")
+  entity         String
+  recordId       String?
+  field          String
+  sourcePath     String?
+  sourceLine     Int?
+  originalText   String
+  proposedText   String?
+  context        String?
+  markers        String[]            @default([])
+  confidence     Float?
+  explanation    String?
+  fingerprint    String              @unique
+  sourceChecksum String
+  firstSeenAt    DateTime            @default(now())
+  lastSeenAt     DateTime            @default(now())
+  reviewedAt     DateTime?
+  reviewedById   String?
+  appliedAt      DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status, source, lastSeenAt])
+  @@index([entity, recordId])
+}
+
+model TextIntegrityScanRun {
+  id             String                 @id @default(cuid())
+  status         TextIntegrityRunStatus @default(RUNNING)
+  scannedCount   Int                    @default(0)
+  suspiciousCount Int                   @default(0)
+  newFindings    Int                    @default(0)
+  aiCalls        Int                    @default(0)
+  error          String?
+  startedAt      DateTime               @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime               @default(now())
+
+  @@index([createdAt])
+  @@index([status])
+}
+
 /// A single piece of managed content. `type` is the registry content-type key.
 /// `body` is canonical semantic HTML (same format as product descriptions).
 /// `fields` holds type-specific custom fields validated by the registry.

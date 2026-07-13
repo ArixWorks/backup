@@ -35,6 +35,7 @@ import {
   FileText,
   Send,
   ShoppingBag,
+  ScanText,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -104,6 +105,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/ai/copilot", label: "کوپایلت فرم‌ها", icon: Bot },
       { href: "/admin/ai/knowledge", label: "پایگاه دانش", icon: BookOpen },
       { href: "/admin/ai/automations", label: "اتوماسیون هوشمند", icon: Workflow },
+      { href: "/admin/ai/text-integrity", label: "سلامت متن فارسی", icon: ScanText },
     ],
   },
   {
