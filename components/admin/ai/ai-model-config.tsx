@@ -100,6 +100,43 @@ export function AiModelConfig({
       </Field>
 
       <Field
+        label="مدل تولید تصویر"
+        hint="مدل مستقل ساخت تصویر از طریق AI Gateway. برای بیشترین کیفیت، GPT Image 2 پیشنهاد می‌شود."
+        source={source[AI_KEYS.imageModel]}
+      >
+        <Input
+          value={form[AI_KEYS.imageModel] ?? ""}
+          onChange={(e) => set(AI_KEYS.imageModel, e.target.value)}
+          placeholder="openai/gpt-image-2"
+          className="font-mono"
+          dir="ltr"
+          list="ai-image-model-suggestions"
+        />
+        <datalist id="ai-image-model-suggestions">
+          <option value="openai/gpt-image-2" />
+          <option value="google/imagen-4.0-ultra-generate-001" />
+          <option value="google/gemini-3-pro-image" />
+        </datalist>
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {[
+            "openai/gpt-image-2",
+            "google/imagen-4.0-ultra-generate-001",
+            "google/gemini-3-pro-image",
+          ].map((model) => (
+            <button
+              key={model}
+              type="button"
+              onClick={() => set(AI_KEYS.imageModel, model)}
+              className="rounded-full border border-border bg-secondary/60 px-2.5 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+              dir="ltr"
+            >
+              {model}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field
         label="مدل Embedding (پایگاه دانش)"
         hint="برای نمایه‌سازی و جستجوی معنایی پایگاه دانش. باید ۱۵۳۶ بُعدی باشد تا با ستون vector سازگار بماند. تغییر آن نیازمند بازنمایه‌سازی اسناد است."
         source={source[AI_KEYS.embeddingModel]}

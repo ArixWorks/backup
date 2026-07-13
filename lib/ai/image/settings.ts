@@ -41,6 +41,22 @@ export async function getImageConfig(): Promise<ImageConfig> {
   }
 }
 
+export async function getImageSettingsForAdmin(): Promise<{
+  values: Record<string, string>
+  source: Record<string, "db" | "env">
+}> {
+  const all = await getAllSettings()
+  const env = envDefaults()
+  const values: Record<string, string> = {}
+  const source: Record<string, "db" | "env"> = {}
+  for (const key of Object.values(IMAGE_SETTING_KEYS)) {
+    const fromDb = all[key] !== undefined && all[key] !== ""
+    values[key] = fromDb ? all[key] : env[key]
+    source[key] = fromDb ? "db" : "env"
+  }
+  return { values, source }
+}
+
 export async function saveImageSettings(entries: Record<string, string>): Promise<void> {
   const allowed = new Set<string>(Object.values(IMAGE_SETTING_KEYS))
   const clean: Record<string, string> = {}

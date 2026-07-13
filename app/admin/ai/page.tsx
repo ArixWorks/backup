@@ -19,6 +19,8 @@ export const AI_KEYS = {
   model: "ai.model",
   fastModel: "ai.fastModel",
   embeddingModel: "ai.embeddingModel",
+  imageProvider: "ai.image.provider",
+  imageModel: "ai.image.model",
   temperature: "ai.temperature",
   maxTokens: "ai.maxTokens",
   timeoutMs: "ai.timeoutMs",
