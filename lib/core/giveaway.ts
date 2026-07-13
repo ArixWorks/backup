@@ -853,18 +853,60 @@ async function deliverGiveawayPrize(
   return { delivered: false, error: null }
 }
 
-/** Admin marks a manual prize as delivered with a claim note/payload. */
+/** Admin marks a manual prize as delivered with a private claim payload. */
 export async function markWinnerDelivered(
+  giveawayId: string,
   winnerId: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, string>,
   actorId: string,
 ) {
-  const winner = await prisma.giveawayWinner.update({
-    where: { id: winnerId },
-    data: { delivered: true, deliveredAt: new Date(), claimData: payload as Prisma.InputJsonValue, deliveryError: null },
+  const winner = await prisma.giveawayWinner.findFirst({
+    where: { id: winnerId, giveawayId },
+    include: { giveaway: { select: { title: true, prizeLabel: true } } },
   })
-  await audit({ actorId, action: "giveaway.deliver", entity: "giveawayWinner", entityId: winnerId })
-  return winner
+  if (!winner) throw new NotFoundError("برنده برای این قرعه‌کشی یافت نشد")
+  if (winner.delivered) throw new ConflictError("جایزه این برنده قبلاً تحویل شده است")
+
+  const claimData = Object.fromEntries(
+    Object.entries(payload).map(([key, value]) => [key, value.trim()]).filter(([, value]) => value.length > 0),
+  )
+  if (Object.keys(claimData).length === 0) {
+    throw new ValidationError("حداقل یک فیلد تحویل را پر کنید")
+  }
+
+  const updated = await prisma.giveawayWinner.updateMany({
+    where: { id: winnerId, giveawayId, delivered: false },
+    data: {
+      delivered: true,
+      deliveredAt: new Date(),
+      claimData: { kind: "MANUAL", ...claimData } as Prisma.InputJsonValue,
+      deliveryError: null,
+    },
+  })
+  if (updated.count !== 1) throw new ConflictError("وضعیت جایزه تغییر کرده است؛ صفحه را تازه کنید")
+
+  await audit({
+    actorId,
+    action: "giveaway.deliver",
+    entity: "giveawayWinner",
+    entityId: winnerId,
+    meta: { giveawayId, fields: Object.keys(claimData) },
+  })
+
+  try {
+    const { createNotification } = await import("./notifications")
+    await createNotification({
+      userId: winner.userId,
+      type: "GENERAL",
+      title: "جایزه شما تحویل شد",
+      body: `اطلاعات جایزه «${winner.giveaway.prizeLabel}» از قرعه‌کشی «${winner.giveaway.title}» آماده است.`,
+      href: "/giveaways/wins",
+    })
+  } catch {
+    // Notification delivery is best-effort; the secured claim payload is already saved.
+  }
+
+  return prisma.giveawayWinner.findUniqueOrThrow({ where: { id: winnerId } })
 }
 
 // ---------------------------------------------------------------------------

@@ -21,11 +21,25 @@ import {
   Trash2,
   AlertTriangle,
   Download,
+  Send,
+  Package,
 } from "lucide-react"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { EnhancedTextarea } from "@/components/rich-content"
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 type Winner = {
@@ -86,6 +100,9 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
     { refreshInterval: 8000 },
   )
   const [busy, setBusy] = useState<string | null>(null)
+  const [deliveryWinner, setDeliveryWinner] = useState<Winner | null>(null)
+  const [deliveryForm, setDeliveryForm] = useState({ username: "", password: "", licenseKey: "", note: "" })
+  const [deliverySaving, setDeliverySaving] = useState(false)
 
   const detail = data?.data
   const g = detail?.giveaway
@@ -128,6 +145,33 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
       window.location.href = "/admin/giveaways"
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "خطا")
+    }
+  }
+
+  function openDelivery(winner: Winner) {
+    setDeliveryForm({ username: "", password: "", licenseKey: "", note: "" })
+    setDeliveryWinner(winner)
+  }
+
+  async function deliverPrize() {
+    if (!deliveryWinner) return
+    if (!Object.values(deliveryForm).some((value) => value.trim())) {
+      toast.error("حداقل یک فیلد تحویل را پر کنید")
+      return
+    }
+    setDeliverySaving(true)
+    try {
+      await apiPost(
+        `/api/v1/admin/giveaways/${id}/winners/${deliveryWinner.id}/deliver`,
+        deliveryForm,
+      )
+      toast.success("اطلاعات جایزه با موفقیت برای برنده ثبت شد")
+      setDeliveryWinner(null)
+      await mutate()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "خطا در ثبت تحویل جایزه")
+    } finally {
+      setDeliverySaving(false)
     }
   }
 
@@ -302,7 +346,13 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
                       خطای تحویل
                     </span>
                   ) : (
-                    <span className="text-xs text-warning">در انتظار تحویل دستی</span>
+                    <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+                      <span className="text-xs text-warning">در انتظار تحویل دستی</span>
+                      <Button size="sm" onClick={() => openDelivery(w)} className="h-8 gap-1.5">
+                        <Send className="h-3.5 w-3.5" />
+                        ثبت تحویل جایزه
+                      </Button>
+                    </div>
                   )}
                 </div>
               </li>
@@ -310,6 +360,47 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
           </ul>
         </Card>
       )}
+
+      <Dialog open={!!deliveryWinner} onOpenChange={(open) => !open && setDeliveryWinner(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              ثبت اطلاعات جایزه
+            </DialogTitle>
+            <DialogDescription>
+              اطلاعات خصوصی جایزه {g.prizeLabel} برای {deliveryWinner?.name || "برنده"} ثبت می‌شود و فقط همان کاربر آن را در «جوایز من» می‌بیند.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="winner-username">نام کاربری اکانت</Label>
+                <Input id="winner-username" dir="ltr" autoComplete="off" value={deliveryForm.username} onChange={(event) => setDeliveryForm({ ...deliveryForm, username: event.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="winner-password">رمز عبور</Label>
+                <Input id="winner-password" dir="ltr" type="text" autoComplete="off" value={deliveryForm.password} onChange={(event) => setDeliveryForm({ ...deliveryForm, password: event.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="winner-license">کلید لایسنس</Label>
+              <Input id="winner-license" dir="ltr" autoComplete="off" value={deliveryForm.licenseKey} onChange={(event) => setDeliveryForm({ ...deliveryForm, licenseKey: event.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="winner-note">توضیحات تحویل</Label>
+              <EnhancedTextarea id="winner-note" value={deliveryForm.note} onChange={(value) => setDeliveryForm({ ...deliveryForm, note: value })} minRows={3} maxRows={10} showCount={false} />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeliveryWinner(null)}>انصراف</Button>
+            <Button onClick={deliverPrize} disabled={deliverySaving} className="gap-2">
+              {deliverySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              تحویل جایزه به برنده
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

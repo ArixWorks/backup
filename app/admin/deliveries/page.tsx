@@ -36,13 +36,21 @@ type Delivery = {
   }
 }
 
+type GiveawayDelivery = {
+  id: string
+  position: number
+  deliveryError: string | null
+  createdAt: string
+  giveaway: { id: string; title: string; prizeLabel: string }
+  user: { displayName: string; alias: string }
+}
+
 export default function DeliveriesPage() {
-  const { data, isLoading, mutate } = useSWR<{ data: Delivery[] }>(
-    "/api/v1/admin/deliveries",
-    fetcher,
-    { refreshInterval: 10000 },
-  )
-  const rows = data?.data ?? []
+  const { data, isLoading, mutate } = useSWR<{
+    data: { orders: Delivery[]; giveawayWinners: GiveawayDelivery[] }
+  }>("/api/v1/admin/deliveries", fetcher, { refreshInterval: 10000 })
+  const rows = data?.data.orders ?? []
+  const giveawayRows = data?.data.giveawayWinners ?? []
 
   const [active, setActive] = useState<Delivery | null>(null)
   const [form, setForm] = useState({ username: "", password: "", licenseKey: "", note: "" })
@@ -84,12 +92,34 @@ export default function DeliveriesPage() {
       <div className="space-y-3">
         {isLoading ? (
           [0, 1, 2].map((i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && giveawayRows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-            سفارشی در انتظار تحویل نیست.
+            سفارش یا جایزه‌ای در انتظار تحویل نیست.
           </div>
         ) : (
-          rows.map((d) => (
+          <>
+          {giveawayRows.map((winner) => (
+            <div key={`giveaway-${winner.id}`} className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">{winner.giveaway.prizeLabel}</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">جایزه قرعه‌کشی</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {winner.user.displayName} ({winner.user.alias}) · {winner.giveaway.title} · برنده شماره {winner.position} · {formatRelative(winner.createdAt)}
+                </div>
+                {winner.deliveryError && <div className="flex items-center gap-1 text-xs text-destructive"><AlertTriangle className="h-3.5 w-3.5" />{winner.deliveryError}</div>}
+              </div>
+              <Button
+                className="gap-2 sm:w-44"
+                onClick={() => { window.location.href = `/admin/giveaways/${winner.giveaway.id}` }}
+              >
+                <Send className="h-4 w-4" />
+                ثبت تحویل جایزه
+              </Button>
+            </div>
+          ))}
+          {rows.map((d) => (
             <div
               key={d.id}
               className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -116,7 +146,8 @@ export default function DeliveriesPage() {
                 ثبت تحویل
               </Button>
             </div>
-          ))
+          ))}
+          </>
         )}
       </div>
 
