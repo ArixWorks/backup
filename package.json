@@ -18,6 +18,7 @@
     "db:restore": "tsx scripts/restore.ts",
     "go-live": "prisma migrate deploy && tsx scripts/production-seed.ts",
     "email:e2e": "tsx --require ./scripts/_stub-server-only.cjs scripts/email-e2e.ts",
+    "test:domains": "node --import tsx --test lib/core/domains/*.test.ts",
     "ops:ws": "node server/ops-ws-server.mjs",
     "postinstall": "prisma generate"
   },

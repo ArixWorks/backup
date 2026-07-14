@@ -5,8 +5,8 @@ import { prisma } from "@/lib/db"
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { getAllSettings, SETTING_KEYS, toNumber } from "@/lib/core/settings"
 import { captureFrozenPurchase, freeze, unfreeze } from "@/lib/core/wallet"
-import { lookupWithProvider, registerWithProvider } from "./provider"
-import { normalizeDomain } from "./validation"
+import { lookupManyWithProvider, lookupWithProvider, registerWithProvider } from "./provider"
+import { normalizeDomain, normalizeLabel } from "./validation"
 
 const DEFAULT_TLDS = [
   { tld: ".ir", title: "ایران", basePriceIrt: 75_000n, displayOrder: 1 },
@@ -38,7 +38,7 @@ export async function lookupDomain(input: string, force = false) {
   if (!force) {
     const cached = await prisma.domainLookupCache.findUnique({ where: { asciiDomain: normalized.asciiDomain } })
     if (cached && cached.expiresAt > now) {
-      return { ...normalized, status: cached.status, checkedAt: cached.checkedAt, cached: true, priceIrt: tld.basePriceIrt }
+      return { ...normalized, status: cached.status, checkedAt: cached.checkedAt, cached: true, priceIrt: cached.status === "AVAILABLE" ? tld.basePriceIrt : null }
     }
   }
 
@@ -66,7 +66,55 @@ export async function lookupDomain(input: string, force = false) {
       meta: (result.meta ?? {}) as Prisma.InputJsonValue,
     },
   })
-  return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: tld.basePriceIrt }
+  return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: row.status === "AVAILABLE" ? tld.basePriceIrt : null }
+}
+
+export async function lookupDomainCatalog(input: string) {
+  const raw = input.trim().toLowerCase()
+  if (raw.includes(".")) return { exact: true, results: [await lookupDomain(raw)] }
+
+  const label = normalizeLabel(raw)
+  const tlds = await listTlds()
+  const supportedTlds = tlds.filter((tld) => tld.supported)
+  const domains = supportedTlds.map((tld) => `${label}${tld.tld}`)
+  const providerResults = await lookupManyWithProvider(domains)
+  const settings = await getAllSettings()
+  const ttlSec = Math.max(30, toNumber(settings[SETTING_KEYS.domainLookupTtlSec], 300))
+  const now = new Date()
+
+  const results = await Promise.all(supportedTlds.map(async (tld, index) => {
+    const asciiDomain = domains[index]
+    const normalized = normalizeDomain(asciiDomain)
+    const result = providerResults.get(asciiDomain) ?? {
+      status: "LOOKUP_ERROR" as const,
+      provider: "railway-domains",
+      providerCode: "MISSING_RESULT",
+    }
+    const transient = result.status === "LOOKUP_ERROR" || result.status === "UNKNOWN"
+    const row = await prisma.domainLookupCache.upsert({
+      where: { asciiDomain },
+      create: {
+        asciiDomain,
+        unicodeDomain: normalized.unicodeDomain,
+        status: result.status,
+        provider: result.provider,
+        providerCode: result.providerCode,
+        expiresAt: new Date(now.getTime() + (transient ? 30 : ttlSec) * 1000),
+        meta: (result.meta ?? {}) as Prisma.InputJsonValue,
+      },
+      update: {
+        status: result.status,
+        provider: result.provider,
+        providerCode: result.providerCode,
+        checkedAt: now,
+        expiresAt: new Date(now.getTime() + (transient ? 30 : ttlSec) * 1000),
+        meta: (result.meta ?? {}) as Prisma.InputJsonValue,
+      },
+    })
+    return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: row.status === "AVAILABLE" ? tld.basePriceIrt : null }
+  }))
+
+  return { exact: false, results: results.filter((result) => result.status === "AVAILABLE") }
 }
 
 function quoteSecret(settings: Record<string, string>) {
@@ -151,7 +199,7 @@ export async function purchaseDomain(userId: string, quoteId: string, idempotenc
         quoteId: quote.id,
         walletRef: `domain:${orderId}`,
         idempotencyKey,
-        provider: settings[SETTING_KEYS.domainProvider] || "cloudflare-rdap",
+        provider: settings[SETTING_KEYS.domainProvider] || "railway-domains",
         priceSnapshot: quote.priceSnapshot as Prisma.InputJsonValue,
         holdExpiresAt: new Date(now.getTime() + holdMinutes * 60_000),
         firstReminderAt: new Date(now.getTime() + firstReminder * 60_000),
