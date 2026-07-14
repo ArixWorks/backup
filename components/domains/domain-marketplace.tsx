@@ -59,7 +59,8 @@ const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> =
 
 export function DomainMarketplace() {
   const [query, setQuery] = useState("")
-  const [lookup, setLookup] = useState<Lookup | null>(null)
+  const [lookups, setLookups] = useState<Lookup[]>([])
+  const [hasSearched, setHasSearched] = useState(false)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
   const [suggestionPrompt, setSuggestionPrompt] = useState("")
   const [suggestions, setSuggestions] = useState<Array<{ domain: string; reason: string }>>([])
@@ -71,19 +72,15 @@ export function DomainMarketplace() {
   const tlds = tldResponse?.data.tlds ?? []
   const orders = ordersResponse?.data.orders ?? []
 
-  const normalizedQuery = useMemo(() => {
-    const trimmed = query.trim().toLowerCase()
-    if (!trimmed || trimmed.includes(".")) return trimmed
-    return `${trimmed}${tlds[0]?.tld ?? ".ir"}`
-  }, [query, tlds])
+  const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
 
   async function searchDomain(domain = normalizedQuery) {
     if (!domain) return
     setBusy("lookup")
     try {
-      const result = unwrap<Lookup>(await apiPost("/api/v1/domains/lookup", { domain }))
-      setLookup(result)
-      setQuery(result.asciiDomain)
+      const result = unwrap<{ exact: boolean; results: Lookup[] }>(await apiPost("/api/v1/domains/lookup", { domain }))
+      setLookups(result.results)
+      setHasSearched(true)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "استعلام دامنه انجام نشد.")
     } finally {
@@ -91,15 +88,15 @@ export function DomainMarketplace() {
     }
   }
 
-  async function purchase() {
-    if (!lookup) return
+  async function purchase(lookup: Lookup) {
     setBusy("quote")
     try {
       const quote = unwrap<{ id: string }>(await apiPost("/api/v1/domains/quote", { domain: lookup.asciiDomain }))
       const idempotencyKey = crypto.randomUUID()
       await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
       toast.success("سفارش ثبت شد؛ وضعیت آن را از بخش سفارش‌ها دنبال کنید.")
-      setLookup(null)
+      setLookups([])
+      setHasSearched(false)
       await mutateOrders()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "خرید دامنه انجام نشد.")
@@ -173,11 +170,19 @@ export function DomainMarketplace() {
             </CardFooter>
           </Card>
 
-          {lookup && <AvailabilityCard lookup={lookup} busy={busy === "quote"} onPurchase={purchase} />}
+          {lookups.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {lookups.map((lookup) => (
+                <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} />
+              ))}
+            </div>
+          ) : hasSearched && busy !== "lookup" ? (
+            <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>در میان پسوندهای فعال فروشگاه، Railway گزینه آزادی برای این نام گزارش نکرد.</CardDescription></CardHeader></Card>
+          ) : null}
 
           <div className="grid gap-3 md:grid-cols-3">
             {[
-              { icon: Globe2, title: "استعلام زنده", text: "وضعیت دامنه مستقیماً از سرویس رجیستری بررسی می‌شود." },
+              { icon: Globe2, title: "استعلام زنده", text: "وضعیت دامنه مستقیماً از سرویس Railway بررسی می‌شود." },
               { icon: WalletCards, title: "تسویه امن", text: "مبلغ قطعی از کیف پول کسر و در شکست ثبت، خودکار بازپرداخت می‌شود." },
               { icon: ShieldCheck, title: "پیگیری کامل", text: "هر تغییر وضعیت با زمان و دلیل در تاریخچه سفارش ثبت می‌شود." },
             ].map(({ icon: Icon, title, text }) => (
