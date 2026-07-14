@@ -36,8 +36,9 @@ function MissionRow({ mission, onClaimed }: { mission: Mission; onClaimed: () =>
   async function claim() {
     setClaiming(true)
     try {
-      const res = await apiPost<{ points: number }>("/api/v1/rewards/claim", { missionId: mission.id })
-      toast.success(t("missions.pointsReceived", { points: formatNumber(res.points) }))
+      const res = await apiPost<{ data: { points: number } }>("/api/v1/rewards/claim", { missionId: mission.id })
+      const awardedPoints = Number.isFinite(res.data.points) ? res.data.points : mission.rewardPoints
+      toast.success(t("missions.pointsReceived", { points: formatNumber(awardedPoints) }))
       onClaimed()
     } catch (e) {
       toast.error(errorMessage(e))
