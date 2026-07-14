@@ -121,6 +121,17 @@ export const SETTING_KEYS = {
   maintenanceTitle: "maintenance.title", // short headline
   maintenanceMessage: "maintenance.message", // body text shown to users
   maintenanceSupportUrl: "maintenance.supportUrl", // optional support link (t.me/...)
+
+  // --- Domain commerce ---
+  domainEnabled: "domain.enabled",
+  domainLookupTtlSec: "domain.lookupTtlSec",
+  domainHoldMinutes: "domain.holdMinutes",
+  domainFirstReminderMinutes: "domain.firstReminderMinutes",
+  domainFinalReminderMinutes: "domain.finalReminderMinutes",
+  domainOrderLimitPerHour: "domain.orderLimitPerHour",
+  domainLookupLimitPerMinute: "domain.lookupLimitPerMinute",
+  domainQuoteSecret: "domain.quoteSecret",
+  domainProvider: "domain.provider",
 } as const
 
 /** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
@@ -234,6 +245,16 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.maintenanceMessage]:
     "در حال ارتقای سیستم برای ارائه تجربه‌ای سریع‌تر و بهتر هستیم. لطفاً چند دقیقه دیگر دوباره سر بزنید. از صبر و همراهی شما سپاسگزاریم.",
   [SETTING_KEYS.maintenanceSupportUrl]: "",
+
+  [SETTING_KEYS.domainEnabled]: "true",
+  [SETTING_KEYS.domainLookupTtlSec]: "300",
+  [SETTING_KEYS.domainHoldMinutes]: "30",
+  [SETTING_KEYS.domainFirstReminderMinutes]: "10",
+  [SETTING_KEYS.domainFinalReminderMinutes]: "25",
+  [SETTING_KEYS.domainOrderLimitPerHour]: "5",
+  [SETTING_KEYS.domainLookupLimitPerMinute]: "30",
+  [SETTING_KEYS.domainQuoteSecret]: "",
+  [SETTING_KEYS.domainProvider]: "cloudflare-rdap",
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
