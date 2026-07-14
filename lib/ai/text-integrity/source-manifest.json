@@ -1,17 +1,1 @@
-[
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 852,
-    "text": "\"tour.s5.title\": \"هیچ‌��یز را از دست ندهید\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 985,
-    "text": "\"lang.choose\": \"ا��تخاب زبان\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1094,
-    "text": "\"adetail.noBids\": \"هنوز پیشنهادی ثبت نشده است. اولین پیشنهاد را ��ما ثبت کنید.\","
-  }
-]
+[]

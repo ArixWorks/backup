@@ -4,7 +4,7 @@ import { useState } from "react"
 import useSWR from "swr"
 import { Globe2, Loader2, RefreshCw, Save } from "lucide-react"
 import { toast } from "sonner"
-import { apiPatch, fetcher } from "@/lib/api-client"
+import { apiPatch, apiPost, fetcher } from "@/lib/api-client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,6 +35,23 @@ export default function AdminDomainsPage() {
 
   function patchDraft(id: string, patch: Partial<Tld>) {
     setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } }))
+  }
+
+  async function manageOrder(orderId: string, action: "complete" | "fail" | "extend") {
+    setSaving(orderId)
+    try {
+      await apiPost("/api/v1/admin/domains", action === "fail"
+        ? { action, orderId, reason: "ثبت دامنه توسط ارائه‌دهنده انجام نشد." }
+        : action === "extend"
+          ? { action, orderId, minutes: 1440 }
+          : { action, orderId })
+      toast.success(action === "complete" ? "سفارش تکمیل شد و مبلغ نهایی برداشت شد." : action === "extend" ? "مهلت سفارش ۲۴ ساعت تمدید شد." : "سفارش ناموفق شد و مبلغ آزاد شد.")
+      await mutate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "عملیات سفارش انجام نشد.")
+    } finally {
+      setSaving(null)
+    }
   }
 
   async function save(tld: Tld) {
@@ -93,9 +110,12 @@ export default function AdminDomainsPage() {
         <CardHeader><CardTitle>آخرین سفارش‌ها</CardTitle><CardDescription>رخدادهای ناموفق با دلیل Provider برای بررسی عملیاتی نمایش داده می‌شوند.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
-            <TableHeader><TableRow><TableHead>شناسه</TableHead><TableHead>دامنه</TableHead><TableHead>وضعیت</TableHead><TableHead>مبلغ</TableHead><TableHead>زمان</TableHead><TableHead>دلیل</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>شناسه</TableHead><TableHead>دامنه</TableHead><TableHead>وضعیت</TableHead><TableHead>مبلغ</TableHead><TableHead>زمان</TableHead><TableHead>دلیل</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader>
             <TableBody>
-              {(value?.orders ?? []).map((order) => <TableRow key={order.id}><TableCell className="font-mono text-xs">{order.publicId}</TableCell><TableCell dir="ltr" className="text-left font-medium">{order.asciiDomain}</TableCell><TableCell><Badge variant="secondary">{statusLabels[order.status] ?? order.status}</Badge></TableCell><TableCell>{money(order.amountIrt)}</TableCell><TableCell>{new Date(order.createdAt).toLocaleString("fa-IR")}</TableCell><TableCell className="max-w-56 truncate text-xs text-muted-foreground">{order.failureReason ?? "—"}</TableCell></TableRow>)}
+              {(value?.orders ?? []).map((order) => {
+                const actionable = ["PENDING_PURCHASE", "PROCESSING"].includes(order.status)
+                return <TableRow key={order.id}><TableCell className="font-mono text-xs">{order.publicId}</TableCell><TableCell dir="ltr" className="text-left font-medium">{order.asciiDomain}</TableCell><TableCell><Badge variant="secondary">{statusLabels[order.status] ?? order.status}</Badge></TableCell><TableCell>{money(order.amountIrt)}</TableCell><TableCell>{new Date(order.createdAt).toLocaleString("fa-IR")}</TableCell><TableCell className="max-w-56 truncate text-xs text-muted-foreground">{order.failureReason ?? "—"}</TableCell><TableCell><div className="flex min-w-max gap-2">{actionable ? <><Button size="sm" onClick={() => void manageOrder(order.id, "complete")} disabled={saving !== null}>تکمیل</Button><Button size="sm" variant="outline" onClick={() => void manageOrder(order.id, "extend")} disabled={saving !== null}>تمدید ۲۴ ساعت</Button><Button size="sm" variant="destructive" onClick={() => void manageOrder(order.id, "fail")} disabled={saving !== null}>ناموفق</Button></> : <span className="text-xs text-muted-foreground">بسته شده</span>}</div></TableCell></TableRow>
+              })}
             </TableBody>
           </Table>
         </CardContent>

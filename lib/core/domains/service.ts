@@ -1,9 +1,10 @@
 import "server-only"
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
+import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { getAllSettings, SETTING_KEYS, toNumber } from "@/lib/core/settings"
-import { refund, spendAvailable } from "@/lib/core/wallet"
+import { captureFrozenPurchase, freeze, unfreeze } from "@/lib/core/wallet"
 import { lookupWithProvider, registerWithProvider } from "./provider"
 import { normalizeDomain } from "./validation"
 
@@ -53,7 +54,7 @@ export async function lookupDomain(input: string, force = false) {
       provider: result.provider,
       providerCode: result.providerCode,
       expiresAt: new Date(now.getTime() + ttlSec * 1000),
-      meta: result.meta ?? {},
+      meta: (result.meta ?? {}) as Prisma.InputJsonValue,
     },
     update: {
       unicodeDomain: normalized.unicodeDomain,
@@ -62,7 +63,7 @@ export async function lookupDomain(input: string, force = false) {
       providerCode: result.providerCode,
       checkedAt: now,
       expiresAt: new Date(now.getTime() + ttlSec * 1000),
-      meta: result.meta ?? {},
+      meta: (result.meta ?? {}) as Prisma.InputJsonValue,
     },
   })
   return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: tld.basePriceIrt }
@@ -151,7 +152,7 @@ export async function purchaseDomain(userId: string, quoteId: string, idempotenc
         walletRef: `domain:${orderId}`,
         idempotencyKey,
         provider: settings[SETTING_KEYS.domainProvider] || "cloudflare-rdap",
-        priceSnapshot: quote.priceSnapshot,
+        priceSnapshot: quote.priceSnapshot as Prisma.InputJsonValue,
         holdExpiresAt: new Date(now.getTime() + holdMinutes * 60_000),
         firstReminderAt: new Date(now.getTime() + firstReminder * 60_000),
         finalReminderAt: new Date(now.getTime() + finalReminder * 60_000),
@@ -160,7 +161,7 @@ export async function purchaseDomain(userId: string, quoteId: string, idempotenc
     const reservation = await tx.domainReservation.create({
       data: { userId, quoteId: quote.id, asciiDomain: quote.asciiDomain, expiresAt: order.holdExpiresAt },
     })
-    await spendAvailable(userId, quote.amountIrt, tx, { type: "DOMAIN_ORDER", id: order.id })
+    await freeze(userId, quote.amountIrt, tx, { type: "DOMAIN_ORDER_HOLD", id: order.id })
     await tx.domainQuote.update({ where: { id: quote.id }, data: { consumedAt: now } })
     await tx.domainOrder.update({ where: { id: order.id }, data: { reservationId: reservation.id } })
     await tx.domainOrderEvent.create({
@@ -171,10 +172,12 @@ export async function purchaseDomain(userId: string, quoteId: string, idempotenc
         toStatus: order.status,
         actorType: "USER",
         actorId: userId,
-        message: "سفارش ثبت دامنه ایجاد و مبلغ از کیف پول کسر شد.",
+        message: "سفارش ثبت دامنه ایجاد و مبلغ در کیف پول مسدود شد.",
         idempotencyKey: `${idempotencyKey}:created`,
       },
     })
+    const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
+    if (admins.length) await tx.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "سفارش جدید دامنه", body: `دامنه ${order.asciiDomain} منتظر بررسی و ثبت است.`, href: "/admin/domains" })) })
     return { ...order, reservationId: reservation.id }
   })
 }
@@ -197,7 +200,7 @@ export async function processDomainOrder(orderId: string) {
         where: { id: order.id },
         data: { status: "FAILED", failedAt: new Date(), failureReason: result.errorCode ?? "PROVIDER_ERROR" },
       })
-      await refund(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_REFUND", id: order.id })
+      await unfreeze(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_RELEASE", id: order.id })
       await tx.domainOrderEvent.create({
         data: {
           orderId: order.id,
@@ -220,6 +223,7 @@ export async function processDomainOrder(orderId: string) {
       where: { id: order.id },
       data: { status: "COMPLETED", completedAt, providerSnapshot: { providerReference: result.providerReference } },
     })
+    await captureFrozenPurchase(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_CAPTURE", id: order.id })
     await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: completedAt } })
     await tx.ownedDomain.create({
       data: {
@@ -245,7 +249,7 @@ export async function expireDomainOrder(orderId: string, reason = "HOLD_EXPIRED"
       data: { status: "EXPIRED", expiredAt: new Date(), expiryReason: reason },
     })
     await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "EXPIRED" } })
-    await refund(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_REFUND", id: order.id })
+    await unfreeze(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_RELEASE", id: order.id })
     await tx.domainOrderEvent.create({
       data: {
         orderId: order.id,
@@ -255,50 +259,90 @@ export async function expireDomainOrder(orderId: string, reason = "HOLD_EXPIRED"
         toStatus: "EXPIRED",
         actorType: "SYSTEM",
         reasonCode: reason,
-        message: "مهلت ثبت دامنه پایان یافت و مبلغ به کیف پول بازگشت.",
+        message: "سفارش به‌دلیل عدم اقدام مدیر در مهلت تعیین‌شده منقضی شد و مبلغ آزاد شد.",
         idempotencyKey: `${order.id}:expired`,
       },
     })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "مهلت سفارش دامنه پایان یافت", body: `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: "/domains" } })
+    const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
+    if (admins.length) await tx.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "سفارش دامنه خودکار منقضی شد", body: `${order.asciiDomain} بدون اقدام مدیر منقضی و مبلغ آن آزاد شد.`, href: "/admin/domains" })) })
+    return updated
+  })
+}
+
+export async function completeDomainOrder(orderId: string, adminId: string, providerReference?: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (!['PENDING_PURCHASE', 'PROCESSING'].includes(order.status)) throw new ConflictError("این سفارش قابل تکمیل نیست.")
+    const completedAt = new Date()
+    const updated = await tx.domainOrder.update({
+      where: { id: order.id },
+      data: { status: "COMPLETED", completedAt, providerSnapshot: { providerReference: providerReference ?? null } },
+    })
+    await captureFrozenPurchase(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_CAPTURE", id: order.id })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: completedAt } })
+    await tx.ownedDomain.upsert({
+      where: { orderId: order.id },
+      create: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registrarSnapshot: { providerReference: providerReference ?? null } },
+      update: { status: "ACTIVE", registrarSnapshot: { providerReference: providerReference ?? null } },
+    })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "REGISTRATION_COMPLETED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "دامنه با موفقیت ثبت شد.", idempotencyKey: `${order.id}:completed` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما ثبت شد", body: `${order.asciiDomain} با موفقیت ثبت و به دارایی‌های شما اضافه شد.`, href: "/domains" } })
+    return updated
+  })
+}
+
+export async function failDomainOrder(orderId: string, adminId: string, reason: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (!['PENDING_PURCHASE', 'PROCESSING'].includes(order.status)) throw new ConflictError("این سفارش قابل رد نیست.")
+    const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { status: "FAILED", failedAt: new Date(), failureReason: reason } })
+    await unfreeze(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_RELEASE", id: order.id })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "RELEASED" } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "REGISTRATION_FAILED", fromStatus: order.status, toStatus: "FAILED", actorType: "ADMIN", actorId: adminId, reasonCode: reason, message: "ثبت دامنه انجام نشد و مبلغ آزاد شد.", idempotencyKey: `${order.id}:failed` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "ثبت دامنه انجام نشد", body: `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: "/domains" } })
+    return updated
+  })
+}
+
+export async function extendDomainOrderHold(orderId: string, adminId: string, minutes: number) {
+  if (minutes < 15 || minutes > 4320) throw new ValidationError("مدت تمدید نگهداری معتبر نیست.")
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (!['PENDING_PURCHASE', 'PROCESSING'].includes(order.status) || order.holdExpiresAt <= new Date()) throw new ConflictError("مهلت این سفارش قابل تمدید نیست.")
+    const holdExpiresAt = new Date(order.holdExpiresAt.getTime() + minutes * 60_000)
+    const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { holdExpiresAt, finalReminderAt: new Date(holdExpiresAt.getTime() - 5 * 60_000), finalReminderSentAt: null, extensionCount: { increment: 1 } } })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { expiresAt: holdExpiresAt } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "HOLD_EXTENDED", fromStatus: order.status, toStatus: order.status, actorType: "ADMIN", actorId: adminId, message: `مهلت بررسی سفارش ${minutes} دقیقه تمدید شد.`, meta: { minutes }, idempotencyKey: `${order.id}:extend:${order.extensionCount + 1}` } })
     return updated
   })
 }
 
 export async function processDueDomainOrders() {
   const now = new Date()
-  const [expired, firstReminders, finalReminders, pending] = await Promise.all([
+  const [expired, firstReminders, finalReminders] = await Promise.all([
     prisma.domainOrder.findMany({ where: { status: { in: ["PENDING_PURCHASE", "PROCESSING"] }, holdExpiresAt: { lte: now } }, select: { id: true }, take: 50 }),
     prisma.domainOrder.findMany({ where: { status: { in: ["PENDING_PURCHASE", "PROCESSING"] }, firstReminderAt: { lte: now }, firstReminderSentAt: null }, take: 50 }),
     prisma.domainOrder.findMany({ where: { status: { in: ["PENDING_PURCHASE", "PROCESSING"] }, finalReminderAt: { lte: now }, finalReminderSentAt: null }, take: 50 }),
-    prisma.domainOrder.findMany({ where: { status: "PENDING_PURCHASE", holdExpiresAt: { gt: now } }, select: { id: true }, take: 20 }),
   ])
 
-  const { createNotification } = await import("@/lib/core/notifications")
+  const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
   let reminders = 0
   for (const order of firstReminders) {
-    await createNotification({
-      userId: order.userId,
-      type: "SYSTEM",
-      title: "ثبت دامنه در حال انجام است",
-      body: `سفارش ${order.asciiDomain} در صف ثبت قرار دارد.`,
-      href: "/domains",
-    }).catch(() => undefined)
+    if (admins.length) await prisma.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "سفارش دامنه هنوز بررسی نشده است", body: `${order.asciiDomain} در انتظار اقدام مدیر است.`, href: "/admin/domains" })) })
     await prisma.domainOrder.updateMany({ where: { id: order.id, firstReminderSentAt: null }, data: { firstReminderSentAt: now } })
     reminders += 1
   }
   for (const order of finalReminders) {
-    await createNotification({
-      userId: order.userId,
-      type: "SYSTEM",
-      title: "مهلت ثبت دامنه رو به پایان است",
-      body: `در صورت تکمیل نشدن ثبت ${order.asciiDomain}، مبلغ خودکار بازگردانده می‌شود.`,
-      href: "/domains",
-    }).catch(() => undefined)
+    if (admins.length) await prisma.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "مهلت بررسی سفارش رو به پایان است", body: `مهلت ${order.asciiDomain} به‌زودی تمام و وجه آزاد می‌شود.`, href: "/admin/domains" })) })
     await prisma.domainOrder.updateMany({ where: { id: order.id, finalReminderSentAt: null }, data: { finalReminderSentAt: now } })
     reminders += 1
   }
   for (const item of expired) await expireDomainOrder(item.id)
-  for (const item of pending) await processDomainOrder(item.id)
-  return { processed: pending.length, expired: expired.length, reminders }
+  return { processed: 0, expired: expired.length, reminders }
 }
 
 export function listUserDomainOrders(userId: string) {
