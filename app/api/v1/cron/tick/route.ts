@@ -140,6 +140,20 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] AI automations error:", (e as Error).message)
   }
 
+  // Process domain purchase holds, registrar fulfillment, reminders and expiry
+  // refunds. Best-effort: provider downtime must not block unrelated workers.
+  let domains: { processed: number; expired: number; reminders: number } = {
+    processed: 0,
+    expired: 0,
+    reminders: 0,
+  }
+  try {
+    const { processDueDomainOrders } = await import("@/lib/core/domains/service")
+    domains = await processDueDomainOrders()
+  } catch (e) {
+    console.log("[v0] domain lifecycle processing error:", (e as Error).message)
+  }
+
   // Re-evaluate second-level referral rewards that were parked purely for a
   // maturity/cooldown gate (not a hard abuse signal) and whose gate has since
   // cleared → auto-approve + credit the now-clean ones. Best-effort.
@@ -162,6 +176,7 @@ export const POST = route(async (req: Request) => {
     email,
     broadcasts,
     automations,
+    domains,
     referralRewards,
   }
     })

@@ -1,11 +1,12 @@
-import { CmsSingletonPage, buildSingletonMetadata } from "@/components/cms/singleton-page"
+import type { Metadata } from "next"
+import { DomainMarketplace } from "@/components/domains/domain-marketplace"
 
-// The Domain service (availability lookup, ordering, NS/DNS management) is
-// planned for a later phase. This route already renders CMS-managed intro
-// content so business logic can be added later without changing the URL.
 export const dynamic = "force-dynamic"
-export const generateMetadata = () => buildSingletonMetadata("domain")
+export const metadata: Metadata = {
+  title: "جستجو و ثبت دامنه",
+  description: "استعلام لحظه‌ای، قیمت شفاف و ثبت امن دامنه با پیگیری کامل سفارش.",
+}
 
 export default function DomainsPage() {
-  return <CmsSingletonPage type="domain" />
+  return <DomainMarketplace />
 }

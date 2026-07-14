@@ -36,6 +36,7 @@ import {
   Send,
   ShoppingBag,
   ScanText,
+  Globe2,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
@@ -81,6 +82,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/products", label: "محصولات", icon: Boxes },
       { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
       { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
+      { href: "/admin/domains", label: "دامنه‌ها", icon: Globe2 },
     ],
   },
   {

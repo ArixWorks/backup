@@ -2214,6 +2214,195 @@ model TextIntegrityScanRun {
   @@index([status])
 }
 
+enum DomainAvailabilityStatus {
+  AVAILABLE
+  REGISTERED
+  PREMIUM
+  RESERVED
+  UNKNOWN
+  UNSUPPORTED
+  LOOKUP_ERROR
+}
+
+enum DomainOperationType {
+  REGISTRATION
+  RENEWAL
+  TRANSFER
+}
+
+enum DomainOrderStatus {
+  PENDING_PURCHASE
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum DomainReservationStatus {
+  ACTIVE
+  CONSUMED
+  EXPIRED
+  RELEASED
+}
+
+enum OwnedDomainStatus {
+  ACTIVE
+  EXPIRED
+  PENDING_RENEW
+  RENEWED
+  TRANSFER_PENDING
+  TRANSFERRED
+  LOCKED
+}
+
+model DomainTld {
+  id              String   @id @default(cuid())
+  tld             String   @unique
+  title           String
+  active          Boolean  @default(true)
+  supported       Boolean  @default(true)
+  premiumEnabled  Boolean  @default(false)
+  basePriceIrt    BigInt
+  renewalPriceIrt BigInt?
+  transferPriceIrt BigInt?
+  displayOrder    Int      @default(0)
+  provider        String   @default("cloudflare-rdap")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active, displayOrder])
+}
+
+model DomainLookupCache {
+  id           String                   @id @default(cuid())
+  asciiDomain  String                   @unique
+  unicodeDomain String
+  status       DomainAvailabilityStatus
+  provider     String
+  providerCode String?
+  checkedAt    DateTime                 @default(now())
+  expiresAt    DateTime
+  meta         Json                     @default("{}")
+
+  @@index([expiresAt])
+}
+
+model DomainQuote {
+  id             String              @id @default(cuid())
+  userId         String
+  operation      DomainOperationType @default(REGISTRATION)
+  asciiDomain    String
+  unicodeDomain  String
+  tld            String
+  amountIrt      BigInt
+  priceSnapshot  Json
+  availability  DomainAvailabilityStatus
+  signatureHash  String              @unique
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([asciiDomain, expiresAt])
+}
+
+model DomainReservation {
+  id          String                  @id @default(cuid())
+  userId      String
+  quoteId     String                  @unique
+  asciiDomain String
+  status      DomainReservationStatus @default(ACTIVE)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([asciiDomain, status, expiresAt])
+  @@index([userId, status])
+}
+
+model DomainOrder {
+  id                 String              @id @default(cuid())
+  publicId           String              @unique
+  userId             String
+  operation          DomainOperationType @default(REGISTRATION)
+  status             DomainOrderStatus   @default(PENDING_PURCHASE)
+  asciiDomain        String
+  unicodeDomain      String
+  tld                String
+  amountIrt          BigInt
+  currency           String              @default("IRT")
+  quoteId            String              @unique
+  reservationId      String?             @unique
+  walletRef          String              @unique
+  idempotencyKey     String              @unique
+  provider           String
+  providerSnapshot   Json                @default("{}")
+  priceSnapshot      Json
+  holdExpiresAt      DateTime
+  firstReminderAt    DateTime
+  finalReminderAt    DateTime
+  firstReminderSentAt DateTime?
+  finalReminderSentAt DateTime?
+  processingLeaseUntil DateTime?
+  extensionCount     Int                 @default(0)
+  version            Int                 @default(0)
+  failureReason      String?
+  expiryReason       String?
+  completedAt        DateTime?
+  failedAt           DateTime?
+  expiredAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  events             DomainOrderEvent[]
+  ownedDomain        OwnedDomain?
+
+  @@index([userId, createdAt])
+  @@index([status, holdExpiresAt])
+  @@index([status, firstReminderAt])
+  @@index([status, finalReminderAt])
+}
+
+model DomainOrderEvent {
+  id             String              @id @default(cuid())
+  orderId        String
+  order          DomainOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  operation      DomainOperationType
+  type           String
+  fromStatus     DomainOrderStatus?
+  toStatus       DomainOrderStatus?
+  actorType      String
+  actorId        String?
+  reasonCode     String?
+  message        String
+  meta           Json                @default("{}")
+  idempotencyKey String              @unique
+  createdAt      DateTime            @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model OwnedDomain {
+  id               String            @id @default(cuid())
+  userId           String
+  orderId          String            @unique
+  order            DomainOrder       @relation(fields: [orderId], references: [id])
+  asciiDomain      String            @unique
+  unicodeDomain    String
+  status           OwnedDomainStatus @default(ACTIVE)
+  provider         String
+  registrarSnapshot Json             @default("{}")
+  registeredAt     DateTime          @default(now())
+  expiresAt        DateTime?
+  renewalEligibleAt DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([userId, status])
+  @@index([expiresAt])
+}
+
 /// A single piece of managed content. `type` is the registry content-type key.
 /// `body` is canonical semantic HTML (same format as product descriptions).
 /// `fields` holds type-specific custom fields validated by the registry.
