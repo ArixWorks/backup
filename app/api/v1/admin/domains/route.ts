@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { audit } from "@/lib/core/audit"
 import { ConflictError, NotFoundError } from "@/lib/core/errors"
-import { completeDomainOrder, extendDomainOrderHold, failDomainOrder } from "@/lib/core/domains/service"
+import { completeDomainOrder, failDomainOrder, markDomainPurchased } from "@/lib/core/domains/service"
 
 const tldPattern = /^\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 const tldSchema = z.string().trim().toLowerCase().transform((value) => value.startsWith(".") ? value : `.${value}`).pipe(z.string().regex(tldPattern, "پسوند معتبر نیست."))
@@ -56,10 +56,10 @@ const bulkSchema = z.object({ action: z.literal("bulkStatus"), ids: z.array(z.st
 const archiveSchema = z.object({ action: z.literal("archiveTld"), id: z.string().cuid() })
 const deleteSchema = z.object({ action: z.literal("deleteTld"), id: z.string().cuid() })
 const orderActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("complete"), orderId: z.string(), providerReference: z.string().trim().max(200).optional() }),
+  z.object({ action: z.literal("purchased"), orderId: z.string(), providerReference: z.string().trim().max(200).optional() }),
+  z.object({ action: z.literal("complete"), orderId: z.string() }),
   z.object({ action: z.literal("fail"), orderId: z.string(), reason: z.string().trim().min(3).max(500) }),
   z.object({ action: z.literal("unavailable"), orderId: z.string() }),
-  z.object({ action: z.literal("extend"), orderId: z.string(), minutes: z.coerce.number().int().min(15).max(4320) }),
 ])
 const actionSchema = z.union([createSchema, importSchema, bulkSchema, archiveSchema, deleteSchema, orderActionSchema])
 
@@ -108,13 +108,13 @@ export const POST = route(async (req: Request) => {
     return { deleted: true, tld: tld.tld, historicalOrders }
   }
 
-  const result = body.action === "complete"
-    ? await completeDomainOrder(body.orderId, admin.id, body.providerReference)
-    : body.action === "fail"
-      ? await failDomainOrder(body.orderId, admin.id, body.reason)
-      : body.action === "unavailable"
-        ? await failDomainOrder(body.orderId, admin.id, "DOMAIN_ALREADY_REGISTERED")
-        : await extendDomainOrderHold(body.orderId, admin.id, body.minutes)
+  const result = body.action === "purchased"
+    ? await markDomainPurchased(body.orderId, admin.id, body.providerReference)
+    : body.action === "complete"
+      ? await completeDomainOrder(body.orderId, admin.id)
+      : body.action === "fail"
+        ? await failDomainOrder(body.orderId, admin.id, body.reason)
+        : await failDomainOrder(body.orderId, admin.id, "DOMAIN_ALREADY_REGISTERED")
   await audit({ actorId: admin.id, action: `domain.order.${body.action}`, entity: "DomainOrder", entityId: body.orderId })
   return result
 })

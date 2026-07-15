@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "path": "components/domains/domain-marketplace.tsx",
+    "line": 231,
+    "text": "<Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>این نام در میان پسوندهای فعال فروش��اه آزاد نیست. نام دیگری امتحان کنید یا از پیشنهاد هوشمند کمک بگیرید.</CardDescription></CardHeader></Card>"
+  }
+]
