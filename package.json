@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/generate-text-integrity-manifest.mjs",
+    "prebuild": "prisma generate && node scripts/generate-text-integrity-manifest.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
