@@ -2233,6 +2233,8 @@ enum DomainOperationType {
 enum DomainOrderStatus {
   PENDING_PURCHASE
   PROCESSING
+  AWAITING_NAMESERVERS
+  AWAITING_NAMESERVER_SETUP
   COMPLETED
   FAILED
   EXPIRED
@@ -2350,6 +2352,14 @@ model DomainOrder {
   version            Int                 @default(0)
   failureReason      String?
   expiryReason       String?
+  purchasedAt        DateTime?
+  expiresAt          DateTime?
+  ns1                String?
+  ns2                String?
+  ns3                String?
+  ns4                String?
+  nameserversSubmittedAt DateTime?
+  nameserversConfiguredAt DateTime?
   completedAt        DateTime?
   failedAt           DateTime?
   expiredAt          DateTime?
@@ -2396,6 +2406,10 @@ model OwnedDomain {
   registeredAt     DateTime          @default(now())
   expiresAt        DateTime?
   renewalEligibleAt DateTime?
+  ns1              String?
+  ns2              String?
+  ns3              String?
+  ns4              String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 

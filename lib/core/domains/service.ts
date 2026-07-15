@@ -280,24 +280,19 @@ export async function processDomainOrder(orderId: string) {
     })
   }
   return prisma.$transaction(async (tx) => {
-    const completedAt = new Date()
+    const purchasedAt = new Date()
+    const expiresAt = result.expiresAt ?? oneYearAfter(purchasedAt)
     const updated = await tx.domainOrder.update({
       where: { id: order.id },
-      data: { status: "COMPLETED", completedAt, providerSnapshot: { providerReference: result.providerReference } },
+      data: { status: "AWAITING_NAMESERVERS", purchasedAt, expiresAt, processingLeaseUntil: null, providerSnapshot: { providerReference: result.providerReference } },
     })
     await captureFrozenPurchase(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_CAPTURE", id: order.id })
-    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: completedAt } })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: purchasedAt } })
     await tx.ownedDomain.create({
-      data: {
-        userId: order.userId,
-        orderId: order.id,
-        asciiDomain: order.asciiDomain,
-        unicodeDomain: order.unicodeDomain,
-        provider: order.provider,
-        expiresAt: result.expiresAt,
-        registrarSnapshot: { providerReference: result.providerReference },
-      },
+      data: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: result.providerReference } },
     })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: "PROCESSING", toStatus: "AWAITING_NAMESERVERS", actorType: "SYSTEM", message: "دامنه خریداری شد و منتظر ثبت NS توسط کاربر است.", idempotencyKey: `${order.id}:purchased` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} خریداری شد؛ برای ادامه حداقل NS1 و NS2 را ثبت کنید.`, href: "/domains" } })
     return updated
   })
 }
@@ -332,25 +327,63 @@ export async function expireDomainOrder(orderId: string, reason = "HOLD_EXPIRED"
   })
 }
 
-export async function completeDomainOrder(orderId: string, adminId: string, providerReference?: string) {
+function oneYearAfter(date: Date) {
+  const expiresAt = new Date(date)
+  expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1)
+  return expiresAt
+}
+
+export async function markDomainPurchased(orderId: string, adminId: string, providerReference?: string) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
     if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
-    if (!['PENDING_PURCHASE', 'PROCESSING'].includes(order.status)) throw new ConflictError("این سفارش قابل تکمیل نیست.")
-    const completedAt = new Date()
+    if (!["PENDING_PURCHASE", "PROCESSING"].includes(order.status)) throw new ConflictError("خرید این سفارش قبلاً تعیین تکلیف شده است.")
+    const purchasedAt = new Date()
+    const expiresAt = oneYearAfter(purchasedAt)
     const updated = await tx.domainOrder.update({
       where: { id: order.id },
-      data: { status: "COMPLETED", completedAt, providerSnapshot: { providerReference: providerReference ?? null } },
+      data: { status: "AWAITING_NAMESERVERS", purchasedAt, expiresAt, processingLeaseUntil: null, providerSnapshot: { providerReference: providerReference ?? null } },
     })
     await captureFrozenPurchase(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_CAPTURE", id: order.id })
-    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: completedAt } })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: purchasedAt } })
     await tx.ownedDomain.upsert({
       where: { orderId: order.id },
-      create: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registrarSnapshot: { providerReference: providerReference ?? null } },
-      update: { status: "ACTIVE", registrarSnapshot: { providerReference: providerReference ?? null } },
+      create: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: providerReference ?? null } },
+      update: { status: "ACTIVE", registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: providerReference ?? null } },
     })
-    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "REGISTRATION_COMPLETED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "دامنه با موفقیت ثبت شد.", idempotencyKey: `${order.id}:completed` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما ثبت شد", body: `${order.asciiDomain} با موفقیت ثبت و به دارایی‌های شما اضافه شد.`, href: "/domains" } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: order.status, toStatus: "AWAITING_NAMESERVERS", actorType: "ADMIN", actorId: adminId, message: "دامنه خریداری شد و منتظر ثبت NS توسط کاربر است.", idempotencyKey: `${order.id}:purchased` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} با موفقیت خریداری شد. برای ادامه، حداقل NS1 و NS2 را در سفارش ثبت کنید.`, href: "/domains" } })
+    return updated
+  })
+}
+
+export async function submitDomainNameservers(userId: string, orderId: string, nameservers: [string, string, string?, string?]) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findFirst({ where: { id: orderId, userId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (order.status !== "AWAITING_NAMESERVERS") throw new ConflictError("این سفارش اکنون آماده دریافت NS نیست.")
+    const submittedAt = new Date()
+    const [ns1, ns2, ns3, ns4] = nameservers
+    const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { status: "AWAITING_NAMESERVER_SETUP", ns1, ns2, ns3: ns3 || null, ns4: ns4 || null, nameserversSubmittedAt: submittedAt } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "NAMESERVERS_SUBMITTED", fromStatus: "AWAITING_NAMESERVERS", toStatus: "AWAITING_NAMESERVER_SETUP", actorType: "USER", actorId: userId, message: "NSها توسط کاربر ثبت و برای اجرا به مدیر ارسال شد.", meta: { ns1, ns2, ns3: ns3 || null, ns4: ns4 || null }, idempotencyKey: `${order.id}:ns:${submittedAt.getTime()}` } })
+    const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
+    if (admins.length) await tx.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "NS دامنه آماده ثبت است", body: `کاربر NSهای ${order.asciiDomain} را ارسال کرده است.`, href: "/admin/domains" })) })
+    return updated
+  })
+}
+
+export async function completeDomainOrder(orderId: string, adminId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (order.status !== "AWAITING_NAMESERVER_SETUP" || !order.ns1 || !order.ns2 || !order.purchasedAt || !order.expiresAt) throw new ConflictError("ابتدا باید دامنه خریداری و حداقل دو NS توسط کاربر ارسال شود.")
+    const completedAt = new Date()
+    const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { status: "COMPLETED", completedAt, nameserversConfiguredAt: completedAt } })
+    await tx.ownedDomain.update({ where: { orderId: order.id }, data: { ns1: order.ns1, ns2: order.ns2, ns3: order.ns3, ns4: order.ns4 } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "NAMESERVERS_CONFIGURED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "NSها ثبت و سفارش با موفقیت تکمیل شد.", idempotencyKey: `${order.id}:completed` } })
+    const purchaseDate = order.purchasedAt.toLocaleDateString("fa-IR")
+    const expiryDate = order.expiresAt.toLocaleDateString("fa-IR")
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "سفارش دامنه تکمیل شد", body: `NSهای ${order.asciiDomain} ثبت شد. تاریخ خرید: ${purchaseDate}، تاریخ انقضا: ${expiryDate}.`, href: "/domains" } })
     return updated
   })
 }

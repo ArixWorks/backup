@@ -44,6 +44,12 @@ interface DomainOrder {
   amountIrt: string
   createdAt: string
   holdExpiresAt: string
+  purchasedAt: string | null
+  expiresAt: string | null
+  ns1: string | null
+  ns2: string | null
+  ns3: string | null
+  ns4: string | null
   events: Array<{ id: string; message: string; createdAt: string }>
 }
 
@@ -59,7 +65,9 @@ const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> =
   PREMIUM: { label: "ویژه و غیرقابل فروش", icon: XCircle },
   RESERVED: { label: "رزرو شده", icon: XCircle },
   PENDING_PURCHASE: { label: "در صف ثبت", icon: Clock3 },
-  PROCESSING: { label: "در حال ثبت", icon: Loader2 },
+  PROCESSING: { label: "در حال خرید", icon: Loader2 },
+  AWAITING_NAMESERVERS: { label: "منتظر NS شما", icon: Clock3 },
+  AWAITING_NAMESERVER_SETUP: { label: "در انتظار ثبت NS", icon: Loader2 },
   COMPLETED: { label: "تکمیل شده", icon: CheckCircle2 },
   FAILED: { label: "ناموفق؛ بازپرداخت شد", icon: XCircle },
   EXPIRED: { label: "منقضی؛ بازپرداخت شد", icon: XCircle },
@@ -288,7 +296,7 @@ export function DomainMarketplace() {
         <TabsContent value="orders" className="flex flex-col gap-3">
           {orders.length === 0 ? (
             <Card><CardHeader><CardTitle>هنوز سفارشی ندارید</CardTitle><CardDescription>پس از خرید، روند ثبت دامنه اینجا نمایش داده می‌شود.</CardDescription></CardHeader></Card>
-          ) : orders.map((order) => <OrderCard key={order.id} order={order} />)}
+          ) : orders.map((order) => <OrderCard key={order.id} order={order} onUpdated={() => mutateOrders()} />)}
         </TabsContent>
       </Tabs>
 
@@ -370,18 +378,30 @@ function AvailabilityCard({ lookup, busy, onPurchase }: { lookup: Lookup; busy: 
   )
 }
 
-function OrderCard({ order }: { order: DomainOrder }) {
+function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => Promise<unknown> }) {
   const meta = statusMeta[order.status] ?? statusMeta.UNKNOWN
   const Icon = meta.icon
+  const [nameservers, setNameservers] = useState({ ns1: order.ns1 ?? "", ns2: order.ns2 ?? "", ns3: order.ns3 ?? "", ns4: order.ns4 ?? "" })
+  const [submitting, setSubmitting] = useState(false)
+  async function submitNameservers() {
+    setSubmitting(true)
+    try {
+      await apiPost("/api/v1/domains/orders", { orderId: order.id, ...nameservers })
+      toast.success("NSها ثبت شد و درخواست برای ادمین ارسال گردید.")
+      await onUpdated()
+    } catch (error) { toast.error(error instanceof Error ? error.message : "ثبت NS انجام نشد.") } finally { setSubmitting(false) }
+  }
   return (
-    <Card>
-      <CardHeader className="flex-row items-start justify-between gap-4">
+    <Card className="overflow-hidden">
+      <CardHeader className="flex-row items-start justify-between gap-4 border-b border-border/60">
         <div className="flex flex-col gap-1"><CardTitle dir="ltr" className="text-left">{order.asciiDomain}</CardTitle><CardDescription>{order.publicId} · {new Date(order.createdAt).toLocaleDateString("fa-IR")}</CardDescription></div>
         <Badge variant="secondary"><Icon data-icon="inline-start" /> {meta.label}</Badge>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">مبلغ</span><strong>{money(order.amountIrt)}</strong></div>
-        {order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-r-2 border-primary/40 pr-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span>{event.message}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString("fa-IR")}</small></span></div>)}
+      <CardContent className="flex flex-col gap-5 pt-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">مبلغ</span><strong>{money(order.amountIrt)}</strong>{order.purchasedAt && <span>خرید: <strong>{new Date(order.purchasedAt).toLocaleDateString("fa-IR")}</strong></span>}{order.expiresAt && <span>انقضا: <strong>{new Date(order.expiresAt).toLocaleDateString("fa-IR")}</strong></span>}</div>
+        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label="ثبت نیم سرورها"><div><h3 className="font-bold">NSهای دامنه را ثبت کنید</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">NS1 و NS2 الزامی هستند. می‌توانید این مرحله را اکنون یا هر زمان دیگری تکمیل کنید.</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">الزامی</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} onChange={(event) => setNameservers((current) => ({ ...current, [key]: event.target.value }))} /></label>)}</div><Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}ثبت NS و ارسال برای ادمین</Button></section>}
+        {order.status === "AWAITING_NAMESERVER_SETUP" && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><strong>NSها برای ادمین ارسال شده‌اند</strong><div dir="ltr" className="mt-3 grid gap-2 text-left font-mono text-sm sm:grid-cols-2">{[order.ns1, order.ns2, order.ns3, order.ns4].filter(Boolean).map((ns) => <span key={ns!} className="rounded-lg bg-background/70 p-2">{ns}</span>)}</div></div>}
+        <div className="flex flex-col gap-3">{order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-r-2 border-primary/40 pr-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span>{event.message}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString("fa-IR")}</small></span></div>)}</div>
       </CardContent>
     </Card>
   )
