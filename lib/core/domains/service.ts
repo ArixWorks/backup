@@ -71,12 +71,16 @@ export async function lookupDomain(input: string, force = false) {
 
 export async function lookupDomainCatalog(input: string) {
   const raw = input.trim().toLowerCase()
-  if (raw.includes(".")) return { exact: true, results: [await lookupDomain(raw)] }
+  if (raw.includes(".")) {
+    const result = await lookupDomain(raw)
+    return { exact: true, results: result.status === "AVAILABLE" ? [result] : [] }
+  }
 
   const label = normalizeLabel(raw)
   const tlds = await listTlds()
   const supportedTlds = tlds.filter((tld) => tld.supported)
   const domains = supportedTlds.map((tld) => `${label}${tld.tld}`)
+  if (domains.length === 0) return { exact: false, results: [] }
   const providerResults = await lookupManyWithProvider(domains)
   const settings = await getAllSettings()
   const ttlSec = Math.max(30, toNumber(settings[SETTING_KEYS.domainLookupTtlSec], 300))

@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
-import { apiGet, apiPost } from "@/lib/api-client"
+import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,6 +61,7 @@ export function DomainMarketplace() {
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
   const [suggestionPrompt, setSuggestionPrompt] = useState("")
   const [suggestions, setSuggestions] = useState<Array<{ domain: string; reason: string }>>([])
@@ -75,14 +76,22 @@ export function DomainMarketplace() {
   const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
 
   async function searchDomain(domain = normalizedQuery) {
-    if (!domain) return
+    if (!domain) {
+      setSearchError("نام موردنظر را وارد کنید؛ برای نمونه arix یا arix.com")
+      return
+    }
+    setSearchError(null)
+    setLookups([])
+    setHasSearched(false)
     setBusy("lookup")
     try {
       const result = unwrap<{ exact: boolean; results: Lookup[] }>(await apiPost("/api/v1/domains/lookup", { domain }))
       setLookups(result.results)
       setHasSearched(true)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "استعلام دامنه انجام نشد.")
+      const message = error instanceof Error ? error.message : "استعلام دامنه انجام نشد."
+      setSearchError(message)
+      toast.error(message)
     } finally {
       setBusy(null)
     }
@@ -99,7 +108,14 @@ export function DomainMarketplace() {
       setHasSearched(false)
       await mutateOrders()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "خرید دامنه انجام نشد.")
+      if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
+        toast.error("موجودی کیف پول برای ثبت این دامنه کافی نیست.", { action: { label: "افزایش موجودی", onClick: () => { window.location.href = "/wallet" } } })
+      } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION_ERROR"].includes(error.code)) {
+        toast.error("وضعیت یا قیمت دامنه تغییر کرده است؛ دوباره استعلام بگیرید.")
+        await searchDomain(lookup.asciiDomain)
+      } else {
+        toast.error(error instanceof Error ? error.message : "ثبت سفارش انجام نشد؛ وجهی کسر نشده است.")
+      }
     } finally {
       setBusy(null)
     }
@@ -147,26 +163,30 @@ export function DomainMarketplace() {
               <Input
                 dir="ltr"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void searchDomain()
                 }}
                 placeholder="example.ir"
                 aria-label="نام دامنه"
+                aria-invalid={Boolean(searchError)}
+                aria-describedby={searchError ? "domain-search-error" : undefined}
                 className="h-12 text-left"
               />
-              <Button size="lg" onClick={() => void searchDomain()} disabled={!normalizedQuery || busy !== null}>
+              <Button size="lg" onClick={() => void searchDomain()} disabled={busy !== null}>
                 {busy === "lookup" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
                 استعلام دامنه
               </Button>
             </CardContent>
+            {searchError && <p id="domain-search-error" role="alert" className="px-6 text-sm text-destructive">{searchError}</p>}
             <CardFooter className="flex flex-wrap gap-2">
-              {tlds.map((item) => (
+              {tlds.slice(0, 12).map((item) => (
                 <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}>
                   <span dir="ltr">{item.tld}</span>
                   <span className="text-muted-foreground">{money(item.basePriceIrt)}</span>
                 </Button>
               ))}
+              {tlds.length > 12 && <Badge variant="secondary">+{(tlds.length - 12).toLocaleString("fa-IR")} پسوند دیگر در جست‌وجوی کامل</Badge>}
             </CardFooter>
           </Card>
 
@@ -177,12 +197,12 @@ export function DomainMarketplace() {
               ))}
             </div>
           ) : hasSearched && busy !== "lookup" ? (
-            <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>در میان پسوندهای فعال فروشگاه، Railway گزینه آزادی برای این نام گزارش نکرد.</CardDescription></CardHeader></Card>
+            <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>این نام در میان پسوندهای فعال فروشگاه آزاد نیست. نام دیگری امتحان کنید یا از پیشنهاد هوشمند کمک بگیرید.</CardDescription></CardHeader></Card>
           ) : null}
 
           <div className="grid gap-3 md:grid-cols-3">
             {[
-              { icon: Globe2, title: "استعلام زنده", text: "وضعیت دامنه مستقیماً از سرویس Railway بررسی می‌شود." },
+              { icon: Globe2, title: "استعلام زنده", text: "وضعیت هر دامنه پیش از نمایش قیمت و دوباره پیش از ثبت سفارش بررسی می‌شود." },
               { icon: WalletCards, title: "تسویه امن", text: "مبلغ قطعی از کیف پول کسر و در شکست ثبت، خودکار بازپرداخت می‌شود." },
               { icon: ShieldCheck, title: "پیگیری کامل", text: "هر تغییر وضعیت با زمان و دلیل در تاریخچه سفارش ثبت می‌شود." },
             ].map(({ icon: Icon, title, text }) => (
