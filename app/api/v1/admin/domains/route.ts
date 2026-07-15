@@ -54,12 +54,13 @@ const createSchema = z.object({ action: z.literal("createTld"), tld: tldSchema, 
 const importSchema = z.object({ action: z.literal("importTlds"), rows: z.array(z.object({ tld: tldSchema, title: z.string().trim().min(1).max(80), basePriceIrt: priceSchema, active: z.boolean().default(true) })).min(1).max(500) })
 const bulkSchema = z.object({ action: z.literal("bulkStatus"), ids: z.array(z.string().cuid()).min(1).max(500), active: z.boolean() })
 const archiveSchema = z.object({ action: z.literal("archiveTld"), id: z.string().cuid() })
+const deleteSchema = z.object({ action: z.literal("deleteTld"), id: z.string().cuid() })
 const orderActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("complete"), orderId: z.string(), providerReference: z.string().trim().max(200).optional() }),
   z.object({ action: z.literal("fail"), orderId: z.string(), reason: z.string().trim().min(3).max(500) }),
   z.object({ action: z.literal("extend"), orderId: z.string(), minutes: z.coerce.number().int().min(15).max(4320) }),
 ])
-const actionSchema = z.union([createSchema, importSchema, bulkSchema, archiveSchema, orderActionSchema])
+const actionSchema = z.union([createSchema, importSchema, bulkSchema, archiveSchema, deleteSchema, orderActionSchema])
 
 export const POST = route(async (req: Request) => {
   const admin = await requireAdmin()
@@ -95,6 +96,15 @@ export const POST = route(async (req: Request) => {
     const updated = await prisma.domainTld.update({ where: { id: body.id }, data: { active: false, supported: false } })
     await audit({ actorId: admin.id, action: "domain.tld.archive", entity: "DomainTld", entityId: body.id, meta: { tld: tld.tld } })
     return updated
+  }
+
+  if (body.action === "deleteTld") {
+    const tld = await prisma.domainTld.findUnique({ where: { id: body.id } })
+    if (!tld) throw new NotFoundError("پسوند پیدا نشد.")
+    const historicalOrders = await prisma.domainOrder.count({ where: { tld: tld.tld } })
+    await prisma.domainTld.delete({ where: { id: body.id } })
+    await audit({ actorId: admin.id, action: "domain.tld.delete", entity: "DomainTld", entityId: body.id, meta: { tld: tld.tld, historicalOrders } })
+    return { deleted: true, tld: tld.tld, historicalOrders }
   }
 
   const result = body.action === "complete"
