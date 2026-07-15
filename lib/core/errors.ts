@@ -28,6 +28,12 @@ export class ConflictError extends DomainError {
   }
 }
 
+export class DomainUnavailableError extends DomainError {
+  constructor(message = "این دامنه در بررسی مجدد دیگر آزاد نیست و امکان ثبت آن وجود ندارد.") {
+    super(message, "DOMAIN_UNAVAILABLE", 409)
+  }
+}
+
 export class ValidationError extends DomainError {
   constructor(message = "Validation failed") {
     super(message, "VALIDATION", 422)

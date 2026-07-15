@@ -2,7 +2,7 @@ import "server-only"
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
-import { ConflictError, NotFoundError, ValidationError } from "@/lib/core/errors"
+import { ConflictError, DomainUnavailableError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { getAllSettings, SETTING_KEYS, toNumber } from "@/lib/core/settings"
 import { captureFrozenPurchase, freeze, unfreeze } from "@/lib/core/wallet"
 import { lookupManyWithProvider, lookupWithProvider, registerWithProvider } from "./provider"
@@ -180,7 +180,17 @@ export async function purchaseDomain(userId: string, quoteId: string, idempotenc
   }
   const quote = await verifyQuote(userId, quoteId)
   const fresh = await lookupDomain(quote.asciiDomain, true)
-  if (fresh.status !== "AVAILABLE") throw new ConflictError("وضعیت دامنه تغییر کرده است؛ دوباره جستجو کنید.")
+  if (fresh.status !== "AVAILABLE") throw new DomainUnavailableError()
+
+  const activeReservation = await prisma.domainReservation.findFirst({
+    where: {
+      asciiDomain: quote.asciiDomain,
+      status: "ACTIVE",
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  })
+  if (activeReservation) throw new DomainUnavailableError("این دامنه هم‌اکنون توسط سفارش دیگری در حال ثبت است.")
 
   const settings = await getAllSettings()
   const holdMinutes = Math.max(15, toNumber(settings[SETTING_KEYS.domainHoldMinutes], 30))
@@ -353,8 +363,9 @@ export async function failDomainOrder(orderId: string, adminId: string, reason: 
     const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { status: "FAILED", failedAt: new Date(), failureReason: reason } })
     await unfreeze(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_RELEASE", id: order.id })
     await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "RELEASED" } })
-    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "REGISTRATION_FAILED", fromStatus: order.status, toStatus: "FAILED", actorType: "ADMIN", actorId: adminId, reasonCode: reason, message: "ثبت دامنه انجام نشد و مبلغ آزاد شد.", idempotencyKey: `${order.id}:failed` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "ثبت دامنه انجام نشد", body: `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: "/domains" } })
+    const unavailable = reason === "DOMAIN_ALREADY_REGISTERED"
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: unavailable ? "DOMAIN_UNAVAILABLE_REFUNDED" : "REGISTRATION_FAILED", fromStatus: order.status, toStatus: "FAILED", actorType: "ADMIN", actorId: adminId, reasonCode: reason, message: unavailable ? "دامنه در بررسی نهایی آزاد نبود؛ سفارش بسته و مبلغ آزاد شد." : "ثبت دامنه انجام نشد و مبلغ آزاد شد.", idempotencyKey: `${order.id}:failed` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: unavailable ? "دامنه در بررسی نهایی آزاد نبود" : "ثبت دامنه انجام نشد", body: unavailable ? `دامنه ${order.asciiDomain} پیش از ثبت توسط شخص دیگری خریداری شده بود؛ سفارش لغو و کل مبلغ در کیف پول شما آزاد شد.` : `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: "/domains" } })
     return updated
   })
 }

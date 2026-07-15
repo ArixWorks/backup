@@ -19,6 +19,7 @@ import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -70,6 +71,7 @@ export function DomainMarketplace() {
   const [suggestionPrompt, setSuggestionPrompt] = useState("")
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null)
+  const [unavailableDomain, setUnavailableDomain] = useState<string | null>(null)
   const { data: tldResponse } = useSWR<{ data: { tlds: Tld[] } }>("/api/v1/domains/tlds", apiGet)
   const { data: ordersResponse, mutate: mutateOrders } = useSWR<{ data: { orders: DomainOrder[]; domains: unknown[] } }>(
     "/api/v1/domains/orders",
@@ -120,7 +122,11 @@ export function DomainMarketplace() {
     } catch (error) {
       if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
         toast.error("موجودی کیف پول برای ثبت این دامنه کافی نیست.", { action: { label: "افزایش موجودی", onClick: () => { window.location.href = "/wallet" } } })
-      } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION_ERROR"].includes(error.code)) {
+      } else if (error instanceof ApiError && error.code === "DOMAIN_UNAVAILABLE") {
+        setUnavailableDomain(lookup.asciiDomain)
+        if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
+        else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
+      } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION", "VALIDATION_ERROR"].includes(error.code)) {
         toast.error("وضعیت یا قیمت دامنه تغییر کرده است؛ دوباره استعلام بگیرید.")
         if (source === "smart") await generateSuggestions()
         else await searchDomain(lookup.asciiDomain)
@@ -280,6 +286,20 @@ export function DomainMarketplace() {
           ) : orders.map((order) => <OrderCard key={order.id} order={order} />)}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
+        <DialogContent size="sm" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><XCircle className="size-5 text-destructive" />دامنه دیگر آزاد نیست</DialogTitle>
+            <DialogDescription>بررسی نهایی درست پیش از ثبت سفارش انجام شد.</DialogDescription>
+          </DialogHeader>
+          <DialogBody className="flex flex-col gap-3">
+            <p className="leading-relaxed">متأسفانه دامنه <strong dir="ltr" className="inline-block">{unavailableDomain}</strong> در فاصله استعلام تا خرید توسط شخص دیگری ثبت شده و امکان ثبت آن وجود ندارد.</p>
+            <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm leading-relaxed text-muted-foreground">هیچ سفارشی ثبت نشده و هیچ مبلغی از کیف پول شما فریز یا کسر نشده است.</p>
+          </DialogBody>
+          <DialogFooter><Button className="w-full sm:w-auto" onClick={() => setUnavailableDomain(null)}>متوجه شدم</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

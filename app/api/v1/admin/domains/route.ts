@@ -58,6 +58,7 @@ const deleteSchema = z.object({ action: z.literal("deleteTld"), id: z.string().c
 const orderActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("complete"), orderId: z.string(), providerReference: z.string().trim().max(200).optional() }),
   z.object({ action: z.literal("fail"), orderId: z.string(), reason: z.string().trim().min(3).max(500) }),
+  z.object({ action: z.literal("unavailable"), orderId: z.string() }),
   z.object({ action: z.literal("extend"), orderId: z.string(), minutes: z.coerce.number().int().min(15).max(4320) }),
 ])
 const actionSchema = z.union([createSchema, importSchema, bulkSchema, archiveSchema, deleteSchema, orderActionSchema])
@@ -111,7 +112,9 @@ export const POST = route(async (req: Request) => {
     ? await completeDomainOrder(body.orderId, admin.id, body.providerReference)
     : body.action === "fail"
       ? await failDomainOrder(body.orderId, admin.id, body.reason)
-      : await extendDomainOrderHold(body.orderId, admin.id, body.minutes)
+      : body.action === "unavailable"
+        ? await failDomainOrder(body.orderId, admin.id, "DOMAIN_ALREADY_REGISTERED")
+        : await extendDomainOrderHold(body.orderId, admin.id, body.minutes)
   await audit({ actorId: admin.id, action: `domain.order.${body.action}`, entity: "DomainOrder", entityId: body.orderId })
   return result
 })
