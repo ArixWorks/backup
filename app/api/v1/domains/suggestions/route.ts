@@ -2,7 +2,7 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { runObject } from "@/lib/ai/client"
-import { listTlds } from "@/lib/core/domains/service"
+import { listTlds, lookupDomain } from "@/lib/core/domains/service"
 import { normalizeLabel } from "@/lib/core/domains/validation"
 
 const inputSchema = z.object({
@@ -42,12 +42,29 @@ export const POST = route(async (req: Request) => {
     }
   }
 
+  const candidates = generated.suggestions.flatMap((item) =>
+    extensions.slice(0, 3).map((extension) => ({
+      domain: `${normalizeLabel(item.label)}${extension}`,
+      reason: item.reason,
+    })),
+  ).slice(0, 12)
+
+  const verified = await Promise.all(candidates.map(async (candidate) => {
+    try {
+      const result = await lookupDomain(candidate.domain)
+      return {
+        ...candidate,
+        asciiDomain: result.asciiDomain,
+        status: result.status,
+        priceIrt: result.priceIrt,
+        checkedAt: result.checkedAt,
+      }
+    } catch {
+      return { ...candidate, asciiDomain: candidate.domain, status: "ERROR" as const, priceIrt: null, checkedAt: new Date() }
+    }
+  }))
+
   return {
-    suggestions: generated.suggestions.flatMap((item) =>
-      extensions.slice(0, 3).map((extension) => ({
-        domain: `${normalizeLabel(item.label)}${extension}`,
-        reason: item.reason,
-      })),
-    ).slice(0, 12),
+    suggestions: verified.sort((a, b) => Number(b.status === "AVAILABLE") - Number(a.status === "AVAILABLE")),
   }
 })

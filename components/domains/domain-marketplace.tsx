@@ -27,10 +27,11 @@ interface Lookup {
   asciiDomain: string
   unicodeDomain: string
   tld: string
-  status: "AVAILABLE" | "REGISTERED" | "UNSUPPORTED" | "UNKNOWN" | "LOOKUP_ERROR" | "PREMIUM" | "RESERVED"
+  status: "AVAILABLE" | "REGISTERED" | "UNSUPPORTED" | "UNKNOWN" | "LOOKUP_ERROR" | "ERROR" | "PREMIUM" | "RESERVED"
   priceIrt: string | null
   checkedAt: string
 }
+interface SmartSuggestion extends Lookup { domain: string; reason: string }
 interface DomainOrder {
   id: string
   publicId: string
@@ -49,7 +50,10 @@ const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> =
   REGISTERED: { label: "ثبت شده", icon: XCircle },
   UNSUPPORTED: { label: "پشتیبانی نمی‌شود", icon: XCircle },
   UNKNOWN: { label: "نامشخص", icon: Clock3 },
-  LOOKUP_ERROR: { label: "خطا در استعلام", icon: XCircle },
+  LOOKUP_ERROR: { label: "بررسی ناموفق", icon: Clock3 },
+  ERROR: { label: "بررسی ناموفق", icon: Clock3 },
+  PREMIUM: { label: "ویژه و غیرقابل فروش", icon: XCircle },
+  RESERVED: { label: "رزرو شده", icon: XCircle },
   PENDING_PURCHASE: { label: "در صف ثبت", icon: Clock3 },
   PROCESSING: { label: "در حال ثبت", icon: Loader2 },
   COMPLETED: { label: "تکمیل شده", icon: CheckCircle2 },
@@ -64,7 +68,8 @@ export function DomainMarketplace() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
   const [suggestionPrompt, setSuggestionPrompt] = useState("")
-  const [suggestions, setSuggestions] = useState<Array<{ domain: string; reason: string }>>([])
+  const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
+  const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null)
   const { data: tldResponse } = useSWR<{ data: { tlds: Tld[] } }>("/api/v1/domains/tlds", apiGet)
   const { data: ordersResponse, mutate: mutateOrders } = useSWR<{ data: { orders: DomainOrder[]; domains: unknown[] } }>(
     "/api/v1/domains/orders",
@@ -97,35 +102,43 @@ export function DomainMarketplace() {
     }
   }
 
-  async function purchase(lookup: Lookup) {
+  async function purchase(lookup: Lookup, source: "search" | "smart" = "search") {
+    setPurchasingDomain(lookup.asciiDomain)
     setBusy("quote")
     try {
       const quote = unwrap<{ id: string }>(await apiPost("/api/v1/domains/quote", { domain: lookup.asciiDomain }))
       const idempotencyKey = crypto.randomUUID()
       await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
       toast.success("سفارش ثبت شد؛ وضعیت آن را از بخش سفارش‌ها دنبال کنید.")
-      setLookups([])
-      setHasSearched(false)
+      if (source === "search") {
+        setLookups([])
+        setHasSearched(false)
+      } else {
+        setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
+      }
       await mutateOrders()
     } catch (error) {
       if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
         toast.error("موجودی کیف پول برای ثبت این دامنه کافی نیست.", { action: { label: "افزایش موجودی", onClick: () => { window.location.href = "/wallet" } } })
       } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION_ERROR"].includes(error.code)) {
         toast.error("وضعیت یا قیمت دامنه تغییر کرده است؛ دوباره استعلام بگیرید.")
-        await searchDomain(lookup.asciiDomain)
+        if (source === "smart") await generateSuggestions()
+        else await searchDomain(lookup.asciiDomain)
       } else {
         toast.error(error instanceof Error ? error.message : "ثبت سفارش انجام نشد؛ وجهی کسر نشده است.")
       }
     } finally {
       setBusy(null)
+      setPurchasingDomain(null)
     }
   }
 
   async function generateSuggestions() {
     if (suggestionPrompt.trim().length < 2) return
+    setSuggestions([])
     setBusy("ai")
     try {
-      const result = unwrap<{ suggestions: Array<{ domain: string; reason: string }> }>(
+      const result = unwrap<{ suggestions: SmartSuggestion[] }>(
         await apiPost("/api/v1/domains/suggestions", { prompt: suggestionPrompt }),
       )
       setSuggestions(result.suggestions)
@@ -214,25 +227,49 @@ export function DomainMarketplace() {
           </div>
         </TabsContent>
 
-        <TabsContent value="smart">
-          <Card>
-            <CardHeader><CardTitle>نام برندتان را پیدا کنید</CardTitle><CardDescription>کسب‌وکار یا ایده را کوتاه توضیح دهید.</CardDescription></CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 md:flex-row">
-                <Input value={suggestionPrompt} onChange={(event) => setSuggestionPrompt(event.target.value)} placeholder="مثلاً فروشگاه تخصصی ابزار طراحی" aria-label="توضیح کسب‌وکار" />
-                <Button onClick={() => void generateSuggestions()} disabled={busy !== null || suggestionPrompt.trim().length < 2}>
+        <TabsContent value="smart" className="flex flex-col gap-5">
+          <Card className="overflow-hidden border-primary/30">
+            <CardHeader className="border-b bg-primary/5">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Sparkles className="size-5" /></span>
+                <div className="flex flex-col gap-1"><CardTitle>نام برندتان را هوشمند پیدا کنید</CardTitle><CardDescription>ایده را بنویسید؛ نام‌ها ساخته و همان لحظه از نظر امکان ثبت بررسی می‌شوند.</CardDescription></div>
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5 pt-6">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Input
+                  value={suggestionPrompt}
+                  onChange={(event) => setSuggestionPrompt(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void generateSuggestions() }}
+                  placeholder="مثلاً SubIO یا فروشگاه ابزار طراحی"
+                  aria-label="توضیح کسب‌وکار"
+                  className="h-12"
+                />
+                <Button size="lg" className="shrink-0" onClick={() => void generateSuggestions()} disabled={busy !== null || suggestionPrompt.trim().length < 2}>
                   {busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Sparkles data-icon="inline-start" />}
-                  ساخت پیشنهاد
+                  {busy === "ai" ? "ساخت و بررسی نام‌ها" : "ساخت پیشنهاد"}
                 </Button>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                {suggestions.map((item) => (
-                  <button key={item.domain} type="button" onClick={() => { setQuery(item.domain); void searchDomain(item.domain) }} className="flex items-center justify-between gap-4 rounded-xl border bg-card p-4 text-start transition-colors hover:bg-accent">
-                    <span className="flex flex-col gap-1"><strong dir="ltr" className="text-left">{item.domain}</strong><small className="text-muted-foreground">{item.reason}</small></span>
-                    <Search className="size-5 shrink-0" />
-                  </button>
-                ))}
-              </div>
+
+              {busy === "ai" && suggestions.length === 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-40 animate-pulse rounded-xl border bg-muted/40" />)}
+                </div>
+              ) : suggestions.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div><h2 className="font-semibold">نتیجه پیشنهاد و استعلام</h2><p className="text-sm text-muted-foreground">دامنه‌های آزاد ابتدا نمایش داده شده‌اند.</p></div>
+                    <div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString("fa-IR")} آزاد</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString("fa-IR")} گرفته‌شده</Badge></div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} />)}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/20 p-6 text-center">
+                  <Globe2 className="size-8 text-primary" /><p className="font-semibold">ایده شما به دامنه قابل ثبت تبدیل می‌شود</p><p className="max-w-md text-sm leading-relaxed text-muted-foreground">چند نام کوتاه و برندپذیر همراه با وضعیت ثبت و قیمت قطعی نمایش داده می‌شود.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -244,6 +281,29 @@ export function DomainMarketplace() {
         </TabsContent>
       </Tabs>
     </main>
+  )
+}
+
+function SmartSuggestionCard({ item, busy, onPurchase }: { item: SmartSuggestion; busy: boolean; onPurchase: () => void }) {
+  const available = item.status === "AVAILABLE"
+  const taken = item.status === "REGISTERED" || item.status === "RESERVED" || item.status === "PREMIUM"
+  const failed = item.status === "ERROR" || item.status === "LOOKUP_ERROR" || item.status === "UNKNOWN"
+  return (
+    <Card className={available ? "border-chart-2/60 bg-chart-2/5" : taken ? "border-destructive/40 bg-destructive/5" : "border-border bg-muted/20"}>
+      <CardHeader className="flex-row items-start justify-between gap-3">
+        <div className="min-w-0 flex flex-col gap-1"><CardTitle dir="ltr" className="truncate text-left text-xl">{item.domain}</CardTitle><CardDescription className="line-clamp-2 leading-relaxed">{item.reason}</CardDescription></div>
+        <Badge className={available ? "shrink-0 bg-chart-2 text-background" : taken ? "shrink-0 bg-destructive text-destructive-foreground" : "shrink-0"} variant={failed ? "secondary" : "default"}>
+          {available ? <CheckCircle2 data-icon="inline-start" /> : failed ? <Clock3 data-icon="inline-start" /> : <XCircle data-icon="inline-start" />}
+          {available ? "آزاد" : failed ? "نیازمند بررسی" : "گرفته شده"}
+        </Badge>
+      </CardHeader>
+      <CardContent className="flex min-h-12 items-end">
+        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">ثبت یک‌ساله</span></div> : <p className="text-sm text-muted-foreground">{failed ? "در حال حاضر نتیجه قطعی دریافت نشد؛ دوباره پیشنهادها را بررسی کنید." : "این نام قبلاً ثبت یا رزرو شده است."}</p>}
+      </CardContent>
+      <CardFooter>
+        {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? "در حال ثبت سفارش" : "خرید و ثبت همین دامنه"}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? "امکان خرید ندارد" : "وضعیت نامشخص"}</Button>}
+      </CardFooter>
+    </Card>
   )
 }
 
