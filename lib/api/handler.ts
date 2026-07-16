@@ -54,7 +54,7 @@ export function route<Args extends unknown[]>(
       if (err instanceof ZodError) {
         void recordRequest({ ms: Date.now() - startedAt, ok: true, route: label, status: 422 })
         return NextResponse.json(
-          { ok: false, error: { code: "VALIDATION", message: "Invalid input", issues: err.issues } },
+          { ok: false, error: { code: "VALIDATION", message: err.issues[0]?.message || "اطلاعات واردشده معتبر نیست.", issues: err.issues } },
           { status: 422 },
         )
       }
