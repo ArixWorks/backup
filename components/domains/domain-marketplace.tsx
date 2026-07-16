@@ -79,7 +79,6 @@ export function DomainMarketplace() {
   const [hasSearched, setHasSearched] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
-  const [suggestionPrompt, setSuggestionPrompt] = useState("")
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null)
   const [unavailableDomain, setUnavailableDomain] = useState<string | null>(null)
@@ -150,20 +149,38 @@ export function DomainMarketplace() {
     }
   }
 
-  async function generateSuggestions() {
-    if (suggestionPrompt.trim().length < 2) return
+  async function generateSuggestions(prompt = normalizedQuery) {
+    if (prompt.length < 2) {
+      setSearchError("نام برند، ایده کسب‌وکار یا دامنه کامل را وارد کنید.")
+      return
+    }
+    setSearchError(null)
+    setLookups([])
+    setHasSearched(false)
     setSuggestions([])
     setBusy("ai")
     try {
       const result = unwrap<{ suggestions: SmartSuggestion[] }>(
-        await apiPost("/api/v1/domains/suggestions", { prompt: suggestionPrompt }),
+        await apiPost("/api/v1/domains/suggestions", { prompt }),
       )
       setSuggestions(result.suggestions)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "پیشنهاد هوشمند آماده نشد.")
+      const message = error instanceof Error ? error.message : "پیشنهاد هوشمند آماده نشد."
+      setSearchError(message)
+      toast.error(message)
     } finally {
       setBusy(null)
     }
+  }
+
+  async function discoverDomain() {
+    if (!normalizedQuery) {
+      setSearchError("نام برند، ایده کسب‌وکار یا دامنه کامل را وارد کنید.")
+      return
+    }
+    setSuggestions([])
+    if (/^[^\s.]+(?:\.[^\s.]+)+$/u.test(normalizedQuery)) await searchDomain(normalizedQuery)
+    else await generateSuggestions(normalizedQuery)
   }
 
   return (
@@ -177,120 +194,40 @@ export function DomainMarketplace() {
         </div>
       </motion.header>
 
-      <Tabs defaultValue="search" className="flex flex-col gap-6">
+      <Tabs defaultValue="discover" className="flex flex-col gap-6">
         <TabsList className="h-auto w-full rounded-2xl border border-border/70 bg-card/80 p-1.5 shadow-xl shadow-background/40 backdrop-blur-xl md:w-fit">
-          <TabsTrigger value="search"><Search data-icon="inline-start" /> جستجو</TabsTrigger>
-          <TabsTrigger value="smart"><Sparkles data-icon="inline-start" /> پیشنهاد هوشمند</TabsTrigger>
+          <TabsTrigger value="discover"><Sparkles data-icon="inline-start" /> کشف و استعلام</TabsTrigger>
           <TabsTrigger value="orders"><History data-icon="inline-start" /> سفارش‌ها</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="search" className="flex flex-col gap-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>نام دامنه را بررسی کنید</CardTitle>
-              <CardDescription>دامنه کامل یا فقط نام برند را وارد کنید.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 md:flex-row">
-              <Input
-                dir="ltr"
-                value={query}
-                onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void searchDomain()
-                }}
-                placeholder="example.ir"
-                aria-label="نام دامنه"
-                aria-invalid={Boolean(searchError)}
-                aria-describedby={searchError ? "domain-search-error" : undefined}
-                className="h-12 text-left"
-              />
-              <Button size="lg" onClick={() => void searchDomain()} disabled={busy !== null}>
-                {busy === "lookup" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
-                استعلام دامنه
-              </Button>
-            </CardContent>
-            {searchError && <p id="domain-search-error" role="alert" className="px-6 text-sm text-destructive">{searchError}</p>}
-            <CardFooter className="flex flex-wrap gap-2">
-              {tlds.slice(0, 12).map((item) => (
-                <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}>
-                  <span dir="ltr">{item.tld}</span>
-                  <span className="text-muted-foreground">{money(item.basePriceIrt)}</span>
-                </Button>
-              ))}
-              {tlds.length > 12 && <Badge variant="secondary">+{(tlds.length - 12).toLocaleString("fa-IR")} پسوند دیگر در جست‌وجوی کامل</Badge>}
-            </CardFooter>
-          </Card>
-
-          {lookups.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {lookups.map((lookup) => (
-                <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} />
-              ))}
-            </div>
-          ) : hasSearched && busy !== "lookup" ? (
-            <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>این نام در میان پسوندهای فعال فروش��اه آزاد نیست. نام دیگری امتحان کنید یا از پیشنهاد هوشمند کمک بگیرید.</CardDescription></CardHeader></Card>
-          ) : null}
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              { icon: Globe2, title: "استعلام زنده", text: "وضعیت هر دامنه پیش از نمایش قیمت و دوباره پیش از ثبت سفارش بررسی می‌شود." },
-              { icon: WalletCards, title: "تسویه امن", text: "مبلغ قطعی از کیف پول کسر و در شکست ثبت، خودکار بازپرداخت می‌شود." },
-              { icon: ShieldCheck, title: "پیگیری کامل", text: "هر تغییر وضعیت با زمان و دلیل در تاریخچه سفارش ثبت می‌شود." },
-            ].map(({ icon: Icon, title, text }) => (
-              <Card key={title}>
-                <CardHeader><Icon className="size-5 text-primary" /><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-                <CardContent><p className="text-sm leading-relaxed text-muted-foreground">{text}</p></CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="smart" className="flex flex-col gap-6">
-          <PremiumHeroCard intensity="normal" className="rounded-3xl !p-0" aria-label="پیشنهاد هوشمند دامنه">
-            <div className="grid min-h-80 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="flex flex-col gap-7 p-5 sm:p-8 lg:p-10">
+        <TabsContent value="discover" className="flex flex-col gap-6">
+          <PremiumHeroCard intensity="normal" className="overflow-hidden rounded-3xl !p-0" aria-label="کشف و استعلام دامنه">
+            <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10">
                 <div className="flex items-start gap-4">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-lg shadow-primary/10"><Sparkles className="size-6" /></span>
-                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">نام برندتان را هوشمند پیدا کنید</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">ایده را بنویسید؛ نام‌های کوتاه و برندپذیر ساخته می‌شوند و همان لحظه امکان ثبت آن‌ها بررسی خواهد شد.</p></div>
+                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">یک ورودی، دو مسیر هوشمند</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">دامنه کامل را برای استعلام مستقیم وارد کنید؛ یا نام برند و ایده‌تان را بنویسید تا پیشنهادهای آزاد ساخته شوند.</p></div>
                 </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Input
-                  value={suggestionPrompt}
-                  onChange={(event) => setSuggestionPrompt(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void generateSuggestions() }}
-                  placeholder="مثلاً SubIO یا فروشگاه ابزار طراحی"
-                  aria-label="توضیح کسب‌وکار"
-                  className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40"
-                />
-                <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void generateSuggestions()} disabled={busy !== null || suggestionPrompt.trim().length < 2}>
-                  {busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Sparkles data-icon="inline-start" />}
-                  {busy === "ai" ? "ساخت و بررسی نام‌ها" : "ساخت پیشنهاد"}
-                </Button>
-              </div>
-
-              {busy === "ai" && suggestions.length === 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {Array.from({ length: 6 }).map((_, index) => <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} className="h-40 animate-pulse rounded-2xl border border-primary/10 bg-muted/30" />)}
+                <DomainOrbitScene compact />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder="techivo.com یا فروشگاه ابزار طراحی" aria-label="نام دامنه یا ایده کسب‌وکار" aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
+                  <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void discoverDomain()} disabled={busy !== null}>
+                    {busy === "lookup" || busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
+                    {busy === "lookup" ? "در حال استعلام" : busy === "ai" ? "در حال ساخت پیشنهاد" : "کشف دامنه"}
+                  </Button>
                 </div>
-              ) : suggestions.length > 0 ? (
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div><h2 className="font-semibold">نتیجه پیشنهاد و استعلام</h2><p className="text-sm text-muted-foreground">دامنه‌های آزاد ابتدا نمایش داده شده‌اند.</p></div>
-                    <div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString("fa-IR")} آزاد</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString("fa-IR")} گرفته‌شده</Badge></div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} />)}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-primary/20 bg-background/30 p-5">
-                  <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-xl bg-primary/10"><ShieldCheck className="size-4 text-primary" /></span><div><p className="font-semibold">پیشنهاد، استعلام و خرید در یک مسیر</p><p className="text-sm leading-relaxed text-muted-foreground">نتیجه‌ها با قیمت قطعی و وضعیت ثبت نمایش داده می‌شوند.</p></div></div>
-                </div>
-              )}
+                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">نمونه: <span dir="ltr">techivo.com</span> برای استعلام مستقیم، یا «فروشگاه قهوه» برای پیشنهاد هوشمند</p>
+                {searchError && <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>}
+                <div className="flex flex-wrap gap-2">{tlds.filter((item) => [".com", ".net", ".org", ".shop"].includes(item.tld)).map((item) => <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}><span dir="ltr">{item.tld}</span><span className="text-muted-foreground">{money(item.basePriceIrt)}</span></Button>)}</div>
               </div>
               <DomainOrbitScene />
             </div>
           </PremiumHeroCard>
+
+          {busy === "ai" && suggestions.length === 0 ? <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, index) => <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} className="h-40 animate-pulse rounded-2xl border border-primary/10 bg-muted/30" />)}</div> : null}
+          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} />)}</div>}
+          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>نام دیگری وارد کنید یا بدون پسوند، پیشنهادهای هوشمند بگیرید.</CardDescription></CardHeader></Card>}
+          {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">پیشنهادهای هوشمند و استعلام‌شده</h2><p className="text-sm text-muted-foreground">دامنه‌های آزاد ابتدا نمایش داده شده‌اند.</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString("fa-IR")} آزاد</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString("fa-IR")} گرفته‌شده</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} />)}</div></div>}
         </TabsContent>
 
         <TabsContent value="orders" className="flex flex-col gap-3">
@@ -317,23 +254,24 @@ export function DomainMarketplace() {
   )
 }
 
-function DomainOrbitScene() {
-  const labels = [".com", ".net", ".ir"]
+function DomainOrbitScene({ compact = false }: { compact?: boolean }) {
+  const labels = [".com", ".net", ".org"]
   return (
-    <div aria-hidden className="relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center">
+    <div aria-hidden className={compact ? "relative flex min-h-56 items-center justify-center overflow-hidden rounded-3xl border border-primary/15 bg-primary/5 lg:hidden" : "relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center"}>
       <div className="absolute inset-0 opacity-60"><LivingSurface intensity="normal" lines={false} particles blooms /></div>
-      <div className="relative flex size-60 items-center justify-center">
-        <motion.div className="absolute inset-3 rounded-full border border-dashed border-primary/20" animate={{ rotate: 360 }} transition={{ duration: 32, repeat: Number.POSITIVE_INFINITY, ease: "linear" }} />
-        <motion.div className="relative z-10 flex size-28 items-center justify-center rounded-full border border-primary/30 bg-background/90 shadow-2xl shadow-primary/20 backdrop-blur-xl" animate={{ y: [0, -6, 0] }} transition={{ duration: 4.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>
-          <Globe2 className="size-12 text-primary" />
+      <div className={compact ? "relative mb-8 flex size-44 items-center justify-center" : "relative flex size-60 items-center justify-center"}>
+        <motion.div className="absolute inset-3 rounded-full border border-dashed border-primary/20 motion-reduce:transform-none" animate={{ rotate: 360 }} transition={{ duration: 32, repeat: Number.POSITIVE_INFINITY, ease: "linear" }} />
+        <motion.div className={compact ? "relative z-10 flex size-20 items-center justify-center rounded-full border border-primary/30 bg-background/90 shadow-2xl shadow-primary/20 backdrop-blur-xl" : "relative z-10 flex size-28 items-center justify-center rounded-full border border-primary/30 bg-background/90 shadow-2xl shadow-primary/20 backdrop-blur-xl"} animate={{ y: [0, -5, 0] }} transition={{ duration: 4.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>
+          <Globe2 className={compact ? "size-9 text-primary" : "size-12 text-primary"} />
           <span className="absolute inset-2 rounded-full border border-dashed border-primary/20" />
         </motion.div>
         {labels.map((label, index) => {
           const angle = (index * 120 - 90) * (Math.PI / 180)
-          return <motion.span key={label} className="absolute z-20 flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card px-3 font-mono text-sm font-bold text-primary shadow-xl" style={{ x: Math.cos(angle) * 102, y: Math.sin(angle) * 102 }} animate={{ y: [Math.sin(angle) * 102, Math.sin(angle) * 102 - 5, Math.sin(angle) * 102] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
+          const radius = compact ? 72 : 102
+          return <motion.span key={label} className={compact ? "absolute z-20 flex h-8 min-w-14 items-center justify-center rounded-xl border border-primary/25 bg-card px-2 font-mono text-xs font-bold text-primary shadow-xl" : "absolute z-20 flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card px-3 font-mono text-sm font-bold text-primary shadow-xl"} style={{ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }} animate={{ y: [Math.sin(angle) * radius, Math.sin(angle) * radius - 4, Math.sin(angle) * radius] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
         })}
       </div>
-      <div className="absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"><strong className="text-sm">از ایده تا دامنه آزاد</strong><span className="text-xs text-muted-foreground">کشف هوشمند، استعلام زنده، ثبت امن</span></div>
+      <div className={compact ? "absolute bottom-4 z-20 flex flex-col items-center gap-1 text-center" : "absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"}><strong className="text-sm">از ایده تا دامنه آزاد</strong><span className="text-xs text-muted-foreground">کشف هوشمند، استعلام زنده، ثبت امن</span></div>
     </div>
   )
 }
@@ -353,7 +291,7 @@ function SmartSuggestionCard({ item, busy, onPurchase }: { item: SmartSuggestion
         </Badge>
       </CardHeader>
       <CardContent className="flex min-h-12 items-end">
-        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">ثبت یک‌ساله</span></div> : <p className="text-sm text-muted-foreground">{failed ? "در حال حاضر نتیجه قطعی دریافت نشد؛ دوباره پیشنهادها را بررسی کنید." : "این نام قبلاً ثبت یا رزرو شده است."}</p>}
+        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">ثبت یک‌ساله</span></div> : <p className="text-sm text-muted-foreground">{failed ? "در ��ال حاضر نتیجه قطعی دریافت نشد؛ دوباره پیشنهادها را بررسی کنید." : "این نام قبلاً ثبت یا رزرو شده است."}</p>}
       </CardContent>
       <CardFooter>
         {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? "در حال ثبت سفارش" : "خرید و ثبت همین دامنه"}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? "امکان خرید ندارد" : "وضعیت نامشخص"}</Button>}
@@ -383,8 +321,20 @@ function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => 
   const meta = statusMeta[order.status] ?? statusMeta.UNKNOWN
   const Icon = meta.icon
   const [nameservers, setNameservers] = useState({ ns1: order.ns1 ?? "", ns2: order.ns2 ?? "", ns3: order.ns3 ?? "", ns4: order.ns4 ?? "" })
+  const [nsError, setNsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   async function submitNameservers() {
+    const values = Object.values(nameservers).map((value) => value.trim().toLowerCase()).filter(Boolean)
+    const hostnamePattern = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\.?$/i
+    let error: string | null = null
+    if (!nameservers.ns1.trim() || !nameservers.ns2.trim()) error = "وارد کردن NS1 و NS2 الزامی است."
+    else if (values.some((value) => !hostnamePattern.test(value))) error = "آدرس NS معتبر نیست؛ نمونه صحیح: ns1.example.com"
+    else if (new Set(values.map((value) => value.replace(/\.$/, ""))).size !== values.length) error = "هر NS باید متفاوت باشد؛ NS1 و NS2 یکسان پذیرفته نمی‌شوند."
+    if (error) {
+      setNsError(error)
+      return
+    }
+    setNsError(null)
     setSubmitting(true)
     try {
       await apiPost("/api/v1/domains/orders", { orderId: order.id, ...nameservers })
@@ -400,7 +350,7 @@ function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => 
       </CardHeader>
       <CardContent className="flex flex-col gap-5 pt-5">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">مبلغ</span><strong>{money(order.amountIrt)}</strong>{order.purchasedAt && <span>خرید: <strong>{new Date(order.purchasedAt).toLocaleDateString("fa-IR")}</strong></span>}{order.expiresAt && <span>انقضا: <strong>{new Date(order.expiresAt).toLocaleDateString("fa-IR")}</strong></span>}</div>
-        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label="ثبت نیم سرورها"><div><h3 className="font-bold">NSهای دامنه را ثبت کنید</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">NS1 و NS2 الزامی هستند. می‌توانید این مرحله را اکنون یا هر زمان دیگری تکمیل کنید.</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">الزامی</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} onChange={(event) => setNameservers((current) => ({ ...current, [key]: event.target.value }))} /></label>)}</div><Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}ثبت NS و ارسال برای ادمین</Button></section>}
+        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label="ثبت نیم سرورها"><div><h3 className="font-bold">NSهای دامنه را ثبت کنید</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">NS1 و NS2 الزامی هستند. می‌توانید این مرحله را اکنون یا هر زمان دیگری تکمیل کنید.</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">الزامی</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} aria-invalid={Boolean(nsError)} onChange={(event) => { setNameservers((current) => ({ ...current, [key]: event.target.value })); if (nsError) setNsError(null) }} /></label>)}</div>{nsError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed text-destructive">{nsError}</p>}<Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}ثبت NS و ارسال برای ادمین</Button></section>}
         {order.status === "AWAITING_NAMESERVER_SETUP" && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><strong>NSها برای ادمین ارسال شده‌اند</strong><div dir="ltr" className="mt-3 grid gap-2 text-left font-mono text-sm sm:grid-cols-2">{[order.ns1, order.ns2, order.ns3, order.ns4].filter(Boolean).map((ns) => <span key={ns!} className="rounded-lg bg-background/70 p-2">{ns}</span>)}</div></div>}
         <div className="flex flex-col gap-3">{order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-r-2 border-primary/40 pr-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span>{event.message}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString("fa-IR")}</small></span></div>)}</div>
       </CardContent>
