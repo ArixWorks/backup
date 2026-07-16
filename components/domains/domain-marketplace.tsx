@@ -320,19 +320,20 @@ export function DomainMarketplace() {
 function DomainOrbitScene() {
   const labels = [".com", ".net", ".ir"]
   return (
-    <div aria-hidden className="relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center [perspective:900px]">
+    <div aria-hidden className="relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center">
       <div className="absolute inset-0 opacity-60"><LivingSurface intensity="normal" lines={false} particles blooms /></div>
-      <motion.div className="relative flex size-56 items-center justify-center [transform-style:preserve-3d]" animate={{ rotateY: 360 }} transition={{ duration: 24, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}>
-        <motion.div className="absolute flex size-28 items-center justify-center rounded-full border border-primary/30 bg-background/70 shadow-2xl shadow-primary/20 backdrop-blur-xl" animate={{ rotateY: -360, y: [0, -7, 0] }} transition={{ rotateY: { duration: 24, repeat: Number.POSITIVE_INFINITY, ease: "linear" }, y: { duration: 4.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" } }}>
+      <div className="relative flex size-60 items-center justify-center">
+        <motion.div className="absolute inset-3 rounded-full border border-dashed border-primary/20" animate={{ rotate: 360 }} transition={{ duration: 32, repeat: Number.POSITIVE_INFINITY, ease: "linear" }} />
+        <motion.div className="relative z-10 flex size-28 items-center justify-center rounded-full border border-primary/30 bg-background/90 shadow-2xl shadow-primary/20 backdrop-blur-xl" animate={{ y: [0, -6, 0] }} transition={{ duration: 4.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>
           <Globe2 className="size-12 text-primary" />
           <span className="absolute inset-2 rounded-full border border-dashed border-primary/20" />
         </motion.div>
         {labels.map((label, index) => {
-          const angle = index * 120
-          return <motion.span key={label} className="absolute flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card/90 px-3 font-mono text-sm font-bold text-primary shadow-xl backdrop-blur-md" style={{ transform: `rotateY(${angle}deg) translateZ(112px)` }} animate={{ y: [0, index % 2 === 0 ? -6 : 6, 0] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
+          const angle = (index * 120 - 90) * (Math.PI / 180)
+          return <motion.span key={label} className="absolute z-20 flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card px-3 font-mono text-sm font-bold text-primary shadow-xl" style={{ x: Math.cos(angle) * 102, y: Math.sin(angle) * 102 }} animate={{ y: [Math.sin(angle) * 102, Math.sin(angle) * 102 - 5, Math.sin(angle) * 102] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
         })}
-      </motion.div>
-      <div className="absolute bottom-7 flex flex-col items-center gap-1 text-center"><strong className="text-sm">از ایده تا دامنه آزاد</strong><span className="text-xs text-muted-foreground">کشف هوشمند، استعلام زنده، ثبت امن</span></div>
+      </div>
+      <div className="absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"><strong className="text-sm">از ایده تا دامنه آزاد</strong><span className="text-xs text-muted-foreground">کشف هوشمند، استعلام زنده، ثبت امن</span></div>
     </div>
   )
 }
