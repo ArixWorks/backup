@@ -201,7 +201,7 @@ export function DomainMarketplace() {
         </TabsList>
 
         <TabsContent value="discover" className="flex flex-col gap-6">
-          <PremiumHeroCard intensity="normal" className="overflow-hidden rounded-3xl !p-0" aria-label="کشف و استعلام دامنه">
+          <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label="کشف و استعلام دامنه">
             <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
               <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10">
                 <div className="flex items-start gap-4">
