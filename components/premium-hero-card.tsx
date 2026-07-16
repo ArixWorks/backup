@@ -43,11 +43,14 @@ export function PremiumHeroCard({
   className = "",
   intensity = "soft",
   deviceTilt = false,
+  pointerMotion = true,
   "aria-label": ariaLabel,
 }: {
   children: ReactNode
   className?: string
   intensity?: "soft" | "normal" | "bold"
+  /** Disable whole-card pointer/touch transforms while preserving inner ambient motion. */
+  pointerMotion?: boolean
   /**
    * Opt-in physical tilt: inside the Telegram Mini App on a phone, the card's
    * 3D tilt follows the device's orientation sensor instead of the pointer.
@@ -176,7 +179,7 @@ export function PremiumHeroCard({
     "radial-gradient(78% 78% at 50% 50%, transparent 56%, #000 92%)"
 
   // Static path: identical layout, zero interaction cost.
-  if (!interactive) {
+  if (!interactive || !pointerMotion) {
     return (
       <section aria-label={ariaLabel} className={cardClass}>
         <LivingSurface intensity={intensity} lines={false} particles={false} blooms />
