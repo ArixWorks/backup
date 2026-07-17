@@ -414,12 +414,17 @@ export function BotEditor() {
                 const ce = config.customEmoji[key]
                 return (
                   <div key={key} className="flex items-center gap-3">
-                    <code
-                      className="w-20 shrink-0 text-[11px] text-muted-foreground"
-                      dir="ltr"
-                    >
-                      {"{" + key + "}"}
-                    </code>
+                    <div className="flex w-40 shrink-0 items-center gap-2">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-lg" aria-hidden="true">
+                        {config.emoji[key]}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="block truncate text-xs font-medium">{EMOJI_LABELS[key] ?? key}</span>
+                        <code className="block truncate text-[10px] text-muted-foreground" dir="ltr">
+                          {"{" + key + "}"}
+                        </code>
+                      </div>
+                    </div>
                     <Input
                       placeholder="custom_emoji_id (مثلاً 5368324170671202286)"
                       value={ce?.id ?? ""}

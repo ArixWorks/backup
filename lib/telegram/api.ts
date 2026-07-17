@@ -1,6 +1,8 @@
 import "server-only"
 import type { ButtonStyle } from "./config"
 import { CircuitBreaker, withRetry, withTimeout, TimeoutError } from "@/lib/core/resilience"
+import { animateEmojiHtml } from "./format"
+import { getBotConfig } from "./settings"
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null
@@ -106,13 +108,45 @@ async function call<T = any>(method: string, body: Record<string, unknown>): Pro
   )
 }
 
+async function withAnimatedEmoji(text: string, opts: SendOpts): Promise<string> {
+  if (opts.parseMode && opts.parseMode !== "HTML") return text
+  return animateEmojiHtml(text, await getBotConfig())
+}
+
+async function withAnimatedKeyboard(replyMarkup?: object): Promise<object | undefined> {
+  if (!replyMarkup) return undefined
+  const cfg = await getBotConfig()
+  const emojiEntries = Object.entries(cfg.emoji)
+    .filter(([key, glyph]) => glyph && cfg.customEmoji[key]?.id)
+    .sort(([, a], [, b]) => b.length - a.length)
+
+  function visit(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(visit)
+    if (!value || typeof value !== "object") return value
+
+    const button = { ...(value as Record<string, unknown>) }
+    for (const [key, child] of Object.entries(button)) button[key] = visit(child)
+    if (typeof button.text !== "string" || button.icon_custom_emoji_id) return button
+
+    const text = button.text
+    const match = emojiEntries.find(([, glyph]) => text.includes(glyph))
+    if (!match) return button
+    const [key, glyph] = match
+    button.text = text.replace(glyph, "").trim()
+    button.icon_custom_emoji_id = cfg.customEmoji[key].id
+    return button
+  }
+
+  return visit(replyMarkup) as object
+}
+
 export async function sendMessage(chatId: string | number, text: string, opts: SendOpts = {}) {
   return call("sendMessage", {
     chat_id: chatId,
-    text,
+    text: await withAnimatedEmoji(text, opts),
     parse_mode: opts.parseMode ?? "HTML",
     disable_web_page_preview: opts.disablePreview ?? true,
-    reply_markup: opts.replyMarkup,
+    reply_markup: await withAnimatedKeyboard(opts.replyMarkup),
   })
 }
 
@@ -125,9 +159,9 @@ export async function sendPhoto(
   return call("sendPhoto", {
     chat_id: chatId,
     photo,
-    caption,
+    caption: await withAnimatedEmoji(caption, opts),
     parse_mode: opts.parseMode ?? "HTML",
-    reply_markup: opts.replyMarkup,
+    reply_markup: await withAnimatedKeyboard(opts.replyMarkup),
   })
 }
 
@@ -148,7 +182,7 @@ export async function sendDocument(
   const form = new FormData()
   form.append("chat_id", String(chatId))
   if (caption) {
-    form.append("caption", caption)
+    form.append("caption", await withAnimatedEmoji(caption, {}))
     form.append("parse_mode", "HTML")
   }
   const bytes = new Uint8Array(file)
@@ -173,10 +207,10 @@ export async function editMessageText(
   return call("editMessageText", {
     chat_id: chatId,
     message_id: messageId,
-    text,
+    text: await withAnimatedEmoji(text, opts),
     parse_mode: opts.parseMode ?? "HTML",
     disable_web_page_preview: opts.disablePreview ?? true,
-    reply_markup: opts.replyMarkup,
+    reply_markup: await withAnimatedKeyboard(opts.replyMarkup),
   }).catch((e) => {
     // "message is not modified" is harmless.
     if (!String(e.message).includes("not modified")) throw e
@@ -201,10 +235,10 @@ export async function editMessageMedia(
     media: {
       type: "photo",
       media: photoUrl,
-      caption,
+      caption: await withAnimatedEmoji(caption, opts),
       parse_mode: opts.parseMode ?? "HTML",
     },
-    reply_markup: opts.replyMarkup,
+    reply_markup: await withAnimatedKeyboard(opts.replyMarkup),
   }).catch((e) => {
     if (!String(e.message).includes("not modified")) throw e
   })
@@ -220,9 +254,9 @@ export async function editMessageCaption(
   return call("editMessageCaption", {
     chat_id: chatId,
     message_id: messageId,
-    caption,
+    caption: await withAnimatedEmoji(caption, opts),
     parse_mode: opts.parseMode ?? "HTML",
-    reply_markup: opts.replyMarkup,
+    reply_markup: await withAnimatedKeyboard(opts.replyMarkup),
   }).catch((e) => {
     if (!String(e.message).includes("not modified")) throw e
   })
