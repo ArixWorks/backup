@@ -376,11 +376,17 @@ export async function completeDomainOrder(orderId: string, adminId: string) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
     if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (order.status === "COMPLETED") return order
     if (order.status !== "AWAITING_NAMESERVER_SETUP" || !order.ns1 || !order.ns2 || !order.purchasedAt || !order.expiresAt) throw new ConflictError("ابتدا باید دامنه خریداری و حداقل دو NS توسط کاربر ارسال شود.")
+
     const completedAt = new Date()
     const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { status: "COMPLETED", completedAt, nameserversConfiguredAt: completedAt } })
     await tx.ownedDomain.update({ where: { orderId: order.id }, data: { ns1: order.ns1, ns2: order.ns2, ns3: order.ns3, ns4: order.ns4 } })
-    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "NAMESERVERS_CONFIGURED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "NSها ثبت و سفارش با موفقیت تکمیل شد.", idempotencyKey: `${order.id}:completed` } })
+    await tx.domainOrderEvent.upsert({
+      where: { idempotencyKey: `${order.id}:nameservers-configured` },
+      create: { orderId: order.id, operation: order.operation, type: "NAMESERVERS_CONFIGURED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "NSها ثبت و سفارش با موفقیت تکمیل شد.", idempotencyKey: `${order.id}:nameservers-configured` },
+      update: {},
+    })
     const purchaseDate = order.purchasedAt.toLocaleDateString("fa-IR")
     const expiryDate = order.expiresAt.toLocaleDateString("fa-IR")
     await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "سفارش دامنه تکمیل شد", body: `NSهای ${order.asciiDomain} ثبت شد. تاریخ خرید: ${purchaseDate}، تاریخ انقضا: ${expiryDate}.`, href: "/domains" } })
