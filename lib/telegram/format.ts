@@ -37,6 +37,34 @@ export function emo(cfg: BotConfig, name: string): string {
 }
 
 /**
+ * Upgrade every registered literal emoji in an already-safe Telegram HTML
+ * message. Existing tags (especially an existing <tg-emoji>) are preserved,
+ * so templates and hardcoded operational messages can share one registry.
+ */
+export function animateEmojiHtml(html: string, cfg: BotConfig): string {
+  const byGlyph = new Map<string, string>()
+  for (const [key, glyph] of Object.entries(cfg.emoji)) {
+    if (glyph && cfg.customEmoji[key]?.id && !byGlyph.has(glyph)) byGlyph.set(glyph, key)
+  }
+  if (byGlyph.size === 0) return html
+
+  const glyphs = [...byGlyph.keys()].sort((a, b) => b.length - a.length)
+  const pattern = new RegExp(glyphs.map(escapeRegExp).join("|"), "gu")
+  const protectedParts = html.split(/(<tg-emoji\b[^>]*>.*?<\/tg-emoji>|<[^>]+>)/giu)
+
+  return protectedParts
+    .map((part) => {
+      if (part.startsWith("<")) return part
+      return part.replace(pattern, (glyph) => emo(cfg, byGlyph.get(glyph) ?? ""))
+    })
+    .join("")
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/**
  * Render a template string into final Telegram HTML.
  *
  * - {key} placeholders resolve from config.emoji (→ emoji/premium-emoji HTML)
