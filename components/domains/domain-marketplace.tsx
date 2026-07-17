@@ -195,9 +195,15 @@ export function DomainMarketplace() {
       </motion.header>
 
       <Tabs defaultValue="discover" className="flex flex-col gap-6">
-        <TabsList className="h-auto w-full rounded-2xl border border-border/70 bg-card/80 p-1.5 shadow-xl shadow-background/40 backdrop-blur-xl md:w-fit">
-          <TabsTrigger value="discover"><Sparkles data-icon="inline-start" /> کشف و استعلام</TabsTrigger>
-          <TabsTrigger value="orders"><History data-icon="inline-start" /> سفارش‌ها</TabsTrigger>
+        <TabsList className="h-14 w-full rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-xl shadow-background/40 backdrop-blur-xl sm:w-fit sm:min-w-96">
+          <TabsTrigger value="discover" className="h-full gap-2 rounded-xl px-4 text-sm font-semibold data-active:border-primary/25 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-lg data-active:shadow-primary/20 sm:px-6">
+            <Sparkles data-icon="inline-start" />
+            کشف و استعلام
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="h-full gap-2 rounded-xl px-4 text-sm font-semibold data-active:border-primary/25 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-lg data-active:shadow-primary/20 sm:px-6">
+            <History data-icon="inline-start" />
+            سفارش‌ها
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="discover" className="flex flex-col gap-6">
@@ -312,7 +318,7 @@ function AvailabilityCard({ lookup, busy, onPurchase }: { lookup: Lookup; busy: 
         <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {meta.label}</Badge>
       </CardHeader>
       <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">برای انتخاب نام دیگر یا پیشنهاد هوشمند ادامه دهید.</p>}</CardContent>
-      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} خرید و ثبت دامنه</Button></CardFooter>}
+      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} خرید و ثب�� دامنه</Button></CardFooter>}
     </Card>
   )
 }
