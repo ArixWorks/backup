@@ -38,7 +38,7 @@ type Service = {
 const services: Service[] = [
   { href: "/flash", icon: Store, title: "svc.store", desc: "svc.storeDesc", badge: { label: "badge.active", tone: "active" } },
   { href: "/auctions", icon: Gavel, title: "svc.auctions", desc: "svc.auctionsDesc", badge: { label: "badge.active", tone: "active" } },
-  { href: "/domains", icon: Globe, title: "svc.domains", desc: "svc.domainsDesc", badge: { label: "badge.soon", tone: "soon" } },
+  { href: "/domains", icon: Globe, title: "svc.domains", desc: "svc.domainsDesc", badge: { label: "badge.active", tone: "active" } },
   { href: "/vps", icon: Server, title: "svc.vps", desc: "svc.vpsDesc", badge: { label: "badge.soon", tone: "soon" } },
 ]
 
