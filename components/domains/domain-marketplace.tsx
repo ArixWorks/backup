@@ -195,12 +195,12 @@ export function DomainMarketplace() {
       </motion.header>
 
       <Tabs defaultValue="discover" className="flex flex-col gap-6">
-        <TabsList className="h-14 w-full rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-xl shadow-background/40 backdrop-blur-xl sm:w-fit sm:min-w-96">
-          <TabsTrigger value="discover" className="h-full gap-2 rounded-xl px-4 text-sm font-semibold data-active:border-primary/25 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-lg data-active:shadow-primary/20 sm:px-6">
+        <TabsList className="h-14 w-full rounded-2xl border border-border/60 bg-card/60 p-1.5 shadow-lg shadow-background/30 backdrop-blur-xl sm:w-fit sm:min-w-96">
+          <TabsTrigger value="discover" className="h-full gap-2 rounded-xl border-transparent px-5 text-sm font-semibold transition-colors duration-200 data-active:border-transparent data-active:bg-primary/10 data-active:text-primary data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-primary/10 sm:px-7">
             <Sparkles data-icon="inline-start" />
             کشف و استعلام
           </TabsTrigger>
-          <TabsTrigger value="orders" className="h-full gap-2 rounded-xl px-4 text-sm font-semibold data-active:border-primary/25 data-active:bg-primary data-active:text-primary-foreground data-active:shadow-lg data-active:shadow-primary/20 sm:px-6">
+          <TabsTrigger value="orders" className="h-full gap-2 rounded-xl border-transparent px-5 text-sm font-semibold transition-colors duration-200 data-active:border-transparent data-active:bg-primary/10 data-active:text-primary data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-primary/10 sm:px-7">
             <History data-icon="inline-start" />
             سفارش‌ها
           </TabsTrigger>
@@ -238,7 +238,7 @@ export function DomainMarketplace() {
 
         <TabsContent value="orders" className="flex flex-col gap-3">
           {orders.length === 0 ? (
-            <Card><CardHeader><CardTitle>هنوز سفارشی ندارید</CardTitle><CardDescription>پس از خرید، روند ثبت دامنه اینجا نمایش داده می‌شود.</CardDescription></CardHeader></Card>
+            <Card><CardHeader><CardTitle>هنوز سفارشی ندارید</CardTitle><CardDescription>پس از خرید، روند ثبت دامنه اینجا نمای�� داده می‌شود.</CardDescription></CardHeader></Card>
           ) : orders.map((order) => <OrderCard key={order.id} order={order} onUpdated={() => mutateOrders()} />)}
         </TabsContent>
       </Tabs>
