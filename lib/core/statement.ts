@@ -42,13 +42,20 @@ function buildWhere(f: StatementFilters): Prisma.WalletTransactionWhereInput {
 /** Paginated, filtered transactions for the statement view. */
 export async function queryStatement(f: StatementFilters) {
   const where = buildWhere(f)
-  const take = Math.min(Math.max(f.take ?? 50, 1), 200)
+  const requestedTake = f.take ?? 50
+  const requestedSkip = f.skip ?? 0
+  const take = Number.isFinite(requestedTake)
+    ? Math.min(Math.max(Math.trunc(requestedTake), 1), 200)
+    : 50
+  const skip = Number.isFinite(requestedSkip)
+    ? Math.min(Math.max(Math.trunc(requestedSkip), 0), 100_000)
+    : 0
   const [rows, total] = await Promise.all([
     prisma.walletTransaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take,
-      skip: f.skip ?? 0,
+      skip,
     }),
     prisma.walletTransaction.count({ where }),
   ])

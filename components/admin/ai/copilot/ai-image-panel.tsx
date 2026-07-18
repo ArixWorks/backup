@@ -43,7 +43,7 @@ export function AiImagePanel() {
           applied++
         }
       }
-      toast.success(`مجموعه تصاویر ساخته شد (${applied} تصویر روی فرم اعمال شد)`) 
+      toast.success(`مجموعه تصاویر ساخته شد (${applied} تصویر روی فرم اعمال شد)`)
     } catch {
       toast.error("تولید مجموعه تصاویر ناموفق بود")
     } finally {
@@ -146,7 +146,7 @@ function ImageSlotCard({
       {images.length > 0 ? (
         <div className="mb-2 grid grid-cols-3 gap-2">
           {images.map((img) => (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <button
               key={img.url}
               type="button"

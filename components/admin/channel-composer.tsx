@@ -198,7 +198,7 @@ export function ChannelComposer() {
           <div className="rounded-2xl bg-[#17212b] p-4">
             <div className="max-w-sm overflow-hidden rounded-xl bg-[#212d3b] text-[#e9eef5] shadow-lg">
               {imageUrl.trim() ? (
-                // eslint-disable-next-line @next/next/no-img-element
+
                 <img
                   src={imageUrl.trim() || "/placeholder.svg"}
                   alt="پیش‌نمایش عکس پست"

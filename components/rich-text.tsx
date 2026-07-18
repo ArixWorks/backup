@@ -66,7 +66,7 @@ export const RichText = memo(function RichText({
     >
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         rehypePlugins={rehypePlugins as any}
         components={{
           a: ({ node, ...props }) => <a target="_blank" rel="noopener noreferrer" {...props} />,

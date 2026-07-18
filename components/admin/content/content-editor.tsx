@@ -299,7 +299,7 @@ export function ContentEditor({
             <Label>تصویر شاخص</Label>
             {coverImageUrl ? (
               <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                { }
                 <img
                   src={coverImageUrl || "/placeholder.svg"}
                   alt="تصویر شاخص"

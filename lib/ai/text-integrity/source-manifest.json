@@ -1,7 +1,1 @@
-[
-  {
-    "path": "components/domains/domain-marketplace.tsx",
-    "line": 294,
-    "text": "{available && item.priceIrt ? <div className=\"flex items-baseline gap-2\"><strong className=\"text-2xl\">{money(item.priceIrt)}</strong><span className=\"text-xs text-muted-foreground\">ثبت یک‌ساله</span></div> : <p className=\"text-sm text-muted-foreground\">{failed ? \"در ��ال حاضر نتیجه قطعی دریافت نشد؛ دوباره پیشنهادها را بررسی کنید.\" : \"این نام قبلاً ثبت یا رزرو شده است.\"}</p>}"
-  }
-]
+[]

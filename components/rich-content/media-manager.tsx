@@ -177,7 +177,7 @@ export function MediaManager({
               >
                 <div className="flex aspect-square items-center justify-center bg-muted">
                   {asset.kind === "IMAGE" ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+
                     <img src={asset.url || "/placeholder.svg"} alt={asset.alt ?? asset.filename} className="size-full object-cover" loading="lazy" />
                   ) : (
                     <KindIcon kind={asset.kind} className="size-8 text-muted-foreground" />
