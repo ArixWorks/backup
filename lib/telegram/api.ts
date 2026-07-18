@@ -172,6 +172,13 @@ export async function sendPhoto(
  * backups stay far below that. Bounded by a longer timeout since the upload
  * carries the whole file.
  */
+export function isRetryableTelegramUploadError(err: unknown): boolean {
+  if (err instanceof TimeoutError || err instanceof TelegramRetryAfter) return true
+  const status = (err as { status?: number })?.status
+  if (typeof status === "number") return status === 429 || status >= 500
+  return err instanceof TypeError
+}
+
 export async function sendDocument(
   chatId: string | number,
   file: Buffer | Uint8Array,
@@ -179,23 +186,48 @@ export async function sendDocument(
   caption?: string,
 ): Promise<unknown> {
   if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
-  const form = new FormData()
-  form.append("chat_id", String(chatId))
-  if (caption) {
-    form.append("caption", await withAnimatedEmoji(caption, {}))
-    form.append("parse_mode", "HTML")
-  }
+  const animatedCaption = caption ? await withAnimatedEmoji(caption, {}) : undefined
   const bytes = new Uint8Array(file)
-  form.append("document", new Blob([bytes], { type: "application/gzip" }), filename)
 
-  const res = await withTimeout(
-    60_000,
-    (signal) => fetch(`${API}/sendDocument`, { method: "POST", body: form, signal }),
-    "telegram.sendDocument",
+  return withRetry(
+    async () => {
+      // Multipart bodies are single-use in some runtimes, so rebuild the form
+      // and Blob for every attempt rather than reusing an aborted request body.
+      const form = new FormData()
+      form.append("chat_id", String(chatId))
+      if (animatedCaption) {
+        form.append("caption", animatedCaption)
+        form.append("parse_mode", "HTML")
+      }
+      form.append("document", new Blob([bytes], { type: "application/gzip" }), filename)
+
+      const res = await withTimeout(
+        60_000,
+        (signal) => fetch(`${API}/sendDocument`, { method: "POST", body: form, signal }),
+        "telegram.sendDocument",
+      )
+      const data = await res.json().catch(() => ({ ok: false, description: "Invalid JSON from Telegram" }))
+      if (!data.ok) {
+        const retryAfter = data.parameters?.retry_after
+        if (res.status === 429 && typeof retryAfter === "number") {
+          throw new TelegramRetryAfter(retryAfter)
+        }
+        const err = new Error(data.description || "Telegram sendDocument failed") as Error & { status?: number }
+        err.status = res.status
+        throw err
+      }
+      return data.result
+    },
+    {
+      attempts: 3,
+      baseDelayMs: 1_000,
+      maxDelayMs: 8_000,
+      retryable: isRetryableTelegramUploadError,
+      delayFor: (err) => err instanceof TelegramRetryAfter ? err.retryAfter * 1000 : undefined,
+      onRetry: (err, attempt, delay) =>
+        console.log(`[v0] Telegram sendDocument retry ${attempt} in ${delay}ms:`, (err as Error).message),
+    },
   )
-  const data = await res.json().catch(() => ({ ok: false, description: "Invalid JSON from Telegram" }))
-  if (!data.ok) throw new Error(data.description || "Telegram sendDocument failed")
-  return data.result
 }
 
 export async function editMessageText(

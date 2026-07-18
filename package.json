@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint app components lib prisma scripts",
-    "test": "node --import tsx --test \"lib/**/*.test.ts\"",
+    "test": "node --require ./scripts/_stub-server-only.cjs --import tsx --test \"lib/**/*.test.ts\"",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",

@@ -90,15 +90,21 @@ export async function maybeRunDailyBackup(): Promise<{ ran: boolean; reason?: st
   const lastRun = await getSetting(SETTING_KEYS.backupLastRunDate)
   if (lastRun === date) return { ran: false, reason: "already-today" }
 
-  // Claim today's slot BEFORE running so overlapping ticks don't double-fire.
+  // Claim today's slot before running so overlapping ticks don't double-fire.
+  // A failed run releases the claim, allowing a later tick to recover that day.
   await setSetting(SETTING_KEYS.backupLastRunDate, date)
   try {
     const res = await runBackupNow()
-    if (!res.ok && res.chatId) {
-      await sendMessage(res.chatId, `⚠️ پشتیبان‌گیری خودکار ناموفق بود: ${res.error}`).catch(() => {})
+    if (res.ok) return { ran: true }
+
+    await setSetting(SETTING_KEYS.backupLastRunDate, "")
+    const chatId = res.chatId || await getSetting(SETTING_KEYS.backupChatId)
+    if (chatId) {
+      await sendMessage(chatId, `⚠️ پشتیبان‌گیری خودکار ناموفق بود: ${res.error}`).catch(() => {})
     }
-    return { ran: res.ok, reason: res.ok ? undefined : res.error }
+    return { ran: false, reason: res.error }
   } catch (err) {
+    await setSetting(SETTING_KEYS.backupLastRunDate, "").catch(() => {})
     console.log("[v0] scheduled backup failed:", (err as Error).message)
     const chatId = await getSetting(SETTING_KEYS.backupChatId)
     if (chatId) {
