@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/sonner"
 import { TelegramProvider } from "@/components/telegram-provider"
 import { I18nProvider } from "@/components/i18n-provider"
 import { MotionProvider } from "@/components/motion-provider"
-import { MembershipThemeProvider } from "@/components/membership-theme-provider"
 import { ReferralCapture } from "@/components/referral-capture"
 import { BannedGate } from "@/components/auth/banned-gate"
 import { fetcher } from "@/lib/api-client"
@@ -28,11 +27,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <I18nProvider>
       <MotionProvider>
         <TelegramProvider>
-          <MembershipThemeProvider>
-            <ReferralCapture />
-            {children}
-            <BannedGate />
-          </MembershipThemeProvider>
+          <ReferralCapture />
+          {children}
+          <BannedGate />
         </TelegramProvider>
         <Toaster
           position="top-center"
