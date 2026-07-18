@@ -328,7 +328,7 @@ export const DEFAULT_CONFIG: BotConfig = {
     applyCoupon: "🏷️ کد تخفیف",
     prev: "◀️ قبلی",
     next: "بعدی ▶️",
-    backToList: "⬅️ باز��شت به لیست",
+    backToList: "⬅️ بازگشت به لیست",
     depCard: "💳 کارت به کارت",
     depTon: "💎 TON",
     depUsdt: "💵 USDT",

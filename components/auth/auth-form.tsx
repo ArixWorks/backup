@@ -52,7 +52,7 @@ export function AuthForm() {
         setBusy(false)
       }
     },
-    [finishLogin],
+    [errorMessage, finishLogin],
   )
 
   async function onEmailSubmit(e: React.FormEvent) {

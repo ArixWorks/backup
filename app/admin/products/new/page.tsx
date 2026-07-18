@@ -248,7 +248,7 @@ export default function NewProductPage() {
               <div className="flex flex-wrap gap-2">
                 {gallery.map((url, i) => (
                   <div key={`${url}-${i}`} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img
                       src={url || "/placeholder.svg"}
                       alt={`گالری ${i + 1}`}

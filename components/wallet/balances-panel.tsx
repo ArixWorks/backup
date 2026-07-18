@@ -186,7 +186,7 @@ function ConvertDialog({
     open ? "/api/v1/currencies" : null,
     fetcher,
   )
-  const rates = ratesData?.data.rates ?? []
+  const rates = useMemo(() => ratesData?.data.rates ?? [], [ratesData?.data.rates])
 
   const fromMeta = currencies.find((c) => c.code === from)
   const toMeta = currencies.find((c) => c.code === to)

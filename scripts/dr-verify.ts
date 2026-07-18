@@ -201,7 +201,7 @@ async function verify(before: Record<string, { count: number; hash: string }>, b
   checks.push({ name: "record counts (all 45 tables)", pass: countMismatch === 0, detail: countMismatch === 0 ? "all match" : `${countMismatch} mismatched` })
 
   // 2. per-table row hash equality (catches any field/value drift)
-  let hashMismatch: string[] = []
+  const hashMismatch: string[] = []
   for (const m of models) {
     if (before[m.name].hash !== after[m.name].hash) hashMismatch.push(m.name)
   }

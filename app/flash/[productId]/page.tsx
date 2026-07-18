@@ -45,7 +45,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
   // Multi-plan products let the user choose which plan to buy. The default
   // (first, in-stock when possible) is auto-selected so there is always a valid
   // target. Single-plan products render exactly like before (no selector).
-  const variants = p?.variants ?? []
+  const variants = useMemo(() => p?.variants ?? [], [p?.variants])
   const hasPlans = variants.length > 0
   const effectiveSelectedId = useMemo(() => {
     if (!hasPlans) return null

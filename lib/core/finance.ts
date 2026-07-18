@@ -85,7 +85,7 @@ export async function createDepositRequest(input: CreateDepositInput): Promise<D
   let payAmount = input.amount
   let payAddress: string | null = slot.address
   let payNetwork: string | null = slot.network ?? null
-  let payTag: string | null = null
+  const payTag: string | null = null
   let rateUsed: bigint | null = null
   let expiresAt: Date | null = new Date(Date.now() + DEPOSIT_TTL_MS)
 

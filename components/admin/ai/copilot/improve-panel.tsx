@@ -51,7 +51,7 @@ export function ImprovePanel({
     }
     return out
     // initial is stable per load; patch changes drive re-reads via get closures.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [initial, localizedKeys, patch])
 
   const { adapter, getI18n, hasTranslations, setI18n } = useCopilotAdapter(bindings)

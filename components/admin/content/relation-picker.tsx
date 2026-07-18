@@ -130,7 +130,7 @@ export function RelationPicker({
                 </span>
               )}
               {item.thumb ? (
-                // eslint-disable-next-line @next/next/no-img-element
+
                 <img
                   src={item.thumb || "/placeholder.svg"}
                   alt=""
@@ -187,7 +187,7 @@ export function RelationPicker({
                       )}
                     >
                       {r.thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+
                         <img src={r.thumb || "/placeholder.svg"} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
                       ) : null}
                       <span className="min-w-0 flex-1 truncate">{r.label}</span>

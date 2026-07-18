@@ -54,7 +54,10 @@ export interface ListNotificationsOpts {
 
 /** List a user's notifications (newest first), with an unread count. */
 export async function listNotifications(userId: string, opts?: ListNotificationsOpts) {
-  const limit = Math.min(opts?.limit ?? 30, 100)
+  const requestedLimit = opts?.limit ?? 30
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 100)
+    : 30
   const where: Prisma.NotificationWhereInput = {
     userId,
     archived: opts?.archived ?? false,

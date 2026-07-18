@@ -62,7 +62,7 @@ async function uniqueSlug(type: string, locale: string, base: string, excludeId?
   const root = slugify(base) || "item"
   let candidate = root
   let n = 1
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const clash = await prisma.content.findFirst({
       where: { type, locale, slug: candidate, ...(excludeId ? { id: { not: excludeId } } : {}) },

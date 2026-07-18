@@ -48,12 +48,21 @@ export async function GET(req: Request) {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")
 
   if (format === "xlsx") {
-    const XLSX = await import("xlsx")
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Metrics")
-    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer
-    return new NextResponse(new Uint8Array(buf), {
+    const { Workbook } = await import("exceljs")
+    const workbook = new Workbook()
+    workbook.creator = "ACCIRAN Operations Center"
+    workbook.created = new Date()
+    const worksheet = workbook.addWorksheet("Metrics")
+    worksheet.columns = [
+      { header: "Metric", key: "metric", width: 32 },
+      { header: "Time", key: "time", width: 28 },
+      { header: "Value", key: "value", width: 18 },
+    ]
+    worksheet.addRows(rows)
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.autoFilter = "A1:C1"
+    const buffer = await workbook.xlsx.writeBuffer()
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="ops-metrics-${stamp}.xlsx"`,
