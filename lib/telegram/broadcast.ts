@@ -2,26 +2,12 @@ import "server-only"
 
 import type { TelegramContent } from "@/lib/broadcast/core"
 import { sendMessage, sendPhoto } from "@/lib/telegram/api"
+import { renderCustomEmojiCodes } from "@/lib/telegram/format"
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null
 
 type TelegramMessage = { message_id: number }
-
-const CUSTOM_EMOJI_CODE = /\[(\d{5,32})\]/g
-const TG_EMOJI_TAG = /<tg-emoji\s+emoji-id="\d{5,32}">[\s\S]*?<\/tg-emoji>/gi
-
-/** Convert admin-friendly [custom_emoji_id] codes without touching existing tg-emoji tags. */
-function renderCustomEmojiCodes(html: string): string {
-  const preserved: string[] = []
-  const protectedHtml = html.replace(TG_EMOJI_TAG, (tag) => {
-    preserved.push(tag)
-    return `\uE000${preserved.length - 1}\uE001`
-  })
-  return protectedHtml
-    .replace(CUSTOM_EMOJI_CODE, '<tg-emoji emoji-id="$1">✨</tg-emoji>')
-    .replace(/\uE000(\d+)\uE001/g, (_, index: string) => preserved[Number(index)] || "")
-}
 
 async function call(method: string, payload: Record<string, unknown>): Promise<TelegramMessage | TelegramMessage[]> {
   if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
@@ -62,14 +48,15 @@ export async function sendBroadcastPayload(chatId: string, content: TelegramCont
     return [result.message_id]
   }
   if (content.media.length === 1 && content.media[0].type === "photo") {
-    const result = await sendPhoto(chatId, content.media[0].url, content.media[0].caption || html, { replyMarkup: keyboard(content) }) as TelegramMessage
+    const caption = renderCustomEmojiCodes(content.media[0].caption || html)
+    const result = await sendPhoto(chatId, content.media[0].url, caption, { replyMarkup: keyboard(content) }) as TelegramMessage
     return [result.message_id]
   }
   if (content.media.length > 1 && content.media.every((item) => item.type === "photo" || item.type === "video")) {
     const media = content.media.map((item, index) => ({
       type: item.type,
       media: item.url,
-      caption: index === 0 ? item.caption || html.slice(0, 1024) : item.caption,
+      caption: renderCustomEmojiCodes(index === 0 ? item.caption || html.slice(0, 1024) : item.caption || "") || undefined,
       parse_mode: "HTML",
     }))
     const result = await call("sendMediaGroup", { ...common, media }) as TelegramMessage[]
@@ -86,7 +73,7 @@ export async function sendBroadcastPayload(chatId: string, content: TelegramCont
     const result = await call(method, {
       ...common,
       [item.type === "photo" ? "photo" : item.type === "document" ? "document" : item.type]: item.url,
-      caption: item.caption || (index === 0 ? html.slice(0, 1024) : undefined),
+      caption: renderCustomEmojiCodes(item.caption || (index === 0 ? html.slice(0, 1024) : "")) || undefined,
       reply_markup: index === content.media.length - 1 ? keyboard(content) : undefined,
     }) as TelegramMessage
     ids.push(result.message_id)

@@ -64,6 +64,26 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
+const CUSTOM_EMOJI_CODE = /\[(\d{5,32})\]/g
+const TG_EMOJI_TAG = /<tg-emoji\s+emoji-id="\d{5,32}">[\s\S]*?<\/tg-emoji>/gi
+
+/**
+ * Convert the admin-friendly `[custom_emoji_id]` syntax to Telegram HTML.
+ * Existing custom emoji tags are protected, while malformed codes remain
+ * visible so an operator can spot and correct them before a real broadcast.
+ */
+export function renderCustomEmojiCodes(html: string): string {
+  const preserved: string[] = []
+  const protectedHtml = html.replace(TG_EMOJI_TAG, (tag) => {
+    preserved.push(tag)
+    return `\uE000${preserved.length - 1}\uE001`
+  })
+
+  return protectedHtml
+    .replace(CUSTOM_EMOJI_CODE, '<tg-emoji emoji-id="$1">✨</tg-emoji>')
+    .replace(/\uE000(\d+)\uE001/g, (_, index: string) => preserved[Number(index)] || "")
+}
+
 /**
  * Render a template string into final Telegram HTML.
  *

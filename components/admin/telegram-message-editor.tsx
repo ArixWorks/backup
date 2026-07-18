@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Mark, mergeAttributes } from "@tiptap/core"
 import Link from "@tiptap/extension-link"
 import Placeholder from "@tiptap/extension-placeholder"
@@ -34,6 +34,7 @@ type Props = { value: string; onChange: (value: string) => void }
 
 export function TelegramMessageEditor({ value, onChange }: Props) {
   const [showEmoji, setShowEmoji] = useState(false)
+  const lastEmittedValue = useRef(value)
   const editor = useEditor({
     immediatelyRender: false,
     content: value,
@@ -45,8 +46,18 @@ export function TelegramMessageEditor({ value, onChange }: Props) {
       Placeholder.configure({ placeholder: "پیام خود را بنویسید؛ برای قالب‌بندی فقط متن را انتخاب کنید…" }),
     ],
     editorProps: { attributes: { class: "min-h-44 px-4 py-3 text-sm leading-7 outline-none", dir: "rtl" } },
-    onUpdate: ({ editor: current }) => onChange(telegramHtml(current.getHTML())),
+    onUpdate: ({ editor: current }) => {
+      const nextValue = telegramHtml(current.getHTML())
+      lastEmittedValue.current = nextValue
+      onChange(nextValue)
+    },
   })
+
+  useEffect(() => {
+    if (!editor || value === lastEmittedValue.current) return
+    lastEmittedValue.current = value
+    editor.commands.setContent(value, { emitUpdate: false })
+  }, [editor, value])
 
   if (!editor) return <div className="min-h-56 animate-pulse rounded-xl bg-secondary" />
 

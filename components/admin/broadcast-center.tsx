@@ -10,18 +10,26 @@ import { BroadcastAudienceSelector } from "@/components/admin/broadcast-audience
 
 type Campaign = { id: string; title: string; status: string; channels: string[]; totalRecipients: number; pendingCount: number; sentCount: number; failedCount: number; createdAt: string; scheduledAt?: string }
 type AudienceResult = { count: number; sample: Array<{ id: string; displayName: string; telegramUsername?: string; telegramChatId?: string; vipManual: boolean }> }
-type Product = { id: string; title: string; coverImage?: string | null; fixedSale?: { status: string } | null }
+type Product = { id: string; title: string; description?: string | null; coverImage?: string | null; fixedSale?: { status: string; price?: string | number } | null }
 type AudienceUser = { id: string; displayName: string; alias?: string | null; username?: string | null; telegramUsername?: string | null; telegramId?: string | null; telegramChatId?: string | null; vipManual: boolean }
 type AudienceMode = "ALL" | "FILTERED" | "SELECTED"
 type ButtonStyle = "default" | "primary" | "success" | "danger"
 
 const statusLabel: Record<string, string> = { DRAFT: "پیش‌نویس", SCHEDULED: "زمان‌بندی‌شده", QUEUED: "در صف", SENDING: "در حال ارسال", PAUSED: "متوقف", COMPLETED: "تکمیل", CANCELLED: "لغو" }
 
+function escapeTelegramHtml(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+function emojiPreviewHtml(value: string) {
+  return value.replace(/\[(\d{5,32})\]/g, '<span class="inline-flex rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-xs text-primary" title="emoji-id: $1">✨</span>')
+}
+
 export function BroadcastCenter() {
   const { data, isLoading } = useSWR<{ data: Campaign[] }>("/api/v1/admin/broadcasts", fetcher, { refreshInterval: 10000 })
   const campaigns = data?.data ?? []
   const { data: productData } = useSWR<{ data: Product[] }>("/api/v1/admin/products", fetcher)
-  const products = productData?.data?.filter((product) => product.fixedSale) ?? []
+  const products = useMemo(() => productData?.data?.filter((product) => product.fixedSale) ?? [], [productData])
   const [tab, setTab] = useState<"compose" | "history">("compose")
   const [title, setTitle] = useState("")
   const [channels, setChannels] = useState<string[]>(["TELEGRAM"])
@@ -30,7 +38,7 @@ export function BroadcastCenter() {
   const [webBody, setWebBody] = useState("")
   const [webHref, setWebHref] = useState("")
   const [media, setMedia] = useState<Array<{ type: string; url: string }>>([])
-  const [buttonText, setButtonText] = useState("خرید")
+  const [buttonText, setButtonText] = useState("خرید و اطلاعات بیشتر")
   const [buttonUrl, setButtonUrl] = useState("")
   const [buttonType, setButtonType] = useState<"PRODUCT" | "LINK">("PRODUCT")
   const [buttonStyle, setButtonStyle] = useState<ButtonStyle>("default")
@@ -43,6 +51,18 @@ export function BroadcastCenter() {
   const [audience, setAudience] = useState<AudienceResult | null>(null)
   const [busy, setBusy] = useState("")
   const [message, setMessage] = useState("")
+  const selectedProduct = useMemo(() => products.find((product) => product.id === productId), [products, productId])
+
+  function selectProduct(id: string) {
+    setProductId(id)
+    const product = products.find((item) => item.id === id)
+    if (!product) return
+    setButtonType("PRODUCT")
+    setButtonText((current) => current || "خرید و اطلاعات بیشتر")
+    setTitle((current) => current || `معرفی محصول: ${product.title}`)
+    setHtml((current) => current || `<b>${escapeTelegramHtml(product.title)}</b>\n\n`)
+    if (product.coverImage) setMedia((current) => current.length ? current : [{ type: "photo", url: product.coverImage! }])
+  }
 
   const payload = useMemo(() => ({
     title: title || "پیام بدون عنوان",
@@ -134,12 +154,29 @@ export function BroadcastCenter() {
           </Panel>
 
           {channels.includes("TELEGRAM") && <Panel title="محتوای تلگرام" icon={Bot}>
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-secondary/40 p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Package className="size-5" /></span>
+                <div><h3 className="text-sm font-bold">ارسال محصول جدید</h3><p className="text-xs leading-5 text-muted-foreground">محصول را انتخاب کنید تا تصویر، مقصد دکمه و قالب اولیه پیام آماده شود.</p></div>
+              </div>
+              <label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">محصول مقصد
+                <select value={productId} onChange={(event) => selectProduct(event.target.value)} className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground">
+                  <option value="">انتخاب محصول…</option>
+                  {products.map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}
+                </select>
+              </label>
+              {selectedProduct ? <div className="flex items-center gap-3 rounded-xl bg-background p-3">
+                {selectedProduct.coverImage ? <img src={selectedProduct.coverImage} alt={`تصویر ${selectedProduct.title}`} className="size-14 shrink-0 rounded-lg object-cover" /> : <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground"><Package className="size-5" /></span>}
+                <div className="min-w-0 flex-1"><b className="block truncate text-sm">{selectedProduct.title}</b><span className="text-xs text-muted-foreground">تصویر محصول و لینک Mini App آماده است</span></div>
+                <CheckCircle2 className="size-5 shrink-0 text-primary" aria-label="آماده" />
+              </div> : null}
+            </div>
             <TelegramMessageEditor value={html} onChange={setHtml} />
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-6 text-muted-foreground"><p>برای ایموجی متحرک فقط شناسه آن را داخل کروشه بنویسید؛ نمونه:</p><code dir="ltr" className="mt-1 inline-block rounded bg-background px-2 py-1 font-mono text-foreground">[5900186420659622041] تست</code><p className="mt-1">هنگام ارسال، کد به ایموجی متحرک رسمی تلگرام تبدیل می‌شود.</p></div>
             <p className="text-xs leading-5 text-muted-foreground">متن را انتخاب کنید و از نوار بالا برای ضخیم، مورب، زیرخط، اسپویلر، نقل‌قول، لینک، کد و ایموجی استفاده کنید؛ نیازی به نوشتن HTML نیست.</p>
             <div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-primary/50 px-4 py-2 text-sm font-semibold text-primary"><FileUp className="size-4" />{busy === "upload" ? "در حال آپلود…" : "افزودن رسانه"}<input type="file" accept="image/*,video/*,audio/*,.pdf,.zip" className="sr-only" onChange={(e) => upload(e.target.files?.[0])} /></label>{media.map((item, index) => <button type="button" key={item.url} onClick={() => setMedia((items) => items.filter((_, i) => i !== index))} className="rounded-xl bg-secondary px-3 py-2 text-xs">{item.type} · حذف</button>)}</div>
             <div className="flex rounded-xl bg-secondary p-1"><button type="button" onClick={() => setButtonType("PRODUCT")} className={cn("flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold", buttonType === "PRODUCT" && "bg-background text-primary shadow-sm")}><Package className="size-4" />محصول در وب‌اپ</button><button type="button" onClick={() => setButtonType("LINK")} className={cn("flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold", buttonType === "LINK" && "bg-background text-primary shadow-sm")}><ExternalLink className="size-4" />لینک معمولی</button></div>
-            <div className="grid gap-3 sm:grid-cols-2"><label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">متن دکمه<input value={buttonText} onChange={(e) => setButtonText(e.target.value)} placeholder="مثلاً خرید" className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>{buttonType === "PRODUCT" ? <label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">محصول مقصد<select value={productId} onChange={(e) => setProductId(e.target.value)} className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground"><option value="">انتخاب محصول…</option>{products.map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label> : <label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">آدرس لینک<input dir="ltr" value={buttonUrl} onChange={(e) => setButtonUrl(e.target.value)} placeholder="https://…" className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>}</div>
+            <div className="grid gap-3 sm:grid-cols-2"><label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">متن دکمه<input value={buttonText} onChange={(e) => setButtonText(e.target.value)} placeholder="مثلاً خرید" className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>{buttonType === "PRODUCT" ? <label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">محصول مقصد<select value={productId} onChange={(e) => selectProduct(e.target.value)} className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground"><option value="">انتخاب محصول…</option>{products.map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}</select></label> : <label className="flex flex-col gap-2 text-xs font-semibold text-muted-foreground">آدرس لینک<input dir="ltr" value={buttonUrl} onChange={(e) => setButtonUrl(e.target.value)} placeholder="https://…" className="h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>}</div>
             <fieldset className="flex flex-col gap-2"><legend className="mb-2 text-xs font-semibold text-muted-foreground">رنگ دکمه تلگرام</legend><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{([['default', 'شیشه‌ای', 'bg-secondary text-foreground'], ['primary', 'آبی', 'bg-blue-600 text-primary-foreground'], ['success', 'سبز', 'bg-green-600 text-primary-foreground'], ['danger', 'قرمز', 'bg-red-600 text-primary-foreground']] as const).map(([value, label, color]) => <button type="button" key={value} onClick={() => setButtonStyle(value)} className={cn("h-10 rounded-xl border text-xs font-bold", color, buttonStyle === value ? "border-primary ring-2 ring-primary/30" : "border-transparent")}>{label}</button>)}</div></fieldset>
             {buttonType === "PRODUCT" ? <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">این دکمه با قابلیت رسمی Telegram Web App ارسال می‌شود؛ کاربر با لمس آن، صفحه همان محصول را داخل تلگرام می‌بیند و به مرورگر منتقل نمی‌شود.</div> : null}
           </Panel>}
@@ -162,7 +199,7 @@ export function BroadcastCenter() {
           </Panel>
         </div>
 
-        <aside className="xl:sticky xl:top-5 xl:h-fit"><div className="overflow-hidden rounded-3xl border-4 border-foreground/80 bg-background shadow-2xl"><div className="flex items-center justify-between bg-secondary px-4 py-3 text-xs"><span>پیش‌نمایش</span><Bot className="size-4 text-primary" /></div><div className="min-h-96 bg-secondary/50 p-4"><div className="mt-8 rounded-2xl rounded-tr-sm bg-background p-4 shadow-md"><div className="mb-2 text-xs font-bold text-primary">پیام ربات</div>{media[0] && <div className="mb-3 flex h-36 items-center justify-center rounded-xl bg-secondary text-xs text-muted-foreground">{media[0].type}</div>}{html ? <div className="whitespace-pre-wrap text-sm leading-6 [&_a]:text-primary [&_blockquote]:border-r-2 [&_blockquote]:border-primary [&_blockquote]:pr-2 [&_code]:rounded [&_code]:bg-secondary [&_code]:px-1 [&_tg-spoiler]:rounded [&_tg-spoiler]:bg-foreground [&_tg-spoiler]:text-transparent" dangerouslySetInnerHTML={{ __html: html }} /> : <p className="whitespace-pre-wrap text-sm leading-6">{webBody || "پیش‌نمایش پیام شما اینجا نمایش داده می‌شود."}</p>}{buttonText && <div className={cn("mt-3 rounded-lg p-2 text-center text-xs font-semibold", buttonStyle === "primary" ? "bg-blue-600 text-primary-foreground" : buttonStyle === "success" ? "bg-green-600 text-primary-foreground" : buttonStyle === "danger" ? "bg-red-600 text-primary-foreground" : "bg-primary/10 text-primary")}>{buttonText}</div>}<div className="mt-2 text-left text-[10px] text-muted-foreground">اکنون</div></div></div></div></aside>
+        <aside className="xl:sticky xl:top-5 xl:h-fit"><div className="overflow-hidden rounded-3xl border-4 border-foreground/80 bg-background shadow-2xl"><div className="flex items-center justify-between bg-secondary px-4 py-3 text-xs"><span>پیش‌نمایش</span><Bot className="size-4 text-primary" /></div><div className="min-h-96 bg-secondary/50 p-4"><div className="mt-8 rounded-2xl rounded-tr-sm bg-background p-4 shadow-md"><div className="mb-2 text-xs font-bold text-primary">پیام ربات</div>{media[0] && (media[0].type === "photo" ? <img src={media[0].url} alt="پیش‌نمایش رسانه پیام" className="mb-3 aspect-video w-full rounded-xl object-cover" /> : <div className="mb-3 flex h-36 items-center justify-center rounded-xl bg-secondary text-xs text-muted-foreground">{media[0].type}</div>)}{html ? <div className="whitespace-pre-wrap text-sm leading-6 [&_a]:text-primary [&_blockquote]:border-r-2 [&_blockquote]:border-primary [&_blockquote]:pr-2 [&_code]:rounded [&_code]:bg-secondary [&_code]:px-1 [&_tg-spoiler]:rounded [&_tg-spoiler]:bg-foreground [&_tg-spoiler]:text-transparent" dangerouslySetInnerHTML={{ __html: emojiPreviewHtml(html) }} /> : <p className="whitespace-pre-wrap text-sm leading-6">{webBody || "پیش‌نمایش پیام شما اینجا نمایش داده می‌شود."}</p>}{buttonText && <div className={cn("mt-3 rounded-lg p-2 text-center text-xs font-semibold", buttonStyle === "primary" ? "bg-blue-600 text-primary-foreground" : buttonStyle === "success" ? "bg-green-600 text-primary-foreground" : buttonStyle === "danger" ? "bg-red-600 text-primary-foreground" : "bg-primary/10 text-primary")}>{buttonText}</div>}<div className="mt-2 text-left text-[10px] text-muted-foreground">اکنون</div></div></div></div></aside>
       </div> : <div className="flex flex-col gap-3">{isLoading ? <Loader2 className="mx-auto size-6 animate-spin text-primary" /> : campaigns.length === 0 ? <div className="glass rounded-2xl border border-border p-12 text-center text-sm text-muted-foreground">هنوز کمپینی ساخته نشده است.</div> : campaigns.map((campaign) => <CampaignRow key={campaign.id} campaign={campaign} busy={busy} action={campaignAction} />)}</div>}
     </section>
   )

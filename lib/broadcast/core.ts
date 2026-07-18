@@ -5,10 +5,15 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { sendBroadcastPayload } from "@/lib/telegram/broadcast"
 
+const animatedEmojiText = (max: number) => z.string().max(max).refine((value) => {
+  const numericCodes = value.match(/\[\d+\]/g) ?? []
+  return numericCodes.every((code) => /^\[\d{5,32}\]$/.test(code))
+}, "شناسه ایموجی متحرک باید بین ۵ تا ۳۲ رقم باشد")
+
 const mediaSchema = z.object({
   type: z.enum(["photo", "video", "audio", "voice", "document"]),
   url: z.string().url(),
-  caption: z.string().max(1024).optional(),
+  caption: animatedEmojiText(1024).optional(),
 })
 
 const buttonSchema = z.object({
@@ -19,7 +24,7 @@ const buttonSchema = z.object({
 })
 
 export const telegramContentSchema = z.object({
-  html: z.string().max(4096).default(""),
+  html: animatedEmojiText(4096).default(""),
   media: z.array(mediaSchema).max(10).default([]),
   buttons: z.array(z.array(buttonSchema).max(3)).max(8).default([]),
   disablePreview: z.boolean().default(true),
