@@ -43,7 +43,7 @@ const activityItems: LinkItem[] = [
 
 export default function ProfilePage() {
   const { user, logout } = useSession()
-  const { t } = useI18n()
+  const { t, dir } = useI18n()
   const { data: accountData, isLoading: accountLoading } = useSWR<{ data: AccountState }>(
     user ? "/api/v1/account/state" : null, fetcher, { refreshInterval: 30000 },
   )
@@ -78,26 +78,28 @@ export default function ProfilePage() {
       <FadeItem>
         <PremiumHeroCard aria-label="مرکز وضعیت حساب" intensity="normal" deviceTilt className="rounded-3xl p-0 sm:p-0">
           <div className="flex flex-col gap-5 p-5 sm:p-6">
-            <div className="flex items-center gap-4">
-              <div className="relative shrink-0">
-                <div className="absolute -inset-1 rounded-full border border-primary/35 opacity-70" aria-hidden />
-                <Avatar className="size-16 border-2 border-background shadow-lg sm:size-20">
-                  {user.photoUrl ? <AvatarImage src={user.photoUrl} alt={user.displayName ?? ""} /> : null}
-                  <AvatarFallback className="bg-primary/15 text-lg font-bold text-primary">{initials}</AvatarFallback>
-                </Avatar>
-                <span className="absolute bottom-0 end-0 size-4 rounded-full border-2 border-card bg-primary" aria-label="حساب فعال" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p dir="auto" className="truncate text-xl font-extrabold text-foreground sm:text-2xl">{user.displayName}</p>
-                {user.alias ? <p dir="ltr" className="truncate text-sm text-muted-foreground">@{user.alias}</p> : null}
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <MembershipBadge tier={user.membership.tier} />
-                  <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
-                    <ShieldCheck className="size-3.5 text-primary" /> حساب فعال
-                  </span>
+            <div dir={dir} className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="relative shrink-0">
+                  <div className="absolute -inset-1 rounded-full border border-primary/35 opacity-70" aria-hidden />
+                  <Avatar className="size-16 border-2 border-background shadow-lg sm:size-20">
+                    {user.photoUrl ? <AvatarImage src={user.photoUrl} alt={user.displayName ?? ""} /> : null}
+                    <AvatarFallback className="bg-primary/15 text-lg font-bold text-primary">{initials}</AvatarFallback>
+                  </Avatar>
+                  <span className="absolute bottom-0 end-0 size-4 rounded-full border-2 border-card bg-primary" aria-label="حساب فعال" />
+                </div>
+                <div className="min-w-0 text-start">
+                  <p className="truncate text-xl font-extrabold text-foreground sm:text-2xl">{user.displayName}</p>
+                  {user.alias ? <p dir="ltr" className="truncate text-sm text-muted-foreground rtl:text-right">@{user.alias}</p> : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <MembershipBadge tier={user.membership.tier} />
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
+                      <ShieldCheck className="size-3.5 text-primary" /> حساب فعال
+                    </span>
+                  </div>
                 </div>
               </div>
-              <Link href="/account" className="hidden rounded-xl border border-border/70 bg-background/55 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary sm:inline-flex">
+              <Link href="/account" className="hidden shrink-0 rounded-xl border border-border/70 bg-background/55 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary sm:inline-flex">
                 مدیریت حساب
               </Link>
             </div>
