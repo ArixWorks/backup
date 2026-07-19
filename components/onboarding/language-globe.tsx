@@ -83,14 +83,14 @@ export function LanguageGlobe() {
               sliding as one track. Each tile is a flat 2:1 world map; scrolling
               them behind the circular clip + spherical shading reads as the
               planet turning on its axis. */}
-          <div className="animate-globe flex h-full w-[200%]">
+          <div className="animate-globe flex h-full w-[400%]">
             <div className="relative h-full w-1/2 shrink-0">
               <Image
                 src="/onboarding/globe-gold-equirect.png"
                 alt=""
                 fill
-                sizes="240px"
-                className="object-cover"
+                sizes="480px"
+                className="object-fill"
                 priority
               />
             </div>
@@ -101,8 +101,8 @@ export function LanguageGlobe() {
                 src="/onboarding/globe-gold-equirect.png"
                 alt=""
                 fill
-                sizes="240px"
-                className="object-cover"
+                sizes="480px"
+                className="object-fill"
               />
             </div>
           </div>

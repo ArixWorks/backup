@@ -827,18 +827,22 @@ html[data-motion='minimal'] {
 
   /* ===== Language picker hero (premium "global platform" intro) ===== */
 
-  /* True axial rotation for the golden globe. Two identical world-map tiles sit
-     side-by-side in a 200%-wide track; sliding the track left by exactly one tile
-     width (-50% of its own width) lands tile 2 precisely where tile 1 began, so
-     the surface scrolls west-to-east forever with no visible seam — just like the
-     Earth turning on its axis. GPU-accelerated transform only. */
+  /* True axial rotation for the golden globe. Each 2:1 map tile occupies twice
+     the sphere width inside a 400%-wide track, preserving the equirectangular
+     texture instead of cropping it into a static-looking square. Translating by
+     one complete tile creates a continuous, clearly visible turn with no seam. */
   @keyframes globe-spin {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
     to {
       transform: translate3d(-50%, 0, 0);
     }
   }
   .animate-globe {
-    animation: globe-spin 18s linear infinite;
+    animation: globe-spin 14s linear infinite;
+    animation-play-state: running;
+    backface-visibility: hidden;
     will-change: transform;
   }
 
@@ -1309,7 +1313,7 @@ body::-webkit-scrollbar,
    Rich Content — shared styling for the semantic-HTML custom nodes.
    Applied identically to the server renderer (.rc-prose) and the editable
    surface (.rc-editor .ProseMirror) so authoring matches the published view.
-   ══════════════════════════════════════════════════════════════════════════ */
+   ════════════════════════════════════════════���═════════════════════════════ */
 
 /* Callout boxes ---------------------------------------------------------- */
 .rc-prose [data-callout],
