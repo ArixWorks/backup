@@ -63,7 +63,6 @@ export default function WalletPage() {
           loading={isLoading}
           selected={selected}
           onSelect={setSelected}
-          onChanged={refreshAll}
         />
 
         <Button
