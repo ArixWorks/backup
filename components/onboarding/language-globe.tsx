@@ -1,7 +1,8 @@
 "use client"
 
 import Image from "next/image"
-import { motion } from "motion/react"
+import { useEffect } from "react"
+import { animate, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react"
 
 /**
  * Cinematic "global platform" hero for the language picker.
@@ -18,15 +19,70 @@ import { motion } from "motion/react"
  * (see the .animate-* rules in globals.css).
  */
 export function LanguageGlobe() {
+  const prefersReducedMotion = useReducedMotion()
+  const pointerX = useMotionValue(0)
+  const pointerY = useMotionValue(0)
+  const smoothX = useSpring(pointerX, { stiffness: 90, damping: 18, mass: 0.55 })
+  const smoothY = useSpring(pointerY, { stiffness: 90, damping: 18, mass: 0.55 })
+  const rotateY = useTransform(smoothX, [-1, 1], prefersReducedMotion ? [-2, 2] : [-10, 10])
+  const rotateX = useTransform(smoothY, [-1, 1], prefersReducedMotion ? [2, -2] : [8, -8])
+  const sceneX = useTransform(smoothX, [-1, 1], prefersReducedMotion ? [-1, 1] : [-7, 7])
+  const sceneY = useTransform(smoothY, [-1, 1], prefersReducedMotion ? [-1, 1] : [-5, 5])
+  const surfaceX = useMotionValue(0)
+  const surfaceTranslate = useTransform(surfaceX, (value) => `${value}%`)
+
+  const requestMotionPermission = () => {
+    const orientationEvent = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<"granted" | "denied">
+    }
+    void orientationEvent.requestPermission?.().catch(() => undefined)
+  }
+
+  useEffect(() => {
+    const rotation = animate(surfaceX, -50, {
+      duration: prefersReducedMotion ? 36 : 14,
+      ease: "linear",
+      repeat: Number.POSITIVE_INFINITY,
+      repeatType: "loop",
+    })
+
+    const updateFromPoint = (clientX: number, clientY: number) => {
+      pointerX.set(Math.max(-1, Math.min(1, (clientX / window.innerWidth) * 2 - 1)))
+      pointerY.set(Math.max(-1, Math.min(1, (clientY / window.innerHeight) * 2 - 1)))
+    }
+    const handlePointerMove = (event: PointerEvent) => updateFromPoint(event.clientX, event.clientY)
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      if (event.gamma == null || event.beta == null) return
+      pointerX.set(Math.max(-1, Math.min(1, event.gamma / 35)))
+      pointerY.set(Math.max(-1, Math.min(1, (event.beta - 45) / 45)))
+    }
+    const settle = () => {
+      pointerX.set(0)
+      pointerY.set(0)
+    }
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true })
+    window.addEventListener("deviceorientation", handleOrientation, { passive: true })
+    window.addEventListener("blur", settle)
+    return () => {
+      rotation.stop()
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("deviceorientation", handleOrientation)
+      window.removeEventListener("blur", settle)
+    }
+  }, [pointerX, pointerY, prefersReducedMotion, surfaceX])
+
   return (
     <motion.div
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 140, damping: 18 }}
-      className="relative mx-auto aspect-square h-full max-h-full w-auto max-w-full [perspective:1000px]"
-      style={{ height: "min(100%, 15rem)" }}
+      className="relative mx-auto aspect-square h-full max-h-full w-auto max-w-full touch-pan-y [perspective:1000px]"
+      style={{ height: "min(100%, 15rem)", x: sceneX, y: sceneY }}
+      onPointerDown={requestMotionPermission}
       aria-hidden
     >
+      <motion.div className="absolute inset-0 [transform-style:preserve-3d]" style={{ rotateX, rotateY }}>
       {/* Soft double bloom behind the globe */}
       <div className="animate-glow absolute inset-[6%] rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--primary)_55%,transparent)_0%,transparent_62%)] blur-2xl" />
       <div className="absolute inset-[22%] rounded-full bg-[radial-gradient(circle,color-mix(in_oklch,var(--primary)_38%,transparent)_0%,transparent_70%)] blur-md" />
@@ -83,7 +139,7 @@ export function LanguageGlobe() {
               sliding as one track. Each tile is a flat 2:1 world map; scrolling
               them behind the circular clip + spherical shading reads as the
               planet turning on its axis. */}
-          <div className="animate-globe flex h-full w-[400%]">
+          <motion.div className="flex h-full w-[400%] transform-gpu" style={{ x: surfaceTranslate }}>
             <div className="relative h-full w-1/2 shrink-0">
               <Image
                 src="/onboarding/globe-gold-equirect.png"
@@ -105,7 +161,7 @@ export function LanguageGlobe() {
                 className="object-fill"
               />
             </div>
-          </div>
+          </motion.div>
 
           {/* Spherical shading: warm top-left highlight + edge limb darkening */}
           <div
@@ -124,6 +180,7 @@ export function LanguageGlobe() {
       {/* Floating language glyph bubbles */}
       <GlyphBubble glyph="A" className="left-[-4%] top-[30%]" delay={0} />
       <GlyphBubble glyph="文" className="right-[-4%] top-[44%]" delay={1.4} />
+      </motion.div>
     </motion.div>
   )
 }
