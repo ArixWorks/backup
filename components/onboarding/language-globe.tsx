@@ -1,22 +1,20 @@
 "use client"
 
-import Image from "next/image"
-import { useEffect } from "react"
-import { animate, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react"
+import { geoGraticule10, geoOrthographic, geoPath } from "d3-geo"
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react"
+import { useEffect, useRef } from "react"
+import { feature } from "topojson-client"
+import type { GeometryCollection, Topology } from "topojson-specification"
+import worldAtlas from "world-atlas/countries-110m.json"
 
 /**
  * Cinematic "global platform" hero for the language picker.
  *
- * A golden globe continuously spins on its axis (a seamless world-map texture
- * scrolls west-to-east behind spherical shading) inside two counter-rotating, tilted
- * orbital rings while gold particles twinkle, a soft double-bloom pulses behind
- * it, and two language glyph bubbles ("A" / "文") float at its sides. The whole
- * piece fills its flex parent (aspect-square, capped by max-h) so it scales down
- * on short Telegram viewports without ever forcing the screen to scroll.
- *
- * Everything is pure CSS transform / opacity, so it stays at 60fps in the
- * Telegram webview, and every loop is disabled under prefers-reduced-motion
- * (see the .animate-* rules in globals.css).
+ * A golden globe continuously spins on its axis using Natural Earth geography
+ * projected onto a real orthographic sphere. Two counter-rotating orbital rings,
+ * gold particles, atmospheric light and interactive pointer/device tilt create
+ * depth while the aspect-square container remains safe on short Telegram screens.
+ * Canvas rendering is capped at 2x device pixel ratio for crisp, efficient motion.
  */
 export function LanguageGlobe() {
   const prefersReducedMotion = useReducedMotion()
@@ -28,8 +26,7 @@ export function LanguageGlobe() {
   const rotateX = useTransform(smoothY, [-1, 1], prefersReducedMotion ? [2, -2] : [8, -8])
   const sceneX = useTransform(smoothX, [-1, 1], prefersReducedMotion ? [-1, 1] : [-7, 7])
   const sceneY = useTransform(smoothY, [-1, 1], prefersReducedMotion ? [-1, 1] : [-5, 5])
-  const surfaceX = useMotionValue(0)
-  const surfaceTranslate = useTransform(surfaceX, (value) => `${value}%`)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const requestMotionPermission = () => {
     const orientationEvent = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
@@ -39,12 +36,59 @@ export function LanguageGlobe() {
   }
 
   useEffect(() => {
-    const rotation = animate(surfaceX, -50, {
-      duration: prefersReducedMotion ? 36 : 14,
-      ease: "linear",
-      repeat: Number.POSITIVE_INFINITY,
-      repeatType: "loop",
-    })
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const context = canvas.getContext("2d")
+    if (!context) return
+
+    const topology = worldAtlas as unknown as Topology<{ countries: GeometryCollection }>
+    const countries = feature(topology, topology.objects.countries)
+    const sphere = { type: "Sphere" } as const
+    const projection = geoOrthographic().clipAngle(90).precision(0.3)
+    const path = geoPath(projection, context)
+    const startedAt = performance.now()
+    let frameId = 0
+
+    const draw = (now: number) => {
+      const bounds = canvas.getBoundingClientRect()
+      const size = Math.max(1, Math.round(Math.min(bounds.width, bounds.height)))
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+      const renderSize = Math.round(size * pixelRatio)
+      if (canvas.width !== renderSize || canvas.height !== renderSize) {
+        canvas.width = renderSize
+        canvas.height = renderSize
+      }
+
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+      context.clearRect(0, 0, size, size)
+      projection
+        .translate([size / 2, size / 2])
+        .scale(size * 0.49)
+        .rotate([((now - startedAt) / (prefersReducedMotion ? 300 : 140)) % 360, smoothY.get() * -5, 0])
+
+      context.beginPath()
+      path(sphere)
+      context.fillStyle = "#070814"
+      context.fill()
+
+      context.beginPath()
+      path(geoGraticule10())
+      context.strokeStyle = "rgba(139, 113, 255, 0.13)"
+      context.lineWidth = 0.45
+      context.stroke()
+
+      context.beginPath()
+      path(countries)
+      context.fillStyle = "#c7a96b"
+      context.fill()
+      context.strokeStyle = "rgba(247, 224, 166, 0.34)"
+      context.lineWidth = 0.35
+      context.stroke()
+
+      frameId = requestAnimationFrame(draw)
+    }
+    frameId = requestAnimationFrame(draw)
 
     const updateFromPoint = (clientX: number, clientY: number) => {
       pointerX.set(Math.max(-1, Math.min(1, (clientX / window.innerWidth) * 2 - 1)))
@@ -65,12 +109,12 @@ export function LanguageGlobe() {
     window.addEventListener("deviceorientation", handleOrientation, { passive: true })
     window.addEventListener("blur", settle)
     return () => {
-      rotation.stop()
+      cancelAnimationFrame(frameId)
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("deviceorientation", handleOrientation)
       window.removeEventListener("blur", settle)
     }
-  }, [pointerX, pointerY, prefersReducedMotion, surfaceX])
+  }, [pointerX, pointerY, prefersReducedMotion, smoothY])
 
   return (
     <motion.div
@@ -131,49 +175,20 @@ export function LanguageGlobe() {
         </div>
       </div>
 
-      {/* The globe — a real axial spin via a seamless scrolling world map,
-          shaded into a sphere with a highlight, limb darkening and a gold rim. */}
+      {/* Geographic globe rendered from Natural Earth country geometry. Unlike a
+          sliding image, the orthographic projection reveals every longitude and
+          keeps continents correctly wrapped around the sphere. */}
       <div className="absolute inset-[14%] drop-shadow-[0_10px_36px_color-mix(in_oklch,var(--primary)_40%,transparent)]">
         <div className="relative h-full w-full overflow-hidden rounded-full bg-background">
-          {/* Rotating surface: two identical seamless equirectangular map tiles
-              sliding as one track. Each tile is a flat 2:1 world map; scrolling
-              them behind the circular clip + spherical shading reads as the
-              planet turning on its axis. */}
-          <motion.div className="flex h-full w-[400%] transform-gpu" style={{ x: surfaceTranslate }}>
-            <div className="relative h-full w-1/2 shrink-0">
-              <Image
-                src="/onboarding/globe-gold-equirect.png"
-                alt=""
-                fill
-                sizes="480px"
-                className="object-fill"
-                priority
-              />
-            </div>
-            {/* Identical twin so the loop wrap is invisible: the equirect map's
-                left & right edges connect seamlessly. */}
-            <div className="relative h-full w-1/2 shrink-0">
-              <Image
-                src="/onboarding/globe-gold-equirect.png"
-                alt=""
-                fill
-                sizes="480px"
-                className="object-fill"
-              />
-            </div>
-          </motion.div>
-
-          {/* Spherical shading: warm top-left highlight + edge limb darkening */}
+          <canvas ref={canvasRef} className="h-full w-full" />
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
             style={{
               background:
-                "radial-gradient(circle at 32% 26%, color-mix(in oklch, var(--primary) 34%, transparent) 0%, transparent 46%), radial-gradient(circle at 50% 50%, transparent 62%, rgba(0,0,0,0.28) 84%, rgba(0,0,0,0.62) 100%)",
+                "radial-gradient(circle at 32% 26%, color-mix(in oklch, var(--primary) 26%, transparent) 0%, transparent 48%), radial-gradient(circle at 50% 50%, transparent 68%, rgba(0,0,0,0.18) 86%, rgba(0,0,0,0.5) 100%)",
             }}
           />
         </div>
-
-        {/* Atmospheric gold rim */}
         <div className="pointer-events-none absolute inset-0 rounded-full border border-primary/40 shadow-[inset_0_0_26px_color-mix(in_oklch,var(--primary)_25%,transparent)]" />
       </div>
 
