@@ -27,6 +27,18 @@ export function LanguageGlobe() {
   const sceneX = useTransform(smoothX, [-1, 1], prefersReducedMotion ? [-1, 1] : [-7, 7])
   const sceneY = useTransform(smoothY, [-1, 1], prefersReducedMotion ? [-1, 1] : [-5, 5])
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const interactionRef = useRef({
+    longitude: 0,
+    latitude: -8,
+    velocityX: 0,
+    velocityY: 0,
+    dragging: false,
+    pointerId: -1,
+    lastX: 0,
+    lastY: 0,
+    lastTime: 0,
+    impulse: 0,
+  })
 
   const requestMotionPermission = () => {
     const orientationEvent = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
@@ -47,10 +59,24 @@ export function LanguageGlobe() {
     const sphere = { type: "Sphere" } as const
     const projection = geoOrthographic().clipAngle(90).precision(0.3)
     const path = geoPath(projection, context)
-    const startedAt = performance.now()
+    let previousFrame = performance.now()
     let frameId = 0
 
     const draw = (now: number) => {
+      const state = interactionRef.current
+      const deltaSeconds = Math.min((now - previousFrame) / 1000, 0.05)
+      previousFrame = now
+
+      if (!state.dragging) {
+        const friction = Math.pow(prefersReducedMotion ? 0.025 : 0.075, deltaSeconds)
+        state.velocityX *= friction
+        state.velocityY *= friction
+        state.impulse *= Math.pow(0.1, deltaSeconds)
+        const automaticSpeed = prefersReducedMotion ? 3.5 : 8
+        state.longitude += (automaticSpeed + state.velocityX + state.impulse) * deltaSeconds
+        state.latitude = Math.max(-68, Math.min(68, state.latitude + state.velocityY * deltaSeconds))
+      }
+
       const bounds = canvas.getBoundingClientRect()
       const size = Math.max(1, Math.round(Math.min(bounds.width, bounds.height)))
       const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
@@ -65,7 +91,7 @@ export function LanguageGlobe() {
       projection
         .translate([size / 2, size / 2])
         .scale(size * 0.49)
-        .rotate([((now - startedAt) / (prefersReducedMotion ? 300 : 140)) % 360, smoothY.get() * -5, 0])
+        .rotate([state.longitude, state.latitude, 0])
 
       context.beginPath()
       path(sphere)
@@ -91,10 +117,36 @@ export function LanguageGlobe() {
     frameId = requestAnimationFrame(draw)
 
     const updateFromPoint = (clientX: number, clientY: number) => {
-      pointerX.set(Math.max(-1, Math.min(1, (clientX / window.innerWidth) * 2 - 1)))
-      pointerY.set(Math.max(-1, Math.min(1, (clientY / window.innerHeight) * 2 - 1)))
+      const normalizedX = Math.max(-1, Math.min(1, (clientX / window.innerWidth) * 2 - 1))
+      const normalizedY = Math.max(-1, Math.min(1, (clientY / window.innerHeight) * 2 - 1))
+      pointerX.set(normalizedX * 1.35)
+      pointerY.set(normalizedY * 1.35)
     }
-    const handlePointerMove = (event: PointerEvent) => updateFromPoint(event.clientX, event.clientY)
+    const handlePointerMove = (event: PointerEvent) => {
+      updateFromPoint(event.clientX, event.clientY)
+      const state = interactionRef.current
+      if (!state.dragging || state.pointerId !== event.pointerId) return
+
+      const now = performance.now()
+      const elapsed = Math.max(8, now - state.lastTime)
+      const deltaX = event.clientX - state.lastX
+      const deltaY = event.clientY - state.lastY
+      const sensitivity = prefersReducedMotion ? 0.28 : 0.72
+      state.longitude += deltaX * sensitivity
+      state.latitude = Math.max(-68, Math.min(68, state.latitude - deltaY * sensitivity))
+      state.velocityX = Math.max(-720, Math.min(720, (deltaX / elapsed) * 1000 * sensitivity))
+      state.velocityY = Math.max(-420, Math.min(420, (-deltaY / elapsed) * 1000 * sensitivity))
+      state.lastX = event.clientX
+      state.lastY = event.clientY
+      state.lastTime = now
+    }
+    const handlePagePointerDown = (event: PointerEvent) => {
+      if (canvas.contains(event.target as Node)) return
+      const direction = event.clientX < window.innerWidth / 2 ? -1 : 1
+      const state = interactionRef.current
+      state.impulse = Math.max(-180, Math.min(180, state.impulse + direction * (prefersReducedMotion ? 18 : 48)))
+      state.velocityY += ((window.innerHeight / 2 - event.clientY) / window.innerHeight) * 42
+    }
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.gamma == null || event.beta == null) return
       pointerX.set(Math.max(-1, Math.min(1, event.gamma / 35)))
@@ -106,15 +158,39 @@ export function LanguageGlobe() {
     }
 
     window.addEventListener("pointermove", handlePointerMove, { passive: true })
+    window.addEventListener("pointerdown", handlePagePointerDown, { passive: true })
     window.addEventListener("deviceorientation", handleOrientation, { passive: true })
     window.addEventListener("blur", settle)
     return () => {
       cancelAnimationFrame(frameId)
       window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerdown", handlePagePointerDown)
       window.removeEventListener("deviceorientation", handleOrientation)
       window.removeEventListener("blur", settle)
     }
-  }, [pointerX, pointerY, prefersReducedMotion, smoothY])
+  }, [pointerX, pointerY, prefersReducedMotion])
+
+  const handleGlobePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    requestMotionPermission()
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const state = interactionRef.current
+    state.dragging = true
+    state.pointerId = event.pointerId
+    state.lastX = event.clientX
+    state.lastY = event.clientY
+    state.lastTime = performance.now()
+    state.velocityX = 0
+    state.velocityY = 0
+    state.impulse = 0
+  }
+
+  const handleGlobePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const state = interactionRef.current
+    if (state.pointerId !== event.pointerId) return
+    state.dragging = false
+    state.pointerId = -1
+  }
 
   return (
     <motion.div
@@ -180,7 +256,14 @@ export function LanguageGlobe() {
           keeps continents correctly wrapped around the sphere. */}
       <div className="absolute inset-[14%] drop-shadow-[0_10px_36px_color-mix(in_oklch,var(--primary)_40%,transparent)]">
         <div className="relative h-full w-full overflow-hidden rounded-full bg-background">
-          <canvas ref={canvasRef} className="h-full w-full" />
+          <canvas
+            ref={canvasRef}
+            className="h-full w-full cursor-grab touch-none active:cursor-grabbing"
+            onPointerDown={handleGlobePointerDown}
+            onPointerUp={handleGlobePointerUp}
+            onPointerCancel={handleGlobePointerUp}
+            onLostPointerCapture={handleGlobePointerUp}
+          />
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
             style={{
