@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import Image from "next/image"
 import { motion } from "motion/react"
 import { ChevronLeft, Headphones, Shield, Sparkles, Zap } from "lucide-react"
@@ -139,12 +139,13 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
         className="flex w-full shrink-0 items-stretch justify-center pb-[max(0.25rem,env(safe-area-inset-bottom))]"
       >
         {TRUST.map((b, i) => (
-          <div key={b.key} className="flex flex-1 items-center justify-center">
+          <Fragment key={b.key}>
+            {i > 0 && <span className="h-10 w-px shrink-0 self-center bg-border/50" aria-hidden />}
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 + i * 0.1, duration: 0.45 }}
-              className="flex flex-col items-center gap-1 px-2 text-center"
+              className="flex flex-1 flex-col items-center justify-center gap-1 px-2 text-center"
             >
               <span
                 className="animate-bubble flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 ring-1 ring-primary/20"
@@ -157,8 +158,7 @@ export function LanguageStep({ onContinue }: { onContinue: () => void }) {
                 <span className="text-[0.6rem] leading-tight text-muted-foreground">{b.en}</span>
               )}
             </motion.div>
-            {i < TRUST.length - 1 && <span className="h-10 w-px self-center bg-border/50" aria-hidden />}
-          </div>
+          </Fragment>
         ))}
       </motion.div>
     </div>
