@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "path": "lib/core/finance.ts",
+    "line": 415,
+    "text": "if (!req) throw new NotFoundError(\"��رخواست برداشت یافت نشد\")"
+  }
+]

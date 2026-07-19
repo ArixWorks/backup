@@ -1166,7 +1166,7 @@ model DepositRequest {
   paidClaimedAt DateTime? // set when user taps "I've paid"
 
   // Telegram Stars idempotency
-  starsPayload  String?
+  starsPayload  String? @unique
   starsChargeId String? @unique
 
   // User-supplied proof of a card-to-card / crypto transfer.

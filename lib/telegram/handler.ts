@@ -1178,7 +1178,9 @@ async function handleQuantityInput(
     orderTitle: `${product.title} ×${qty}`,
     total: price(c, locale, payable),
   })
-  const methods = await enabledPayMethods()
+  const methods = (await enabledPayMethods()).filter(
+    (method): method is "CARD" | "TON" | "STARS" => method === "CARD" || method === "TON" || method === "STARS",
+  )
   await sendMessage(chatId, `${html}${couponLine}`, {
     replyMarkup: orderPayKeyboard(c, productId, qty, methods, locale),
   })
@@ -1266,7 +1268,7 @@ function secLabels(locale: Locale): SecLabelBag {
       rewardsTitle: "Награды и задания", noMissions: "Нет активных заданий.", claim: "Получить", claimedOk: "Награда получена!", claimFail: "Недоступно",
       notifTitle: "Уведомления", notifEmpty: "Нет уведомлений.", allRead: "Всё прочитано",
       supportTitle: "Поддержка", supportEmpty: "Пока нет обращений.", subjectPrompt: "Введите тему обращения:", messagePrompt: "Введите сообщение:",
-      subjectShort: "Тема должна быть не короче 3 символов.", ticketCreated: "Обращение создано:", ticketReplied: "Ваш ответ отправлен.", ticketNotFound: "Обращение не найдено.",
+      subjectShort: "Тема должна быть не короче 3 символов.", ticketCreated: "Обращение создано:", ticketReplied: "Ваш ответ о��правлен.", ticketNotFound: "Обращение не найдено.",
       stOpen: "Открыт", stPending: "В ожидании", stClosed: "Закрыт",
       couponApplied: "Купон", couponOk: "Купон применён.", couponInvalid: "Купон недействителен.", couponNoProduct: "Сначала откройте товар.",
       bidPrompt: "Введите сумму ставки. Минимум:", bidInvalid: "Введите корректную сумму.", bidPlaced: "Ставка принята.", buyNowDone: "Куплено через «Купить сейчас»!",
@@ -1494,13 +1496,18 @@ async function handleReceiptPhoto(
   if (pending.kind !== "awaiting_deposit_receipt") return
   const best = photos[photos.length - 1]
   try {
+    const maxReceiptBytes = 5 * 1024 * 1024
+    if (best.file_size && best.file_size > maxReceiptBytes) throw new Error("حجم رسید نباید بیشتر از ۵ مگابایت باشد")
     const file = await getFile(best.file_id)
-    if (!file.file_path) throw new Error("file")
-    const buf = await downloadTelegramFile(file.file_path)
+    if (!file.file_path) throw new Error("فایل رسید معتبر نیست")
     const ext = (file.file_path.split(".").pop() || "jpg").toLowerCase()
+    const allowedTypes: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" }
+    if (!allowedTypes[ext]) throw new Error("فرمت رسید باید JPG، PNG یا WebP باشد")
+    const buf = await downloadTelegramFile(file.file_path)
+    if (buf.byteLength > maxReceiptBytes) throw new Error("حجم رسید نباید بیشتر از ۵ مگابایت باشد")
     const blob = await put(`receipts/${pending.depositId}-${Date.now()}.${ext}`, buf, {
       access: "public",
-      contentType: "image/jpeg",
+      contentType: allowedTypes[ext],
     })
     await claimDepositPaid(pending.depositId, user.id, blob.url)
     await clearPending(chatId)
@@ -1823,13 +1830,48 @@ async function handleCallback(cb: TgCallback) {
     const qty = Number(qtyStr) || 1
     await answerCallbackQuery(cb.id)
     const draft = await getOrderDraft(chatId)
-    const couponCode = draft?.couponCode
+    if (!draft || draft.productId !== productId || draft.qty !== qty) {
+      await sendMessage(chatId, `${emo(c, "cross")} ${esc("درخواست خرید معتبر نیست؛ محصول را دوباره انتخاب کنید.")}`)
+      return
+    }
+    const couponCode = draft.couponCode
     if (method === "WALLET") {
       await completeWalletPurchase(chatId, user, locale, productId, qty, couponCode)
-    } else {
-      const { html } = t(c, locale, "paymentComingSoon")
-      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+      return
     }
+    if (method !== "CARD" && method !== "TON" && method !== "STARS") {
+      await sendMessage(chatId, `${emo(c, "cross")} ${esc(secLabels(locale).methodUnavailable)}`)
+      return
+    }
+    const enabled = await enabledPayMethods()
+    if (!enabled.includes(method)) {
+      await sendMessage(chatId, `${emo(c, "cross")} ${esc(secLabels(locale).methodUnavailable)}`)
+      return
+    }
+    const product = await getFlashProduct(productId)
+    if (!product || product.stock < qty) {
+      const { html } = t(c, locale, "flashEmpty")
+      await sendMessage(chatId, html, { replyMarkup: mainMenu(c, locale) })
+      return
+    }
+    const { totalPrice } = priceFor(product, qty)
+    let payable = totalPrice
+    if (couponCode) {
+      try {
+        payable = (await evaluateCoupon(prisma, couponCode, totalPrice, user.id)).preview.finalTotal
+      } catch {
+        // The final purchase revalidates pricing and coupon eligibility.
+      }
+    }
+    const balance = (await getBalances(user.id)).availableBalance
+    const shortfall = payable > balance ? payable - balance : 0n
+    if (shortfall === 0n) {
+      await sendMessage(chatId, "موجودی شما کافی است؛ برای تأیید خرید، دکمه «پرداخت با کیف پول» را بزنید.", {
+        replyMarkup: orderPayKeyboard(c, productId, qty, [], locale),
+      })
+      return
+    }
+    await startDepositForMethod(chatId, user, locale, method, shortfall)
     return
   }
 
@@ -2127,21 +2169,36 @@ async function setLanguage(chatId: number, user: User, messageId: number | undef
 
 /** Approve a Stars pre-checkout (we already reserved the deposit on invoice). */
 async function handlePreCheckout(q: TgPreCheckout) {
-  // Only accept payloads we actually issued; otherwise decline cleanly.
-  const exists = await prisma.depositRequest.findFirst({
+  // Match every immutable invoice field; callback payload alone is never trusted.
+  const deposit = await prisma.depositRequest.findFirst({
     where: { starsPayload: q.invoice_payload, method: "STARS" },
-    select: { id: true },
+    include: { user: { select: { telegramId: true } } },
   })
-  await answerPreCheckoutQuery(q.id, !!exists, "این فاکتور معتبر نیست").catch(() => {})
+  const valid = Boolean(
+    deposit &&
+      deposit.status === "PENDING" &&
+      !deposit.starsChargeId &&
+      deposit.user.telegramId === String(q.from.id) &&
+      deposit.payCurrency === "XTR" &&
+      deposit.payAmount === BigInt(q.total_amount) &&
+      q.currency === "XTR",
+  )
+  await answerPreCheckoutQuery(q.id, valid, "این فاکتور معتبر نیست یا قبلاً پرداخت شده است").catch(() => {})
 }
 
 /** Credit the wallet once Telegram confirms the Stars payment succeeded. */
 async function handleSuccessfulPayment(msg: TgMessage) {
   const sp = msg.successful_payment
-  if (!sp) return
+  if (!sp || !msg.from) return
   try {
-    await approveStarsDeposit(sp.invoice_payload, sp.telegram_payment_charge_id)
-    await sendMessage(msg.chat.id, "✅ پرداخت با استارز با موفقیت انجام شد و موجودی کیف پول شما افزایش یافت.")
+    await approveStarsDeposit({
+      payload: sp.invoice_payload,
+      chargeId: sp.telegram_payment_charge_id,
+      telegramId: String(msg.from.id),
+      currency: sp.currency,
+      totalAmount: BigInt(sp.total_amount),
+    })
+    await sendMessage(msg.chat.id, "✅ پرداخت با استارز تأیید شد. برای انجام خرید، دوباره دکمه «پرداخت با کیف پول» را بزنید.")
   } catch (e) {
     console.log("[v0] stars payment credit error:", (e as Error).message)
   }

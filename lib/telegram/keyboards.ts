@@ -198,14 +198,14 @@ export function orderPayKeyboard(
   cfg: BotConfig,
   productId: string,
   qty: number,
-  methods: ("CARD" | "TON" | "USDT" | "STARS")[],
+  methods: ("CARD" | "TON" | "STARS")[],
   locale: Locale = DEFAULT_LOCALE,
 ) {
   const rows: InlineKeyboard = [
     [styledButton(cfg, "payWallet", { callback_data: `opay:WALLET:${productId}:${qty}` }, locale)],
   ]
   if (cfg.features.perOrderPay) {
-    const map: Record<string, string> = { CARD: "depCard", TON: "depTon", USDT: "depUsdt", STARS: "depStars" }
+    const map: Record<string, string> = { CARD: "depCard", TON: "depTon", STARS: "depStars" }
     for (const m of methods) {
       rows.push([styledButton(cfg, map[m], { callback_data: `opay:${m}:${productId}:${qty}` }, locale)])
     }

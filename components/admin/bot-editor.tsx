@@ -66,13 +66,6 @@ const LOCALE_OPTIONS: { value: BotConfig["defaultLocale"]; label: string }[] = [
   { value: "hi", label: "हिन्दी (USD)" },
 ]
 
-const GATEWAY_OPTIONS: { key: keyof BotConfig["gateways"]; label: string; locked: boolean }[] = [
-  { key: "wallet", label: "کیف پول (فعال)", locked: false },
-  { key: "binancePay", label: "Binance Pay (به‌زودی)", locked: true },
-  { key: "usdt", label: "USDT (به‌زودی)", locked: true },
-  { key: "cryptoBot", label: "CryptoBot (به‌زودی)", locked: true },
-]
-
 /** Maps to Telegram's fixed button palette (Bot API 9.4 `style`). */
 const COLOR_OPTIONS: { value: ButtonStyle | "default"; label: string; swatch: string }[] = [
   { value: "default", label: "پیش‌فرض", swatch: "bg-muted-foreground/40" },
@@ -640,49 +633,14 @@ export function BotEditor() {
             </Button>
           </Card>
 
-          <Card className="space-y-3 p-5">
-            <h3 className="font-semibold">روش‌های پرداخت</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              فعلاً فقط کیف پول فعال است. سایر درگاه‌ها به اتصال واقعی API و کلید نیاز دارند و به‌صورت «به‌زودی» نمایش داده می‌شوند.
+          <Card className="flex flex-col gap-3 p-5">
+            <h3 className="font-semibold">روش‌های پرداخت خرید</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              خرید ابتدا از کیف پول انجام می‌شود. در صورت کمبود موجودی، فقط کارت‌به‌کارت، TON و Telegram Stars فعال نمایش داده می‌شوند.
             </p>
-            <div className="grid gap-2">
-              {GATEWAY_OPTIONS.map((g) => {
-                const enabled = config.gateways?.[g.key] ?? false
-                return (
-                  <button
-                    key={g.key}
-                    type="button"
-                    disabled={g.locked}
-                    onClick={() =>
-                      update((c) => ({
-                        ...c,
-                        gateways: { ...c.gateways, [g.key]: !c.gateways[g.key] },
-                      }))
-                    }
-                    className={cn(
-                      "flex items-center justify-between gap-3 rounded-xl border p-3 text-right transition-colors",
-                      enabled ? "border-primary/40 bg-primary/5" : "border-border bg-secondary/30",
-                      g.locked && "cursor-not-allowed opacity-60",
-                    )}
-                  >
-                    <span className="text-sm font-medium">{g.label}</span>
-                    <span
-                      className={cn(
-                        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                        enabled ? "bg-primary" : "bg-muted",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "absolute top-0.5 h-5 w-5 rounded-full bg-background transition-all",
-                          enabled ? "left-0.5" : "right-0.5",
-                        )}
-                      />
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            <p className="rounded-xl border border-border bg-secondary/30 p-3 text-xs leading-relaxed text-muted-foreground">
+              فعال‌سازی و اطلاعات مقصد این روش‌ها از بخش تنظیمات کیف پول و پرداخت مدیریت می‌شود.
+            </p>
           </Card>
         </TabsContent>
 

@@ -175,6 +175,11 @@ export async function claimDepositPaid(
   if (req.status !== "AWAITING_PAYMENT" && req.status !== "PENDING") {
     throw new ConflictError("این درخواست قابل ویرایش نیست")
   }
+  if (req.method === "STARS") throw new ConflictError("پرداخت استارز فقط توسط تلگرام تأیید می‌شود")
+  if (req.expiresAt && req.expiresAt <= new Date()) throw new ConflictError("مهلت این درخواست پرداخت تمام شده است")
+  const paymentConfig = await getPaymentConfig()
+  const configuredMethod = paymentConfig.methods.find((item) => item.method === req.method)
+  if (!configuredMethod?.enabled) throw new ConflictError("این روش پرداخت دیگر فعال نیست")
   // A receipt upload before the final confirm keeps the request as a draft.
   const submitting = confirmPaid && req.status === "AWAITING_PAYMENT"
   const updated = await prisma.depositRequest.update({
@@ -210,19 +215,43 @@ export async function claimDepositPaid(
  * Credit a Telegram Stars deposit when `successful_payment` arrives. Idempotent
  * on the Telegram charge id so repeated webhooks never double-credit.
  */
-export async function approveStarsDeposit(payload: string, chargeId: string) {
+export async function approveStarsDeposit(input: {
+  payload: string
+  chargeId: string
+  telegramId: string
+  currency: string
+  totalAmount: bigint
+}) {
+  if (input.currency !== "XTR") throw new ValidationError("ارز پرداخت استارز معتبر نیست")
   const { updated, credited } = await serializableTx(async (tx) => {
-    const req = await tx.depositRequest.findFirst({ where: { starsPayload: payload, method: "STARS" } })
+    const req = await tx.depositRequest.findFirst({
+      where: { starsPayload: input.payload, method: "STARS" },
+      include: { user: { select: { telegramId: true } } },
+    })
     if (!req) throw new NotFoundError("درخواست واریز یافت نشد")
-    if (req.starsChargeId || req.status === "APPROVED") return { updated: req, credited: false }
+    if (req.user.telegramId !== input.telegramId) throw new ValidationError("مالک پرداخت با درخواست مطابقت ندارد")
+    if (req.payCurrency !== "XTR" || req.payAmount !== input.totalAmount) {
+      throw new ValidationError("مبلغ پرداخت با فاکتور مطابقت ندارد")
+    }
+    if (req.status !== "PENDING") {
+      if (req.status === "APPROVED" && req.starsChargeId === input.chargeId) return { updated: req, credited: false }
+      throw new ConflictError("این فاکتور دیگر قابل پرداخت نیست")
+    }
+    if (req.starsChargeId) throw new ConflictError("این پرداخت قبلاً ثبت شده است")
 
     await ensureWallet(req.userId, tx)
     await deposit(req.userId, req.amount, tx, { type: "deposit", id: req.id })
     const updated = await tx.depositRequest.update({
       where: { id: req.id },
-      data: { status: "APPROVED", starsChargeId: chargeId, reviewedAt: new Date() },
+      data: { status: "APPROVED", starsChargeId: input.chargeId, reviewedAt: new Date() },
     })
-    await audit({ actorId: req.userId, action: "deposit.stars.approve", entity: "deposit", entityId: req.id, meta: { chargeId } }, tx)
+    await audit({
+      actorId: req.userId,
+      action: "deposit.stars.approve",
+      entity: "deposit",
+      entityId: req.id,
+      meta: { chargeId: input.chargeId, totalAmount: input.totalAmount.toString(), currency: input.currency },
+    }, tx)
     return { updated, credited: true }
   })
   if (credited) {
@@ -244,6 +273,9 @@ export async function approveDeposit(depositId: string, adminId: string) {
     const req = await tx.depositRequest.findUnique({ where: { id: depositId } })
     if (!req) throw new NotFoundError("درخواست واریز یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")
+    if (req.method === "STARS") throw new ConflictError("پرداخت استارز قابل تأیید دستی نیست")
+    if (req.expiresAt && req.expiresAt <= new Date()) throw new ConflictError("مهلت این درخواست پرداخت تمام شده است")
+    if (!req.paidClaimedAt) throw new ConflictError("کاربر هنوز پرداخت را اعلام نکرده است")
 
     await ensureWallet(req.userId, tx)
     await deposit(req.userId, req.amount, tx, { type: "deposit", id: req.id })
@@ -380,7 +412,7 @@ export async function approveWithdrawal(withdrawalId: string, adminId: string) {
 export async function rejectWithdrawal(withdrawalId: string, adminId: string, reason?: string) {
   return prisma.$transaction(async (tx) => {
     const req = await tx.withdrawalRequest.findUnique({ where: { id: withdrawalId } })
-    if (!req) throw new NotFoundError("درخواست برداشت یافت نشد")
+    if (!req) throw new NotFoundError("��رخواست برداشت یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")
     await unfreeze(req.userId, req.amount, tx, { type: "withdrawal", id: req.id })
     const updated = await tx.withdrawalRequest.update({
