@@ -2,11 +2,12 @@ import "server-only"
 import { prisma } from "@/lib/db"
 import { sendEmail } from "@/lib/email/send"
 import { botConfigured, sendMessage } from "@/lib/telegram/api"
+import { DEFAULT_ADMIN_TELEGRAM_IDS } from "@/lib/telegram/user"
 import { emitOps } from "@/lib/core/events"
 
 /**
- * Multi-channel alert dispatch: Telegram (all admins), Email (OPS_ALERT_EMAILS)
- * and the dashboard realtime stream. Each channel is best-effort and isolated
+ * Multi-channel alert dispatch: Telegram (primary owner private chat only),
+ * Email (OPS_ALERT_EMAILS), and the dashboard realtime stream. Each channel is best-effort and isolated
  * so one failing transport never blocks the others.
  */
 
@@ -55,17 +56,18 @@ function formatNum(n: number): string {
 async function dispatchTelegram(p: DispatchPayload) {
   if (!botConfigured()) return
   try {
-    const admins = await prisma.user.findMany({
-      where: { role: "ADMIN", OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
-      select: { telegramChatId: true, telegramId: true },
+    const ownerTelegramId = DEFAULT_ADMIN_TELEGRAM_IDS[0]
+    const owner = await prisma.user.findUnique({
+      where: { telegramId: ownerTelegramId },
+      select: { telegramId: true },
     })
-    const html = formatTelegram(p)
-    await Promise.all(
-      admins.map((a) => {
-        const chatId = a.telegramChatId ?? a.telegramId
-        return chatId ? sendMessage(chatId, html).catch(() => {}) : Promise.resolve()
-      }),
-    )
+
+    // System alerts are private owner messages only. Never trust
+    // telegramChatId here because Telegram group updates can overwrite it.
+    const privateChatId = owner?.telegramId ?? ownerTelegramId
+    if (!/^\d+$/.test(privateChatId) || Number(privateChatId) <= 0) return
+
+    await sendMessage(privateChatId, formatTelegram(p))
   } catch (e) {
     console.log("[v0] dispatchTelegram error:", (e as Error).message)
   }
