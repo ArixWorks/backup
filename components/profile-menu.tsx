@@ -23,6 +23,7 @@ import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import { fetcher } from "@/lib/api-client"
 import { isNotifMuted, setNotifMuted, playNotificationChime, primeAudio } from "@/lib/notification-sound"
+import { useMotion } from "@/components/motion-provider"
 import { cn } from "@/lib/utils"
 
 function initials(name: string): string {
@@ -55,6 +56,7 @@ interface NotifResponse {
 export function ProfileMenu() {
   const { user, logout } = useSession()
   const { t } = useI18n()
+  const { tier, reducedMotion } = useMotion()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -130,40 +132,97 @@ export function ProfileMenu() {
           {/* grab handle */}
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/30" />
 
-          {/* identity */}
-          <div className="mb-4 flex items-center gap-3">
-            <Avatar className="h-12 w-12 border border-primary/30">
-              {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
-              <AvatarFallback className="bg-primary/15 font-bold text-primary">
-                {initials(user.displayName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-bold text-foreground">{user.displayName}</div>
-              {user.telegramUsername ? (
-                <div className="truncate text-xs text-muted-foreground" dir="ltr">
-                  @{user.telegramUsername}
-                </div>
-              ) : user.email ? (
-                <div className="truncate text-xs text-muted-foreground" dir="ltr">
-                  {user.email}
-                </div>
-              ) : null}
+          {/* Premium identity card. Name direction follows the name itself,
+              while account identifiers stay LTR for predictable reading. */}
+          <section
+            aria-label={user.displayName}
+            className={cn(
+              "card-premium group relative mb-4 overflow-hidden rounded-3xl border border-primary/20 p-3.5",
+              "transition-[border-color,box-shadow,transform] duration-300 ease-out hover:border-primary/35 hover:shadow-[var(--shadow-accent)]",
+              !reducedMotion && tier !== "minimal" && "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-2",
+            )}
+            data-state={open ? "open" : "closed"}
+          >
+            <div
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute -end-10 -top-14 h-36 w-36 rounded-full bg-primary/10 blur-3xl transition-transform duration-700 ease-out group-hover:scale-125",
+                (reducedMotion || tier === "minimal") && "transition-none",
+              )}
+            />
+
+            <div className="relative z-[1] flex min-w-0 items-center gap-3.5">
+              <div
+                className={cn(
+                  "relative shrink-0 rounded-full p-0.5 ring-1 ring-primary/40",
+                  "shadow-[0_8px_24px_-12px_var(--primary)] transition-[transform,box-shadow] duration-300 ease-out group-hover:scale-[1.035] group-hover:shadow-[0_10px_28px_-10px_var(--primary)]",
+                  (reducedMotion || tier === "minimal") && "transition-none group-hover:scale-100",
+                )}
+              >
+                <Avatar className="h-16 w-16 border-2 border-card bg-card sm:h-[4.5rem] sm:w-[4.5rem]">
+                  {user.photoUrl && (
+                    <AvatarImage
+                      src={user.photoUrl || "/placeholder.svg"}
+                      alt={user.displayName}
+                      className={cn(
+                        "object-cover transition-transform duration-500 ease-out group-hover:scale-105",
+                        (reducedMotion || tier === "minimal") && "transition-none group-hover:scale-100",
+                      )}
+                    />
+                  )}
+                  <AvatarFallback className="bg-primary/15 text-lg font-extrabold text-primary">
+                    {initials(user.displayName)}
+                  </AvatarFallback>
+                </Avatar>
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute bottom-1 end-1 h-3.5 w-3.5 rounded-full border-[3px] border-card bg-primary shadow-[0_0_12px_var(--primary)]",
+                    !reducedMotion && tier === "cinematic" && "animate-pulse",
+                  )}
+                />
+              </div>
+
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <bdi
+                  dir="auto"
+                  className="block w-full truncate text-start text-lg font-extrabold leading-7 text-foreground sm:text-xl"
+                  title={user.displayName}
+                >
+                  {user.displayName}
+                </bdi>
+                {user.telegramUsername ? (
+                  <div className="mt-0.5 truncate text-start text-xs font-medium text-muted-foreground" dir="ltr">
+                    @{user.telegramUsername}
+                  </div>
+                ) : user.email ? (
+                  <div className="mt-0.5 truncate text-start text-xs font-medium text-muted-foreground" dir="ltr">
+                    {user.email}
+                  </div>
+                ) : null}
+              </div>
             </div>
-            {/* preferences: sound toggle + language */}
-            <div className="flex shrink-0 items-center gap-1.5">
+
+            <div className="relative z-[2] mt-3 flex items-center justify-end gap-2 border-t border-border/70 pt-3">
               <button
                 type="button"
                 onClick={toggleMute}
                 aria-label={muted ? t("menu.unmuteAria") : t("menu.muteAria")}
                 title={muted ? t("menu.mutedTitle") : t("menu.unmutedTitle")}
-                className="active:scale-press flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary/50 text-muted-foreground transition-colors hover:text-foreground"
+                className={cn(
+                  "active:scale-press flex h-11 w-11 items-center justify-center rounded-full border bg-background/70 transition-[color,border-color,background-color,transform] duration-200",
+                  muted
+                    ? "border-border text-muted-foreground hover:border-primary/35 hover:text-foreground"
+                    : "border-primary/30 bg-primary/10 text-primary hover:border-primary/55 hover:bg-primary/15",
+                )}
               >
                 {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </button>
-              <LanguageSwitcher />
+              <div className="[&_button]:h-11 [&_button]:w-11 [&_button]:bg-background/70 [&_button]:hover:border-primary/45 [&_button]:hover:text-primary">
+                <LanguageSwitcher />
+              </div>
             </div>
-          </div>
+          </section>
 
           {/* quick links */}
           <nav className="flex flex-col gap-1.5">
