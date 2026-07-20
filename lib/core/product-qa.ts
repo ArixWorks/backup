@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db"
 import { audit } from "@/lib/core/audit"
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { createNotification } from "@/lib/core/notifications"
-import { enqueueTranslations } from "@/lib/i18n/content-translation"
+import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
 
 const URL_OR_CONTACT = /(?:https?:\/\/|www\.|t\.me\/|@[a-z0-9_]{4,}|\b\d{8,}\b)/iu
 const REPEATED = /(.)\1{7,}/u
@@ -48,7 +48,7 @@ function validateQuestion(body: string) {
   return questionInputSchema.parse({ body: normalized }).body
 }
 
-export async function listPublicQuestions(productId: string, visitor?: string) {
+export async function listPublicQuestions(productId: string, visitor?: string, locale = "fa") {
   const hash = visitor ? visitorHash(visitor) : null
   const items = await prisma.productQuestion.findMany({
     where: {
@@ -80,7 +80,30 @@ export async function listPublicQuestions(productId: string, visitor?: string) {
       },
     },
   })
-  return { items }
+  const localizedItems = await Promise.all(
+    items.map(async (item) => {
+      const localizedQuestion = await getLocalizedData({
+        entityType: "product-question",
+        entityId: item.id,
+        locale,
+        fallback: { body: item.body },
+      })
+      const answers = await Promise.all(
+        item.answers.map(async (answer) => ({
+          ...answer,
+          ...(await getLocalizedData({
+            entityType: "product-answer",
+            entityId: answer.id,
+            locale,
+            fallback: { body: answer.body },
+          })),
+          translatedByAi: locale !== "fa",
+        })),
+      )
+      return { ...item, ...localizedQuestion, answers, translatedByAi: locale !== "fa" }
+    }),
+  )
+  return { items: localizedItems }
 }
 
 export async function createQuestion(input: {

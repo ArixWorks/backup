@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useI18n } from "@/components/i18n-provider"
 
 type Question = {
   id: string
@@ -26,9 +27,10 @@ type Question = {
 type Response = { data: { items: Question[] } }
 
 export function ProductQuestions({ productId }: { productId: string }) {
+  const { locale, dir } = useI18n()
   const [body, setBody] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const { data, isLoading, mutate } = useSWR<Response>(`/api/v1/products/${productId}/questions`, fetcher, {
+  const { data, isLoading, mutate } = useSWR<Response>(`/api/v1/products/${productId}/questions?locale=${locale}`, fetcher, {
     refreshInterval: 20_000,
   })
   const items = data?.data.items ?? []
@@ -54,7 +56,7 @@ export function ProductQuestions({ productId }: { productId: string }) {
   }
 
   return (
-    <Card className="overflow-hidden py-0" dir="rtl">
+    <Card className="overflow-hidden py-0" dir={dir}>
       <CardHeader className="border-b border-border bg-secondary/30 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">

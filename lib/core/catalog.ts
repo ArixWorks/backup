@@ -7,6 +7,7 @@ import { smartBuyNowPrice, incrementForPrice, nextMinimumBid } from "./auction/p
 import { isTerminalStatus } from "./auction/lifecycle"
 import { computeReserveDisplay } from "./auction/reserve"
 import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
+import { getLocalizedData } from "@/lib/i18n/content-translation"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -14,6 +15,23 @@ export interface FlashFilters {
   search?: string
   category?: string
   sort?: FlashSort
+  locale?: string
+}
+
+async function localizedProduct<T extends { id: string; title: string; description: string | null; category: string | null; tags: string[]; links: unknown }>(product: T, locale = "fa") {
+  const localized = await getLocalizedData({
+    entityType: "product",
+    entityId: product.id,
+    locale,
+    fallback: {
+      title: product.title,
+      description: product.description,
+      category: product.category,
+      tags: product.tags,
+      links: product.links,
+    },
+  })
+  return { ...product, ...localized }
 }
 
 function flashOrderBy(sort?: FlashSort): Prisma.ProductOrderByWithRelationInput {
@@ -52,7 +70,8 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     include: { fixedSale: true },
     orderBy: flashOrderBy(filters.sort),
   })
-  return products.map(summarizeFlash)
+  const localized = await Promise.all(products.map((product) => localizedProduct(product, filters.locale)))
+  return localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
 }
 
 /**
@@ -151,7 +170,7 @@ export async function getFlashProduct(productId: string): Promise<FlashSaleSumma
  * image gallery, tags, and a per-unit discounted price preview for bulk buys.
  * Accepts either the product id or the unguessable slug.
  */
-export async function getFlashDetail(idOrSlug: string) {
+export async function getFlashDetail(idOrSlug: string, locale = "fa") {
   const p = await prisma.product.findFirst({
     where: {
       OR: [{ id: idOrSlug }, { slug: idOrSlug }],
@@ -166,7 +185,8 @@ export async function getFlashDetail(idOrSlug: string) {
   })
   if (!p || !p.fixedSale) return null
 
-  const summary = summarizeFlash(p as unknown as FlashProductRow)
+  const translatedProduct = await localizedProduct(p, locale)
+  const summary = summarizeFlash(translatedProduct as unknown as FlashProductRow)
 
   // Public sale plans: expose available (non-reserved) stock only, never the
   // reserved holds. Prices stay BigInt and are serialized to strings upstream.
@@ -210,7 +230,7 @@ export async function getFlashDetail(idOrSlug: string) {
 
 export type FlashSaleDetail = NonNullable<Awaited<ReturnType<typeof getFlashDetail>>>
 
-export async function listAuctions() {
+export async function listAuctions(locale = "fa") {
   const auctions = await prisma.auction.findMany({
     where: { product: { active: true, hidden: false } },
     include: { product: true, _count: { select: { bids: true } } },
@@ -219,7 +239,10 @@ export async function listAuctions() {
   // Load the global policy once and resolve per-auction overrides, so smart
   // Buy Now pricing is consistent with what the engine enforces on purchase.
   const globalPolicy = await getGlobalAuctionPolicy()
-  return auctions.map((a) => summarizeAuction(a, resolveAuctionPolicy(globalPolicy, a.policyJson)))
+  const localized = await Promise.all(
+    auctions.map(async (auction) => ({ ...auction, product: await localizedProduct(auction.product, locale) })),
+  )
+  return localized.map((a) => summarizeAuction(a, resolveAuctionPolicy(globalPolicy, a.policyJson)))
 }
 
 type AuctionSummaryInput = {
@@ -327,7 +350,7 @@ export function summarizeForWatchlist(a: AuctionSummaryInput, policy?: AuctionPo
 }
 
 /** Auction detail including (aliased) bid history. Lazily finalizes if ended. */
-export async function getAuctionDetail(auctionId: string) {
+export async function getAuctionDetail(auctionId: string, locale = "fa") {
   let auction = await prisma.auction.findUnique({
     where: { id: auctionId },
     include: { product: true, _count: { select: { bids: true } } },
@@ -391,8 +414,10 @@ export async function getAuctionDetail(auctionId: string) {
     if (w) winner = { alias: w.alias, name: w.displayName || w.alias, photoUrl: w.photoUrl }
   }
 
+  const translatedProduct = await localizedProduct(auction.product, locale)
+
   return {
-    ...summarizeAuction(auction, policy),
+    ...summarizeAuction({ ...auction, product: translatedProduct }, policy),
     finalizedAt: auction.finalizedAt,
     winner,
     bids: bids.map((b) => ({

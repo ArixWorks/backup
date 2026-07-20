@@ -25,9 +25,10 @@ async function visitorToken(create = false) {
   return token
 }
 
-export const GET = route(async (_req: Request, context: { params: Promise<{ productId: string }> }) => {
+export const GET = route(async (req: Request, context: { params: Promise<{ productId: string }> }) => {
   const { productId } = await context.params
-  return listPublicQuestions(productId, (await visitorToken()) ?? undefined)
+  const locale = new URL(req.url).searchParams.get("locale") ?? "fa"
+  return listPublicQuestions(productId, (await visitorToken()) ?? undefined, locale)
 })
 
 export const POST = route(async (req: Request, context: { params: Promise<{ productId: string }> }) => {

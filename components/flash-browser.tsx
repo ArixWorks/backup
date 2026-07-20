@@ -25,7 +25,7 @@ type Category = { category: string; count: number }
 type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
 export function FlashBrowser() {
-  const { t, num } = useI18n()
+  const { t, num, locale } = useI18n()
   const [rawSearch, setRawSearch] = useState("")
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<string>("")
@@ -48,9 +48,10 @@ export function FlashBrowser() {
     if (search) sp.set("search", search)
     if (category) sp.set("category", category)
     if (sort !== "newest") sp.set("sort", sort)
+    sp.set("locale", locale)
     const qs = sp.toString()
-    return qs ? `?${qs}` : ""
-  }, [search, category, sort])
+    return `?${qs}`
+  }, [search, category, sort, locale])
 
   const { data, isLoading, mutate } = useSWR<{ data: FlashSale[] }>(
     `/api/v1/flash-sales${query}`,

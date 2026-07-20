@@ -4,9 +4,10 @@ import { NotFoundError } from "@/lib/core/errors"
 
 export const dynamic = "force-dynamic"
 
-export const GET = route(async (_req: Request, ctx: { params: Promise<{ productId: string }> }) => {
+export const GET = route(async (req: Request, ctx: { params: Promise<{ productId: string }> }) => {
   const { productId } = await ctx.params
-  const detail = await getFlashDetail(productId)
+  const locale = new URL(req.url).searchParams.get("locale") ?? "fa"
+  const detail = await getFlashDetail(productId, locale)
   if (!detail) throw new NotFoundError("Product not found")
   return detail
 })

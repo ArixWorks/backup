@@ -142,10 +142,11 @@ export const POST = route(async (req: Request) => {
 
   // Drain a small translation batch on every tick. Jobs are idempotent, retry
   // with exponential backoff, and never block unrelated lifecycle work.
-  let translations: { processed: number; pending: number } = { processed: 0, pending: 0 }
+  let translations: { processed: number; pending: number; queued: number } = { processed: 0, pending: 0, queued: 0 }
   try {
-    const { processTranslationQueue } = await import("@/lib/i18n/content-translation")
-    translations = await processTranslationQueue(4)
+    const { enqueueTranslationBackfill, processTranslationQueue } = await import("@/lib/i18n/content-translation")
+    const backfill = await enqueueTranslationBackfill(12)
+    translations = { ...(await processTranslationQueue(4)), queued: backfill.queued }
   } catch (e) {
     console.log("[v0] translation queue error:", (e as Error).message)
   }

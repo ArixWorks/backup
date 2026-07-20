@@ -9,5 +9,6 @@ export const GET = route(async (req: Request) => {
     search: searchParams.get("search") ?? undefined,
     category: searchParams.get("category") ?? undefined,
     sort: (searchParams.get("sort") as FlashSort | null) ?? undefined,
+    locale: searchParams.get("locale") ?? "fa",
   })
 })

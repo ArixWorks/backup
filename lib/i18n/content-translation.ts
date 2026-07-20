@@ -208,6 +208,43 @@ export async function processTranslationQueue(limit = 4) {
   return { processed, pending }
 }
 
+export async function enqueueTranslationBackfill(limit = 12) {
+  let queued = 0
+  const products = await prisma.product.findMany({
+    where: { active: true, hidden: false },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: { id: true, title: true, description: true, category: true, tags: true, links: true },
+  })
+  for (const product of products) {
+    const hash = sourceHash({
+      title: product.title,
+      description: product.description,
+      category: product.category,
+      tags: product.tags,
+      links: product.links,
+    })
+    const existing = await prisma.contentTranslation.count({
+      where: { entityType: "product", entityId: product.id, sourceHash: hash },
+    })
+    if (existing < TARGET_LOCALES.length) {
+      await enqueueTranslations({
+        entityType: "product",
+        entityId: product.id,
+        sourceData: {
+          title: product.title,
+          description: product.description,
+          category: product.category,
+          tags: product.tags,
+          links: product.links,
+        },
+      })
+      queued += 1
+    }
+  }
+  return { queued }
+}
+
 export async function getLocalizedData<T extends LocalizableData>(input: {
   entityType: string
   entityId: string
