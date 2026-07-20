@@ -58,7 +58,7 @@ type NavItem = {
   label: string
   icon: typeof LayoutDashboard
   exact?: boolean
-  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops"
+  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions"
 }
 
 type NavGroup = { title: string; items: NavItem[] }
@@ -105,7 +105,7 @@ const navGroups: NavGroup[] = [
     title: "هوش مصنوعی",
     items: [
       { href: "/admin/ai", label: "دستیار هوشمند", icon: Sparkles, exact: true },
-      { href: "/admin/ai/questions", label: "پرسش‌های محصول", icon: CircleHelp },
+      { href: "/admin/ai/questions", label: "پرسش‌های محصول", icon: CircleHelp, badge: "questions" },
       { href: "/admin/ai/copilot", label: "کوپایلت فرم‌ها", icon: Bot },
       { href: "/admin/ai/knowledge", label: "پایگاه دانش", icon: BookOpen },
       { href: "/admin/ai/automations", label: "اتوماسیون هوشمند", icon: Workflow },
@@ -151,12 +151,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   )
   const firingAlerts = opsData?.data?.firing ?? 0
 
+  const { data: questionData } = useSWR<{ data: { pending: number } }>(
+    isAdmin ? "/api/v1/admin/ai/questions?summary=1" : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  )
+  const pendingQuestions = questionData?.data?.pending ?? 0
+
   const activeItem =
     items.find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href))) ?? items[0]
 
   function badgeCount(key?: string) {
     if (!key) return 0
     if (key === "ops") return firingAlerts
+    if (key === "questions") return pendingQuestions
     if (!stats) return 0
     if (key === "deposits") return stats.pendingDeposits
     if (key === "withdrawals") return stats.pendingWithdrawals

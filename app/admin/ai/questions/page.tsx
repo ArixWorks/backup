@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import useSWR from "swr"
+import useSWR, { mutate as mutateCache } from "swr"
 import { Bot, Check, CircleHelp, Clock3, EyeOff, Search, ShieldCheck, X } from "lucide-react"
 import { toast } from "sonner"
 import { apiPatch, fetcher } from "@/lib/api-client"
@@ -112,7 +112,7 @@ function QuestionCard({ item, onChanged }: { item: Item; onChanged: () => Promis
     try {
       await apiPatch(`/api/v1/admin/ai/questions/${item.id}`, { action, body: body.trim() })
       toast.success(action === "publish" ? "پاسخ منتشر شد." : action === "reject" ? "پرسش رد شد." : "پرسش مخفی شد.")
-      await onChanged()
+      await Promise.all([onChanged(), mutateCache("/api/v1/admin/ai/questions?summary=1")])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "انجام عملیات ناموفق بود.")
     } finally {

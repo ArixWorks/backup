@@ -115,6 +115,10 @@ export async function createQuestion(input: {
   })
 }
 
+export async function countQuestionsNeedingReview() {
+  return prisma.productQuestion.count({ where: { status: "PENDING_ADMIN" } })
+}
+
 export async function listQuestionsAdmin(status?: ProductQuestionStatus, search?: string) {
   const where: Prisma.ProductQuestionWhereInput = {
     ...(status ? { status } : {}),
