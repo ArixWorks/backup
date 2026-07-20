@@ -32,9 +32,14 @@ type Delivery = {
     amount: number
     quantity: number
     user: { displayName: string; alias: string }
-    product: { title: string }
+    product: {
+      title: string
+      defaultTutorial: TutorialOption | null
+    }
   }
 }
+
+type TutorialOption = { id: string; title: string; slug: string }
 
 type GiveawayDelivery = {
   id: string
@@ -49,21 +54,31 @@ export default function DeliveriesPage() {
   const { data, isLoading, mutate } = useSWR<{
     data: { orders: Delivery[]; giveawayWinners: GiveawayDelivery[] }
   }>("/api/v1/admin/deliveries", fetcher, { refreshInterval: 10000 })
+  const { data: tutorialData } = useSWR<{ data: TutorialOption[] }>(
+    "/api/v1/admin/tutorials/options",
+    fetcher,
+  )
   const rows = data?.data.orders ?? []
   const giveawayRows = data?.data.giveawayWinners ?? []
 
   const [active, setActive] = useState<Delivery | null>(null)
-  const [form, setForm] = useState({ username: "", password: "", licenseKey: "", note: "" })
+  const [form, setForm] = useState({ username: "", password: "", licenseKey: "", note: "", tutorialId: "" })
   const [saving, setSaving] = useState(false)
 
   function openDialog(d: Delivery) {
-    setForm({ username: "", password: "", licenseKey: "", note: "" })
+    setForm({
+      username: "",
+      password: "",
+      licenseKey: "",
+      note: "",
+      tutorialId: d.order.product.defaultTutorial?.id ?? "",
+    })
     setActive(d)
   }
 
   async function submit() {
     if (!active) return
-    if (!form.username && !form.password && !form.licenseKey && !form.note) {
+    if (!form.username && !form.password && !form.licenseKey && !form.note && !form.tutorialId) {
       return toast.error("حداقل یک فیلد تحویل را پر کنید")
     }
     setSaving(true)
@@ -189,6 +204,25 @@ export default function DeliveriesPage() {
                 onChange={(e) => setForm({ ...form, licenseKey: e.target.value })}
                 dir="ltr"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tutorial">آموزش پس از خرید</Label>
+              <select
+                id="tutorial"
+                value={form.tutorialId}
+                onChange={(event) => setForm({ ...form, tutorialId: event.target.value })}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">بدون آموزش</option>
+                {(tutorialData?.data ?? []).map((tutorial) => (
+                  <option key={tutorial.id} value={tutorial.id}>
+                    {tutorial.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                در صورت انتخاب، لینک این آموزش فقط برای خریدار همین سفارش فعال می‌شود.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="n">یادداشت / توضیحات</Label>

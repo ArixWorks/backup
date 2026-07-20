@@ -25,6 +25,7 @@ export async function getProductAdmin(id: string) {
     include: {
       fixedSale: true,
       auction: true,
+      defaultTutorial: { select: { id: true, title: true, slug: true } },
       variants: { orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] },
     },
   })
@@ -301,6 +302,35 @@ export async function cancelAuction(auctionId: string, adminId: string) {
     meta: { released: res.released },
   })
   return res
+}
+
+export async function setProductDefaultTutorial(
+  productId: string,
+  tutorialId: string | null,
+  adminId: string,
+) {
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
+  if (!product) throw new NotFoundError("محصول یافت نشد")
+  if (tutorialId) {
+    const tutorial = await prisma.content.findFirst({
+      where: { id: tutorialId, type: "tutorial", status: "PUBLISHED" },
+      select: { id: true },
+    })
+    if (!tutorial) throw new ValidationError("آموزش منتشرشده معتبر نیست")
+  }
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: { defaultTutorialId: tutorialId },
+    include: { defaultTutorial: { select: { id: true, title: true, slug: true } } },
+  })
+  await audit({
+    actorId: adminId,
+    action: "product.tutorial.update",
+    entity: "product",
+    entityId: productId,
+    meta: { tutorialId },
+  })
+  return updated
 }
 
 export async function setProductVisibility(productId: string, hidden: boolean, adminId: string) {

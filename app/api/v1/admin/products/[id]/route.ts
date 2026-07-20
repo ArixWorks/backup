@@ -5,6 +5,7 @@ import {
   getProductAdmin,
   updateFlashProduct,
   setProductVisibility,
+  setProductDefaultTutorial,
   updateProductMedia,
   deleteProducts,
 } from "@/lib/core/admin-catalog"
@@ -35,6 +36,7 @@ const schema = z.object({
   bulkDiscountPercent: z.number().int().min(1).max(90).nullable().optional(),
   hidden: z.boolean().optional(),
   active: z.boolean().optional(),
+  defaultTutorialId: z.string().cuid().nullable().optional(),
 })
 
 export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -51,6 +53,10 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   if (typeof body.hidden === "boolean" && Object.keys(body).length === 1) {
     await setProductVisibility(id, body.hidden, admin.id)
     return { ok: true }
+  }
+
+  if (body.defaultTutorialId !== undefined && Object.keys(body).length === 1) {
+    return setProductDefaultTutorial(id, body.defaultTutorialId, admin.id)
   }
 
   // Media-only updates (cover/gallery) work for any product, including auctions.

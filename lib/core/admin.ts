@@ -185,7 +185,12 @@ export async function listPendingDeliveries() {
       order: {
         include: {
           user: { select: { displayName: true, alias: true } },
-          product: { select: { title: true } },
+          product: {
+            select: {
+              title: true,
+              defaultTutorial: { select: { id: true, title: true, slug: true } },
+            },
+          },
         },
       },
     },
@@ -197,15 +202,29 @@ export async function completeManualDelivery(
   deliveryId: string,
   payload: Record<string, unknown>,
   adminId: string,
+  tutorialId?: string | null,
 ) {
   const info = await prisma.$transaction(async (tx) => {
     const delivery = await tx.delivery.findUnique({ where: { id: deliveryId } })
     if (!delivery) throw new NotFoundError("تحویل یافت نشد")
     if (delivery.status === "DELIVERED") throw new ConflictError("این سفارش قبلاً تحویل شده است")
+    if (tutorialId) {
+      const tutorial = await tx.content.findFirst({
+        where: { id: tutorialId, type: "tutorial", status: "PUBLISHED" },
+        select: { id: true },
+      })
+      if (!tutorial) throw new ValidationError("آموزش منتشرشده معتبر نیست")
+    }
 
     await tx.delivery.update({
       where: { id: deliveryId },
-      data: { status: "DELIVERED", payload: payload as any, error: null, deliveredAt: new Date() },
+      data: {
+        status: "DELIVERED",
+        payload: payload as any,
+        tutorialId: tutorialId || null,
+        error: null,
+        deliveredAt: new Date(),
+      },
     })
     const order = await tx.order.update({
       where: { id: delivery.orderId },

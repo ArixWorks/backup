@@ -25,12 +25,18 @@ export async function reserveAndDeliverAuto(
   // Scope the inventory pool to the chosen sale plan when the order carries a
   // variant. Legacy single-plan orders (no variantId) fall back to the whole
   // product pool, preserving pre-variants behaviour.
-  const item = await db.inventoryItem.findFirst({
+  const [item, product] = await Promise.all([
+    db.inventoryItem.findFirst({
     where: variantId
       ? { variantId, status: "AVAILABLE" }
       : { productId, status: "AVAILABLE" },
-    orderBy: { createdAt: "asc" },
-  })
+      orderBy: { createdAt: "asc" },
+    }),
+    db.product.findUnique({
+      where: { id: productId },
+      select: { defaultTutorialId: true },
+    }),
+  ])
   if (!item) throw new NoInventoryError()
 
   // Atomic claim: only succeeds if the item is still AVAILABLE.
@@ -48,6 +54,7 @@ export async function reserveAndDeliverAuto(
       method: "AUTOMATIC",
       status: "DELIVERED",
       inventoryItemId: item.id,
+      tutorialId: product?.defaultTutorialId ?? null,
       deliveredAt: new Date(),
       payload: {
         username: item.username,

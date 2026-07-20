@@ -20,6 +20,7 @@ import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
 import { VariantsEditor } from "@/components/admin/products/variants-editor"
 
 type ProductLink = { label: string; url: string }
+type TutorialOption = { id: string; title: string; slug: string }
 
 type FixedSale = {
   price: number
@@ -45,6 +46,7 @@ type Product = {
   coverImage: string | null
   gallery: string[]
   links?: ProductLink[] | null
+  defaultTutorial: TutorialOption | null
   fixedSale: FixedSale | null
 }
 
@@ -85,6 +87,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </div>
             {product.description && <RichContent content={product.description} className="mt-2" />}
           </div>
+
+          <ProductTutorialEditor
+            id={id}
+            initialTutorialId={product.defaultTutorial?.id ?? ""}
+            onSaved={mutate}
+          />
 
           <DescriptionEditor
             id={id}
@@ -155,6 +163,72 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             ))}
         </>
       )}
+    </div>
+  )
+}
+
+function ProductTutorialEditor({
+  id,
+  initialTutorialId,
+  onSaved,
+}: {
+  id: string
+  initialTutorialId: string
+  onSaved: () => void
+}) {
+  const { data } = useSWR<{ data: TutorialOption[] }>("/api/v1/admin/tutorials/options", fetcher)
+  const [tutorialId, setTutorialId] = useState(initialTutorialId)
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    try {
+      const r = await fetch(`/api/v1/admin/products/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ defaultTutorialId: tutorialId || null }),
+      })
+      if (!r.ok) throw new ApiError((await r.json())?.error?.message ?? "خطا", "ERR", r.status)
+      toast.success("آموزش پیش‌فرض ذخیره شد")
+      onSaved()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در ذخیره آموزش")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-card p-5">
+      <div>
+        <h2 className="font-bold">آموزش پس از خرید</h2>
+        <p className="text-sm text-muted-foreground">
+          این آموزش به‌صورت پیش‌فرض به تحویل‌های این محصول متصل می‌شود و فقط خریدار مجاز آن را می‌بیند.
+        </p>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-1.5">
+          <Label htmlFor="default-tutorial">آموزش پیش‌فرض</Label>
+          <select
+            id="default-tutorial"
+            value={tutorialId}
+            onChange={(event) => setTutorialId(event.target.value)}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">بدون آموزش</option>
+            {(data?.data ?? []).map((tutorial) => (
+              <option key={tutorial.id} value={tutorial.id}>
+                {tutorial.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button onClick={save} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          ذخیره آموزش
+        </Button>
+      </div>
     </div>
   )
 }

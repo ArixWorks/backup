@@ -673,8 +673,10 @@ model Product {
   // Array of { label, url }.
   links        Json?
   saleMode     SaleMode
-  deliveryType DeliveryType @default(MANUAL)
-  hidden       Boolean      @default(false)
+  deliveryType      DeliveryType @default(MANUAL)
+  defaultTutorialId String?
+  defaultTutorial   Content?     @relation("ProductDefaultTutorial", fields: [defaultTutorialId], references: [id], onDelete: SetNull)
+  hidden            Boolean      @default(false)
   active       Boolean      @default(true)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -690,6 +692,7 @@ model Product {
   questions      ProductQuestion[]
 
   @@index([saleMode, active, hidden])
+  @@index([defaultTutorialId])
 }
 
 // ---------------------------------------------------------------------------
@@ -1171,10 +1174,14 @@ model Delivery {
   inventoryItemId String?        @unique
   inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
   payload         Json? // delivered credentials / manual message
+  tutorialId      String?
+  tutorial        Content?       @relation("DeliveryTutorial", fields: [tutorialId], references: [id], onDelete: SetNull)
   error           String?
   deliveredAt     DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+
+  @@index([tutorialId])
 }
 
 // Inventory pool for automatic delivery. Each item is single-use.
@@ -2531,7 +2538,9 @@ model Content {
   breadcrumbLabel String?
 
   // Outgoing relationships (to other content or domain entities).
-  relations ContentRelation[] @relation("ContentRelationsFrom")
+  relations                ContentRelation[] @relation("ContentRelationsFrom")
+  defaultForProducts       Product[]         @relation("ProductDefaultTutorial")
+  attachedToDeliveries     Delivery[]        @relation("DeliveryTutorial")
 
   authorId    String?
   createdById String?

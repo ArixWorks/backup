@@ -1,7 +1,8 @@
 "use client"
 
 import useSWR from "swr"
-import { Package, Gavel, Zap, CheckCircle2, Clock, XCircle, RotateCcw, ShoppingBag } from "lucide-react"
+import { Package, Gavel, Zap, CheckCircle2, Clock, XCircle, RotateCcw, ShoppingBag, BookOpen } from "lucide-react"
+import Link from "next/link"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
@@ -26,6 +27,7 @@ type Order = {
     status: string
     payload: Record<string, unknown> | string | null
     error: string | null
+    tutorial: { title: string; href: string } | null
   } | null
 }
 
@@ -153,6 +155,18 @@ export default function OrdersPage() {
                     <span className="text-xs text-muted-foreground">{t("orders.deliveryInfo")}</span>
                     <DeliveryPayload payload={o.delivery.payload} />
                   </div>
+                )}
+                {o.delivery?.tutorial && o.delivery.status === "DELIVERED" && (
+                  <Link
+                    href={o.delivery.tutorial.href}
+                    className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <span className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      آموزش: {o.delivery.tutorial.title}
+                    </span>
+                    <span aria-hidden="true">←</span>
+                  </Link>
                 )}
                 {o.delivery?.error && o.status === "REFUNDED" && (
                   <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">

@@ -8,14 +8,16 @@ const schema = z.object({
   password: z.string().optional(),
   licenseKey: z.string().optional(),
   note: z.string().optional(),
+  tutorialId: z.string().cuid().nullable().optional(),
 })
 
 export const POST = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const admin = await requireAdmin()
   const { id } = await ctx.params
   const body = schema.parse(await req.json())
+  const { tutorialId, ...credentials } = body
   const payload = Object.fromEntries(
-    Object.entries(body).filter(([, v]) => v != null && v !== ""),
+    Object.entries(credentials).filter(([, v]) => v != null && v !== ""),
   )
-  return completeManualDelivery(id, payload, admin.id)
+  return completeManualDelivery(id, payload, admin.id, tutorialId)
 })

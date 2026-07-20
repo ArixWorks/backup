@@ -415,7 +415,9 @@ export async function getOrdersForUser(userId: string) {
     orderBy: { createdAt: "desc" },
     include: {
       product: { select: { title: true, slug: true } },
-      delivery: true,
+      delivery: {
+        include: { tutorial: { select: { id: true, title: true, slug: true } } },
+      },
     },
   })
   return orders.map((o) => ({
@@ -433,6 +435,12 @@ export async function getOrdersForUser(userId: string) {
           status: o.delivery.status,
           payload: o.delivery.status === "DELIVERED" ? o.delivery.payload : null,
           error: o.delivery.error,
+          tutorial: o.delivery.tutorial
+            ? {
+                title: o.delivery.tutorial.title,
+                href: `/tutorials/${o.delivery.tutorial.slug}`,
+              }
+            : null,
         }
       : null,
   }))
