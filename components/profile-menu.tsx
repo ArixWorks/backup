@@ -221,8 +221,9 @@ export function ProfileMenu() {
                   key={item.href}
                   type="button"
                   onClick={() => go(item.href)}
+                  dir={dir}
                   className={cn(
-                    "active:scale-press flex items-center gap-3 rounded-2xl border px-3 py-3 text-right transition-colors",
+                    "active:scale-press flex items-center gap-3 rounded-2xl border px-3 py-3 text-start transition-colors",
                     item.tone === "primary"
                       ? "border-primary/30 bg-primary/5 hover:border-primary/50"
                       : "border-border bg-background hover:border-primary/30",
@@ -247,7 +248,9 @@ export function ProfileMenu() {
                       <span className="block truncate text-xs text-muted-foreground">{item.desc}</span>
                     )}
                   </span>
-                  <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <ChevronLeft
+                    className={cn("h-4 w-4 shrink-0 text-muted-foreground", dir === "ltr" && "rotate-180")}
+                  />
                 </button>
               )
             })}
@@ -256,7 +259,8 @@ export function ProfileMenu() {
               <button
                 type="button"
                 onClick={() => go("/admin")}
-                className="active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-background px-3 py-3 text-right transition-colors hover:border-primary/30"
+                dir={dir}
+                className="active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-background px-3 py-3 text-start transition-colors hover:border-primary/30"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                   <ShieldCheck className="h-5 w-5" />
@@ -265,7 +269,9 @@ export function ProfileMenu() {
                   <span className="block truncate text-sm font-semibold text-foreground">{t("menu.admin")}</span>
                   <span className="block truncate text-xs text-muted-foreground">{t("menu.adminDesc")}</span>
                 </span>
-                <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <ChevronLeft
+                  className={cn("h-4 w-4 shrink-0 text-muted-foreground", dir === "ltr" && "rotate-180")}
+                />
               </button>
             )}
           </nav>
