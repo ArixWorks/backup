@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { NotFoundError, ValidationError, ForbiddenError } from "./errors"
+import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
 
 export interface ReviewView {
   id: string
@@ -48,6 +49,7 @@ export async function listReviews(
   productId: string,
   viewerId?: string,
   limit = 50,
+  locale = "fa",
 ): Promise<ReviewView[]> {
   const reviews = await prisma.review.findMany({
     where: { productId, OR: [{ hidden: false }, ...(viewerId ? [{ userId: viewerId }] : [])] },
@@ -55,13 +57,21 @@ export async function listReviews(
     take: limit,
     include: { user: { select: { id: true, displayName: true } } },
   })
-  return reviews.map((r) => ({
-    id: r.id,
-    rating: r.rating,
-    comment: r.comment,
-    authorName: r.user.displayName ?? "—",
-    createdAt: r.createdAt,
-    mine: !!viewerId && r.userId === viewerId,
+  return Promise.all(reviews.map(async (r) => {
+    const localized = await getLocalizedData({
+      entityType: "review",
+      entityId: r.id,
+      locale,
+      fallback: { comment: r.comment },
+    })
+    return {
+      id: r.id,
+      rating: r.rating,
+      comment: localized.comment as string | null,
+      authorName: r.user.displayName ?? "—",
+      createdAt: r.createdAt,
+      mine: !!viewerId && r.userId === viewerId,
+    }
   }))
 }
 
@@ -107,11 +117,15 @@ export async function upsertReview(
     throw new ForbiddenError("Only buyers who purchased this product can review it")
   }
 
-  return prisma.review.upsert({
+  const review = await prisma.review.upsert({
     where: { userId_productId: { userId, productId } },
     create: { userId, productId, rating, comment: trimmed },
     update: { rating, comment: trimmed, hidden: false },
   })
+  if (trimmed) {
+    await enqueueTranslations({ entityType: "review", entityId: review.id, sourceData: { comment: trimmed } })
+  }
+  return review
 }
 
 /** Delete the caller's own review (idempotent). */

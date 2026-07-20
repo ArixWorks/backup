@@ -12,12 +12,13 @@ import {
 
 // Public: list reviews + summary, flagging the viewer's own review if signed in.
 export const GET = route(
-  async (_req: Request, ctx: { params: Promise<{ productId: string }> }) => {
+  async (req: Request, ctx: { params: Promise<{ productId: string }> }) => {
     const { productId } = await ctx.params
+    const locale = new URL(req.url).searchParams.get("locale") ?? "fa"
     const viewerId = (await currentUserId()) ?? undefined
     const [summary, reviews, eligible, mine] = await Promise.all([
       getReviewSummary(productId),
-      listReviews(productId, viewerId),
+      listReviews(productId, viewerId, 50, locale),
       viewerId ? canReview(viewerId, productId) : Promise.resolve(false),
       viewerId ? getMyReview(viewerId, productId) : Promise.resolve(null),
     ])

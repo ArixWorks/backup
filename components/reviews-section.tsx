@@ -35,7 +35,7 @@ interface ReviewsResponse {
 export function ReviewsSection({ productId }: { productId: string }) {
   const { t, num, dir, locale, errorMessage } = useI18n()
   const { data, isLoading, mutate } = useSWR<ReviewsResponse>(
-    `/api/v1/flash-sales/${productId}/reviews`,
+    `/api/v1/flash-sales/${productId}/reviews?locale=${locale}`,
     fetcher,
   )
 

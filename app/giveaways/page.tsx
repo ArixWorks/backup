@@ -12,9 +12,9 @@ import { PageHeader } from "@/components/page-header"
 import { Stagger, FadeItem } from "@/components/motion"
 
 export default function GiveawaysPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { data, isLoading } = useSWR<{ data: GiveawaySummary[] }>(
-    "/api/v1/giveaways",
+    `/api/v1/giveaways?locale=${locale}`,
     fetcher,
     { refreshInterval: 10000 },
   )

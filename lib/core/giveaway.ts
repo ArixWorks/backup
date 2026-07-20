@@ -13,7 +13,7 @@ import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
-import { enqueueTranslations } from "@/lib/i18n/content-translation"
+import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
 
 type Tx = Prisma.TransactionClient
 
@@ -454,7 +454,7 @@ export async function reconcileDueGiveaways(): Promise<void> {
   })
 }
 
-export async function listPublicGiveaways() {
+export async function listPublicGiveaways(locale = "fa") {
   await reconcileDueGiveaways()
   const rows = await prisma.giveaway.findMany({
     where: {
@@ -464,11 +464,24 @@ export async function listPublicGiveaways() {
     orderBy: [{ status: "asc" }, { endAt: "asc" }],
     include: { _count: { select: { entries: true } } },
   })
-  return rows
+  return Promise.all(rows.map(async (giveaway) => ({
+    ...giveaway,
+    ...(await getLocalizedData({
+      entityType: "giveaway",
+      entityId: giveaway.id,
+      locale,
+      fallback: {
+        title: giveaway.title,
+        subtitle: giveaway.subtitle,
+        description: giveaway.description,
+        prizeLabel: giveaway.prizeLabel,
+      },
+    })),
+  })))
 }
 
 /** Public detail by slug, with masked winners and live counts. */
-export async function getPublicGiveaway(slug: string, userId?: string) {
+export async function getPublicGiveaway(slug: string, userId?: string, locale = "fa") {
   await reconcileDueGiveaways()
   const g = await prisma.giveaway.findUnique({
     where: { slug },
@@ -482,6 +495,19 @@ export async function getPublicGiveaway(slug: string, userId?: string) {
   })
   if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
 
+  const localized = await getLocalizedData({
+    entityType: "giveaway",
+    entityId: g.id,
+    locale,
+    fallback: {
+      title: g.title,
+      subtitle: g.subtitle,
+      description: g.description,
+      prizeLabel: g.prizeLabel,
+    },
+
+  })
+
   let entered = false
   if (userId) {
     const e = await prisma.giveawayEntry.findUnique({
@@ -494,12 +520,12 @@ export async function getPublicGiveaway(slug: string, userId?: string) {
   return {
     id: g.id,
     slug: g.slug,
-    title: g.title,
-    subtitle: g.subtitle,
-    description: g.description,
+    title: localized.title as string,
+    subtitle: localized.subtitle as string | null,
+    description: localized.description as string | null,
     coverImage: g.coverImage,
     prizeImage: g.prizeImage,
-    prizeLabel: g.prizeLabel,
+    prizeLabel: localized.prizeLabel as string,
     winnersCount: g.winnersCount,
     requiredChannels: giveawayChannels(g),
     startAt: g.startAt.toISOString(),

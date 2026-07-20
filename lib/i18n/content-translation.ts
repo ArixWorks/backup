@@ -242,6 +242,52 @@ export async function enqueueTranslationBackfill(limit = 12) {
       queued += 1
     }
   }
+  const remaining = Math.max(0, limit - queued)
+  if (remaining > 0) {
+    const giveaways = await prisma.giveaway.findMany({
+      where: { visibility: "PUBLIC" },
+      orderBy: { createdAt: "asc" },
+      take: remaining,
+      select: { id: true, title: true, subtitle: true, description: true, prizeLabel: true },
+    })
+    for (const giveaway of giveaways) {
+      const sourceData = {
+        title: giveaway.title,
+        subtitle: giveaway.subtitle,
+        description: giveaway.description,
+        prizeLabel: giveaway.prizeLabel,
+      }
+      const existing = await prisma.contentTranslation.count({
+        where: { entityType: "giveaway", entityId: giveaway.id, sourceHash: sourceHash(sourceData) },
+      })
+      if (existing < TARGET_LOCALES.length) {
+        await enqueueTranslations({ entityType: "giveaway", entityId: giveaway.id, sourceData })
+        queued += 1
+      }
+    }
+  }
+
+  const reviewSlots = Math.max(0, limit - queued)
+  if (reviewSlots > 0) {
+    const reviews = await prisma.review.findMany({
+      where: { hidden: false, comment: { not: null } },
+      orderBy: { createdAt: "asc" },
+      take: reviewSlots,
+      select: { id: true, comment: true },
+    })
+    for (const review of reviews) {
+      if (!review.comment?.trim()) continue
+      const sourceData = { comment: review.comment }
+      const existing = await prisma.contentTranslation.count({
+        where: { entityType: "review", entityId: review.id, sourceHash: sourceHash(sourceData) },
+      })
+      if (existing < TARGET_LOCALES.length) {
+        await enqueueTranslations({ entityType: "review", entityId: review.id, sourceData })
+        queued += 1
+      }
+    }
+  }
+
   return { queued }
 }
 

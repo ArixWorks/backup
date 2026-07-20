@@ -12,10 +12,10 @@ import { Stagger, FadeItem } from "@/components/motion"
 import { useI18n } from "@/components/i18n-provider"
 
 export default function GiveawayLandingPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { slug } = use(params)
   const { data, isLoading, mutate } = useSWR<{ data: GiveawayDetailData }>(
-    `/api/v1/giveaways/${slug}`,
+    `/api/v1/giveaways/${slug}?locale=${locale}`,
     fetcher,
     { refreshInterval: 8000 },
   )
