@@ -36,6 +36,7 @@ import {
   Send,
   ShoppingBag,
   ScanText,
+  CircleHelp,
   Globe2,
 } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
@@ -104,6 +105,7 @@ const navGroups: NavGroup[] = [
     title: "هوش مصنوعی",
     items: [
       { href: "/admin/ai", label: "دستیار هوشمند", icon: Sparkles, exact: true },
+      { href: "/admin/ai/questions", label: "پرسش‌های محصول", icon: CircleHelp },
       { href: "/admin/ai/copilot", label: "کوپایلت فرم‌ها", icon: Bot },
       { href: "/admin/ai/knowledge", label: "پایگاه دانش", icon: BookOpen },
       { href: "/admin/ai/automations", label: "اتوماسیون هوشمند", icon: Workflow },

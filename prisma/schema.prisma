@@ -164,6 +164,19 @@ enum DeliveryStatus {
   FAILED
 }
 
+enum ProductQuestionStatus {
+  PENDING_AI
+  PENDING_ADMIN
+  ANSWERED
+  REJECTED
+  HIDDEN
+}
+
+enum ProductAnswerSource {
+  AI
+  ADMIN
+}
+
 enum DepositStatus {
   // User has generated payment instructions but has NOT yet confirmed the
   // transfer. These drafts are invisible to admins and never credited.
@@ -311,6 +324,8 @@ model User {
   giveawayEntries     GiveawayEntry[]
   giveawayWins        GiveawayWinner[]
   broadcastRecipients BroadcastRecipient[]
+  productQuestions    ProductQuestion[]    @relation("QuestionAuthor")
+  productAnswers      ProductAnswer[]      @relation("AnswerAdmin")
 
   @@index([status])
   @@index([referredById])
@@ -672,8 +687,62 @@ model Product {
   reviews        Review[]
   stockAlerts    StockAlert[]
   giveaways      Giveaway[]
+  questions      ProductQuestion[]
 
   @@index([saleMode, active, hidden])
+}
+
+// ---------------------------------------------------------------------------
+// Product Q&A — shared by fixed-price products and auctions
+// ---------------------------------------------------------------------------
+
+model ProductQuestion {
+  id                 String                @id @default(cuid())
+  productId          String
+  product            Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?                 @relation("QuestionAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  visitorHash        String
+  publicAlias        String
+  body               String
+  normalizedBodyHash String
+  status             ProductQuestionStatus @default(PENDING_AI)
+  aiConfidence       Float?
+  aiAnswerable       Boolean?
+  aiReason           String?
+  aiEvidence         Json?
+  aiModel            String?
+  aiAttemptedAt      DateTime?
+  adminNotifiedAt    DateTime?
+  answeredAt         DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  answers            ProductAnswer[]
+
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([visitorHash, createdAt])
+  @@index([productId, normalizedBodyHash])
+}
+
+model ProductAnswer {
+  id          String              @id @default(cuid())
+  questionId  String
+  question    ProductQuestion     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  source      ProductAnswerSource
+  body        String
+  published   Boolean             @default(false)
+  adminId     String?
+  admin       User?               @relation("AnswerAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  model       String?
+  confidence  Float?
+  evidence    Json?
+  publishedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([questionId, published, createdAt])
+  @@index([adminId])
 }
 
 // ---------------------------------------------------------------------------
@@ -1620,21 +1689,21 @@ model ServiceHealth {
 
 // Sentry-style grouped error events (deduplicated by fingerprint).
 model ErrorEvent {
-  id          String      @id @default(cuid())
-  level       String      @default("error") // error | warning | info | fatal
-  source      ErrorSource @default(API)
+  id          String           @id @default(cuid())
+  level       String           @default("error") // error | warning | info | fatal
+  source      ErrorSource      @default(API)
   name        String // error class / type
   message     String
   stack       String?
-  fingerprint String      @unique // grouping key (source + name + norm message)
+  fingerprint String           @unique // grouping key (source + name + norm message)
   context     Json?
   userId      String?
   release     String?
-  count       Int         @default(1)
-  resolved    Boolean     @default(false)
+  count       Int              @default(1)
+  resolved    Boolean          @default(false)
   resolvedAt  DateTime?
-  firstSeenAt DateTime    @default(now())
-  lastSeenAt  DateTime    @default(now())
+  firstSeenAt DateTime         @default(now())
+  lastSeenAt  DateTime         @default(now())
   diagnoses   ErrorDiagnosis[]
 
   @@index([resolved, lastSeenAt])
@@ -2199,16 +2268,16 @@ model TextIntegrityFinding {
 }
 
 model TextIntegrityScanRun {
-  id             String                 @id @default(cuid())
-  status         TextIntegrityRunStatus @default(RUNNING)
-  scannedCount   Int                    @default(0)
-  suspiciousCount Int                   @default(0)
-  newFindings    Int                    @default(0)
-  aiCalls        Int                    @default(0)
-  error          String?
-  startedAt      DateTime               @default(now())
-  completedAt    DateTime?
-  createdAt      DateTime               @default(now())
+  id              String                 @id @default(cuid())
+  status          TextIntegrityRunStatus @default(RUNNING)
+  scannedCount    Int                    @default(0)
+  suspiciousCount Int                    @default(0)
+  newFindings     Int                    @default(0)
+  aiCalls         Int                    @default(0)
+  error           String?
+  startedAt       DateTime               @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime               @default(now())
 
   @@index([createdAt])
   @@index([status])
@@ -2259,51 +2328,51 @@ enum OwnedDomainStatus {
 }
 
 model DomainTld {
-  id              String   @id @default(cuid())
-  tld             String   @unique
-  title           String
-  active          Boolean  @default(true)
-  supported       Boolean  @default(true)
-  premiumEnabled  Boolean  @default(false)
-  basePriceIrt    BigInt
-  renewalPriceIrt BigInt?
+  id               String   @id @default(cuid())
+  tld              String   @unique
+  title            String
+  active           Boolean  @default(true)
+  supported        Boolean  @default(true)
+  premiumEnabled   Boolean  @default(false)
+  basePriceIrt     BigInt
+  renewalPriceIrt  BigInt?
   transferPriceIrt BigInt?
-  displayOrder    Int      @default(0)
-  provider        String   @default("cloudflare-rdap")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  displayOrder     Int      @default(0)
+  provider         String   @default("cloudflare-rdap")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([active, displayOrder])
 }
 
 model DomainLookupCache {
-  id           String                   @id @default(cuid())
-  asciiDomain  String                   @unique
+  id            String                   @id @default(cuid())
+  asciiDomain   String                   @unique
   unicodeDomain String
-  status       DomainAvailabilityStatus
-  provider     String
-  providerCode String?
-  checkedAt    DateTime                 @default(now())
-  expiresAt    DateTime
-  meta         Json                     @default("{}")
+  status        DomainAvailabilityStatus
+  provider      String
+  providerCode  String?
+  checkedAt     DateTime                 @default(now())
+  expiresAt     DateTime
+  meta          Json                     @default("{}")
 
   @@index([expiresAt])
 }
 
 model DomainQuote {
-  id             String              @id @default(cuid())
-  userId         String
-  operation      DomainOperationType @default(REGISTRATION)
-  asciiDomain    String
-  unicodeDomain  String
-  tld            String
-  amountIrt      BigInt
-  priceSnapshot  Json
+  id            String                   @id @default(cuid())
+  userId        String
+  operation     DomainOperationType      @default(REGISTRATION)
+  asciiDomain   String
+  unicodeDomain String
+  tld           String
+  amountIrt     BigInt
+  priceSnapshot Json
   availability  DomainAvailabilityStatus
-  signatureHash  String              @unique
-  expiresAt      DateTime
-  consumedAt     DateTime?
-  createdAt      DateTime            @default(now())
+  signatureHash String                   @unique
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime                 @default(now())
 
   @@index([userId, expiresAt])
   @@index([asciiDomain, expiresAt])
@@ -2325,48 +2394,48 @@ model DomainReservation {
 }
 
 model DomainOrder {
-  id                 String              @id @default(cuid())
-  publicId           String              @unique
-  userId             String
-  operation          DomainOperationType @default(REGISTRATION)
-  status             DomainOrderStatus   @default(PENDING_PURCHASE)
-  asciiDomain        String
-  unicodeDomain      String
-  tld                String
-  amountIrt          BigInt
-  currency           String              @default("IRT")
-  quoteId            String              @unique
-  reservationId      String?             @unique
-  walletRef          String              @unique
-  idempotencyKey     String              @unique
-  provider           String
-  providerSnapshot   Json                @default("{}")
-  priceSnapshot      Json
-  holdExpiresAt      DateTime
-  firstReminderAt    DateTime
-  finalReminderAt    DateTime
-  firstReminderSentAt DateTime?
-  finalReminderSentAt DateTime?
-  processingLeaseUntil DateTime?
-  extensionCount     Int                 @default(0)
-  version            Int                 @default(0)
-  failureReason      String?
-  expiryReason       String?
-  purchasedAt        DateTime?
-  expiresAt          DateTime?
-  ns1                String?
-  ns2                String?
-  ns3                String?
-  ns4                String?
-  nameserversSubmittedAt DateTime?
+  id                      String              @id @default(cuid())
+  publicId                String              @unique
+  userId                  String
+  operation               DomainOperationType @default(REGISTRATION)
+  status                  DomainOrderStatus   @default(PENDING_PURCHASE)
+  asciiDomain             String
+  unicodeDomain           String
+  tld                     String
+  amountIrt               BigInt
+  currency                String              @default("IRT")
+  quoteId                 String              @unique
+  reservationId           String?             @unique
+  walletRef               String              @unique
+  idempotencyKey          String              @unique
+  provider                String
+  providerSnapshot        Json                @default("{}")
+  priceSnapshot           Json
+  holdExpiresAt           DateTime
+  firstReminderAt         DateTime
+  finalReminderAt         DateTime
+  firstReminderSentAt     DateTime?
+  finalReminderSentAt     DateTime?
+  processingLeaseUntil    DateTime?
+  extensionCount          Int                 @default(0)
+  version                 Int                 @default(0)
+  failureReason           String?
+  expiryReason            String?
+  purchasedAt             DateTime?
+  expiresAt               DateTime?
+  ns1                     String?
+  ns2                     String?
+  ns3                     String?
+  ns4                     String?
+  nameserversSubmittedAt  DateTime?
   nameserversConfiguredAt DateTime?
-  completedAt        DateTime?
-  failedAt           DateTime?
-  expiredAt          DateTime?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  events             DomainOrderEvent[]
-  ownedDomain        OwnedDomain?
+  completedAt             DateTime?
+  failedAt                DateTime?
+  expiredAt               DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  events                  DomainOrderEvent[]
+  ownedDomain             OwnedDomain?
 
   @@index([userId, createdAt])
   @@index([status, holdExpiresAt])
@@ -2394,24 +2463,24 @@ model DomainOrderEvent {
 }
 
 model OwnedDomain {
-  id               String            @id @default(cuid())
-  userId           String
-  orderId          String            @unique
-  order            DomainOrder       @relation(fields: [orderId], references: [id])
-  asciiDomain      String            @unique
-  unicodeDomain    String
-  status           OwnedDomainStatus @default(ACTIVE)
-  provider         String
-  registrarSnapshot Json             @default("{}")
-  registeredAt     DateTime          @default(now())
-  expiresAt        DateTime?
+  id                String            @id @default(cuid())
+  userId            String
+  orderId           String            @unique
+  order             DomainOrder       @relation(fields: [orderId], references: [id])
+  asciiDomain       String            @unique
+  unicodeDomain     String
+  status            OwnedDomainStatus @default(ACTIVE)
+  provider          String
+  registrarSnapshot Json              @default("{}")
+  registeredAt      DateTime          @default(now())
+  expiresAt         DateTime?
   renewalEligibleAt DateTime?
-  ns1              String?
-  ns2              String?
-  ns3              String?
-  ns4              String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  ns1               String?
+  ns2               String?
+  ns3               String?
+  ns4               String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([userId, status])
   @@index([expiresAt])

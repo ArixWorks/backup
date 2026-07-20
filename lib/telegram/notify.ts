@@ -79,6 +79,28 @@ export async function notifySupportReply(
  * continued) a ban-appeal message, with a deep link to the admin support page.
  * Best-effort; keeps admins in the loop without polling the dashboard.
  */
+export async function notifyAdminsProductQuestion(productTitle: string, preview: string) {
+  try {
+    if (!botConfigured()) return
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN", OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
+      select: { id: true },
+    })
+    const snippet = preview.length > 300 ? `${preview.slice(0, 300)}…` : preview
+    const base = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "")
+    const html = `<b>پرسش محصول نیازمند بررسی است</b>\n\n<b>${esc(productTitle)}</b>\n«${esc(snippet)}»`
+    const markup = base
+      ? inlineKeyboard([[{ text: "باز کردن صف پرسش‌ها", url: `${base}/admin/ai/questions` }]])
+      : undefined
+    for (const admin of admins) {
+      const chatId = await chatIdFor(admin.id)
+      if (chatId) await sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {})
+    }
+  } catch (e) {
+    console.log("[v0] notifyAdminsProductQuestion error:", (e as Error).message)
+  }
+}
+
 export async function notifyAdminsBanAppeal(fromUserId: string, publicId: string, preview: string) {
   try {
     if (!botConfigured()) return

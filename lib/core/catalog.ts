@@ -224,6 +224,7 @@ export async function listAuctions() {
 
 type AuctionSummaryInput = {
   id: string
+  productId: string
   policyJson: string | null
   product: { slug: string; title: string; description: string | null; category: string | null; coverImage: string | null; deliveryType: string }
   startPrice: bigint
@@ -280,6 +281,7 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
 
   return {
     id: a.id,
+    productId: a.productId,
     slug: a.product.slug,
     title: a.product.title,
     description: a.product.description,

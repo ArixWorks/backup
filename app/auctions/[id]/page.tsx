@@ -24,6 +24,7 @@ import { formatToman, formatDateTime, formatRelative, formatNumber } from "@/lib
 import { useI18n } from "@/components/i18n-provider"
 import { useSession } from "@/hooks/use-session"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
+import { ProductQuestions } from "@/components/product-questions"
 
 type Bid = {
   id: string
@@ -37,6 +38,7 @@ type Bid = {
 
 type AuctionDetail = {
   id: string
+  productId: string
   title: string
   description: string | null
   category: string | null
@@ -320,6 +322,8 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               </ul>
             )}
           </section>
+
+          <ProductQuestions productId={a.productId} />
         </div>
 
         {/* Right: price stats + countdown + bid panel */}

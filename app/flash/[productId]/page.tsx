@@ -14,6 +14,7 @@ import { ProductGallery } from "@/components/product-gallery"
 import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { ReviewsSection } from "@/components/reviews-section"
+import { ProductQuestions } from "@/components/product-questions"
 import { StarRating } from "@/components/star-rating"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
@@ -262,6 +263,10 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
           </div>
         </div>
       </div>
+
+      <Reveal>
+        <ProductQuestions productId={productId} />
+      </Reveal>
 
       <Reveal>
         <ReviewsSection productId={productId} />
