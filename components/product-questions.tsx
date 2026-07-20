@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react"
 import useSWR from "swr"
-import { Bot, CircleHelp, Clock3, Send, ShieldCheck, UserRound } from "lucide-react"
+import { Bot, CircleHelp, Clock3, Send, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import { apiPost, fetcher } from "@/lib/api-client"
 import { formatRelative } from "@/lib/format"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,6 +19,7 @@ type Question = {
   publicAlias: string
   status: "PENDING_AI" | "PENDING_ADMIN" | "ANSWERED"
   createdAt: string
+  user: { displayName: string; photoUrl: string | null } | null
   answers: Array<{ id: string; body: string; source: "AI" | "ADMIN"; publishedAt: string | null }>
 }
 
@@ -52,8 +54,8 @@ export function ProductQuestions({ productId }: { productId: string }) {
   }
 
   return (
-    <Card className="overflow-hidden" dir="rtl">
-      <CardHeader className="border-b border-border bg-secondary/30">
+    <Card className="overflow-hidden py-0" dir="rtl">
+      <CardHeader className="border-b border-border bg-secondary/30 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-lg text-balance">
@@ -68,7 +70,7 @@ export function ProductQuestions({ productId }: { productId: string }) {
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-5 pt-5">
+      <CardContent className="flex flex-col gap-5 py-5">
         <form onSubmit={submit} className="flex flex-col gap-3" aria-label="ثبت پرسش محصول">
           <label htmlFor={`product-question-${productId}`} className="text-sm font-semibold">
             پرسش شما
@@ -117,10 +119,23 @@ export function ProductQuestions({ productId }: { productId: string }) {
               return (
                 <li key={question.id} className="flex flex-col gap-3 rounded-xl border border-border p-4">
                   <div className="flex items-start gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground"><UserRound className="size-4" aria-hidden="true" /></span>
+                    <Avatar className="size-9 shrink-0 border border-border">
+                      {question.user?.photoUrl ? (
+                        <AvatarImage
+                          src={question.user.photoUrl}
+                          alt={question.user.displayName}
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : null}
+                      <AvatarFallback className="bg-secondary text-xs font-bold text-muted-foreground">
+                        {(question.user?.displayName || question.publicAlias).trim().charAt(0).toUpperCase() || "?"}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span dir="auto" className="font-semibold text-foreground">{question.publicAlias}</span>
+                        <span dir="auto" className="font-semibold text-foreground">
+                          {question.user?.displayName || question.publicAlias}
+                        </span>
                         <span>{formatRelative(question.createdAt)}</span>
                       </div>
                       <p dir="auto" className="text-sm leading-6 text-pretty">{question.body}</p>

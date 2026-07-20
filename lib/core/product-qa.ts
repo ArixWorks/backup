@@ -65,6 +65,12 @@ export async function listPublicQuestions(productId: string, visitor?: string) {
       publicAlias: true,
       status: true,
       createdAt: true,
+      user: {
+        select: {
+          displayName: true,
+          photoUrl: true,
+        },
+      },
       answers: {
         where: { published: true },
         orderBy: { publishedAt: "desc" },
