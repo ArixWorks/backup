@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db"
 import { secureSlug } from "@/lib/id"
 import { NotFoundError, ValidationError } from "./errors"
 import { audit } from "./audit"
+import { enqueueTranslations } from "@/lib/i18n/content-translation"
 
 export const SUPPORT_CATEGORIES = ["GENERAL", "PAYMENT", "ORDER", "REFUND", "TECHNICAL"] as const
 export type SupportCategoryValue = (typeof SUPPORT_CATEGORIES)[number]
@@ -64,6 +65,10 @@ export async function createTicket(input: CreateTicketInput) {
     include: { messages: { orderBy: { createdAt: "asc" } } },
   })
   await audit({ actorId: input.userId, action: "ticket.create", entity: "ticket", entityId: ticket.id })
+  await Promise.all([
+    enqueueTranslations({ entityType: "support-ticket", entityId: ticket.id, sourceData: { subject } }),
+    enqueueTranslations({ entityType: "ticket-message", entityId: ticket.messages[0].id, sourceData: { body: message } }),
+  ])
   return ticket
 }
 
@@ -116,6 +121,7 @@ export async function replyToTicket(input: ReplyInput) {
     where: { id: ticket.id },
     data: { status: "PENDING", lastReplyAt: new Date() },
   })
+  await enqueueTranslations({ entityType: "ticket-message", entityId: message.id, sourceData: { body } })
   return message
 }
 
@@ -182,6 +188,7 @@ export async function staffReply(input: {
     data: { status: input.close ? "CLOSED" : "ANSWERED", lastReplyAt: new Date() },
   })
   await audit({ actorId: input.staffId, action: "ticket.reply", entity: "ticket", entityId: ticket.id })
+  await enqueueTranslations({ entityType: "ticket-message", entityId: message.id, sourceData: { body } })
   // Email the ticket owner that support replied (best-effort).
   const { sendSupportReplyEmail } = await import("@/lib/email")
   await sendSupportReplyEmail({

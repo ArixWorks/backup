@@ -140,6 +140,16 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] AI automations error:", (e as Error).message)
   }
 
+  // Drain a small translation batch on every tick. Jobs are idempotent, retry
+  // with exponential backoff, and never block unrelated lifecycle work.
+  let translations: { processed: number; pending: number } = { processed: 0, pending: 0 }
+  try {
+    const { processTranslationQueue } = await import("@/lib/i18n/content-translation")
+    translations = await processTranslationQueue(4)
+  } catch (e) {
+    console.log("[v0] translation queue error:", (e as Error).message)
+  }
+
   // Process domain purchase holds, registrar fulfillment, reminders and expiry
   // refunds. Best-effort: provider downtime must not block unrelated workers.
   let domains: { processed: number; expired: number; reminders: number } = {
@@ -176,6 +186,7 @@ export const POST = route(async (req: Request) => {
     email,
     broadcasts,
     automations,
+    translations,
     domains,
     referralRewards,
   }

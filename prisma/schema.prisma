@@ -2244,6 +2244,39 @@ enum TextIntegrityRunStatus {
   FAILED
 }
 
+enum TranslationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+/// Durable AI translation queue and localized-content cache. A source checksum
+/// makes writes idempotent and prevents stale translations replacing newer copy.
+model ContentTranslation {
+  id             String            @id @default(cuid())
+  entityType     String
+  entityId       String
+  sourceLocale   String            @default("fa")
+  targetLocale   String
+  sourceHash     String
+  sourceData     Json
+  translatedData Json?
+  status         TranslationStatus @default(PENDING)
+  attempts       Int               @default(0)
+  availableAt    DateTime          @default(now())
+  lockedAt       DateTime?
+  completedAt    DateTime?
+  lastError      String?
+  model          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([entityType, entityId, targetLocale, sourceHash])
+  @@index([status, availableAt])
+  @@index([entityType, entityId, targetLocale, status])
+}
+
 model TextIntegrityFinding {
   id             String              @id @default(cuid())
   source         TextIntegritySource

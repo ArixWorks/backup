@@ -6,6 +6,7 @@ import { slugify } from "@/lib/rich-content/render"
 import { requireContentType } from "./registry"
 import { fieldsSchema, type ContentTypeDef } from "./types"
 import { syncRelations, type RelationInput } from "./relations"
+import { enqueueTranslations } from "@/lib/i18n/content-translation"
 
 /**
  * Core content service. All writes flow through here so validation, HTML
@@ -180,6 +181,25 @@ export async function getSingleton(type: string, opts?: { publicOnly?: boolean }
   })
 }
 
+async function queueContentTranslation(content: Content) {
+  if (content.locale !== "fa") return
+  await enqueueTranslations({
+    entityType: `content:${content.type}`,
+    entityId: content.id,
+    sourceData: {
+      title: content.title,
+      excerpt: content.excerpt,
+      body: content.body,
+      seoTitle: content.seoTitle,
+      seoDescription: content.seoDescription,
+      seoKeywords: content.seoKeywords,
+      fields: content.fields,
+      navLabel: content.navLabel,
+      breadcrumbLabel: content.breadcrumbLabel,
+    },
+  })
+}
+
 export async function createContent(actor: { id: string }, type: string, input: ContentWriteInput): Promise<Content> {
   const def = requireContentType(type)
   if (!input.title?.trim()) throw new ValidationError("عنوان الزامی است")
@@ -210,6 +230,7 @@ export async function createContent(actor: { id: string }, type: string, input: 
   const content = await prisma.content.create({ data })
   if (input.relations?.length) await syncRelations(content.id, def, input.relations)
   await snapshot(type, content.id, content.body, status === "PUBLISHED" ? "published" : "draft", actor.id)
+  await queueContentTranslation(content)
   return content
 }
 
@@ -233,6 +254,7 @@ export async function updateContent(actor: { id: string }, id: string, input: Co
   const content = await prisma.content.update({ where: { id }, data })
   if (input.relations) await syncRelations(id, def, input.relations)
   if (input.body !== undefined) await snapshot(existing.type, id, content.body, "revision", actor.id)
+  await queueContentTranslation(content)
   return content
 }
 

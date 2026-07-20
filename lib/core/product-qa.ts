@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db"
 import { audit } from "@/lib/core/audit"
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { createNotification } from "@/lib/core/notifications"
+import { enqueueTranslations } from "@/lib/i18n/content-translation"
 
 const URL_OR_CONTACT = /(?:https?:\/\/|www\.|t\.me\/|@[a-z0-9_]{4,}|\b\d{8,}\b)/iu
 const REPEATED = /(.)\1{7,}/u
@@ -108,7 +109,7 @@ export async function createQuestion(input: {
   })
   if (duplicate) throw new ConflictError("این پرسش اخیراً ثبت شده است.")
 
-  return prisma.productQuestion.create({
+  const question = await prisma.productQuestion.create({
     data: {
       productId: input.productId,
       body,
@@ -119,6 +120,12 @@ export async function createQuestion(input: {
     },
     select: { id: true, status: true, createdAt: true },
   })
+  await enqueueTranslations({
+    entityType: "product-question",
+    entityId: question.id,
+    sourceData: { body },
+  })
+  return question
 }
 
 export async function countQuestionsNeedingReview() {
@@ -173,11 +180,17 @@ export async function moderateQuestion(questionId: string, input: z.infer<typeof
   if (parsed.action === "publish") {
     const body = parsed.body?.trim()
     if (!body || body.length < 3) throw new ValidationError("متن پاسخ الزامی است.")
-    await prisma.$transaction(async (tx) => {
+    const answer = await prisma.$transaction(async (tx) => {
       await tx.productAnswer.updateMany({ where: { questionId, published: true }, data: { published: false } })
-      await tx.productAnswer.create({ data: { questionId, source: "ADMIN", body, published: true, adminId, publishedAt: new Date() } })
+      const created = await tx.productAnswer.create({ data: { questionId, source: "ADMIN", body, published: true, adminId, publishedAt: new Date() } })
       await tx.productQuestion.update({ where: { id: questionId }, data: { status: "ANSWERED", answeredAt: new Date() } })
       await audit({ actorId: adminId, action: "product_qa.publish", entity: "ProductQuestion", entityId: questionId }, tx)
+      return created
+    })
+    await enqueueTranslations({
+      entityType: "product-answer",
+      entityId: answer.id,
+      sourceData: { body },
     })
     if (question.userId) {
       const href =

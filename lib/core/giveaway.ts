@@ -13,6 +13,7 @@ import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
+import { enqueueTranslations } from "@/lib/i18n/content-translation"
 
 type Tx = Prisma.TransactionClient
 
@@ -138,6 +139,25 @@ function validateCommon(input: Pick<GiveawayInput, "winnersCount" | "prizeKind" 
   }
 }
 
+function queueGiveawayTranslation(giveaway: {
+  id: string
+  title: string
+  subtitle: string | null
+  description: string | null
+  prizeLabel: string
+}) {
+  return enqueueTranslations({
+    entityType: "giveaway",
+    entityId: giveaway.id,
+    sourceData: {
+      title: giveaway.title,
+      subtitle: giveaway.subtitle,
+      description: giveaway.description,
+      prizeLabel: giveaway.prizeLabel,
+    },
+  })
+}
+
 export async function createGiveaway(input: GiveawayInput, actorId: string) {
   const startAt = tehranInputToUtc(input.startAt)
   const endAt = tehranInputToUtc(input.endAt)
@@ -174,6 +194,7 @@ export async function createGiveaway(input: GiveawayInput, actorId: string) {
     },
   })
   await audit({ actorId, action: "giveaway.create", entity: "giveaway", entityId: created.id, meta: { title: created.title } })
+  await queueGiveawayTranslation(created)
   return created
 }
 
@@ -223,6 +244,7 @@ export async function updateGiveaway(id: string, input: Partial<GiveawayInput>, 
 
   const updated = await prisma.giveaway.update({ where: { id }, data })
   await audit({ actorId, action: "giveaway.update", entity: "giveaway", entityId: id })
+  await queueGiveawayTranslation(updated)
   return updated
 }
 

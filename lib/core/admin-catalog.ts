@@ -4,6 +4,7 @@ import { secureSlug } from "@/lib/id"
 import { NotFoundError, ValidationError } from "./errors"
 import { audit } from "./audit"
 import { cancelAuctionAndRelease } from "./auction"
+import { enqueueTranslations } from "@/lib/i18n/content-translation"
 
 // --- Listing -----------------------------------------------------------------
 
@@ -105,6 +106,27 @@ function cleanLinks(links?: ProductLinkInput[]): Prisma.InputJsonValue {
     .slice(0, 8)
 }
 
+function queueProductTranslation(product: {
+  id: string
+  title: string
+  description: string | null
+  category: string | null
+  tags: string[]
+  links: Prisma.JsonValue | null
+}) {
+  return enqueueTranslations({
+    entityType: "product",
+    entityId: product.id,
+    sourceData: {
+      title: product.title,
+      description: product.description,
+      category: product.category,
+      tags: product.tags,
+      links: product.links,
+    },
+  })
+}
+
 export async function createFlashProduct(input: FlashProductInput, adminId: string) {
   if (!input.title.trim()) throw new ValidationError("عنوان الزامی است")
   if (input.price <= 0n) throw new ValidationError("قیمت باید بزرگ‌تر از صفر باشد")
@@ -136,6 +158,7 @@ export async function createFlashProduct(input: FlashProductInput, adminId: stri
     include: { fixedSale: true },
   })
   await audit({ actorId: adminId, action: "product.create", entity: "product", entityId: product.id, meta: { mode: "FIXED_PRICE" } })
+  await queueProductTranslation(product)
   // Notify followers of this category about the new product (visible only).
   if (!product.hidden && product.category) {
     try {
@@ -202,6 +225,7 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
     include: { fixedSale: true },
   })
   await audit({ actorId: adminId, action: "product.update", entity: "product", entityId: productId })
+  await queueProductTranslation(updated)
   // Fire back-in-stock alerts if this update made the product available again.
   try {
     const { reconcileStockAlerts } = await import("./stock-alerts")
@@ -273,6 +297,7 @@ export async function createAuctionProduct(input: AuctionProductInput, adminId: 
     include: { auction: true },
   })
   await audit({ actorId: adminId, action: "product.create", entity: "product", entityId: product.id, meta: { mode: "AUCTION" } })
+  await queueProductTranslation(product)
   // Notify category followers about the new auction (visible only).
   if (!product.hidden && product.category) {
     try {
@@ -388,7 +413,7 @@ export async function deleteProducts(
       result.skipped.push({
         id,
         title: product.title,
-        reason: `دارای ${product._count.orders} سفارش ثبت‌شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,
+        reason: `دارای ${product._count.orders} سفارش ثبت���شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,
       })
       continue
     }
