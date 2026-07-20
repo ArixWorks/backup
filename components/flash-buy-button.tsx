@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Image from "next/image"
 import { toast } from "sonner"
-import { ShoppingCart, Loader2, CheckCircle2, Minus, Plus, Wallet, Clock, Tag, X } from "lucide-react"
+import { ShoppingCart, Loader2, CheckCircle2, Minus, Plus, Wallet, CreditCard, ChevronLeft, Tag, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -19,10 +20,15 @@ import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import type { FlashSale, PlanVariant } from "@/components/flash-card"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
+import { AddFundsSheet } from "@/components/wallet/add-funds-sheet"
 
 type Step = "quantity" | "payment" | "done"
 
-const COMING_SOON_GATEWAYS = ["Binance Pay", "USDT", "CryptoBot"] as const
+const TOP_UP_METHODS = [
+  { id: "CARD", label: "wallet.methodCard", icon: null },
+  { id: "TON", label: "wallet.methodTon", icon: "/pay-icons/ton.svg" },
+  { id: "STARS", label: "wallet.methodStars", icon: "/pay-icons/telegram.svg" },
+] as const
 
 export function FlashBuyButton({
   sale,
@@ -63,6 +69,7 @@ export function FlashBuyButton({
   }
 
   const [open, setOpen] = useState(false)
+  const [addFundsOpen, setAddFundsOpen] = useState(false)
   const [celebrating, setCelebrating] = useState(false)
   const [step, setStep] = useState<Step>("quantity")
   const [qty, setQty] = useState(1)
@@ -131,6 +138,11 @@ export function FlashBuyButton({
   function removeCoupon() {
     setApplied(null)
     setCouponInput("")
+  }
+
+  function openTopUp() {
+    setOpen(false)
+    setAddFundsOpen(true)
   }
 
   async function pay() {
@@ -243,6 +255,7 @@ export function FlashBuyButton({
                         placeholder={t("coupon.placeholder")}
                         className="h-9 uppercase"
                         onKeyDown={(e) => {
+                          if (e.nativeEvent.isComposing || e.keyCode === 229) return
                           if (e.key === "Enter") {
                             e.preventDefault()
                             applyCoupon()
@@ -319,18 +332,29 @@ export function FlashBuyButton({
                 {insufficient && (
                   <p className="text-center text-xs text-destructive">{t("buy.insufficient")}</p>
                 )}
-                {COMING_SOON_GATEWAYS.map((g) => (
-                  <div
-                    key={g}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-secondary/30 p-4 opacity-60"
-                  >
-                    <span className="font-medium text-muted-foreground">{g}</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {t("buy.comingSoon")}
-                    </span>
+                {insufficient && (
+                  <div className="grid gap-2 pt-2">
+                    <p className="text-sm font-medium text-muted-foreground">{t("wallet.chooseMethod")}</p>
+                    {TOP_UP_METHODS.map((method) => (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={openTopUp}
+                        className="active:scale-press flex w-full items-center gap-3 rounded-xl border border-border bg-secondary/30 p-4 text-start transition-colors hover:border-primary/40 hover:bg-secondary/50"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                          {method.icon ? (
+                            <Image src={method.icon} alt="" width={26} height={26} className="h-6 w-6" />
+                          ) : (
+                            <CreditCard className="h-5 w-5 text-primary" />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1 font-bold text-foreground">{t(method.label)}</span>
+                        <ChevronLeft className="h-5 w-5 text-muted-foreground rtl:rotate-180" />
+                      </button>
+                    ))}
                   </div>
-                ))}
+                )}
               </DialogBody>
             </>
           )}
@@ -365,6 +389,13 @@ export function FlashBuyButton({
           )}
         </DialogContent>
       </Dialog>
+      <AddFundsSheet
+        open={addFundsOpen}
+        onOpenChange={setAddFundsOpen}
+        onChanged={refresh}
+        initialAmountToman={Math.max(0, Math.ceil(total - balance))}
+        allowedMethods={["CARD", "TON", "STARS"]}
+      />
       <CelebrationOverlay
         open={celebrating}
         kind="purchase"

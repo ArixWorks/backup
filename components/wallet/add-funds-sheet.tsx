@@ -63,10 +63,14 @@ export function AddFundsSheet({
   open,
   onOpenChange,
   onChanged,
+  initialAmountToman,
+  allowedMethods,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   onChanged: () => void
+  initialAmountToman?: number
+  allowedMethods?: Array<MethodConfig["method"]>
 }) {
   const { t, errorMessage, locale } = useI18n()
   const { data: cfg } = useSWR<{ data: PaymentConfig }>(
@@ -90,16 +94,25 @@ export function AddFundsSheet({
   const [busy, setBusy] = useState(false)
   const [instructions, setInstructions] = useState<Instructions | null>(null)
 
-  // Reset everything when the sheet closes.
+  const wasOpen = useRef(false)
+
+  // Reset on close and initialize checkout top-ups exactly once per opening.
   useEffect(() => {
-    if (!open) {
+    if (open && !wasOpen.current) {
+      if (initialAmountToman && initialAmountToman > 0) {
+        const displayAmount = isToman ? initialAmountToman : initialAmountToman / usdRate
+        setInput(String(isToman ? Math.ceil(displayAmount) : Number(displayAmount.toFixed(2))))
+        setStep("method")
+      }
+    } else if (!open && wasOpen.current) {
       setStep("amount")
       setInput("")
       setMethod(null)
       setInstructions(null)
       setBusy(false)
     }
-  }, [open])
+    wasOpen.current = open
+  }, [initialAmountToman, isToman, open, usdRate])
 
   // The wallet credit amount, always expressed in Toman (IRT base unit).
   const tomanAmount = useMemo(() => {
@@ -195,7 +208,13 @@ export function AddFundsSheet({
           )}
 
           {step === "method" && (
-            <MethodStep t={t} methods={methods} busy={busy} onPick={chooseMethod} active={method?.method} />
+            <MethodStep
+              t={t}
+              methods={allowedMethods ? methods.filter((item) => allowedMethods.includes(item.method)) : methods}
+              busy={busy}
+              onPick={chooseMethod}
+              active={method?.method}
+            />
           )}
 
           {step === "pay" && instructions && (
