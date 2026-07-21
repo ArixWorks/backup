@@ -132,6 +132,18 @@ export const SETTING_KEYS = {
   domainLookupLimitPerMinute: "domain.lookupLimitPerMinute",
   domainQuoteSecret: "domain.quoteSecret",
   domainProvider: "domain.provider",
+
+  // --- Wallex live FX sync (api.wallex.ir/v1/markets) ---
+  // Hourly job pulls the 24h high price for USDT (dollar) and GRAM (TON) in
+  // Toman, adds a fixed buffer, and refreshes the ExchangeRate table + the
+  // display USD rate so deposits and balance conversion always use live prices.
+  wallexEnabled: "wallex.enabled", // "true" | "false"
+  wallexBufferToman: "wallex.bufferToman", // Toman added per 1 unit of each currency
+  wallexIntervalMinutes: "wallex.intervalMinutes", // minimum minutes between auto-syncs
+  wallexLastSyncAt: "wallex.lastSyncAt", // internal: epoch ms of last successful sync
+  wallexUsdToman: "wallex.usdToman", // internal: last buffered Toman price for 1 USD/USDT
+  wallexTonToman: "wallex.tonToman", // internal: last buffered Toman price for 1 TON
+  wallexLastError: "wallex.lastError", // internal: last sync error message (empty when healthy)
 } as const
 
 /** Admin-selectable visual themes. The `id` maps to `data-theme` on <html>. */
@@ -255,6 +267,15 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.domainLookupLimitPerMinute]: "30",
   [SETTING_KEYS.domainQuoteSecret]: "",
   [SETTING_KEYS.domainProvider]: "cloudflare-rdap",
+
+  // Wallex live FX: on by default, +2,000 Toman buffer per unit, hourly.
+  [SETTING_KEYS.wallexEnabled]: "true",
+  [SETTING_KEYS.wallexBufferToman]: "2000",
+  [SETTING_KEYS.wallexIntervalMinutes]: "60",
+  [SETTING_KEYS.wallexLastSyncAt]: "",
+  [SETTING_KEYS.wallexUsdToman]: "",
+  [SETTING_KEYS.wallexTonToman]: "",
+  [SETTING_KEYS.wallexLastError]: "",
 }
 
 type Db = typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0]

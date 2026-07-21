@@ -62,3 +62,36 @@ export async function saveBotConfig(override: Partial<BotConfig>): Promise<BotCo
 export async function getStoredOverride(): Promise<BotConfig> {
   return getBotConfig(true)
 }
+
+/**
+ * Patch a subset of config fields into the *raw* stored override without
+ * clobbering the admin's other customizations. Unlike `saveBotConfig` (which
+ * replaces the whole override), this reads the current raw override, shallow-
+ * merges `patch`, and writes it back — safe for automated writers such as the
+ * hourly Wallex FX sync updating `usdRate`.
+ */
+export async function patchBotConfig(patch: Partial<BotConfig>): Promise<BotConfig> {
+  const row = await prisma.botSetting.findUnique({ where: { key: SETTING_KEY } })
+  let current: Partial<BotConfig> = {}
+  if (row) {
+    try {
+      current = JSON.parse(row.value) as Partial<BotConfig>
+    } catch {
+      current = {}
+    }
+  }
+  const next = { ...current, ...patch }
+  await prisma.botSetting.upsert({
+    where: { key: SETTING_KEY },
+    create: { key: SETTING_KEY, value: JSON.stringify(next) },
+    update: { value: JSON.stringify(next) },
+  })
+  cache = null
+  return getBotConfig(true)
+}
+
+/** Convenience: update only the display USD rate (Toman per 1 USD). */
+export async function setUsdRate(usdRate: number): Promise<void> {
+  if (!Number.isFinite(usdRate) || usdRate <= 0) return
+  await patchBotConfig({ usdRate: Math.round(usdRate) })
+}

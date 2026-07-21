@@ -98,6 +98,17 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] daily backup gate error:", (e as Error).message)
   }
 
+  // Refresh live FX rates from Wallex (USDT→dollar, GRAM→TON) once per hour.
+  // Gated internally by interval + last-sync timestamp. Best-effort: a Wallex
+  // outage records the error and leaves the previous rates untouched.
+  let wallex: { ran: boolean; reason?: string; usdToman?: number; tonToman?: number } = { ran: false }
+  try {
+    const { maybeSyncWallexRates } = await import("@/lib/core/wallex")
+    wallex = await maybeSyncWallexRates()
+  } catch (e) {
+    console.log("[v0] wallex FX sync error:", (e as Error).message)
+  }
+
   // Drain the transactional email queue (rate-limited inside the worker).
   // Best-effort: a mail failure must never break the scheduler tick.
   let email: { claimed: number; sent: number; failed: number; retried: number } = {
@@ -184,6 +195,7 @@ export const POST = route(async (req: Request) => {
     paymentDeadlines: paymentDeadlines.processed,
     giveaways,
     backup,
+    wallex,
     email,
     broadcasts,
     automations,
