@@ -20,6 +20,8 @@
     "go-live": "prisma migrate deploy && tsx scripts/production-seed.ts",
     "email:e2e": "tsx --require ./scripts/_stub-server-only.cjs scripts/email-e2e.ts",
     "audit:locales": "node scripts/audit-authenticated-locales.mjs",
+    "audit:i18n:parity": "node --import tsx scripts/audit-message-parity.ts",
+    "audit:i18n:content": "node --env-file-if-exists=/vercel/share/.env.project --require ./scripts/_stub-server-only.cjs --import tsx scripts/audit-translation-coverage.ts",
     "test:domains": "node --import tsx --test lib/core/domains/*.test.ts",
     "ops:ws": "node server/ops-ws-server.mjs",
     "postinstall": "prisma generate"

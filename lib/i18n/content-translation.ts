@@ -82,6 +82,15 @@ function rebuildTranslatedData(source: LocalizableData, fields: Array<{ key: str
   return translated
 }
 
+function normalizeLocalizedBrands(value: unknown): unknown {
+  if (typeof value === "string") return value.replaceAll("ساب‌آی‌او", "SubIO").replaceAll("ساب آی او", "SubIO")
+  if (Array.isArray(value)) return value.map(normalizeLocalizedBrands)
+  if (!value || typeof value !== "object") return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, nested]) => [key, normalizeLocalizedBrands(nested)]),
+  )
+}
+
 export async function enqueueTranslations(input: {
   entityType: string
   entityId: string
@@ -335,5 +344,6 @@ export async function getLocalizedData<T extends LocalizableData>(input: {
     orderBy: { completedAt: "desc" },
     select: { translatedData: true },
   })
-  return (translation?.translatedData as T | null) ?? input.fallback
+  const localized = (translation?.translatedData as T | null) ?? input.fallback
+  return normalizeLocalizedBrands(localized) as T
 }

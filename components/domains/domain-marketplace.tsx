@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
+import { DOMAIN_ORDER_COPY } from "@/lib/i18n/domain-order-copy"
 
 interface Tld { id: string; tld: string; title: string; basePriceIrt: string }
 interface Lookup {
@@ -56,27 +57,28 @@ interface DomainOrder {
 }
 
 const unwrap = <T,>(response: { data: T }) => response.data
-const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> = {
-  AVAILABLE: { label: "قابل ثبت", icon: CheckCircle2 },
-  REGISTERED: { label: "ثبت شده", icon: XCircle },
-  UNSUPPORTED: { label: "پشتیبانی نمی‌شود", icon: XCircle },
-  UNKNOWN: { label: "نامشخص", icon: Clock3 },
-  LOOKUP_ERROR: { label: "بررسی ناموفق", icon: Clock3 },
-  ERROR: { label: "بررسی ناموفق", icon: Clock3 },
-  PREMIUM: { label: "ویژه و غیرقابل فروش", icon: XCircle },
-  RESERVED: { label: "رزرو شده", icon: XCircle },
-  PENDING_PURCHASE: { label: "در صف ثبت", icon: Clock3 },
-  PROCESSING: { label: "در حال خرید", icon: Loader2 },
-  AWAITING_NAMESERVERS: { label: "منتظر NS شما", icon: Clock3 },
-  AWAITING_NAMESERVER_SETUP: { label: "در انتظار ثبت NS", icon: Loader2 },
-  COMPLETED: { label: "تکمیل شده", icon: CheckCircle2 },
-  FAILED: { label: "ناموفق؛ بازپرداخت شد", icon: XCircle },
-  EXPIRED: { label: "منقضی؛ بازپرداخت شد", icon: XCircle },
+const statusIcons: Record<string, typeof CheckCircle2> = {
+  AVAILABLE: CheckCircle2,
+  REGISTERED: XCircle,
+  UNSUPPORTED: XCircle,
+  UNKNOWN: Clock3,
+  LOOKUP_ERROR: Clock3,
+  ERROR: Clock3,
+  PREMIUM: XCircle,
+  RESERVED: XCircle,
+  PENDING_PURCHASE: Clock3,
+  PROCESSING: Loader2,
+  AWAITING_NAMESERVERS: Clock3,
+  AWAITING_NAMESERVER_SETUP: Loader2,
+  COMPLETED: CheckCircle2,
+  FAILED: XCircle,
+  EXPIRED: XCircle,
 }
 
 export function DomainMarketplace() {
   const { locale, price, dir } = useI18n()
   const copy = DOMAIN_COPY[locale]
+  const orderCopy = DOMAIN_ORDER_COPY[locale]
   const money = (value: string | number) => price(Number(value))
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
@@ -235,7 +237,7 @@ export function DomainMarketplace() {
           </PremiumHeroCard>
 
           {busy === "ai" && suggestions.length === 0 ? <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, index) => <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} className="h-40 animate-pulse rounded-2xl border border-primary/10 bg-muted/30" />)}</div> : null}
-          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} copy={copy} money={money} locale={locale} />)}</div>}
+          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} copy={copy} orderCopy={orderCopy} money={money} locale={locale} />)}</div>}
           {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
           {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">{copy.suggestionsTitle}</h2><p className="text-sm text-muted-foreground">{copy.suggestionsDescription}</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString(locale)} {copy.available}</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} copy={copy} money={money} />)}</div></div>}
         </TabsContent>
@@ -243,7 +245,7 @@ export function DomainMarketplace() {
         <TabsContent value="orders" className="flex flex-col gap-3">
           {orders.length === 0 ? (
             <Card><CardHeader><CardTitle>{copy.noOrders}</CardTitle><CardDescription>{copy.noOrdersDescription}</CardDescription></CardHeader></Card>
-          ) : orders.map((order) => <OrderCard key={order.id} order={order} money={money} onUpdated={() => mutateOrders()} />)}
+          ) : orders.map((order) => <OrderCard key={order.id} order={order} money={money} onUpdated={() => mutateOrders()} copy={orderCopy} locale={locale} />)}
         </TabsContent>
       </Tabs>
 
@@ -311,15 +313,15 @@ function SmartSuggestionCard({ item, busy, onPurchase, copy, money }: { item: Sm
   )
 }
 
-function AvailabilityCard({ lookup, busy, onPurchase, copy, money, locale }: { lookup: Lookup; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; money: (value: string | number) => string; locale: string }) {
-  const meta = statusMeta[lookup.status] ?? statusMeta.UNKNOWN
-  const Icon = meta.icon
+function AvailabilityCard({ lookup, busy, onPurchase, copy, orderCopy, money, locale }: { lookup: Lookup; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; orderCopy: typeof DOMAIN_ORDER_COPY.fa; money: (value: string | number) => string; locale: string }) {
+  const Icon = statusIcons[lookup.status] ?? Clock3
+  const statusLabel = orderCopy.statuses[lookup.status] ?? orderCopy.statuses.UNKNOWN
   const available = lookup.status === "AVAILABLE"
   return (
     <Card className={available ? "border-primary/40" : undefined}>
       <CardHeader className="flex-row items-start justify-between gap-4">
         <div className="flex flex-col gap-2"><CardTitle dir="ltr" className="text-left text-2xl">{lookup.unicodeDomain}</CardTitle><CardDescription>{copy.lastCheck}: {new Date(lookup.checkedAt).toLocaleTimeString(locale)}</CardDescription></div>
-        <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {meta.label}</Badge>
+        <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {statusLabel}</Badge>
       </CardHeader>
       <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">{copy.chooseAnother}</p>}</CardContent>
       {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} {copy.buy}</Button></CardFooter>}
@@ -327,9 +329,9 @@ function AvailabilityCard({ lookup, busy, onPurchase, copy, money, locale }: { l
   )
 }
 
-function OrderCard({ order, money, onUpdated }: { order: DomainOrder; money: (value: string | number) => string; onUpdated: () => Promise<unknown> }) {
-  const meta = statusMeta[order.status] ?? statusMeta.UNKNOWN
-  const Icon = meta.icon
+function OrderCard({ order, money, onUpdated, copy, locale }: { order: DomainOrder; money: (value: string | number) => string; onUpdated: () => Promise<unknown>; copy: typeof DOMAIN_ORDER_COPY.fa; locale: string }) {
+  const Icon = statusIcons[order.status] ?? Clock3
+  const statusLabel = copy.statuses[order.status as keyof typeof copy.statuses] ?? copy.statuses.UNKNOWN
   const [nameservers, setNameservers] = useState({ ns1: order.ns1 ?? "", ns2: order.ns2 ?? "", ns3: order.ns3 ?? "", ns4: order.ns4 ?? "" })
   const [nsError, setNsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -337,9 +339,9 @@ function OrderCard({ order, money, onUpdated }: { order: DomainOrder; money: (va
     const values = Object.values(nameservers).map((value) => value.trim().toLowerCase()).filter(Boolean)
     const hostnamePattern = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\.?$/i
     let error: string | null = null
-    if (!nameservers.ns1.trim() || !nameservers.ns2.trim()) error = "وارد کردن NS1 و NS2 الزامی است."
-    else if (values.some((value) => !hostnamePattern.test(value))) error = "آدرس NS معتبر نیست؛ نمونه صحیح: ns1.example.com"
-    else if (new Set(values.map((value) => value.replace(/\.$/, ""))).size !== values.length) error = "هر NS باید متفاوت باشد؛ NS1 و NS2 یکسان پذیرفته نمی‌شوند."
+    if (!nameservers.ns1.trim() || !nameservers.ns2.trim()) error = copy.nsRequired
+    else if (values.some((value) => !hostnamePattern.test(value))) error = copy.nsInvalid
+    else if (new Set(values.map((value) => value.replace(/\.$/, ""))).size !== values.length) error = copy.nsUnique
     if (error) {
       setNsError(error)
       return
@@ -348,21 +350,21 @@ function OrderCard({ order, money, onUpdated }: { order: DomainOrder; money: (va
     setSubmitting(true)
     try {
       await apiPost("/api/v1/domains/orders", { orderId: order.id, ...nameservers })
-      toast.success("NSها ثبت شد و درخواست برای ادمین ارسال گردید.")
+      toast.success(copy.nsSaved)
       await onUpdated()
-    } catch (error) { toast.error(error instanceof Error ? error.message : "ثبت NS انجام نشد.") } finally { setSubmitting(false) }
+    } catch (error) { toast.error(error instanceof Error ? error.message : copy.nsFailed) } finally { setSubmitting(false) }
   }
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-4 border-b border-border/60">
-        <div className="flex flex-col gap-1"><CardTitle dir="ltr" className="text-left">{order.asciiDomain}</CardTitle><CardDescription>{order.publicId} · {new Date(order.createdAt).toLocaleDateString("fa-IR")}</CardDescription></div>
-        <Badge variant="secondary"><Icon data-icon="inline-start" /> {meta.label}</Badge>
+        <div className="flex flex-col gap-1"><CardTitle dir="ltr" className="text-left">{order.asciiDomain}</CardTitle><CardDescription>{order.publicId} · {new Date(order.createdAt).toLocaleDateString(locale)}</CardDescription></div>
+        <Badge variant="secondary"><Icon data-icon="inline-start" /> {statusLabel}</Badge>
       </CardHeader>
       <CardContent className="flex flex-col gap-5 pt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">مبلغ</span><strong>{money(order.amountIrt)}</strong>{order.purchasedAt && <span>خرید: <strong>{new Date(order.purchasedAt).toLocaleDateString("fa-IR")}</strong></span>}{order.expiresAt && <span>انقضا: <strong>{new Date(order.expiresAt).toLocaleDateString("fa-IR")}</strong></span>}</div>
-        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label="ثبت نیم سرورها"><div><h3 className="font-bold">NSهای دامنه را ثبت کنید</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">NS1 و NS2 الزامی هستند. می‌توانید این مرحله را اکنون یا هر زمان دیگری تکمیل کنید.</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">الزامی</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} aria-invalid={Boolean(nsError)} onChange={(event) => { setNameservers((current) => ({ ...current, [key]: event.target.value })); if (nsError) setNsError(null) }} /></label>)}</div>{nsError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed text-destructive">{nsError}</p>}<Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}ثبت NS و ارسال برای ادمین</Button></section>}
-        {order.status === "AWAITING_NAMESERVER_SETUP" && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><strong>NSها برای ادمین ارسال شده‌اند</strong><div dir="ltr" className="mt-3 grid gap-2 text-left font-mono text-sm sm:grid-cols-2">{[order.ns1, order.ns2, order.ns3, order.ns4].filter(Boolean).map((ns) => <span key={ns!} className="rounded-lg bg-background/70 p-2">{ns}</span>)}</div></div>}
-        <div className="flex flex-col gap-3">{order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-r-2 border-primary/40 pr-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span>{event.message}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString("fa-IR")}</small></span></div>)}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">{copy.amount}</span><strong>{money(order.amountIrt)}</strong>{order.purchasedAt && <span>{copy.purchased}: <strong>{new Date(order.purchasedAt).toLocaleDateString(locale)}</strong></span>}{order.expiresAt && <span>{copy.expires}: <strong>{new Date(order.expiresAt).toLocaleDateString(locale)}</strong></span>}</div>
+        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label={copy.nsAria}><div><h3 className="font-bold">{copy.nsTitle}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{copy.nsDescription}</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">{copy.required}</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} aria-invalid={Boolean(nsError)} onChange={(event) => { setNameservers((current) => ({ ...current, [key]: event.target.value })); if (nsError) setNsError(null) }} /></label>)}</div>{nsError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed text-destructive">{nsError}</p>}<Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}{copy.nsSubmit}</Button></section>}
+        {order.status === "AWAITING_NAMESERVER_SETUP" && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><strong>{copy.nsSent}</strong><div dir="ltr" className="mt-3 grid gap-2 text-left font-mono text-sm sm:grid-cols-2">{[order.ns1, order.ns2, order.ns3, order.ns4].filter(Boolean).map((ns) => <span key={ns!} className="rounded-lg bg-background/70 p-2">{ns}</span>)}</div></div>}
+        <div className="flex flex-col gap-3">{order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-s-2 border-primary/40 ps-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span dir="auto">{locale === "fa" ? event.message : statusLabel}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString(locale)}</small></span></div>)}</div>
       </CardContent>
     </Card>
   )
