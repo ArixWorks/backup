@@ -25,6 +25,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useI18n } from "@/components/i18n-provider"
+import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
 
 interface Tld { id: string; tld: string; title: string; basePriceIrt: string }
 interface Lookup {
@@ -74,6 +76,9 @@ const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> =
 }
 
 export function DomainMarketplace() {
+  const { locale, price, dir } = useI18n()
+  const copy = DOMAIN_COPY[locale]
+  const money = (value: string | number) => price(Number(value))
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
   const [hasSearched, setHasSearched] = useState(false)
@@ -94,7 +99,7 @@ export function DomainMarketplace() {
 
   async function searchDomain(domain = normalizedQuery) {
     if (!domain) {
-      setSearchError("نام موردنظر را وارد کنید؛ برای نمونه arix یا arix.com")
+      setSearchError(copy.queryRequired)
       return
     }
     setSearchError(null)
@@ -106,7 +111,7 @@ export function DomainMarketplace() {
       setLookups(result.results)
       setHasSearched(true)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "استعلام دامنه انجام نشد."
+      const message = error instanceof Error ? error.message : copy.lookupFailed
       setSearchError(message)
       toast.error(message)
     } finally {
@@ -121,7 +126,7 @@ export function DomainMarketplace() {
       const quote = unwrap<{ id: string }>(await apiPost("/api/v1/domains/quote", { domain: lookup.asciiDomain }))
       const idempotencyKey = crypto.randomUUID()
       await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
-      toast.success("سفارش ثبت شد؛ وضعیت آن را از بخش سفارش‌ها دنبال کنید.")
+      toast.success(copy.orderCreated)
       if (source === "search") {
         setLookups([])
         setHasSearched(false)
@@ -131,17 +136,17 @@ export function DomainMarketplace() {
       await mutateOrders()
     } catch (error) {
       if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
-        toast.error("موجودی کیف پول برای ثبت این دامنه کافی نیست.", { action: { label: "افزایش موجودی", onClick: () => { window.location.href = "/wallet" } } })
+        toast.error(copy.insufficient, { action: { label: copy.addFunds, onClick: () => { window.location.href = "/wallet" } } })
       } else if (error instanceof ApiError && error.code === "DOMAIN_UNAVAILABLE") {
         setUnavailableDomain(lookup.asciiDomain)
         if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
         else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
       } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION", "VALIDATION_ERROR"].includes(error.code)) {
-        toast.error("وضعیت یا قیمت دامنه تغییر کرده است؛ دوباره استعلام بگیرید.")
+        toast.error(copy.changed)
         if (source === "smart") await generateSuggestions()
         else await searchDomain(lookup.asciiDomain)
       } else {
-        toast.error(error instanceof Error ? error.message : "ثبت سفارش انجام نشد؛ وجهی کسر نشده است.")
+        toast.error(error instanceof Error ? error.message : copy.orderFailed)
       }
     } finally {
       setBusy(null)
@@ -151,7 +156,7 @@ export function DomainMarketplace() {
 
   async function generateSuggestions(prompt = normalizedQuery) {
     if (prompt.length < 2) {
-      setSearchError("نام برند، ایده کسب‌وکار یا دامنه کامل را وارد کنید.")
+      setSearchError(copy.ideaRequired)
       return
     }
     setSearchError(null)
@@ -165,7 +170,7 @@ export function DomainMarketplace() {
       )
       setSuggestions(result.suggestions)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "پیشنهاد هوشمند آماده نشد."
+      const message = error instanceof Error ? error.message : copy.suggestionsFailed
       setSearchError(message)
       toast.error(message)
     } finally {
@@ -175,7 +180,7 @@ export function DomainMarketplace() {
 
   async function discoverDomain() {
     if (!normalizedQuery) {
-      setSearchError("نام برند، ایده کسب‌وکار یا دامنه کامل را وارد کنید.")
+      setSearchError(copy.ideaRequired)
       return
     }
     setSuggestions([])
@@ -184,13 +189,13 @@ export function DomainMarketplace() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir="rtl">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir={dir}>
       <motion.header initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }} className="relative flex flex-col gap-5 pb-2">
         <div aria-hidden className="pointer-events-none absolute -inset-x-20 -top-24 -z-10 h-64 opacity-50"><LivingSurface intensity="soft" lines={false} particles={false} blooms /></div>
-        <Badge variant="secondary" className="w-fit border border-primary/20 bg-primary/5 px-3 py-1.5"><ShieldCheck data-icon="inline-start" /> ثبت امن و شفاف</Badge>
+        <Badge variant="secondary" className="w-fit border border-primary/20 bg-primary/5 px-3 py-1.5"><ShieldCheck data-icon="inline-start" /> {copy.secure}</Badge>
         <div className="flex max-w-4xl flex-col gap-4">
-          <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">دامنه‌ای که <span className="text-primary">برندتان</span> با آن شروع می‌شود</h1>
-          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground md:text-lg">استعلام لحظه‌ای، قیمت قطعی و پیگیری ثبت؛ بدون هزینه پنهان و با بررسی دوباره پیش از خرید.</p>
+          <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">{copy.titleBefore} <span className="text-primary">{copy.titleBrand}</span> {copy.titleAfter}</h1>
+          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground md:text-lg">{copy.subtitle}</p>
         </div>
       </motion.header>
 
@@ -198,35 +203,35 @@ export function DomainMarketplace() {
         <TabsList className="h-14 w-full rounded-2xl border border-border/60 bg-card/60 p-1.5 shadow-lg shadow-background/30 backdrop-blur-xl sm:w-fit sm:min-w-96">
           <TabsTrigger value="discover" className="h-full gap-2 rounded-xl border-transparent px-5 text-sm font-semibold transition-colors duration-200 data-active:border-transparent data-active:bg-primary/10 data-active:text-primary data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-primary/10 sm:px-7">
             <Sparkles data-icon="inline-start" />
-            کشف و استعلام
+            {copy.discoverTab}
           </TabsTrigger>
           <TabsTrigger value="orders" className="h-full gap-2 rounded-xl border-transparent px-5 text-sm font-semibold transition-colors duration-200 data-active:border-transparent data-active:bg-primary/10 data-active:text-primary data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-primary/10 sm:px-7">
             <History data-icon="inline-start" />
-            سفارش‌ها
+            {copy.ordersTab}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="discover" className="flex flex-col gap-6">
-          <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label="کشف و استعلام دامنه">
+          <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label={copy.discoverTab}>
             <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
               <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10">
                 <div className="flex items-start gap-4">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-lg shadow-primary/10"><Sparkles className="size-6" /></span>
-                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">یک ورودی، دو مسیر هوشمند</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">دامنه کامل را برای استعلام مستقیم وارد کنید؛ یا نام برند و ایده‌تان را بنویسید تا پیشنهادهای آزاد ساخته شوند.</p></div>
+                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">{copy.smartTitle}</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">{copy.smartDescription}</p></div>
                 </div>
-                <DomainOrbitScene compact />
+                <DomainOrbitScene compact title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder="techivo.com یا فروشگاه ابزار طراحی" aria-label="نام دامنه یا ایده کسب‌وکار" aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
+                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder={copy.placeholder} aria-label={copy.inputLabel} aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
                   <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void discoverDomain()} disabled={busy !== null}>
                     {busy === "lookup" || busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
-                    {busy === "lookup" ? "در حال استعلام" : busy === "ai" ? "در حال ساخت پیشنهاد" : "کشف دامنه"}
+                    {busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.discover}
                   </Button>
                 </div>
-                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">نمونه: <span dir="ltr">techivo.com</span> برای استعلام مستقیم، یا «فروشگاه قهوه» برای پیشنهاد هوشمند</p>
+                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">{copy.hint}</p>
                 {searchError && <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>}
                 <div className="flex flex-wrap gap-2">{tlds.filter((item) => [".com", ".net", ".org", ".shop"].includes(item.tld)).map((item) => <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}><span dir="ltr">{item.tld}</span><span className="text-muted-foreground">{money(item.basePriceIrt)}</span></Button>)}</div>
               </div>
-              <DomainOrbitScene />
+              <DomainOrbitScene copy={copy} />
             </div>
           </PremiumHeroCard>
 
