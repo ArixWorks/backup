@@ -4,6 +4,8 @@ import { currentUserId } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { PageHeader } from "@/components/page-header"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
+import { getRequestLocale, serverCopy } from "@/lib/i18n/server"
+import { getLocalizedData } from "@/lib/i18n/content-translation"
 
 export const metadata = {
   title: "آموزش‌های خریداری‌شده",
@@ -11,10 +13,10 @@ export const metadata = {
 }
 
 export default async function TutorialsPage() {
-  const userId = await currentUserId()
-  if (!userId) return <SignInRequired description="برای مشاهده آموزش‌های خریداری‌شده وارد حساب شوید." />
+  const [userId, locale] = await Promise.all([currentUserId(), getRequestLocale()])
+  if (!userId) return <SignInRequired description={serverCopy("signInTutorials", locale)} />
 
-  const tutorials = await prisma.content.findMany({
+  const sourceTutorials = await prisma.content.findMany({
     where: {
       type: "tutorial",
       status: "PUBLISHED",
@@ -23,20 +25,29 @@ export default async function TutorialsPage() {
     orderBy: [{ order: "asc" }, { updatedAt: "desc" }],
     select: { id: true, title: true, excerpt: true, slug: true },
   })
+  const tutorials = await Promise.all(sourceTutorials.map(async (tutorial) => ({
+    ...tutorial,
+    ...(await getLocalizedData({
+      entityType: "content:tutorial",
+      entityId: tutorial.id,
+      locale,
+      fallback: { title: tutorial.title, excerpt: tutorial.excerpt },
+    })),
+  })))
 
   return (
     <div className="space-y-5">
       <PageHeader
         icon={BookOpen}
-        title="آموزش‌های خریداری‌شده"
-        description="فقط آموزش‌های متصل به سفارش‌های تحویل‌شده شما نمایش داده می‌شوند."
+        title={serverCopy("purchasedTutorials", locale)}
+        description={serverCopy("purchasedTutorialsDescription", locale)}
       />
       {tutorials.length === 0 ? (
         <EmptyState
-          icon={BookOpen}
-          title="هنوز آموزشی در دسترس نیست"
-          description="پس از تحویل سفارش، آموزش مرتبط از این بخش و صفحه سفارش‌ها قابل مشاهده است."
-          actionLabel="مشاهده سفارش‌ها"
+          iconName="bookOpen"
+          title={serverCopy("noTutorials", locale)}
+          description={serverCopy("noTutorialsDescription", locale)}
+          actionLabel={serverCopy("viewOrders", locale)}
           actionHref="/orders"
         />
       ) : (

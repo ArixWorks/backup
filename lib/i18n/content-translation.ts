@@ -82,6 +82,15 @@ function rebuildTranslatedData(source: LocalizableData, fields: Array<{ key: str
   return translated
 }
 
+function normalizeLocalizedBrands(value: unknown): unknown {
+  if (typeof value === "string") return value.replaceAll("ساب‌آی‌او", "SubIO").replaceAll("ساب آی او", "SubIO")
+  if (Array.isArray(value)) return value.map(normalizeLocalizedBrands)
+  if (!value || typeof value !== "object") return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, nested]) => [key, normalizeLocalizedBrands(nested)]),
+  )
+}
+
 export async function enqueueTranslations(input: {
   entityType: string
   entityId: string
@@ -210,10 +219,36 @@ export async function processTranslationQueue(limit = 4) {
 
 export async function enqueueTranslationBackfill(limit = 12) {
   let queued = 0
+  const contents = await prisma.content.findMany({
+    where: { locale: SOURCE_LOCALE, status: "PUBLISHED" },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  })
+  for (const content of contents) {
+    const sourceData = {
+      title: content.title,
+      excerpt: content.excerpt,
+      body: content.body,
+      seoTitle: content.seoTitle,
+      seoDescription: content.seoDescription,
+      seoKeywords: content.seoKeywords,
+      fields: content.fields,
+      navLabel: content.navLabel,
+      breadcrumbLabel: content.breadcrumbLabel,
+    }
+    const existing = await prisma.contentTranslation.count({
+      where: { entityType: `content:${content.type}`, entityId: content.id, sourceHash: sourceHash(sourceData) },
+    })
+    if (existing < TARGET_LOCALES.length) {
+      await enqueueTranslations({ entityType: `content:${content.type}`, entityId: content.id, sourceData })
+      queued += 1
+    }
+  }
+
   const products = await prisma.product.findMany({
     where: { active: true, hidden: false },
     orderBy: { createdAt: "asc" },
-    take: limit,
+    take: Math.max(0, limit - queued),
     select: { id: true, title: true, description: true, category: true, tags: true, links: true },
   })
   for (const product of products) {
@@ -309,5 +344,6 @@ export async function getLocalizedData<T extends LocalizableData>(input: {
     orderBy: { completedAt: "desc" },
     select: { translatedData: true },
   })
-  return (translation?.translatedData as T | null) ?? input.fallback
+  const localized = (translation?.translatedData as T | null) ?? input.fallback
+  return normalizeLocalizedBrands(localized) as T
 }

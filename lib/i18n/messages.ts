@@ -760,6 +760,20 @@ export type MessageKey =
   | "missions.claim"
   | "missions.daily"
   | "missions.weekly"
+  | "missions.daily_login.title"
+  | "missions.daily_login.description"
+  | "missions.daily_flash.title"
+  | "missions.daily_flash.description"
+  | "missions.daily_bid.title"
+  | "missions.daily_bid.description"
+  | "missions.weekly_invite.title"
+  | "missions.weekly_invite.description"
+  | "missions.weekly_giveaway.title"
+  | "missions.weekly_giveaway.description"
+  | "missions.weekly_purchase.title"
+  | "missions.weekly_purchase.description"
+  | "missions.onboard_profile.title"
+  | "missions.onboard_profile.description"
   | "refAct.pending"
   | "refAct.joined"
   | "refAct.purchased"
@@ -1328,7 +1342,7 @@ type Catalog = Record<MessageKey, string>
   "acctEmail.unverified": "تأیید نشده",
   "acctEmail.pending": "در انتظار تأیید: ",
   "acctEmail.sentNotice": "ایمیل تأیید ارسال شد. صندوق ورودی خود را بررسی کنید.",
-  "acctEmail.sendFailed": "ارسال ایمیل تأیید ناموفق بود",
+  "acctEmail.sendFailed": "ارسال ای��یل تأیید ناموفق بود",
   "acctEmail.errMinPassword": "رمز عبور باید حداقل ۸ کاراکتر باشد",
   "acctEmail.verifiedLocked": "ایمیل شما تأیید شده و قابل تغییر نیست.",
   "acctEmail.choosePassword": "یک رمز عبور انتخاب کنید (حداقل ۸ کاراکتر)",
@@ -1453,7 +1467,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.recentActivity": "فعالیت‌های اخیر",
   "wallet.noActivity": "هنوز فعالیتی ثبت نشده است",
   "wallet.chooseAmount": "مبلغ را انتخاب کنید",
-  "wallet.chooseMethod": "روش پرداخت را انتخاب کنید",
+  "wallet.chooseMethod": "روش پرد��خت را انتخاب کنید",
   "wallet.amountTomanLabel": "مبلغ (تومان)",
   "wallet.amountUsdLabel": "مبلغ (دلار)",
   "wallet.methodCard": "کارت به کارت",
@@ -1601,6 +1615,20 @@ type Catalog = Record<MessageKey, string>
   "missions.claim": "دریافت",
   "missions.daily": "مأموریت‌های روزانه",
   "missions.weekly": "مأموریت‌های هفتگی",
+  "missions.daily_login.title": "ورود روزانه",
+  "missions.daily_login.description": "امروز وارد شوید.",
+  "missions.daily_flash.title": "مشاهده فروش ویژه",
+  "missions.daily_flash.description": "یک فروش ویژه را مشاهده کنید.",
+  "missions.daily_bid.title": "شرکت در مزایده",
+  "missions.daily_bid.description": "روی یک مزایده پیشنهاد ثبت کنید.",
+  "missions.weekly_invite.title": "دعوت دوستان",
+  "missions.weekly_invite.description": "این هفته یک دوست دعوت کنید.",
+  "missions.weekly_giveaway.title": "شرکت در قرعه‌کشی",
+  "missions.weekly_giveaway.description": "این هفته در یک قرعه‌کشی شرکت کنید.",
+  "missions.weekly_purchase.title": "خرید هفتگی",
+  "missions.weekly_purchase.description": "این هفته یک خرید انجام دهید.",
+  "missions.onboard_profile.title": "تکمیل پروفایل",
+  "missions.onboard_profile.description": "اطلاعات پروفایل خود را کامل کنید.",
   "refAct.pending": "ثبت‌نام",
   "refAct.joined": "فعال",
   "refAct.purchased": "خرید کرد",
@@ -2404,6 +2432,20 @@ type Catalog = Record<MessageKey, string>
   "missions.claim": "Claim",
   "missions.daily": "Daily",
   "missions.weekly": "Weekly",
+  "missions.daily_login.title": "Daily sign-in",
+  "missions.daily_login.description": "Sign in today.",
+  "missions.daily_flash.title": "View a flash sale",
+  "missions.daily_flash.description": "Open one flash sale.",
+  "missions.daily_bid.title": "Join an auction",
+  "missions.daily_bid.description": "Place a bid in an auction.",
+  "missions.weekly_invite.title": "Invite a friend",
+  "missions.weekly_invite.description": "Invite one friend this week.",
+  "missions.weekly_giveaway.title": "Enter a giveaway",
+  "missions.weekly_giveaway.description": "Enter one giveaway this week.",
+  "missions.weekly_purchase.title": "Weekly purchase",
+  "missions.weekly_purchase.description": "Complete one purchase this week.",
+  "missions.onboard_profile.title": "Complete your profile",
+  "missions.onboard_profile.description": "Complete your profile information.",
   "refAct.pending": "Pending",
   "refAct.joined": "Joined",
   "refAct.purchased": "Purchased",
@@ -2695,7 +2737,7 @@ type Catalog = Record<MessageKey, string>
   "questions.successPending": "Вопрос отправлен на проверку администратору.",
   "questions.error": "Не удалось отправить вопрос.",
   "motion.choose": "Выбрать качество анимаций",
-  "motion.auto": "Авто",
+  "motion.auto": "А��то",
   "motion.cinematic": "Кинематографичное",
   "motion.balanced": "Сбалансированное",
   "motion.minimal": "Минимальное",
@@ -2822,7 +2864,7 @@ type Catalog = Record<MessageKey, string>
   "invite.how": "Как я получаю награды?",
   "invite.recent": "Недавние приглашения",
   "invite.s1.title": "Ваш друг регистрируется",
-  "invite.s1.desc": "Когда друг переходит в бота по вашей ссылке и завершает регистрацию, вы получаете первую награду.",
+  "invite.s1.desc": "Когда друг переход��т в бота по вашей ссылке и завершает регистрацию, вы получаете первую награду.",
   "invite.s2.title": "Первая покупка друга",
   "invite.s2.desc": "При первой покупке друга вы оба получаете особую награду за первую покупку.",
   "invite.s3.title": "Постоянный доход",
@@ -3026,7 +3068,7 @@ type Catalog = Record<MessageKey, string>
   "menu.muteAria": "Выключить звук уведомлений",
   "menu.mutedTitle": "Звук уведомлений выключен",
   "menu.unmutedTitle": "Звук уведомлений включён",
-  "referral.copied": "Ссылка-приглашение скопирована",
+  "referral.copied": "Ссылка-приглашение скопиров��на",
   "referral.copyFailed": "Не удалось скопировать",
   "referral.shareText": "Присоединяйся к нам и участвуй в аукционах и специальных распродажах!",
   "referral.shareTitle": "Пригласить друзей",
@@ -3207,6 +3249,20 @@ type Catalog = Record<MessageKey, string>
   "missions.claim": "Получить",
   "missions.daily": "Ежедневные",
   "missions.weekly": "Еженедельные",
+  "missions.daily_login.title": "Ежедневный вход",
+  "missions.daily_login.description": "Войдите сегодня.",
+  "missions.daily_flash.title": "Посмотреть распродажу",
+  "missions.daily_flash.description": "Откройте одну срочную распродажу.",
+  "missions.daily_bid.title": "Участвовать в аукционе",
+  "missions.daily_bid.description": "Сделайте ставку на аукционе.",
+  "missions.weekly_invite.title": "Пригласить друга",
+  "missions.weekly_invite.description": "Пригласите одного друга на этой неделе.",
+  "missions.weekly_giveaway.title": "Участвовать в розыгрыше",
+  "missions.weekly_giveaway.description": "Участвуйте в одном розыгрыше на этой неделе.",
+  "missions.weekly_purchase.title": "Еженедельная покупка",
+  "missions.weekly_purchase.description": "Совершите одну покупку на этой неделе.",
+  "missions.onboard_profile.title": "Заполнить профиль",
+  "missions.onboard_profile.description": "Заполните информацию профиля.",
   "refAct.pending": "Ожидание",
   "refAct.joined": "Присоединился",
   "refAct.purchased": "Купил",
@@ -4011,6 +4067,20 @@ type Catalog = Record<MessageKey, string>
   "missions.claim": "Claim",
   "missions.daily": "Daily",
   "missions.weekly": "Weekly",
+  "missions.daily_login.title": "रोज़ाना साइन इन",
+  "missions.daily_login.description": "आज साइन इन करें।",
+  "missions.daily_flash.title": "फ़्लैश सेल देखें",
+  "missions.daily_flash.description": "एक फ़्लैश सेल खोलें।",
+  "missions.daily_bid.title": "नीलामी में भाग लें",
+  "missions.daily_bid.description": "किसी नीलामी में बोली लगाएँ।",
+  "missions.weekly_invite.title": "दोस्त को आमंत्रित करें",
+  "missions.weekly_invite.description": "इस सप्ताह एक दोस्त को आमंत्रित करें।",
+  "missions.weekly_giveaway.title": "गिवअवे में भाग लें",
+  "missions.weekly_giveaway.description": "इस सप्ताह एक गिवअवे में भाग लें।",
+  "missions.weekly_purchase.title": "साप्ताहिक खरीदारी",
+  "missions.weekly_purchase.description": "इस सप्ताह एक खरीदारी पूरी करें।",
+  "missions.onboard_profile.title": "प्रोफ़ाइल पूरी करें",
+  "missions.onboard_profile.description": "अपनी प्रोफ़ाइल की जानकारी पूरी करें।",
   "refAct.pending": "Pending",
   "refAct.joined": "Joined",
   "refAct.purchased": "Purchased",

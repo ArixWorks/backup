@@ -6,6 +6,7 @@ import { ContentArticle } from "@/components/cms/content-article"
 import { resolveCmsIcon } from "@/lib/cms/icons"
 import { getContentType } from "@/lib/cms/registry"
 import { listPublished, getPublishedBySlug, getRelatedGroups, buildCmsMetadata } from "@/lib/cms/public"
+import { getRequestLocale, serverCopy, type ServerCopyKey } from "@/lib/i18n/server"
 
 /**
  * Generic renderers for "collection" content types so each route file stays a
@@ -16,11 +17,18 @@ import { listPublished, getPublishedBySlug, getRelatedGroups, buildCmsMetadata }
 export async function CollectionIndex({ type }: { type: string }) {
   const def = getContentType(type)
   if (!def) notFound()
-  const { items } = await listPublished(type)
+  const [{ items }, locale] = await Promise.all([listPublished(type), getRequestLocale()])
+  const copyKeys = ({
+    article: ["articles", "articlesDescription"],
+    help: ["help", "helpDescription"],
+    faq: ["faq", "faqDescription"],
+  } as const)[type]
+  const title = copyKeys ? serverCopy(copyKeys[0] as ServerCopyKey, locale) : def.labelPlural
+  const description = copyKeys ? serverCopy(copyKeys[1] as ServerCopyKey, locale) : def.description
   return (
     <div className="space-y-6">
-      <PageHeader icon={resolveCmsIcon(def.icon)} title={def.labelPlural} description={def.description} />
-      <ContentCollection items={items} basePath={def.routing.basePath} />
+      <PageHeader icon={resolveCmsIcon(def.icon)} title={title} description={description} />
+      <ContentCollection items={items} basePath={def.routing.basePath} locale={locale} />
     </div>
   )
 }
@@ -33,7 +41,7 @@ export async function collectionDetailMetadata(type: string, slug: string): Prom
 export async function CollectionDetail({ type, slug }: { type: string; slug: string }) {
   const def = getContentType(type)
   if (!def) notFound()
-  const content = await getPublishedBySlug(type, slug)
+  const [content, locale] = await Promise.all([getPublishedBySlug(type, slug), getRequestLocale()])
   if (!content) notFound()
 
   const fields = (content.fields as Record<string, unknown> | null) ?? {}
@@ -50,6 +58,7 @@ export async function CollectionDetail({ type, slug }: { type: string; slug: str
       category={content.category}
       breadcrumbs={[{ label: def.labelPlural, href: def.routing.basePath }, { label: content.title }]}
       relatedGroups={relatedGroups}
+      locale={locale}
     />
   )
 }

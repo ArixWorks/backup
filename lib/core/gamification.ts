@@ -581,6 +581,7 @@ export async function listMissionsForUser(userId: string) {
     const um = byMission.get(`${m.id}:${periodKey}`)
     return {
       id: m.id,
+      key: m.key,
       kind: m.kind,
       title: m.title,
       description: m.description,

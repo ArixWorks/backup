@@ -25,6 +25,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useI18n } from "@/components/i18n-provider"
+import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
+import { DOMAIN_ORDER_COPY } from "@/lib/i18n/domain-order-copy"
 
 interface Tld { id: string; tld: string; title: string; basePriceIrt: string }
 interface Lookup {
@@ -54,26 +57,29 @@ interface DomainOrder {
 }
 
 const unwrap = <T,>(response: { data: T }) => response.data
-const money = (value: string | number) => `${Number(value).toLocaleString("fa-IR")} تومان`
-const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> = {
-  AVAILABLE: { label: "قابل ثبت", icon: CheckCircle2 },
-  REGISTERED: { label: "ثبت شده", icon: XCircle },
-  UNSUPPORTED: { label: "پشتیبانی نمی‌شود", icon: XCircle },
-  UNKNOWN: { label: "نامشخص", icon: Clock3 },
-  LOOKUP_ERROR: { label: "بررسی ناموفق", icon: Clock3 },
-  ERROR: { label: "بررسی ناموفق", icon: Clock3 },
-  PREMIUM: { label: "ویژه و غیرقابل فروش", icon: XCircle },
-  RESERVED: { label: "رزرو شده", icon: XCircle },
-  PENDING_PURCHASE: { label: "در صف ثبت", icon: Clock3 },
-  PROCESSING: { label: "در حال خرید", icon: Loader2 },
-  AWAITING_NAMESERVERS: { label: "منتظر NS شما", icon: Clock3 },
-  AWAITING_NAMESERVER_SETUP: { label: "در انتظار ثبت NS", icon: Loader2 },
-  COMPLETED: { label: "تکمیل شده", icon: CheckCircle2 },
-  FAILED: { label: "ناموفق؛ بازپرداخت شد", icon: XCircle },
-  EXPIRED: { label: "منقضی؛ بازپرداخت شد", icon: XCircle },
+const statusIcons: Record<string, typeof CheckCircle2> = {
+  AVAILABLE: CheckCircle2,
+  REGISTERED: XCircle,
+  UNSUPPORTED: XCircle,
+  UNKNOWN: Clock3,
+  LOOKUP_ERROR: Clock3,
+  ERROR: Clock3,
+  PREMIUM: XCircle,
+  RESERVED: XCircle,
+  PENDING_PURCHASE: Clock3,
+  PROCESSING: Loader2,
+  AWAITING_NAMESERVERS: Clock3,
+  AWAITING_NAMESERVER_SETUP: Loader2,
+  COMPLETED: CheckCircle2,
+  FAILED: XCircle,
+  EXPIRED: XCircle,
 }
 
 export function DomainMarketplace() {
+  const { locale, price, dir } = useI18n()
+  const copy = DOMAIN_COPY[locale]
+  const orderCopy = DOMAIN_ORDER_COPY[locale]
+  const money = (value: string | number) => price(Number(value))
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
   const [hasSearched, setHasSearched] = useState(false)
@@ -94,7 +100,7 @@ export function DomainMarketplace() {
 
   async function searchDomain(domain = normalizedQuery) {
     if (!domain) {
-      setSearchError("نام موردنظر را وارد کنید؛ برای نمونه arix یا arix.com")
+      setSearchError(copy.queryRequired)
       return
     }
     setSearchError(null)
@@ -106,7 +112,7 @@ export function DomainMarketplace() {
       setLookups(result.results)
       setHasSearched(true)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "استعلام دامنه انجام نشد."
+      const message = error instanceof Error ? error.message : copy.lookupFailed
       setSearchError(message)
       toast.error(message)
     } finally {
@@ -121,7 +127,7 @@ export function DomainMarketplace() {
       const quote = unwrap<{ id: string }>(await apiPost("/api/v1/domains/quote", { domain: lookup.asciiDomain }))
       const idempotencyKey = crypto.randomUUID()
       await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
-      toast.success("سفارش ثبت شد؛ وضعیت آن را از بخش سفارش‌ها دنبال کنید.")
+      toast.success(copy.orderCreated)
       if (source === "search") {
         setLookups([])
         setHasSearched(false)
@@ -131,17 +137,17 @@ export function DomainMarketplace() {
       await mutateOrders()
     } catch (error) {
       if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
-        toast.error("موجودی کیف پول برای ثبت این دامنه کافی نیست.", { action: { label: "افزایش موجودی", onClick: () => { window.location.href = "/wallet" } } })
+        toast.error(copy.insufficient, { action: { label: copy.addFunds, onClick: () => { window.location.href = "/wallet" } } })
       } else if (error instanceof ApiError && error.code === "DOMAIN_UNAVAILABLE") {
         setUnavailableDomain(lookup.asciiDomain)
         if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
         else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
       } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION", "VALIDATION_ERROR"].includes(error.code)) {
-        toast.error("وضعیت یا قیمت دامنه تغییر کرده است؛ دوباره استعلام بگیرید.")
+        toast.error(copy.changed)
         if (source === "smart") await generateSuggestions()
         else await searchDomain(lookup.asciiDomain)
       } else {
-        toast.error(error instanceof Error ? error.message : "ثبت سفارش انجام نشد؛ وجهی کسر نشده است.")
+        toast.error(error instanceof Error ? error.message : copy.orderFailed)
       }
     } finally {
       setBusy(null)
@@ -151,7 +157,7 @@ export function DomainMarketplace() {
 
   async function generateSuggestions(prompt = normalizedQuery) {
     if (prompt.length < 2) {
-      setSearchError("نام برند، ایده کسب‌وکار یا دامنه کامل را وارد کنید.")
+      setSearchError(copy.ideaRequired)
       return
     }
     setSearchError(null)
@@ -165,7 +171,7 @@ export function DomainMarketplace() {
       )
       setSuggestions(result.suggestions)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "پیشنهاد هوشمند آماده نشد."
+      const message = error instanceof Error ? error.message : copy.suggestionsFailed
       setSearchError(message)
       toast.error(message)
     } finally {
@@ -175,7 +181,7 @@ export function DomainMarketplace() {
 
   async function discoverDomain() {
     if (!normalizedQuery) {
-      setSearchError("نام برند، ایده کسب‌وکار یا دامنه کامل را وارد کنید.")
+      setSearchError(copy.ideaRequired)
       return
     }
     setSuggestions([])
@@ -184,13 +190,13 @@ export function DomainMarketplace() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir="rtl">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir={dir}>
       <motion.header initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }} className="relative flex flex-col gap-5 pb-2">
         <div aria-hidden className="pointer-events-none absolute -inset-x-20 -top-24 -z-10 h-64 opacity-50"><LivingSurface intensity="soft" lines={false} particles={false} blooms /></div>
-        <Badge variant="secondary" className="w-fit border border-primary/20 bg-primary/5 px-3 py-1.5"><ShieldCheck data-icon="inline-start" /> ثبت امن و شفاف</Badge>
+        <Badge variant="secondary" className="w-fit border border-primary/20 bg-primary/5 px-3 py-1.5"><ShieldCheck data-icon="inline-start" /> {copy.secure}</Badge>
         <div className="flex max-w-4xl flex-col gap-4">
-          <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">دامنه‌ای که <span className="text-primary">برندتان</span> با آن شروع می‌شود</h1>
-          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground md:text-lg">استعلام لحظه‌ای، قیمت قطعی و پیگیری ثبت؛ بدون هزینه پنهان و با بررسی دوباره پیش از خرید.</p>
+          <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">{copy.titleBefore} <span className="text-primary">{copy.titleBrand}</span> {copy.titleAfter}</h1>
+          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground md:text-lg">{copy.subtitle}</p>
         </div>
       </motion.header>
 
@@ -198,69 +204,69 @@ export function DomainMarketplace() {
         <TabsList className="h-14 w-full rounded-2xl border border-border/60 bg-card/60 p-1.5 shadow-lg shadow-background/30 backdrop-blur-xl sm:w-fit sm:min-w-96">
           <TabsTrigger value="discover" className="h-full gap-2 rounded-xl border-transparent px-5 text-sm font-semibold transition-colors duration-200 data-active:border-transparent data-active:bg-primary/10 data-active:text-primary data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-primary/10 sm:px-7">
             <Sparkles data-icon="inline-start" />
-            کشف و استعلام
+            {copy.discoverTab}
           </TabsTrigger>
           <TabsTrigger value="orders" className="h-full gap-2 rounded-xl border-transparent px-5 text-sm font-semibold transition-colors duration-200 data-active:border-transparent data-active:bg-primary/10 data-active:text-primary data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-primary/10 sm:px-7">
             <History data-icon="inline-start" />
-            سفارش‌ها
+            {copy.ordersTab}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="discover" className="flex flex-col gap-6">
-          <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label="کشف و استعلام دامنه">
+          <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label={copy.discoverTab}>
             <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
               <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10">
                 <div className="flex items-start gap-4">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-lg shadow-primary/10"><Sparkles className="size-6" /></span>
-                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">یک ورودی، دو مسیر هوشمند</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">دامنه کامل را برای استعلام مستقیم وارد کنید؛ یا نام برند و ایده‌تان را بنویسید تا پیشنهادهای آزاد ساخته شوند.</p></div>
+                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">{copy.smartTitle}</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">{copy.smartDescription}</p></div>
                 </div>
-                <DomainOrbitScene compact />
+                <DomainOrbitScene compact title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder="techivo.com یا فروشگاه ابزار طراحی" aria-label="نام دامنه یا ایده کسب‌وکار" aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
+                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder={copy.placeholder} aria-label={copy.inputLabel} aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
                   <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void discoverDomain()} disabled={busy !== null}>
                     {busy === "lookup" || busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
-                    {busy === "lookup" ? "در حال استعلام" : busy === "ai" ? "در حال ساخت پیشنهاد" : "کشف دامنه"}
+                    {busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.discover}
                   </Button>
                 </div>
-                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">نمونه: <span dir="ltr">techivo.com</span> برای استعلام مستقیم، یا «فروشگاه قهوه» برای پیشنهاد هوشمند</p>
+                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">{copy.hint}</p>
                 {searchError && <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>}
                 <div className="flex flex-wrap gap-2">{tlds.filter((item) => [".com", ".net", ".org", ".shop"].includes(item.tld)).map((item) => <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}><span dir="ltr">{item.tld}</span><span className="text-muted-foreground">{money(item.basePriceIrt)}</span></Button>)}</div>
               </div>
-              <DomainOrbitScene />
+              <DomainOrbitScene title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
             </div>
           </PremiumHeroCard>
 
           {busy === "ai" && suggestions.length === 0 ? <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, index) => <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} className="h-40 animate-pulse rounded-2xl border border-primary/10 bg-muted/30" />)}</div> : null}
-          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} />)}</div>}
-          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>نام دیگری وارد کنید یا بدون پسوند، پیشنهادهای هوشمند بگیرید.</CardDescription></CardHeader></Card>}
-          {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">پیشنهادهای هوشمند و استعلام‌شده</h2><p className="text-sm text-muted-foreground">دامنه‌های آزاد ابتدا نمایش داده شده‌اند.</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString("fa-IR")} آزاد</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString("fa-IR")} گرفته‌شده</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} />)}</div></div>}
+          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} copy={copy} orderCopy={orderCopy} money={money} locale={locale} />)}</div>}
+          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
+          {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">{copy.suggestionsTitle}</h2><p className="text-sm text-muted-foreground">{copy.suggestionsDescription}</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString(locale)} {copy.available}</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} copy={copy} money={money} />)}</div></div>}
         </TabsContent>
 
         <TabsContent value="orders" className="flex flex-col gap-3">
           {orders.length === 0 ? (
-            <Card><CardHeader><CardTitle>هنوز سفارشی ندارید</CardTitle><CardDescription>پس از خرید، روند ثبت دامنه اینجا نمایش داده می‌شود.</CardDescription></CardHeader></Card>
-          ) : orders.map((order) => <OrderCard key={order.id} order={order} onUpdated={() => mutateOrders()} />)}
+            <Card><CardHeader><CardTitle>{copy.noOrders}</CardTitle><CardDescription>{copy.noOrdersDescription}</CardDescription></CardHeader></Card>
+          ) : orders.map((order) => <OrderCard key={order.id} order={order} money={money} onUpdated={() => mutateOrders()} copy={orderCopy} locale={locale} />)}
         </TabsContent>
       </Tabs>
 
       <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
         <DialogContent size="sm" showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><XCircle className="size-5 text-destructive" />دامنه دیگر آزاد نیست</DialogTitle>
-            <DialogDescription>بررسی نهایی درست پیش از ثبت سفارش انجام شد.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><XCircle className="size-5 text-destructive" />{copy.unavailable}</DialogTitle>
+            <DialogDescription>{copy.unavailableDescription}</DialogDescription>
           </DialogHeader>
           <DialogBody className="flex flex-col gap-3">
-            <p className="leading-relaxed">متأسفانه دامنه <strong dir="ltr" className="inline-block">{unavailableDomain}</strong> در فاصله استعلام تا خرید توسط شخص دیگری ثبت شده و امکان ثبت آن وجود ندارد.</p>
-            <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm leading-relaxed text-muted-foreground">هیچ سفارشی ثبت نشده و هیچ مبلغی از کیف پول شما فریز یا کسر نشده است.</p>
+            <p className="leading-relaxed"><strong dir="ltr" className="inline-block">{unavailableDomain}</strong> — {copy.unavailableBody}</p>
+            <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm leading-relaxed text-muted-foreground">{copy.noCharge}</p>
           </DialogBody>
-          <DialogFooter><Button className="w-full sm:w-auto" onClick={() => setUnavailableDomain(null)}>متوجه شدم</Button></DialogFooter>
+          <DialogFooter><Button className="w-full sm:w-auto" onClick={() => setUnavailableDomain(null)}>{copy.understood}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </main>
   )
 }
 
-function DomainOrbitScene({ compact = false }: { compact?: boolean }) {
+function DomainOrbitScene({ compact = false, title, subtitle }: { compact?: boolean; title: string; subtitle: string }) {
   const labels = [".com", ".net", ".org"]
   return (
     <div aria-hidden className={compact ? "relative flex min-h-56 items-center justify-center overflow-hidden rounded-3xl border border-primary/15 bg-primary/5 lg:hidden" : "relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center"}>
@@ -277,12 +283,12 @@ function DomainOrbitScene({ compact = false }: { compact?: boolean }) {
           return <motion.span key={label} className={compact ? "absolute z-20 flex h-8 min-w-14 items-center justify-center rounded-xl border border-primary/25 bg-card px-2 font-mono text-xs font-bold text-primary shadow-xl" : "absolute z-20 flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card px-3 font-mono text-sm font-bold text-primary shadow-xl"} style={{ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }} animate={{ y: [Math.sin(angle) * radius, Math.sin(angle) * radius - 4, Math.sin(angle) * radius] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
         })}
       </div>
-      <div className={compact ? "absolute bottom-4 z-20 flex flex-col items-center gap-1 text-center" : "absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"}><strong className="text-sm">از ایده تا دامنه آزاد</strong><span className="text-xs text-muted-foreground">کشف هوشمند، استعلام زنده، ثبت امن</span></div>
+      <div className={compact ? "absolute bottom-4 z-20 flex flex-col items-center gap-1 text-center" : "absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"}><strong className="text-sm">{title}</strong><span className="text-xs text-muted-foreground">{subtitle}</span></div>
     </div>
   )
 }
 
-function SmartSuggestionCard({ item, busy, onPurchase }: { item: SmartSuggestion; busy: boolean; onPurchase: () => void }) {
+function SmartSuggestionCard({ item, busy, onPurchase, copy, money }: { item: SmartSuggestion; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; money: (value: string | number) => string }) {
   const available = item.status === "AVAILABLE"
   const taken = item.status === "REGISTERED" || item.status === "RESERVED" || item.status === "PREMIUM"
   const failed = item.status === "ERROR" || item.status === "LOOKUP_ERROR" || item.status === "UNKNOWN"
@@ -293,39 +299,39 @@ function SmartSuggestionCard({ item, busy, onPurchase }: { item: SmartSuggestion
         <div className="min-w-0 flex flex-col gap-1"><CardTitle dir="ltr" className="truncate text-left text-xl">{item.domain}</CardTitle><CardDescription className="line-clamp-2 leading-relaxed">{item.reason}</CardDescription></div>
         <Badge className={available ? "shrink-0 bg-chart-2 text-background" : taken ? "shrink-0 bg-destructive text-destructive-foreground" : "shrink-0"} variant={failed ? "secondary" : "default"}>
           {available ? <CheckCircle2 data-icon="inline-start" /> : failed ? <Clock3 data-icon="inline-start" /> : <XCircle data-icon="inline-start" />}
-          {available ? "آزاد" : failed ? "نیازمند بررسی" : "گرفته شده"}
+          {available ? copy.available : failed ? copy.needsReview : copy.registered}
         </Badge>
       </CardHeader>
       <CardContent className="flex min-h-12 items-end">
-        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">ثبت یک‌ساله</span></div> : <p className="text-sm text-muted-foreground">{failed ? "در حال حاضر نتیجه قطعی دریافت نشد؛ دوباره پیشنهادها را بررسی کنید." : "این نام قبلاً ثبت یا رزرو شده است."}</p>}
+        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">{copy.oneYear}</span></div> : <p className="text-sm text-muted-foreground">{failed ? copy.retry : copy.alreadyRegistered}</p>}
       </CardContent>
       <CardFooter>
-        {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? "در حال ثبت سفارش" : "خرید و ثبت همین دامنه"}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? "امکان خرید ندارد" : "وضعیت نامشخص"}</Button>}
+        {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? copy.ordering : copy.buyThis}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? copy.cannotBuy : copy.unknown}</Button>}
       </CardFooter>
     </Card>
     </motion.div>
   )
 }
 
-function AvailabilityCard({ lookup, busy, onPurchase }: { lookup: Lookup; busy: boolean; onPurchase: () => void }) {
-  const meta = statusMeta[lookup.status] ?? statusMeta.UNKNOWN
-  const Icon = meta.icon
+function AvailabilityCard({ lookup, busy, onPurchase, copy, orderCopy, money, locale }: { lookup: Lookup; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; orderCopy: typeof DOMAIN_ORDER_COPY.fa; money: (value: string | number) => string; locale: string }) {
+  const Icon = statusIcons[lookup.status] ?? Clock3
+  const statusLabel = orderCopy.statuses[lookup.status] ?? orderCopy.statuses.UNKNOWN
   const available = lookup.status === "AVAILABLE"
   return (
     <Card className={available ? "border-primary/40" : undefined}>
       <CardHeader className="flex-row items-start justify-between gap-4">
-        <div className="flex flex-col gap-2"><CardTitle dir="ltr" className="text-left text-2xl">{lookup.unicodeDomain}</CardTitle><CardDescription>آخرین بررسی: {new Date(lookup.checkedAt).toLocaleTimeString("fa-IR")}</CardDescription></div>
-        <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {meta.label}</Badge>
+        <div className="flex flex-col gap-2"><CardTitle dir="ltr" className="text-left text-2xl">{lookup.unicodeDomain}</CardTitle><CardDescription>{copy.lastCheck}: {new Date(lookup.checkedAt).toLocaleTimeString(locale)}</CardDescription></div>
+        <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {statusLabel}</Badge>
       </CardHeader>
-      <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">برای انتخاب نام دیگر یا پیشنهاد هوشمند ادامه دهید.</p>}</CardContent>
-      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} خرید و ثبت دامنه</Button></CardFooter>}
+      <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">{copy.chooseAnother}</p>}</CardContent>
+      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} {copy.buy}</Button></CardFooter>}
     </Card>
   )
 }
 
-function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => Promise<unknown> }) {
-  const meta = statusMeta[order.status] ?? statusMeta.UNKNOWN
-  const Icon = meta.icon
+function OrderCard({ order, money, onUpdated, copy, locale }: { order: DomainOrder; money: (value: string | number) => string; onUpdated: () => Promise<unknown>; copy: typeof DOMAIN_ORDER_COPY.fa; locale: string }) {
+  const Icon = statusIcons[order.status] ?? Clock3
+  const statusLabel = copy.statuses[order.status as keyof typeof copy.statuses] ?? copy.statuses.UNKNOWN
   const [nameservers, setNameservers] = useState({ ns1: order.ns1 ?? "", ns2: order.ns2 ?? "", ns3: order.ns3 ?? "", ns4: order.ns4 ?? "" })
   const [nsError, setNsError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -333,9 +339,9 @@ function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => 
     const values = Object.values(nameservers).map((value) => value.trim().toLowerCase()).filter(Boolean)
     const hostnamePattern = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\.?$/i
     let error: string | null = null
-    if (!nameservers.ns1.trim() || !nameservers.ns2.trim()) error = "وارد کردن NS1 و NS2 الزامی است."
-    else if (values.some((value) => !hostnamePattern.test(value))) error = "آدرس NS معتبر نیست؛ نمونه صحیح: ns1.example.com"
-    else if (new Set(values.map((value) => value.replace(/\.$/, ""))).size !== values.length) error = "هر NS باید متفاوت باشد؛ NS1 و NS2 یکسان پذیرفته نمی‌شوند."
+    if (!nameservers.ns1.trim() || !nameservers.ns2.trim()) error = copy.nsRequired
+    else if (values.some((value) => !hostnamePattern.test(value))) error = copy.nsInvalid
+    else if (new Set(values.map((value) => value.replace(/\.$/, ""))).size !== values.length) error = copy.nsUnique
     if (error) {
       setNsError(error)
       return
@@ -344,21 +350,21 @@ function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => 
     setSubmitting(true)
     try {
       await apiPost("/api/v1/domains/orders", { orderId: order.id, ...nameservers })
-      toast.success("NSها ثبت شد و درخواست برای ادمین ارسال گردید.")
+      toast.success(copy.nsSaved)
       await onUpdated()
-    } catch (error) { toast.error(error instanceof Error ? error.message : "ثبت NS انجام نشد.") } finally { setSubmitting(false) }
+    } catch (error) { toast.error(error instanceof Error ? error.message : copy.nsFailed) } finally { setSubmitting(false) }
   }
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-4 border-b border-border/60">
-        <div className="flex flex-col gap-1"><CardTitle dir="ltr" className="text-left">{order.asciiDomain}</CardTitle><CardDescription>{order.publicId} · {new Date(order.createdAt).toLocaleDateString("fa-IR")}</CardDescription></div>
-        <Badge variant="secondary"><Icon data-icon="inline-start" /> {meta.label}</Badge>
+        <div className="flex flex-col gap-1"><CardTitle dir="ltr" className="text-left">{order.asciiDomain}</CardTitle><CardDescription>{order.publicId} · {new Date(order.createdAt).toLocaleDateString(locale)}</CardDescription></div>
+        <Badge variant="secondary"><Icon data-icon="inline-start" /> {statusLabel}</Badge>
       </CardHeader>
       <CardContent className="flex flex-col gap-5 pt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">مبلغ</span><strong>{money(order.amountIrt)}</strong>{order.purchasedAt && <span>خرید: <strong>{new Date(order.purchasedAt).toLocaleDateString("fa-IR")}</strong></span>}{order.expiresAt && <span>انقضا: <strong>{new Date(order.expiresAt).toLocaleDateString("fa-IR")}</strong></span>}</div>
-        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label="ثبت نیم سرورها"><div><h3 className="font-bold">NSهای دامنه را ثبت کنید</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">NS1 و NS2 الزامی هستند. می‌توانید این مرحله را اکنون یا هر زمان دیگری تکمیل کنید.</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">الزامی</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} aria-invalid={Boolean(nsError)} onChange={(event) => { setNameservers((current) => ({ ...current, [key]: event.target.value })); if (nsError) setNsError(null) }} /></label>)}</div>{nsError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed text-destructive">{nsError}</p>}<Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}ثبت NS و ارسال برای ادمین</Button></section>}
-        {order.status === "AWAITING_NAMESERVER_SETUP" && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><strong>NSها برای ادمین ارسال شده‌اند</strong><div dir="ltr" className="mt-3 grid gap-2 text-left font-mono text-sm sm:grid-cols-2">{[order.ns1, order.ns2, order.ns3, order.ns4].filter(Boolean).map((ns) => <span key={ns!} className="rounded-lg bg-background/70 p-2">{ns}</span>)}</div></div>}
-        <div className="flex flex-col gap-3">{order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-r-2 border-primary/40 pr-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span>{event.message}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString("fa-IR")}</small></span></div>)}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><span className="text-muted-foreground">{copy.amount}</span><strong>{money(order.amountIrt)}</strong>{order.purchasedAt && <span>{copy.purchased}: <strong>{new Date(order.purchasedAt).toLocaleDateString(locale)}</strong></span>}{order.expiresAt && <span>{copy.expires}: <strong>{new Date(order.expiresAt).toLocaleDateString(locale)}</strong></span>}</div>
+        {order.status === "AWAITING_NAMESERVERS" && <section className="flex flex-col gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-4" aria-label={copy.nsAria}><div><h3 className="font-bold">{copy.nsTitle}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{copy.nsDescription}</p></div><div className="grid gap-3 sm:grid-cols-2">{(["ns1", "ns2", "ns3", "ns4"] as const).map((key, index) => <label key={key} className="flex flex-col gap-2 text-sm font-medium">NS{index + 1}{index < 2 && <span className="text-destructive">{copy.required}</span>}<Input dir="ltr" className="text-left" autoCapitalize="none" autoCorrect="off" placeholder={`ns${index + 1}.example.com`} value={nameservers[key]} aria-invalid={Boolean(nsError)} onChange={(event) => { setNameservers((current) => ({ ...current, [key]: event.target.value })); if (nsError) setNsError(null) }} /></label>)}</div>{nsError && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm leading-relaxed text-destructive">{nsError}</p>}<Button className="w-full sm:w-fit" onClick={() => void submitNameservers()} disabled={submitting || !nameservers.ns1.trim() || !nameservers.ns2.trim()}>{submitting ? <Loader2 className="animate-spin" /> : <Globe2 />}{copy.nsSubmit}</Button></section>}
+        {order.status === "AWAITING_NAMESERVER_SETUP" && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><strong>{copy.nsSent}</strong><div dir="ltr" className="mt-3 grid gap-2 text-left font-mono text-sm sm:grid-cols-2">{[order.ns1, order.ns2, order.ns3, order.ns4].filter(Boolean).map((ns) => <span key={ns!} className="rounded-lg bg-background/70 p-2">{ns}</span>)}</div></div>}
+        <div className="flex flex-col gap-3">{order.events.map((event) => <div key={event.id} className="flex items-start gap-3 border-s-2 border-primary/40 ps-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="flex flex-col gap-1 text-sm"><span dir="auto">{locale === "fa" ? event.message : statusLabel}</span><small className="text-muted-foreground">{new Date(event.createdAt).toLocaleString(locale)}</small></span></div>)}</div>
       </CardContent>
     </Card>
   )

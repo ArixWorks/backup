@@ -62,6 +62,7 @@ async function provision(config: AccountConfig) {
           totalSpent: 0n,
           vipManual: false,
           isPremium: false,
+          onboardedAt: new Date(),
           tokenVersion: { increment: 1 },
         },
       })
@@ -80,6 +81,7 @@ async function provision(config: AccountConfig) {
           lastLoginMethod: "password",
           languageCode: "fa",
           localeManual: true,
+          onboardedAt: new Date(),
         },
       })
 
@@ -93,20 +95,31 @@ async function provision(config: AccountConfig) {
 }
 
 async function main() {
-  await provision({
-    email: required("QA_USER_EMAIL"),
-    password: required("QA_USER_PASSWORD"),
-    role: "USER",
-    displayName: "QA User",
-    aliasPrefix: "QAUser",
-  })
-  await provision({
-    email: required("QA_ADMIN_EMAIL"),
-    password: required("QA_ADMIN_PASSWORD"),
-    role: "ADMIN",
-    displayName: "QA Admin",
-    aliasPrefix: "QAAdmin",
-  })
+  const onlyRole = process.env.QA_ONLY_ROLE?.trim().toUpperCase()
+
+  if (!onlyRole || onlyRole === "USER") {
+    await provision({
+      email: required("QA_USER_EMAIL"),
+      password: required("QA_USER_PASSWORD"),
+      role: "USER",
+      displayName: "QA User",
+      aliasPrefix: "QAUser",
+    })
+  }
+
+  if (!onlyRole || onlyRole === "ADMIN") {
+    await provision({
+      email: required("QA_ADMIN_EMAIL"),
+      password: required("QA_ADMIN_PASSWORD"),
+      role: "ADMIN",
+      displayName: "QA Admin",
+      aliasPrefix: "QAAdmin",
+    })
+  }
+
+  if (onlyRole && onlyRole !== "USER" && onlyRole !== "ADMIN") {
+    throw new Error("QA_ONLY_ROLE must be USER or ADMIN")
+  }
 }
 
 main()

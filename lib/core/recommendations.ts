@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { getLocalizedData } from "@/lib/i18n/content-translation"
 import { summarizeFlash, type FlashProductRow, type FlashSaleSummary } from "./catalog"
 
 /**
@@ -67,6 +68,7 @@ export interface Recommendation extends FlashSaleSummary {
 export async function recommendForUser(
   userId: string | null,
   limit = 6,
+  locale = "fa",
 ): Promise<Recommendation[]> {
   // Candidate pool: available, visible flash-sale products with stock.
   const products = await prisma.product.findMany({
@@ -123,8 +125,20 @@ export async function recommendForUser(
 
   const top = scored.slice(0, limit)
 
-  return top.map(({ p, affinityScore, topCategory }) => {
-    const summary = summarizeFlash(p as unknown as FlashProductRow)
+  return Promise.all(top.map(async ({ p, affinityScore, topCategory }) => {
+    const localized = await getLocalizedData({
+      entityType: "product",
+      entityId: p.id,
+      locale,
+      fallback: {
+        title: p.title,
+        description: p.description,
+        category: p.category,
+        tags: p.tags,
+        links: p.links,
+      },
+    })
+    const summary = summarizeFlash({ ...p, ...localized } as unknown as FlashProductRow)
     let reason: string
     if (hasSignal && affinityScore > 0 && topCategory) {
       reason = `چون به «${topCategory}» علاقه نشان داده‌اید`
@@ -134,5 +148,5 @@ export async function recommendForUser(
       reason = "محبوب میان کاربران"
     }
     return { ...summary, reason }
-  })
+  }))
 }

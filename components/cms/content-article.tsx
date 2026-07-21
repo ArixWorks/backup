@@ -4,8 +4,9 @@ import { PageHeader, type Crumb } from "@/components/page-header"
 import { RichContent } from "@/components/rich-content/rich-content"
 import { RelatedContent } from "@/components/cms/related-content"
 import type { ResolvedTarget } from "@/lib/cms/relations"
+import type { Locale } from "@/lib/i18n/locales"
 
-const faDate = (d: Date) => new Date(d).toLocaleDateString("fa-IR", { dateStyle: "medium" })
+const localeDate = (d: Date, locale: Locale) => new Date(d).toLocaleDateString(locale === "fa" ? "fa-IR" : locale, { dateStyle: "medium" })
 
 /**
  * Canonical renderer for a single content document (article, tutorial, help
@@ -23,6 +24,7 @@ export function ContentArticle({
   category,
   breadcrumbs,
   relatedGroups,
+  locale = "fa",
   meta,
 }: {
   title: string
@@ -34,6 +36,7 @@ export function ContentArticle({
   category?: { name: string } | null
   breadcrumbs?: Crumb[]
   relatedGroups?: { title: string; items: ResolvedTarget[] }[]
+  locale?: Locale
   /** Extra meta chips rendered under the title (e.g. difficulty, duration). */
   meta?: React.ReactNode
 }) {
@@ -65,13 +68,13 @@ export function ContentArticle({
         {publishedAt ? (
           <span className="flex items-center gap-1.5">
             <CalendarDays className="h-3.5 w-3.5" />
-            {faDate(publishedAt)}
+            {localeDate(publishedAt, locale)}
           </span>
         ) : null}
         {readingTime ? (
           <span className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5" />
-            {`${readingTime} دقیقه مطالعه`}
+            {locale === "fa" ? `${readingTime.toLocaleString("fa-IR")} دقیقه مطالعه` : `${readingTime.toLocaleString(locale)} min read`}
           </span>
         ) : null}
         {meta}
