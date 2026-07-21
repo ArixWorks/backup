@@ -5,6 +5,11 @@
     "text": "reason: `دارای ${product._count.orders} سفارش ثبت���شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,"
   },
   {
+    "path": "lib/core/admin.ts",
+    "line": 325,
+    "text": "if (!item) throw new NotFoundError(\"��یتم یافت نشد\")"
+  },
+  {
     "path": "lib/core/finance.ts",
     "line": 415,
     "text": "if (!req) throw new NotFoundError(\"��رخواست برداشت یافت نشد\")"
