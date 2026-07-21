@@ -1,22 +1,16 @@
 import type { Metadata } from "next"
 import type { Content } from "@prisma/client"
-import { cookies } from "next/headers"
 import { getContentType } from "./registry"
 import { getContentBySlug, getSingleton, listContent } from "./content"
 import { resolveRelations, type ResolvedTarget } from "./relations"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
-import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales"
+import { getRequestLocale } from "@/lib/i18n/server"
 
 /**
  * Public-facing read helpers. These only ever surface PUBLISHED content and are
  * safe to call from public (unauthenticated) route segments. Business logic and
  * admin gating live elsewhere; this module is deliberately read-only.
  */
-
-async function requestLocale() {
-  const value = (await cookies()).get("subio_locale")?.value
-  return isLocale(value) ? value : DEFAULT_LOCALE
-}
 
 async function localizeContent<T extends Content>(item: T | null, locale: string): Promise<T | null> {
   if (!item) return null
@@ -49,18 +43,18 @@ export async function listPublished(type: string, opts?: { categoryId?: string; 
       page: opts?.page,
       pageSize: opts?.pageSize ?? 24,
     }),
-    requestLocale(),
+    getRequestLocale(),
   ])
   return { ...result, items: await Promise.all(result.items.map((item) => localizeContent(item, locale))) as typeof result.items }
 }
 
 export async function getPublishedBySlug(type: string, slug: string) {
-  const [item, locale] = await Promise.all([getContentBySlug(type, slug, { publicOnly: true }), requestLocale()])
+  const [item, locale] = await Promise.all([getContentBySlug(type, slug, { publicOnly: true }), getRequestLocale()])
   return localizeContent(item, locale)
 }
 
 export async function getPublishedSingleton(type: string) {
-  const [item, locale] = await Promise.all([getSingleton(type, { publicOnly: true }), requestLocale()])
+  const [item, locale] = await Promise.all([getSingleton(type, { publicOnly: true }), getRequestLocale()])
   return localizeContent(item, locale)
 }
 

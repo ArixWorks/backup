@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header"
 import { resolveCmsIcon } from "@/lib/cms/icons"
 import { getContentType } from "@/lib/cms/registry"
 import { getPublishedSingleton, buildCmsMetadata } from "@/lib/cms/public"
+import { getRequestLocale, serverCopy } from "@/lib/i18n/server"
 
 /**
  * Renders a singleton content type (rules / vps / domain landing) as a document
@@ -30,7 +31,7 @@ export async function CmsSingletonPage({
 }) {
   const def = getContentType(type)
   if (!def) notFound()
-  const content = await getPublishedSingleton(type)
+  const [content, locale] = await Promise.all([getPublishedSingleton(type), getRequestLocale()])
 
   const title = content?.title ?? fallbackTitle ?? def.labelPlural
   const description = content?.excerpt ?? fallbackDescription ?? def.description
@@ -44,7 +45,7 @@ export async function CmsSingletonPage({
         </article>
       ) : (
         <div className="rounded-2xl border border-dashed border-border/60 bg-card/50 p-10 text-center text-sm text-muted-foreground">
-          محتوای این صفحه هنوز منتشر نشده است
+          {serverCopy("unpublished", locale)}
         </div>
       )}
       {children}

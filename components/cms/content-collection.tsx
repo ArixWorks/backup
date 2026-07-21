@@ -1,8 +1,10 @@
 import Link from "next/link"
 import Image from "next/image"
 import { CalendarDays } from "lucide-react"
+import type { Locale } from "@/lib/i18n/locales"
 
-const faDate = (d: Date) => new Date(d).toLocaleDateString("fa-IR", { dateStyle: "medium" })
+const localeDate = (d: Date, locale: Locale) =>
+  new Date(d).toLocaleDateString(locale === "fa" ? "fa-IR" : locale, { dateStyle: "medium" })
 
 /**
  * Shared grid renderer for any "collection" content type (articles, tutorials,
@@ -21,10 +23,12 @@ export type CollectionItem = {
 export function ContentCollection({
   items,
   basePath,
+  locale = "fa",
   emptyLabel = "هنوز محتوایی منتشر نشده است",
 }: {
   items: CollectionItem[]
   basePath: string
+  locale?: Locale
   emptyLabel?: string
 }) {
   if (items.length === 0) {
@@ -67,7 +71,7 @@ export function ContentCollection({
               {item.publishedAt ? (
                 <span className="mt-auto flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  {faDate(item.publishedAt)}
+                  {localeDate(item.publishedAt, locale)}
                 </span>
               ) : null}
             </div>

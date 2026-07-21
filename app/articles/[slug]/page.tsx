@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { ContentArticle } from "@/components/cms/content-article"
 import { getPublishedBySlug, getRelatedGroups, buildCmsMetadata } from "@/lib/cms/public"
+import { getRequestLocale, serverCopy } from "@/lib/i18n/server"
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params
-  const content = await getPublishedBySlug("article", slug)
+  const [content, locale] = await Promise.all([getPublishedBySlug("article", slug), getRequestLocale()])
   if (!content) notFound()
 
   const fields = (content.fields as Record<string, unknown> | null) ?? {}
@@ -28,8 +29,9 @@ export default async function ArticlePage({ params }: Props) {
       publishedAt={content.publishedAt}
       readingTime={typeof fields.readingTime === "number" ? fields.readingTime : null}
       category={content.category}
-      breadcrumbs={[{ label: "مقالات", href: "/articles" }, { label: content.title }]}
+      breadcrumbs={[{ label: serverCopy("articles", locale), href: "/articles" }, { label: content.title }]}
       relatedGroups={relatedGroups}
+      locale={locale}
     />
   )
 }

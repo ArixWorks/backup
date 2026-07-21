@@ -38,9 +38,11 @@ export default function WalletPage() {
   const [selected, setSelected] = useState("IRT")
   const [addOpen, setAddOpen] = useState(false)
 
-  const currencies = data?.data.currencies ?? [
+  const currencies = (data?.data.currencies ?? [
     { code: "IRT", name: t("common.toman"), symbol: t("common.toman"), decimals: 0 },
-  ]
+  ]).map((currency) => currency.code === "IRT"
+    ? { ...currency, name: t("common.toman"), symbol: t("common.toman") }
+    : currency)
   const balances = data?.data.allBalances ?? []
   const selectedMeta = currencies.find((c) => c.code === selected) ?? currencies[0]
 
