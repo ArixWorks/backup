@@ -47,6 +47,8 @@ const COPY = {
   faq: { fa: "پرسش‌های متداول", en: "Frequently asked questions", hi: "अक्सर पूछे जाने वाले प्रश्न", ru: "Частые вопросы" },
   faqDescription: { fa: "پاسخ سوالات پرتکرار شما", en: "Answers to common questions", hi: "सामान्य प्रश्नों के उत्तर", ru: "Ответы на частые вопросы" },
   unpublished: { fa: "محتوای این صفحه هنوز منتشر نشده است", en: "This page has not been published yet.", hi: "यह पेज अभी प्रकाशित नहीं हुआ है।", ru: "Эта страница еще не опубликована." },
+  vpsDescription: { fa: "محتوای صفحه معرفی سرویس سرور مجازی (منطق خرید بعداً افزوده می‌شود)", en: "Virtual server service overview; purchasing will be added later.", hi: "वर्चुअल सर्वर सेवा का परिचय; खरीद प्रक्रिया बाद में जोड़ी जाएगी।", ru: "Обзор сервиса виртуальных серверов; покупка будет добавлена позже." },
+  rulesDescription: { fa: "قوانین و مقررات استفاده از سرویس", en: "Terms and conditions for using the service", hi: "सेवा उपयोग के नियम और शर्तें", ru: "Правила и условия использования сервиса" },
 } as const
 
 export type ServerCopyKey = keyof typeof COPY

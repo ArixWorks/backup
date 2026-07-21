@@ -34,7 +34,8 @@ export async function CmsSingletonPage({
   const [content, locale] = await Promise.all([getPublishedSingleton(type), getRequestLocale()])
 
   const title = content?.title ?? fallbackTitle ?? def.labelPlural
-  const description = content?.excerpt ?? fallbackDescription ?? def.description
+  const localizedDescription = type === "vps" ? serverCopy("vpsDescription", locale) : type === "rules" ? serverCopy("rulesDescription", locale) : null
+  const description = localizedDescription ?? content?.excerpt ?? fallbackDescription ?? def.description
 
   return (
     <div className="space-y-6">

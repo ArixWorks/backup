@@ -56,7 +56,6 @@ interface DomainOrder {
 }
 
 const unwrap = <T,>(response: { data: T }) => response.data
-const money = (value: string | number) => `${Number(value).toLocaleString("fa-IR")} تومان`
 const statusMeta: Record<string, { label: string; icon: typeof CheckCircle2 }> = {
   AVAILABLE: { label: "قابل ثبت", icon: CheckCircle2 },
   REGISTERED: { label: "ثبت شده", icon: XCircle },
@@ -231,41 +230,41 @@ export function DomainMarketplace() {
                 {searchError && <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>}
                 <div className="flex flex-wrap gap-2">{tlds.filter((item) => [".com", ".net", ".org", ".shop"].includes(item.tld)).map((item) => <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}><span dir="ltr">{item.tld}</span><span className="text-muted-foreground">{money(item.basePriceIrt)}</span></Button>)}</div>
               </div>
-              <DomainOrbitScene copy={copy} />
+              <DomainOrbitScene title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
             </div>
           </PremiumHeroCard>
 
           {busy === "ai" && suggestions.length === 0 ? <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, index) => <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} className="h-40 animate-pulse rounded-2xl border border-primary/10 bg-muted/30" />)}</div> : null}
-          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} />)}</div>}
-          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>دامنه قابل ثبت پیدا نشد</CardTitle><CardDescription>نام دیگری وارد کنید یا بدون پسوند، پیشنهادهای هوشمند بگیرید.</CardDescription></CardHeader></Card>}
-          {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">پیشنهادهای هوشمند و استعلام‌شده</h2><p className="text-sm text-muted-foreground">دامنه‌های آزاد ابتدا نمایش داده شده‌اند.</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString("fa-IR")} آزاد</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString("fa-IR")} گرفته‌شده</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} />)}</div></div>}
+          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} copy={copy} money={money} locale={locale} />)}</div>}
+          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
+          {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">{copy.suggestionsTitle}</h2><p className="text-sm text-muted-foreground">{copy.suggestionsDescription}</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString(locale)} {copy.available}</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} copy={copy} money={money} />)}</div></div>}
         </TabsContent>
 
         <TabsContent value="orders" className="flex flex-col gap-3">
           {orders.length === 0 ? (
-            <Card><CardHeader><CardTitle>هنوز سفارشی ندارید</CardTitle><CardDescription>پس از خرید، روند ثبت دامنه اینجا نمایش داده می‌شود.</CardDescription></CardHeader></Card>
-          ) : orders.map((order) => <OrderCard key={order.id} order={order} onUpdated={() => mutateOrders()} />)}
+            <Card><CardHeader><CardTitle>{copy.noOrders}</CardTitle><CardDescription>{copy.noOrdersDescription}</CardDescription></CardHeader></Card>
+          ) : orders.map((order) => <OrderCard key={order.id} order={order} money={money} onUpdated={() => mutateOrders()} />)}
         </TabsContent>
       </Tabs>
 
       <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
         <DialogContent size="sm" showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><XCircle className="size-5 text-destructive" />دامنه دیگر آزاد نیست</DialogTitle>
-            <DialogDescription>بررسی نهایی درست پیش از ثبت سفارش انجام شد.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><XCircle className="size-5 text-destructive" />{copy.unavailable}</DialogTitle>
+            <DialogDescription>{copy.unavailableDescription}</DialogDescription>
           </DialogHeader>
           <DialogBody className="flex flex-col gap-3">
-            <p className="leading-relaxed">متأسفانه دامنه <strong dir="ltr" className="inline-block">{unavailableDomain}</strong> در فاصله استعلام تا خرید توسط شخص دیگری ثبت شده و امکان ثبت آن وجود ندارد.</p>
-            <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm leading-relaxed text-muted-foreground">هیچ سفارشی ثبت نشده و هیچ مبلغی از کیف پول شما فریز یا کسر نشده است.</p>
+            <p className="leading-relaxed"><strong dir="ltr" className="inline-block">{unavailableDomain}</strong> — {copy.unavailableBody}</p>
+            <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm leading-relaxed text-muted-foreground">{copy.noCharge}</p>
           </DialogBody>
-          <DialogFooter><Button className="w-full sm:w-auto" onClick={() => setUnavailableDomain(null)}>متوجه شدم</Button></DialogFooter>
+          <DialogFooter><Button className="w-full sm:w-auto" onClick={() => setUnavailableDomain(null)}>{copy.understood}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </main>
   )
 }
 
-function DomainOrbitScene({ compact = false }: { compact?: boolean }) {
+function DomainOrbitScene({ compact = false, title, subtitle }: { compact?: boolean; title: string; subtitle: string }) {
   const labels = [".com", ".net", ".org"]
   return (
     <div aria-hidden className={compact ? "relative flex min-h-56 items-center justify-center overflow-hidden rounded-3xl border border-primary/15 bg-primary/5 lg:hidden" : "relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center"}>
@@ -282,12 +281,12 @@ function DomainOrbitScene({ compact = false }: { compact?: boolean }) {
           return <motion.span key={label} className={compact ? "absolute z-20 flex h-8 min-w-14 items-center justify-center rounded-xl border border-primary/25 bg-card px-2 font-mono text-xs font-bold text-primary shadow-xl" : "absolute z-20 flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card px-3 font-mono text-sm font-bold text-primary shadow-xl"} style={{ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }} animate={{ y: [Math.sin(angle) * radius, Math.sin(angle) * radius - 4, Math.sin(angle) * radius] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
         })}
       </div>
-      <div className={compact ? "absolute bottom-4 z-20 flex flex-col items-center gap-1 text-center" : "absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"}><strong className="text-sm">از ایده تا دامنه آزاد</strong><span className="text-xs text-muted-foreground">کشف هوشمند، استعلام زنده، ثبت امن</span></div>
+      <div className={compact ? "absolute bottom-4 z-20 flex flex-col items-center gap-1 text-center" : "absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"}><strong className="text-sm">{title}</strong><span className="text-xs text-muted-foreground">{subtitle}</span></div>
     </div>
   )
 }
 
-function SmartSuggestionCard({ item, busy, onPurchase }: { item: SmartSuggestion; busy: boolean; onPurchase: () => void }) {
+function SmartSuggestionCard({ item, busy, onPurchase, copy, money }: { item: SmartSuggestion; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; money: (value: string | number) => string }) {
   const available = item.status === "AVAILABLE"
   const taken = item.status === "REGISTERED" || item.status === "RESERVED" || item.status === "PREMIUM"
   const failed = item.status === "ERROR" || item.status === "LOOKUP_ERROR" || item.status === "UNKNOWN"
@@ -298,37 +297,37 @@ function SmartSuggestionCard({ item, busy, onPurchase }: { item: SmartSuggestion
         <div className="min-w-0 flex flex-col gap-1"><CardTitle dir="ltr" className="truncate text-left text-xl">{item.domain}</CardTitle><CardDescription className="line-clamp-2 leading-relaxed">{item.reason}</CardDescription></div>
         <Badge className={available ? "shrink-0 bg-chart-2 text-background" : taken ? "shrink-0 bg-destructive text-destructive-foreground" : "shrink-0"} variant={failed ? "secondary" : "default"}>
           {available ? <CheckCircle2 data-icon="inline-start" /> : failed ? <Clock3 data-icon="inline-start" /> : <XCircle data-icon="inline-start" />}
-          {available ? "آزاد" : failed ? "نیازمند بررسی" : "گرفته شده"}
+          {available ? copy.available : failed ? copy.needsReview : copy.registered}
         </Badge>
       </CardHeader>
       <CardContent className="flex min-h-12 items-end">
-        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">ثبت یک‌ساله</span></div> : <p className="text-sm text-muted-foreground">{failed ? "در حال حاضر نتیجه قطعی دریافت نشد؛ دوباره پیشنهادها را بررسی کنید." : "این نام قبلاً ثبت یا رزرو شده است."}</p>}
+        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">{copy.oneYear}</span></div> : <p className="text-sm text-muted-foreground">{failed ? copy.retry : copy.alreadyRegistered}</p>}
       </CardContent>
       <CardFooter>
-        {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? "در حال ثبت سفارش" : "خرید و ثبت همین دامنه"}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? "امکان خرید ندارد" : "وضعیت نامشخص"}</Button>}
+        {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? copy.ordering : copy.buyThis}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? copy.cannotBuy : copy.unknown}</Button>}
       </CardFooter>
     </Card>
     </motion.div>
   )
 }
 
-function AvailabilityCard({ lookup, busy, onPurchase }: { lookup: Lookup; busy: boolean; onPurchase: () => void }) {
+function AvailabilityCard({ lookup, busy, onPurchase, copy, money, locale }: { lookup: Lookup; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; money: (value: string | number) => string; locale: string }) {
   const meta = statusMeta[lookup.status] ?? statusMeta.UNKNOWN
   const Icon = meta.icon
   const available = lookup.status === "AVAILABLE"
   return (
     <Card className={available ? "border-primary/40" : undefined}>
       <CardHeader className="flex-row items-start justify-between gap-4">
-        <div className="flex flex-col gap-2"><CardTitle dir="ltr" className="text-left text-2xl">{lookup.unicodeDomain}</CardTitle><CardDescription>آخرین بررسی: {new Date(lookup.checkedAt).toLocaleTimeString("fa-IR")}</CardDescription></div>
+        <div className="flex flex-col gap-2"><CardTitle dir="ltr" className="text-left text-2xl">{lookup.unicodeDomain}</CardTitle><CardDescription>{copy.lastCheck}: {new Date(lookup.checkedAt).toLocaleTimeString(locale)}</CardDescription></div>
         <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {meta.label}</Badge>
       </CardHeader>
-      <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">برای انتخاب نام دیگر یا پیشنهاد هوشمند ادامه دهید.</p>}</CardContent>
-      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} خرید و ثبت دامنه</Button></CardFooter>}
+      <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">{copy.chooseAnother}</p>}</CardContent>
+      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} {copy.buy}</Button></CardFooter>}
     </Card>
   )
 }
 
-function OrderCard({ order, onUpdated }: { order: DomainOrder; onUpdated: () => Promise<unknown> }) {
+function OrderCard({ order, money, onUpdated }: { order: DomainOrder; money: (value: string | number) => string; onUpdated: () => Promise<unknown> }) {
   const meta = statusMeta[order.status] ?? statusMeta.UNKNOWN
   const Icon = meta.icon
   const [nameservers, setNameservers] = useState({ ns1: order.ns1 ?? "", ns2: order.ns2 ?? "", ns3: order.ns3 ?? "", ns4: order.ns4 ?? "" })

@@ -16,9 +16,9 @@ type Recommendation = FlashSale & { reason: string }
  * itself entirely when there's nothing to suggest.
  */
 export function RecommendedRail({ limit = 6 }: { limit?: number }) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
   const { data, isLoading } = useSWR<{ data: Recommendation[] }>(
-    `/api/v1/recommendations?limit=${limit}`,
+    `/api/v1/recommendations?limit=${limit}&locale=${locale}`,
     fetcher,
     { revalidateOnFocus: false },
   )

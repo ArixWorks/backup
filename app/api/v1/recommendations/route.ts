@@ -10,5 +10,6 @@ export const GET = route(async (req: Request) => {
   const { searchParams } = new URL(req.url)
   const limitRaw = Number(searchParams.get("limit") ?? "6")
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 12) : 6
-  return recommendForUser(user?.id ?? null, limit)
+  const locale = searchParams.get("locale") ?? "fa"
+  return recommendForUser(user?.id ?? null, limit, locale)
 })
