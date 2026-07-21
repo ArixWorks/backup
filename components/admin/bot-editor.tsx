@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Link2,
   Globe,
+  RefreshCw,
 } from "lucide-react"
 import { fetcher, apiPut, apiPost } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -106,6 +107,7 @@ export function BotEditor() {
   const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState("identity")
   const [settingUp, setSettingUp] = useState(false)
+  const [syncingRate, setSyncingRate] = useState(false)
 
   // Seed the draft once the config loads.
   const config = draft ?? data?.data.config ?? null
@@ -144,6 +146,32 @@ export function BotEditor() {
       toast.error(e?.message ?? "خطا در تنظیم وبهوک")
     } finally {
       setSettingUp(false)
+    }
+  }
+
+  // Pull the latest USD/TON prices from Wallex on demand and reflect the new
+  // USD rate in the editor immediately (it is also persisted server-side).
+  async function syncRateFromWallex() {
+    setSyncingRate(true)
+    try {
+      const res = await apiPost("/api/v1/admin/finance/wallex", {})
+      const result = res?.data?.result
+      if (result?.ran && typeof result.usdToman === "number") {
+        update((c) => ({ ...c, usdRate: result.usdToman }))
+        await mutate()
+        toast.success(
+          `قیمت‌ها از ولکس بروزرسانی شد — دلار ${result.usdToman.toLocaleString("fa-IR")} تومان` +
+            (typeof result.tonToman === "number"
+              ? `، تون ${result.tonToman.toLocaleString("fa-IR")} تومان`
+              : ""),
+        )
+      } else {
+        toast.error(`بروزرسانی ناموفق بود${result?.reason ? ` — ${result.reason}` : ""}`)
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "خطا در دریافت قیمت از ولکس")
+    } finally {
+      setSyncingRate(false)
     }
   }
 
@@ -475,17 +503,35 @@ export function BotEditor() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="usd-rate">نرخ دلار (تومان به ازای هر دلار)</Label>
-              <Input
-                id="usd-rate"
-                type="number"
-                dir="ltr"
-                value={config.usdRate}
-                onChange={(e) =>
-                  update((c) => ({ ...c, usdRate: Math.max(1, Number(e.target.value) || 0) }))
-                }
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="usd-rate"
+                  type="number"
+                  dir="ltr"
+                  className="flex-1"
+                  value={config.usdRate}
+                  onChange={(e) =>
+                    update((c) => ({ ...c, usdRate: Math.max(1, Number(e.target.value) || 0) }))
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={syncRateFromWallex}
+                  disabled={syncingRate}
+                  className="shrink-0 gap-2 bg-transparent"
+                >
+                  {syncingRate ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  بروزرسانی از ولکس
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 برای تبدیل قیمت‌های تومانی به دلار در زبان‌های انگلیسی، روسی و هندی استفاده می‌شود.
+                دکمه بروزرسانی آخرین قیمت تتر و تون را از ولکس (با احتساب بافر نوسان) دریافت می‌کند.
               </p>
             </div>
           </Card>
