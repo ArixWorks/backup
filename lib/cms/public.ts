@@ -1,7 +1,11 @@
 import type { Metadata } from "next"
+import type { Content } from "@prisma/client"
+import { cookies } from "next/headers"
 import { getContentType } from "./registry"
 import { getContentBySlug, getSingleton, listContent } from "./content"
 import { resolveRelations, type ResolvedTarget } from "./relations"
+import { getLocalizedData } from "@/lib/i18n/content-translation"
+import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n/locales"
 
 /**
  * Public-facing read helpers. These only ever surface PUBLISHED content and are
@@ -9,22 +13,55 @@ import { resolveRelations, type ResolvedTarget } from "./relations"
  * admin gating live elsewhere; this module is deliberately read-only.
  */
 
-export async function listPublished(type: string, opts?: { categoryId?: string; page?: number; pageSize?: number }) {
-  return listContent({
-    type,
-    publicOnly: true,
-    categoryId: opts?.categoryId,
-    page: opts?.page,
-    pageSize: opts?.pageSize ?? 24,
+async function requestLocale() {
+  const value = (await cookies()).get("subio_locale")?.value
+  return isLocale(value) ? value : DEFAULT_LOCALE
+}
+
+async function localizeContent<T extends Content>(item: T | null, locale: string): Promise<T | null> {
+  if (!item) return null
+  const sourceData = {
+    title: item.title,
+    excerpt: item.excerpt,
+    body: item.body,
+    seoTitle: item.seoTitle,
+    seoDescription: item.seoDescription,
+    seoKeywords: item.seoKeywords,
+    fields: item.fields,
+    navLabel: item.navLabel,
+    breadcrumbLabel: item.breadcrumbLabel,
+  }
+  const translated = await getLocalizedData({
+    entityType: `content:${item.type}`,
+    entityId: item.id,
+    locale,
+    fallback: sourceData,
   })
+  return { ...item, ...translated }
+}
+
+export async function listPublished(type: string, opts?: { categoryId?: string; page?: number; pageSize?: number }) {
+  const [result, locale] = await Promise.all([
+    listContent({
+      type,
+      publicOnly: true,
+      categoryId: opts?.categoryId,
+      page: opts?.page,
+      pageSize: opts?.pageSize ?? 24,
+    }),
+    requestLocale(),
+  ])
+  return { ...result, items: await Promise.all(result.items.map((item) => localizeContent(item, locale))) as typeof result.items }
 }
 
 export async function getPublishedBySlug(type: string, slug: string) {
-  return getContentBySlug(type, slug, { publicOnly: true })
+  const [item, locale] = await Promise.all([getContentBySlug(type, slug, { publicOnly: true }), requestLocale()])
+  return localizeContent(item, locale)
 }
 
 export async function getPublishedSingleton(type: string) {
-  return getSingleton(type, { publicOnly: true })
+  const [item, locale] = await Promise.all([getSingleton(type, { publicOnly: true }), requestLocale()])
+  return localizeContent(item, locale)
 }
 
 /** Resolve a content item's outgoing relations into display-ready targets. */

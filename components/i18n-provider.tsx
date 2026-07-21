@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { fetcher } from "@/lib/api-client"
 import {
@@ -42,6 +43,7 @@ const I18nContext = createContext<I18nContextValue | null>(null)
 const STORAGE_KEY = "subio_locale"
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
   // Public config (default locale + USD rate). Falls back to sane defaults.
   const { data: cfg } = useSWR<{ data: { defaultLocale: Locale; usdRate: number } }>(
     "/api/v1/public/config",
@@ -87,6 +89,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((next: Locale) => {
     setOverride(next)
+    document.cookie = `${STORAGE_KEY}=${next}; Path=/; Max-Age=31536000; SameSite=Lax`
     try {
       localStorage.setItem(STORAGE_KEY, next)
     } catch {
@@ -99,7 +102,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       credentials: "include",
       body: JSON.stringify({ locale: next }),
     }).catch(() => {})
-  }, [])
+    router.refresh()
+  }, [router])
 
   const value = useMemo<I18nContextValue>(() => {
     const catalog = MESSAGES[locale]

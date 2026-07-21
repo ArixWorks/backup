@@ -210,10 +210,36 @@ export async function processTranslationQueue(limit = 4) {
 
 export async function enqueueTranslationBackfill(limit = 12) {
   let queued = 0
+  const contents = await prisma.content.findMany({
+    where: { locale: SOURCE_LOCALE, status: "PUBLISHED" },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  })
+  for (const content of contents) {
+    const sourceData = {
+      title: content.title,
+      excerpt: content.excerpt,
+      body: content.body,
+      seoTitle: content.seoTitle,
+      seoDescription: content.seoDescription,
+      seoKeywords: content.seoKeywords,
+      fields: content.fields,
+      navLabel: content.navLabel,
+      breadcrumbLabel: content.breadcrumbLabel,
+    }
+    const existing = await prisma.contentTranslation.count({
+      where: { entityType: `content:${content.type}`, entityId: content.id, sourceHash: sourceHash(sourceData) },
+    })
+    if (existing < TARGET_LOCALES.length) {
+      await enqueueTranslations({ entityType: `content:${content.type}`, entityId: content.id, sourceData })
+      queued += 1
+    }
+  }
+
   const products = await prisma.product.findMany({
     where: { active: true, hidden: false },
     orderBy: { createdAt: "asc" },
-    take: limit,
+    take: Math.max(0, limit - queued),
     select: { id: true, title: true, description: true, category: true, tags: true, links: true },
   })
   for (const product of products) {

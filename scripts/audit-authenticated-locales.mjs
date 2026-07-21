@@ -51,6 +51,7 @@ try {
 
   for (const locale of locales) {
     browser(["storage", "local", "set", "subio_locale", locale])
+    browser(["eval", `document.cookie = "subio_locale=${locale}; Path=/; Max-Age=31536000; SameSite=Lax"`])
     for (const route of routes) {
       open(route)
       const url = browser(["get", "url"]).split("\n").at(-1) || ""
