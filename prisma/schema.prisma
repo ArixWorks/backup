@@ -258,6 +258,9 @@ model User {
   alias                  String     @unique // public pseudonym shown in bid history
   role                   UserRole   @default(USER)
   status                 UserStatus @default(ACTIVE)
+  // Automation-only account. Excluded from customer metrics and blocked from
+  // financial, reward, referral, giveaway, and notification side effects.
+  isTestAccount          Boolean    @default(false)
   // Temporary auction ban applied by the RESTRICT_USER winner-default action.
   // Null / past = unrestricted; a future timestamp blocks new bids until then.
   auctionRestrictedUntil DateTime?

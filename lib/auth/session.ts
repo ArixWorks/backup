@@ -42,8 +42,10 @@ export async function getCurrentUser() {
   // Record genuine online presence (distinct users/sessions) for the Operations
   // Center. Fire-and-forget; never blocks or breaks auth. The session id is a
   // non-reversible hash of the token so we never persist the raw credential.
-  const sessionId = createHash("sha256").update(token!).digest("hex").slice(0, 16)
-  void recordPresence(user.id, sessionId)
+  if (!user.isTestAccount) {
+    const sessionId = createHash("sha256").update(token!).digest("hex").slice(0, 16)
+    void recordPresence(user.id, sessionId)
+  }
   return user
 }
 

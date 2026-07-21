@@ -4,6 +4,7 @@ import { DomainError, TooManyRequestsError } from "@/lib/core/errors"
 import { serialize } from "@/lib/serialize"
 import { recordRequest } from "@/lib/monitoring/metrics"
 import { captureError } from "@/lib/monitoring/errors"
+import { enforceTestAccountMutationBoundary } from "@/lib/auth/test-account"
 
 /** Best-effort extraction of a low-cardinality route label from handler args. */
 function routeLabel(args: unknown[]): string | undefined {
@@ -32,6 +33,8 @@ export function route<Args extends unknown[]>(
     const startedAt = Date.now()
     const label = routeLabel(args)
     try {
+      const request = args[0]
+      if (request instanceof Request) await enforceTestAccountMutationBoundary(request)
       const data = await fn(...args)
       void recordRequest({ ms: Date.now() - startedAt, ok: true, route: label })
       return NextResponse.json({ ok: true, data: serialize(data) })

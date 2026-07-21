@@ -12,7 +12,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ ok: true, data: null })
   // Count one daily login per day (idempotent, best-effort — never blocks the
   // response or throws). Captures web, web-app and Telegram entry uniformly.
-  recordDailyLogin(user.id).catch(() => {})
+  if (!user.isTestAccount) recordDailyLogin(user.id).catch(() => {})
   // Base-currency wallet (eager-loaded in getCurrentUser); may be absent for new users.
   const baseWallet = user.wallets?.[0] ?? null
   // Effective membership tier (VIP when an active manual grant exists) so the
