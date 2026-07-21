@@ -179,58 +179,53 @@ export function SupportFab() {
               transition={springSoft}
             />
 
-            {/* sleeping "z z z" — a little trail rising diagonally from the head */}
-            {!reducedMotion && (
+            {/* sleeping "z z z" — a trail that keeps rising above the head and fading.
+                NOTE: animate the rise on a wrapping <g> (transform), NOT the text `y`
+                attribute, otherwise motion rewrites the glyph's position instead of
+                nudging it upward. */}
+            <motion.g
+              fill="currentColor"
+              fontFamily="ui-sans-serif, system-ui, sans-serif"
+              fontWeight="900"
+              animate={{ opacity: awake ? 0 : 1 }}
+              transition={{ duration: 0.25 }}
+            >
+              {/* small z (closest to the head) */}
               <motion.g
-                fill="currentColor"
-                fontFamily="ui-sans-serif, system-ui, sans-serif"
-                fontWeight="900"
-                animate={{ opacity: awake ? 0 : 1 }}
-                transition={{ duration: 0.2 }}
+                animate={
+                  awake || reducedMotion
+                    ? { opacity: awake ? 0 : 1, y: 0 }
+                    : { opacity: [0, 1, 1, 0], y: [2, -2, -6, -9] }
+                }
+                transition={reducedMotion ? { duration: 0.2 } : { duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "easeOut" }}
               >
-                {/* two dots at the base of the trail */}
-                <motion.g
-                  animate={awake ? { opacity: 0 } : { opacity: [0.3, 0.9, 0.3] }}
-                  transition={{ duration: 2.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-                >
-                  <circle cx="30" cy="20.5" r="0.8" />
-                  <circle cx="31.7" cy="18.8" r="1" />
-                </motion.g>
-
-                {/* small z */}
-                <motion.text
-                  x="33"
-                  y="18"
-                  fontSize="6"
-                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 1, 0], y: [3, 0, -1, -3] }}
-                  transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-                >
-                  z
-                </motion.text>
-
-                {/* medium z */}
-                <motion.text
-                  x="36.5"
-                  y="13.5"
-                  fontSize="7.5"
-                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 1, 0], y: [3, 0, -1, -3] }}
-                  transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut", delay: 0.6 }}
-                >
-                  z
-                </motion.text>
-
-                {/* large z */}
-                <motion.text
-                  x="40.5"
-                  y="8.5"
-                  fontSize="9"
-                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 1, 0], y: [3, 0, -2, -4] }}
-                  transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut", delay: 1.2 }}
-                >
-                  z
-                </motion.text>
+                <text x="30" y="16" fontSize="7">z</text>
               </motion.g>
-            )}
+
+              {/* medium z */}
+              <motion.g
+                animate={
+                  awake || reducedMotion
+                    ? { opacity: 0, y: 0 }
+                    : { opacity: [0, 1, 1, 0], y: [2, -2, -6, -9] }
+                }
+                transition={reducedMotion ? { duration: 0.2 } : { duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "easeOut", delay: 1 }}
+              >
+                <text x="34" y="11" fontSize="8.5">z</text>
+              </motion.g>
+
+              {/* large z (furthest / highest) */}
+              <motion.g
+                animate={
+                  awake || reducedMotion
+                    ? { opacity: 0, y: 0 }
+                    : { opacity: [0, 1, 1, 0], y: [2, -2, -6, -9] }
+                }
+                transition={reducedMotion ? { duration: 0.2 } : { duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "easeOut", delay: 2 }}
+              >
+                <text x="38.5" y="6" fontSize="10">z</text>
+              </motion.g>
+            </motion.g>
 
             {/* ---- headset: fully hidden while asleep, drops onto the ears on wake ---- */}
             <motion.g
