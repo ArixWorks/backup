@@ -1,10 +1,10 @@
 "use client"
 
 import { Sparkles, BadgePercent, Crown, CalendarClock } from "lucide-react"
-import { formatNumber, formatToman } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
 import { MembershipBadge } from "@/components/membership-badge"
-import { TIER_META, type Tier } from "@/lib/tiers"
+import { TIER_META, tierLabelKey, type Tier } from "@/lib/tiers"
+import type { MessageKey } from "@/lib/i18n/messages"
 
 export type RewardsSummary = {
   loyaltyPoints: number
@@ -26,8 +26,9 @@ export type RewardsSummary = {
 }
 
 export function VipTierCard({ summary }: { summary: RewardsSummary }) {
-  const { t } = useI18n()
+  const { t, locale, num, price } = useI18n()
   const meta = TIER_META[summary.tier] ?? TIER_META.STANDARD
+  const tierLabel = (tier: Tier) => t(tierLabelKey(tier) as MessageKey)
 
   // Progress toward the next EARNED tier. A tier unlocks when EITHER the points
   // OR the spend threshold is met (matches the engine's combined rule), so the
@@ -58,7 +59,7 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
           </span>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{t("membership.title")}</p>
-            <p className="truncate text-lg font-extrabold text-foreground">{summary.tierLabel}</p>
+            <p className="truncate text-lg font-extrabold text-foreground">{tierLabel(summary.tier)}</p>
           </div>
         </div>
         <MembershipBadge tier={summary.tier} />
@@ -75,7 +76,7 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
         {summary.loginStreak > 1 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            {formatNumber(summary.loginStreak)} {t("vip.loginStreak")}
+              {num(summary.loginStreak)} {t("vip.loginStreak")}
           </span>
         )}
       </div>
@@ -88,7 +89,7 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
           {expiry ? (
             <span className="ms-auto inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium opacity-80">
               <CalendarClock className="h-3.5 w-3.5" />
-              {expiry.toLocaleDateString("fa-IR")}
+              {expiry.toLocaleDateString(locale === "fa" ? "fa-IR" : locale)}
             </span>
           ) : null}
         </div>
@@ -98,11 +99,11 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
       <div className="relative z-[1] mt-4 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-border bg-background/50 p-3">
           <p className="text-xs text-muted-foreground">{t("vip.usablePoints")}</p>
-          <p className="mt-0.5 text-xl font-extrabold text-primary">{formatNumber(summary.loyaltyPoints)}</p>
+          <p className="mt-0.5 text-xl font-extrabold text-primary">{num(summary.loyaltyPoints)}</p>
         </div>
         <div className="rounded-xl border border-border bg-background/50 p-3">
           <p className="text-xs text-muted-foreground">{t("vip.totalSpend")}</p>
-          <p className="mt-0.5 text-base font-bold text-foreground">{formatToman(summary.totalSpent)}</p>
+          <p className="mt-0.5 text-base font-bold text-foreground">{price(summary.totalSpent)}</p>
         </div>
       </div>
 
@@ -111,8 +112,8 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
       {summary.nextTier ? (
         <div className="relative z-[1] mt-4">
           <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">{t("vip.progressTo", { tier: summary.nextTierLabel ?? "" })}</span>
-            <span className="font-bold text-foreground">{formatNumber(overallPct)}%</span>
+            <span className="text-muted-foreground">{t("vip.progressTo", { tier: tierLabel(summary.nextTier as Tier) })}</span>
+            <span className="font-bold text-foreground">{num(overallPct)}%</span>
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
             <div
@@ -122,9 +123,9 @@ export function VipTierCard({ summary }: { summary: RewardsSummary }) {
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
-              {t("vip.pointsProgress")}: {formatNumber(summary.lifetimePoints)} / {formatNumber(summary.nextThreshold?.points ?? 0)}
+              {t("vip.pointsProgress")}: {num(summary.lifetimePoints)} / {num(summary.nextThreshold?.points ?? 0)}
             </span>
-            <span>{t("vip.spendProgress")}: {formatNumber(spendPct)}%</span>
+            <span>{t("vip.spendProgress")}: {num(spendPct)}%</span>
           </div>
         </div>
       ) : (

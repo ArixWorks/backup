@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { LogIn, type LucideIcon } from "lucide-react"
+import { BookOpen, LogIn, type LucideIcon } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -16,8 +16,11 @@ import { useI18n } from "@/components/i18n-provider"
  * Pass either `action` (a ready node) or the `actionLabel` + (`actionHref` |
  * `onAction`) shorthand for the standard primary CTA.
  */
+const NAMED_ICONS = { bookOpen: BookOpen } as const
+
 export function EmptyState({
-  icon: Icon,
+  icon,
+  iconName,
   title,
   description,
   action,
@@ -27,7 +30,8 @@ export function EmptyState({
   compact = false,
   className,
 }: {
-  icon: LucideIcon
+  icon?: LucideIcon
+  iconName?: keyof typeof NAMED_ICONS
   title: string
   description?: string
   action?: React.ReactNode
@@ -39,6 +43,7 @@ export function EmptyState({
   className?: string
 }) {
   const reduce = useReducedMotion()
+  const Icon = icon ?? (iconName ? NAMED_ICONS[iconName] : null)
 
   const cta =
     action ??
@@ -86,10 +91,12 @@ export function EmptyState({
             compact ? "size-14" : "size-20",
           )}
         >
-          <Icon
-            className={cn("text-primary", compact ? "size-6" : "size-8")}
-            strokeWidth={1.75}
-          />
+          {Icon ? (
+            <Icon
+              className={cn("text-primary", compact ? "size-6" : "size-8")}
+              strokeWidth={1.75}
+            />
+          ) : null}
         </span>
       </div>
 

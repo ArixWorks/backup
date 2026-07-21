@@ -33,7 +33,7 @@ export default async function TutorialsPage() {
       />
       {tutorials.length === 0 ? (
         <EmptyState
-          icon={BookOpen}
+          iconName="bookOpen"
           title="هنوز آموزشی در دسترس نیست"
           description="پس از تحویل سفارش، آموزش مرتبط از این بخش و صفحه سفارش‌ها قابل مشاهده است."
           actionLabel="مشاهده سفارش‌ها"

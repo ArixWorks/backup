@@ -39,13 +39,13 @@ try {
   browser(["snapshot"])
   browser(["fill", 'input[type="email"]', email])
   browser(["fill", 'input[type="password"]', password])
-  browser(["press", "Enter"])
-  browser(["wait", "1500"])
+  const loginResult = browser(["eval", `(async () => { const response = await fetch("/api/v1/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: ${JSON.stringify(email)}, password: ${JSON.stringify(password)} }) }); const payload = await response.json(); return { ok: response.ok && payload?.ok === true, status: response.status, code: payload?.error?.code ?? null } })()`])
+  if (!/"ok"\s*:\s*true/.test(loginResult)) throw new Error(`QA login failed: ${loginResult}`)
 
   open("/profile")
   const authenticatedUrl = browser(["get", "url"]).split("\n").at(-1) || ""
-  const identityVisible = browser(["eval", `Boolean(document.body.innerText.includes(${JSON.stringify(email)}))`])
-  if (authenticatedUrl.includes("/login") || !identityVisible.includes("true")) {
+  const sessionCheck = browser(["eval", `(async () => { const response = await fetch("/api/v1/auth/session"); const payload = await response.json(); return Boolean(response.ok && payload?.data?.role === "USER") })()`])
+  if (authenticatedUrl.includes("/login") || !sessionCheck.includes("true")) {
     throw new Error(`Authentication assertion failed at ${authenticatedUrl}`)
   }
 

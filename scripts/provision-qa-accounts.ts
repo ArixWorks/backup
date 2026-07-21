@@ -62,6 +62,7 @@ async function provision(config: AccountConfig) {
           totalSpent: 0n,
           vipManual: false,
           isPremium: false,
+          onboardedAt: new Date(),
           tokenVersion: { increment: 1 },
         },
       })
@@ -80,6 +81,7 @@ async function provision(config: AccountConfig) {
           lastLoginMethod: "password",
           languageCode: "fa",
           localeManual: true,
+          onboardedAt: new Date(),
         },
       })
 
