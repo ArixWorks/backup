@@ -13,6 +13,7 @@ export const GET = route(async (req: Request) => {
   const { searchParams } = new URL(req.url)
   const raw = (searchParams.get("placement") || "HEADER").toUpperCase()
   const placement = (PLACEMENTS.has(raw) ? raw : "HEADER") as NavPlacement
-  const tree = await getNavTree(placement)
+  const locale = searchParams.get("locale") || "fa"
+  const tree = await getNavTree(placement, locale)
   return { tree }
 })

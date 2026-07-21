@@ -13,5 +13,20 @@
     "path": "lib/core/finance.ts",
     "line": 415,
     "text": "if (!req) throw new NotFoundError(\"��رخواست برداشت یافت نشد\")"
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 885,
+    "text": "\"tour.s5.title\": \"هیچ‌��یز را از دست ندهید\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1018,
+    "text": "\"lang.choose\": \"ا��تخاب زبان\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1160,
+    "text": "\"adetail.noBids\": \"هنوز پیشنهادی ثبت نشده است. اولین پیشنها�� را شما ثبت کنید.\","
   }
 ]

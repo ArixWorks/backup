@@ -27,7 +27,7 @@ type Question = {
 type Response = { data: { items: Question[] } }
 
 export function ProductQuestions({ productId }: { productId: string }) {
-  const { locale, dir } = useI18n()
+  const { locale, dir, t, num } = useI18n()
   const [body, setBody] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const { data, isLoading, mutate } = useSWR<Response>(`/api/v1/products/${productId}/questions?locale=${locale}`, fetcher, {
@@ -45,11 +45,11 @@ export function ProductQuestions({ productId }: { productId: string }) {
       await mutate()
       toast.success(
         result.data.status === "ANSWERED"
-          ? "پاسخ مستند آماده و منتشر شد."
-          : "پرسش ثبت شد و برای بررسی ادمین ارسال شد.",
+          ? t("questions.successAnswered")
+          : t("questions.successPending"),
       )
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "ثبت پرسش انجام نشد.")
+      toast.error(error instanceof Error ? error.message : t("questions.error"))
     } finally {
       setSubmitting(false)
     }
@@ -62,26 +62,26 @@ export function ProductQuestions({ productId }: { productId: string }) {
           <div className="flex min-w-0 flex-col gap-1">
             <CardTitle className="flex items-center gap-2 text-lg text-balance">
               <CircleHelp className="size-5 text-primary" aria-hidden="true" />
-              پرسش و پاسخ محصول
+              {t("questions.title")}
             </CardTitle>
             <CardDescription className="leading-6 text-pretty">
-              سؤال خود را بپرسید؛ پاسخ فقط بر پایه اطلاعات و تصاویر همین محصول ارائه می‌شود.
+              {t("questions.subtitle")}
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="shrink-0">{items.filter((item) => item.status === "ANSWERED").length} پاسخ</Badge>
+          <Badge variant="secondary" className="shrink-0">{t("questions.answersCount", { count: num(items.filter((item) => item.status === "ANSWERED").length) })}</Badge>
         </div>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-5 py-5">
-        <form onSubmit={submit} className="flex flex-col gap-3" aria-label="ثبت پرسش محصول">
+        <form onSubmit={submit} className="flex flex-col gap-3" aria-label={t("questions.formLabel")}>
           <label htmlFor={`product-question-${productId}`} className="text-sm font-semibold">
-            پرسش شما
+            {t("questions.yourQuestion")}
           </label>
           <Textarea
             id={`product-question-${productId}`}
             value={body}
             onChange={(event) => setBody(event.target.value.slice(0, 600))}
-            placeholder="مثلاً این پلن روی چند دستگاه قابل استفاده است؟"
+            placeholder={t("questions.placeholder")}
             rows={3}
             maxLength={600}
             disabled={submitting}
@@ -94,28 +94,28 @@ export function ProductQuestions({ productId }: { productId: string }) {
             }}
           />
           <div id={`question-help-${productId}`} className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><ShieldCheck className="size-4" aria-hidden="true" />پاسخ نامطمئن برای ادمین ارسال می‌شود.</span>
-            <span className="tabular-nums">{body.length}/600</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="size-4" aria-hidden="true" />{t("questions.safetyHint")}</span>
+            <span className="tabular-nums">{num(body.length)}/{num(600)}</span>
           </div>
           <Button type="submit" disabled={submitting || body.trim().length < 8} className="w-full sm:w-fit">
             <Send data-icon="inline-start" aria-hidden="true" />
-            {submitting ? "در حال بررسی…" : "ثبت پرسش"}
+            {submitting ? t("questions.checking") : t("questions.submit")}
           </Button>
         </form>
 
         {isLoading ? (
-          <div className="flex flex-col gap-3" role="status" aria-label="در حال دریافت پرسش‌ها">
+          <div className="flex flex-col gap-3" role="status" aria-label={t("questions.loading")}>
             <Skeleton className="h-28 w-full rounded-xl" />
             <Skeleton className="h-28 w-full rounded-xl" />
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border p-8 text-center">
             <CircleHelp className="size-8 text-muted-foreground" aria-hidden="true" />
-            <p className="text-sm font-semibold">هنوز پرسشی ثبت نشده است.</p>
-            <p className="text-xs text-muted-foreground">اولین نفری باشید که درباره این محصول سؤال می‌پرسد.</p>
+            <p className="text-sm font-semibold">{t("questions.emptyTitle")}</p>
+            <p className="text-xs text-muted-foreground">{t("questions.emptyDescription")}</p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-3" aria-label="پرسش‌های محصول">
+          <ul className="flex flex-col gap-3" aria-label={t("questions.listLabel")}>
             {items.map((question) => {
               const answer = question.answers[0]
               return (
@@ -149,12 +149,12 @@ export function ProductQuestions({ productId }: { productId: string }) {
                         {answer.source === "AI" ? <Bot className="size-4" aria-hidden="true" /> : <ShieldCheck className="size-4" aria-hidden="true" />}
                       </span>
                       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                        <Badge variant="outline" className="w-fit">{answer.source === "AI" ? "پاسخ هوشمند" : "پاسخ ادمین"}</Badge>
+                        <Badge variant="outline" className="w-fit">{answer.source === "AI" ? t("questions.smartAnswer") : t("questions.adminAnswer")}</Badge>
                         <p dir="auto" className="text-sm leading-6 text-pretty">{answer.body}</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="size-4" aria-hidden="true" />در انتظار بررسی ادمین</div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock3 className="size-4" aria-hidden="true" />{t("questions.pendingAdmin")}</div>
                   )}
                 </li>
               )

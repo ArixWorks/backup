@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { fetcher } from "@/lib/api-client"
 import { resolveCmsIcon } from "@/lib/cms/icons"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useI18n } from "@/components/i18n-provider"
 
 type NavNode = { id: string; label: string; href: string | null; icon: string | null; children: NavNode[] }
 
@@ -17,7 +18,8 @@ type NavNode = { id: string; label: string; href: string | null; icon: string | 
  */
 export function CmsNavGroup({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname() ?? "/"
-  const { data } = useSWR<{ data: { tree: NavNode[] } }>("/api/v1/nav?placement=SIDEBAR", fetcher, {
+  const { locale, t } = useI18n()
+  const { data } = useSWR<{ data: { tree: NavNode[] } }>(`/api/v1/nav?placement=SIDEBAR&locale=${locale}`, fetcher, {
     revalidateOnFocus: false,
   })
   const items = data?.data?.tree ?? []
@@ -27,7 +29,7 @@ export function CmsNavGroup({ collapsed }: { collapsed: boolean }) {
     <div className="mb-4 last:mb-0">
       {!collapsed && (
         <p className="px-3 pb-1.5 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground/70">
-          راهنما و محتوا
+          {t("cms.navigationTitle")}
         </p>
       )}
       <ul className="flex flex-col gap-0.5">

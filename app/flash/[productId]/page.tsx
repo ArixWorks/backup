@@ -33,11 +33,11 @@ type FlashDetail = FlashSale & {
 
 export default function FlashDetailPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params)
-  const { t, priceValue, currency, num, dir } = useI18n()
+  const { t, priceValue, currency, num, dir, locale } = useI18n()
   const [copied, setCopied] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const { data, isLoading, error, mutate } = useSWR<{ data: FlashDetail }>(
-    `/api/v1/flash-sales/${productId}`,
+    `/api/v1/flash-sales/${productId}?locale=${locale}`,
     fetcher,
     { refreshInterval: 15000 },
   )

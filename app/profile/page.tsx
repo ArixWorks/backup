@@ -43,7 +43,7 @@ const activityItems: LinkItem[] = [
 
 export default function ProfilePage() {
   const { user, logout } = useSession()
-  const { t, dir } = useI18n()
+  const { t, dir, num } = useI18n()
   const { data: accountData, isLoading: accountLoading } = useSWR<{ data: AccountState }>(
     user ? "/api/v1/account/state" : null, fetcher, { refreshInterval: 30000 },
   )
@@ -70,13 +70,16 @@ export default function ProfilePage() {
   const isStaff = user.role === "ADMIN"
   const loading = accountLoading || rewardsLoading
   const links = activityItems.map((item) => item.href === "/notifications" ? { ...item, badge: unreadCount } : item)
+  const nextTierLabel = rewards?.nextTier
+    ? t(`tier.${rewards.nextTier.toLowerCase()}` as MessageKey)
+    : null
 
   return (
     <Stagger className="flex flex-col gap-5" delay={0.04}>
       <FadeItem><PageHeader icon={UserIcon} title={t("profile.title")} /></FadeItem>
 
       <FadeItem>
-        <PremiumHeroCard aria-label="مرکز وضعیت حساب" intensity="normal" deviceTilt className="rounded-3xl p-0 sm:p-0">
+        <PremiumHeroCard aria-label={t("profile.statusCenter")} intensity="normal" deviceTilt className="rounded-3xl p-0 sm:p-0">
           <div className="flex flex-col gap-5 p-5 sm:p-6">
             <div dir={dir} className="flex items-center justify-between gap-4">
               <div className="flex min-w-0 items-center gap-4">
@@ -86,7 +89,7 @@ export default function ProfilePage() {
                     {user.photoUrl ? <AvatarImage src={user.photoUrl} alt={user.displayName ?? ""} /> : null}
                     <AvatarFallback className="bg-primary/15 text-lg font-bold text-primary">{initials}</AvatarFallback>
                   </Avatar>
-                  <span className="absolute bottom-0 end-0 size-4 rounded-full border-2 border-card bg-primary" aria-label="حساب فعال" />
+                  <span className="absolute bottom-0 end-0 size-4 rounded-full border-2 border-card bg-primary" aria-label={t("profile.activeAccount")} />
                 </div>
                 <div className="min-w-0 text-start">
                   <p className="truncate text-xl font-extrabold text-foreground sm:text-2xl">{user.displayName}</p>
@@ -94,21 +97,21 @@ export default function ProfilePage() {
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <MembershipBadge tier={user.membership.tier} />
                     <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-xs text-muted-foreground">
-                      <ShieldCheck className="size-3.5 text-primary" /> حساب فعال
+                      <ShieldCheck className="size-3.5 text-primary" /> {t("profile.activeAccount")}
                     </span>
                   </div>
                 </div>
               </div>
               <Link href="/account" className="hidden shrink-0 rounded-xl border border-border/70 bg-background/55 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-secondary sm:inline-flex">
-                مدیریت حساب
+                {t("profile.manageAccount")}
               </Link>
             </div>
 
             {loading ? <Skeleton className="h-28 w-full rounded-2xl" /> : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <StatusCard href="/account" icon={LockKeyhole} label="امنیت حساب" value={`${securityScore.toLocaleString("fa-IR")}٪`} progress={securityScore} hint={securityScore === 100 ? "همه روش‌ها تکمیل است" : `${(3 - completedSecurityChecks).toLocaleString("fa-IR")} اقدام باقی مانده`} />
-                <StatusCard href="/rewards" icon={Sparkles} label="امتیاز قابل استفاده" value={(rewards?.loyaltyPoints ?? 0).toLocaleString("fa-IR")} progress={loyaltyProgress} hint={rewards?.nextTierLabel ? `تا سطح ${rewards.nextTierLabel}` : "بالاترین سطح عضویت"} />
-                <StatusCard href="/notifications" icon={Bell} label="نیازمند توجه" value={unreadCount.toLocaleString("fa-IR")} progress={unreadCount ? 35 : 100} hint={unreadCount ? "اعلان خوانده‌نشده" : "همه‌چیز مرتب است"} />
+                <StatusCard href="/account" icon={LockKeyhole} label={t("profile.securityScore")} value={`${num(securityScore)}%`} progress={securityScore} hint={securityScore === 100 ? t("profile.securityComplete") : t("profile.securityRemaining", { count: num(3 - completedSecurityChecks) })} />
+                <StatusCard href="/rewards" icon={Sparkles} label={t("profile.spendablePoints")} value={num(rewards?.loyaltyPoints ?? 0)} progress={loyaltyProgress} hint={nextTierLabel ? t("profile.untilTier", { tier: nextTierLabel }) : t("profile.highestTier")} />
+                <StatusCard href="/notifications" icon={Bell} label={t("profile.needsAttention")} value={num(unreadCount)} progress={unreadCount ? 35 : 100} hint={unreadCount ? t("profile.unreadNotifications") : t("profile.allClear")} />
               </div>
             )}
           </div>
@@ -123,7 +126,7 @@ export default function ProfilePage() {
       </FadeItem>
 
       <FadeItem>
-        <section className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="تنظیمات تجربه کاربری">
+        <section className="overflow-hidden rounded-2xl border border-border bg-card" aria-label={t("profile.experienceSettings")}>
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="flex items-center gap-2 text-sm text-muted-foreground"><Languages className="size-4" />{t("profile.language")}</span>
             <LanguageSwitcher />
@@ -163,7 +166,7 @@ function StatusCard({ href, icon: Icon, label, value, hint, progress }: { href: 
 }
 
 function LinkGroup({ items }: { items: LinkItem[] }) {
-  const { t } = useI18n()
+  const { t, num } = useI18n()
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       {items.map((item) => {
@@ -173,7 +176,7 @@ function LinkGroup({ items }: { items: LinkItem[] }) {
             <Link href={item.href} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/40">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary"><Icon className="size-5" /></span>
               <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-foreground">{t(item.label)}</span><span className="block truncate text-xs text-muted-foreground">{t(item.desc)}</span></span>
-              {item.badge ? <span className="min-w-6 rounded-full bg-primary px-2 py-1 text-center text-[11px] font-bold text-primary-foreground">{item.badge.toLocaleString("fa-IR")}</span> : null}
+              {item.badge ? <span className="min-w-6 rounded-full bg-primary px-2 py-1 text-center text-[11px] font-bold text-primary-foreground">{num(item.badge)}</span> : null}
               <ChevronLeft className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-0.5 rtl:rotate-180" />
             </Link>
           </Pressable>
