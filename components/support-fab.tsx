@@ -179,35 +179,62 @@ export function SupportFab() {
               transition={springSoft}
             />
 
-            {/* drifting z z z while asleep */}
+            {/* sleeping "z z z" — a little trail rising diagonally from the head */}
             {!reducedMotion && (
-              <motion.g fill="currentColor" animate={{ opacity: awake ? 0 : 1 }} transition={{ duration: 0.2 }}>
+              <motion.g
+                fill="currentColor"
+                fontFamily="ui-sans-serif, system-ui, sans-serif"
+                fontWeight="900"
+                animate={{ opacity: awake ? 0 : 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* two dots at the base of the trail */}
+                <motion.g
+                  animate={awake ? { opacity: 0 } : { opacity: [0.3, 0.9, 0.3] }}
+                  transition={{ duration: 2.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+                >
+                  <circle cx="30" cy="20.5" r="0.8" />
+                  <circle cx="31.7" cy="18.8" r="1" />
+                </motion.g>
+
+                {/* small z */}
                 <motion.text
                   x="33"
-                  y="14"
-                  fontSize="7"
-                  fontWeight="800"
-                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 0], y: [16, 10, 5] }}
-                  transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+                  y="18"
+                  fontSize="6"
+                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 1, 0], y: [3, 0, -1, -3] }}
+                  transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
                 >
                   z
                 </motion.text>
+
+                {/* medium z */}
                 <motion.text
-                  x="38.5"
-                  y="9"
-                  fontSize="5"
-                  fontWeight="800"
-                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 0], y: [12, 6, 1] }}
-                  transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut", delay: 0.9 }}
+                  x="36.5"
+                  y="13.5"
+                  fontSize="7.5"
+                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 1, 0], y: [3, 0, -1, -3] }}
+                  transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut", delay: 0.6 }}
+                >
+                  z
+                </motion.text>
+
+                {/* large z */}
+                <motion.text
+                  x="40.5"
+                  y="8.5"
+                  fontSize="9"
+                  animate={awake ? { opacity: 0 } : { opacity: [0, 1, 1, 0], y: [3, 0, -2, -4] }}
+                  transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut", delay: 1.2 }}
                 >
                   z
                 </motion.text>
               </motion.g>
             )}
 
-            {/* ---- headset: floats above while asleep, lowers onto ears on wake ---- */}
+            {/* ---- headset: fully hidden while asleep, drops onto the ears on wake ---- */}
             <motion.g
-              animate={{ y: awake ? 0 : -9, rotate: awake ? 0 : -14, opacity: awake ? 1 : 0.5 }}
+              animate={{ y: awake ? 0 : -10, rotate: awake ? 0 : -16, opacity: awake ? 1 : 0, scale: awake ? 1 : 0.85 }}
               transition={springWake}
               style={{ transformBox: "fill-box", transformOrigin: "50% 15%" }}
             >
