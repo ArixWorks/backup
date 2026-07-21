@@ -22,7 +22,7 @@ export async function dashboardStats() {
   revenueAgg,
   recentOrders,
   ] = await Promise.all([
-    prisma.user.count(),
+    prisma.user.count({ where: { isTestAccount: false } }),
     prisma.auction.count({ where: { status: "ACTIVE" } }),
     prisma.depositRequest.count({ where: { status: "PENDING" } }),
     prisma.withdrawalRequest.count({ where: { status: "PENDING" } }),
@@ -322,7 +322,7 @@ export async function addInventoryItems(
 
 export async function deleteInventoryItem(itemId: string, adminId: string) {
   const item = await prisma.inventoryItem.findUnique({ where: { id: itemId } })
-  if (!item) throw new NotFoundError("آیتم یافت نشد")
+  if (!item) throw new NotFoundError("��یتم یافت نشد")
   if (item.status === "DELIVERED") throw new ConflictError("آیتم تحویل‌شده قابل حذف نیست")
   await prisma.inventoryItem.delete({ where: { id: itemId } })
   await audit({ actorId: adminId, action: "inventory.delete", entity: "inventory", entityId: itemId })

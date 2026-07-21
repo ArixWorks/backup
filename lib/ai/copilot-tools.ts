@@ -83,6 +83,7 @@ export const copilotTools = {
     execute: async ({ query, limit }) => {
       const rows = await prisma.user.findMany({
         where: {
+          isTestAccount: false,
           OR: [
             { displayName: { contains: query, mode: "insensitive" } },
             { alias: { contains: query, mode: "insensitive" } },

@@ -33,7 +33,7 @@ export type AutomationHandler = {
 /** All admin user ids — the default recipients for automation notifications. */
 async function adminUserIds(): Promise<string[]> {
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { role: "ADMIN", isTestAccount: false },
     select: { id: true },
   })
   return admins.map((a) => a.id)

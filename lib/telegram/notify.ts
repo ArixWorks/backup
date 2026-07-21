@@ -83,7 +83,7 @@ export async function notifyAdminsProductQuestion(productTitle: string, preview:
   try {
     if (!botConfigured()) return
     const admins = await prisma.user.findMany({
-      where: { role: "ADMIN", OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
+      where: { role: "ADMIN", isTestAccount: false, OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
       select: { id: true },
     })
     const snippet = preview.length > 300 ? `${preview.slice(0, 300)}…` : preview
@@ -110,7 +110,7 @@ export async function notifyAdminsBanAppeal(fromUserId: string, publicId: string
     })
     const who = sender?.displayName || sender?.alias || sender?.telegramId || "کاربر"
     const admins = await prisma.user.findMany({
-      where: { role: "ADMIN", OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
+      where: { role: "ADMIN", isTestAccount: false, OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
       select: { id: true },
     })
     if (admins.length === 0) return
@@ -276,7 +276,7 @@ export async function notifyAdminsPreDraw(giveawayId: string) {
       Promise.resolve(g.winnersCount),
     ])
     const admins = await prisma.user.findMany({
-      where: { role: "ADMIN", OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
+      where: { role: "ADMIN", isTestAccount: false, OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }] },
       select: { id: true },
     })
     if (admins.length === 0) return

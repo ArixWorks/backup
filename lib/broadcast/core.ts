@@ -72,8 +72,9 @@ export type Audience = z.infer<typeof audienceSchema>
 export type TelegramContent = z.infer<typeof telegramContentSchema>
 
 function audienceWhere(audience: Audience): Prisma.UserWhereInput {
-  if (audience.mode === "SELECTED") return { id: { in: audience.userIds } }
+  if (audience.mode === "SELECTED") return { id: { in: audience.userIds }, isTestAccount: false }
   return {
+    isTestAccount: false,
     status: audience.statuses.length ? { in: audience.statuses } : undefined,
     vipManual: audience.vipOnly ? true : undefined,
     languageCode: audience.languageCodes.length ? { in: audience.languageCodes } : undefined,

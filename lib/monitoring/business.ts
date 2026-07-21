@@ -42,12 +42,13 @@ export async function getBusinessMetrics(windowMs = 60 * 60_000): Promise<Busine
       where: { createdAt: { gte: windowStart }, status: { in: ["PAID", "DELIVERED"] } },
     }),
     prisma.walletTransaction.count({ where: { createdAt: { gte: minuteStart } } }),
-    prisma.user.count({ where: { updatedAt: { gte: activeStart } } }),
+    prisma.user.count({ where: { isTestAccount: false, updatedAt: { gte: activeStart } } }),
     prisma.giveawayEntry.count({ where: { createdAt: { gte: windowStart } } }),
     prisma.bid.count({ where: { createdAt: { gte: windowStart } } }),
-    prisma.user.count({ where: { referralRewarded: true, updatedAt: { gte: windowStart } } }),
+    prisma.user.count({ where: { isTestAccount: false, referralRewarded: true, updatedAt: { gte: windowStart } } }),
     prisma.user.count({
       where: {
+        isTestAccount: false,
         vipManual: true,
         OR: [{ vipManualExpiresAt: null }, { vipManualExpiresAt: { gt: new Date() } }],
       },
