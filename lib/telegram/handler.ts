@@ -1268,7 +1268,7 @@ function secLabels(locale: Locale): SecLabelBag {
       rewardsTitle: "Награды и задания", noMissions: "Нет активных заданий.", claim: "Получить", claimedOk: "Награда получена!", claimFail: "Недоступно",
       notifTitle: "Уведомления", notifEmpty: "Нет уведомлений.", allRead: "Всё прочитано",
       supportTitle: "Поддержка", supportEmpty: "Пока нет обращений.", subjectPrompt: "Введите тему обращения:", messagePrompt: "Введите сообщение:",
-      subjectShort: "Тема должна быть не короче 3 символов.", ticketCreated: "Обращение создано:", ticketReplied: "Ваш ответ о��правлен.", ticketNotFound: "Обращение не найдено.",
+      subjectShort: "Тема должна быть не короче 3 символов.", ticketCreated: "Обращение создано:", ticketReplied: "Ваш ответ отправлен.", ticketNotFound: "Обращение не найдено.",
       stOpen: "Открыт", stPending: "В ожидании", stClosed: "Закрыт",
       couponApplied: "Купон", couponOk: "Купон применён.", couponInvalid: "Купон недействителен.", couponNoProduct: "Сначала откройте товар.",
       bidPrompt: "Введите сумму ставки. Минимум:", bidInvalid: "Введите корректную сумму.", bidPlaced: "Ставка принята.", buyNowDone: "Куплено через «Купить сейчас»!",
