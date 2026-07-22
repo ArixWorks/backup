@@ -104,6 +104,7 @@ export type FlashProductRow = {
   links: unknown
   fixedSale: {
     price: bigint
+    compareAtPrice: bigint | null
     stock: number
     reservedStock: number
     purchaseLimit: number | null
@@ -140,6 +141,9 @@ export function summarizeFlash(p: FlashProductRow) {
     deliveryType: p.deliveryType,
     links: parseLinks(p.links),
     price: fs?.price ?? 0n,
+    // Original "was" price for the strike-through discount display. Only shown
+    // when strictly greater than the selling price; null otherwise.
+    compareAtPrice: fs?.compareAtPrice != null && fs.compareAtPrice > (fs?.price ?? 0n) ? fs.compareAtPrice : null,
     stock: (fs?.stock ?? 0) - (fs?.reservedStock ?? 0),
     purchaseLimit: fs?.purchaseLimit ?? null,
     soldCount: fs?.soldCount ?? 0,
@@ -255,6 +259,8 @@ type AuctionSummaryInput = {
   minimumIncrement: bigint
   buyNowPrice: bigint | null
   reservePrice: bigint | null
+  // Admin-set "real market value" reference anchor (presentational only).
+  estimatedValue: bigint | null
   winnerUserId: string | null
   finalPrice: bigint | null
   endReason: string | null
@@ -317,6 +323,9 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     minNextBid,
     buyNowPrice,
     buyNowAvailable,
+    // Real market value shown as a reference anchor. Only surfaced when set and
+    // strictly greater than the live price so it always reads as a "worth" hint.
+    estimatedValue: a.estimatedValue != null && a.estimatedValue > currentPrice ? a.estimatedValue : null,
     // Reserve display (PR7): computed server-side against the policy visibility
     // so hidden data (exact amount, and in HIDDEN mode even the met/not-met
     // status) never reaches the client. Legacy callers with no policy fall back

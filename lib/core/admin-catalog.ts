@@ -76,6 +76,7 @@ export interface FlashProductInput {
   coverImage?: string
   deliveryType: "MANUAL" | "AUTOMATIC"
   price: bigint
+  compareAtPrice?: bigint | null
   stock: number
   purchaseLimit?: number | null
   links?: ProductLinkInput[]
@@ -147,6 +148,7 @@ export async function createFlashProduct(input: FlashProductInput, adminId: stri
       fixedSale: {
         create: {
           price: input.price,
+          compareAtPrice: input.compareAtPrice ?? null,
           stock: input.stock,
           purchaseLimit: input.purchaseLimit ?? null,
           soldBaseline: Math.max(0, input.soldBaseline ?? 0),
@@ -185,6 +187,7 @@ export interface FlashUpdateInput {
   i18n?: Prisma.InputJsonValue | null
   coverImage?: string
   price?: bigint
+  compareAtPrice?: bigint | null
   stock?: number
   purchaseLimit?: number | null
   links?: ProductLinkInput[]
@@ -214,6 +217,7 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
       fixedSale: {
         update: {
           price: input.price,
+          compareAtPrice: input.compareAtPrice,
           stock: input.stock,
           purchaseLimit: input.purchaseLimit,
           soldBaseline: input.soldBaseline !== undefined ? Math.max(0, input.soldBaseline) : undefined,
@@ -251,6 +255,7 @@ export interface AuctionProductInput {
   minimumIncrement: bigint
   reservePrice?: bigint | null
   buyNowPrice?: bigint | null
+  estimatedValue?: bigint | null
   quantity: number
   startTime: Date
   endTime: Date
@@ -286,6 +291,7 @@ export async function createAuctionProduct(input: AuctionProductInput, adminId: 
           minimumIncrement: input.minimumIncrement,
           reservePrice: input.reservePrice ?? null,
           buyNowPrice: input.buyNowPrice ?? null,
+          estimatedValue: input.estimatedValue ?? null,
           quantity: input.quantity,
           startTime: input.startTime,
           endTime: input.endTime,

@@ -50,6 +50,8 @@ type AuctionDetail = {
   minimumIncrement: number
   buyNowPrice: number | null
   buyNowAvailable: boolean
+  // Real market value reference anchor (presentational only; may be absent).
+  estimatedValue: number | null
   reserve: { exists: boolean; state: "met" | "not_met" | "hidden"; amount: number | null }
   startTime: string
   endTime: string
@@ -342,6 +344,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 </span>
                 <span className="text-sm text-muted-foreground">{t("common.toman")}</span>
               </div>
+              {!isTerminal && a.estimatedValue != null && (
+                <p className="mt-1 flex items-baseline gap-1.5 text-xs text-muted-foreground">
+                  {t("adetail.trueValue")}:
+                  <span className="font-semibold tabular-nums line-through">
+                    {formatToman(a.estimatedValue)} {t("common.toman")}
+                  </span>
+                </p>
+              )}
             </div>
 
             {/* Winner spotlight — only when settled with an authoritative winner. */}

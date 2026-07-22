@@ -81,6 +81,7 @@ export type MessageKey =
   | "auctions.nextBid"
   | "auctions.finalPrice"
   | "auctions.startingPrice"
+  | "auctions.trueValue"
   | "auctions.startsAt"
   | "auctions.sold"
   | "auctions.endingSoon"
@@ -99,6 +100,7 @@ export type MessageKey =
   | "detail.shareCopied"
   | "detail.notFound"
   | "detail.eachFrom"
+  | "detail.youSave"
   | "detail.restockNotice"
   | "plan.choose"
   | "plan.compare"
@@ -140,6 +142,7 @@ export type MessageKey =
   | "flash.soldOut"
   | "flash.stock"
   | "flash.sold"
+  | "flash.off"
   | "flash.autoDelivery"
   | "flash.manualDelivery"
   | "buy.quantity"
@@ -333,6 +336,7 @@ export type MessageKey =
   | "adetail.mins"
   | "adetail.secs"
   | "adetail.buyNowStat"
+  | "adetail.trueValue"
   | "adetail.nextMinBid"
   | "adetail.finalPrice"
   | "adetail.winner"
@@ -936,6 +940,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "حداقل پیشنهاد بعدی",
   "auctions.finalPrice": "قیمت نهایی",
   "auctions.startingPrice": "قیمت پایه",
+  "auctions.trueValue": "ارزش حقیقی",
   "auctions.startsAt": "شروع",
   "auctions.sold": "فروخته شد",
   "auctions.endingSoon": "رو به پایان",
@@ -954,6 +959,7 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "لینک کپی شد",
   "detail.notFound": "این محصول یافت نشد یا دیگر در دسترس نیست.",
   "detail.eachFrom": "هر واحد از",
+  "detail.youSave": "سود شما",
   "detail.restockNotice": "این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.",
   "plan.choose": "پلن مورد نظر را انتخاب کنید",
   "plan.compare": "مقایسه پلن‌ها",
@@ -995,19 +1001,20 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "ناموجود",
   "flash.stock": "موجودی",
   "flash.sold": "فروخته‌شده",
+  "flash.off": "تخفیف",
   "flash.autoDelivery": "تحویل خودکار",
   "flash.manualDelivery": "تحویل دستی",
   "buy.quantity": "تعداد",
   "buy.unitPrice": "قیمت هر واحد",
   "buy.total": "مبلغ کل",
   "buy.selectPayment": "انتخاب روش پرداخت",
-  "buy.payWallet": "پرداخت با کیف پول",
+  "buy.payWallet": "پرداخت با ��یف پول",
   "buy.comingSoon": "به‌زودی",
   "buy.insufficient": "موجودی کیف پول کافی نیست.",
   "buy.confirm": "تأیید و پرداخت",
   "buy.success": "خرید موفق",
   "buy.deliveryInfo": "اطلاعات تحویل (تحویل خودکار):",
-  "buy.pendingManual": "سفارش شما ثبت شد و در انتظار تحویل دستی است. وضعیت را از بخش سفارش‌ها پیگیری کنید.",
+  "buy.pendingManual": "سفارش شما ثبت شد و در ا��تظار تحویل دستی است. وضعیت را از بخش سفارش‌ها پیگیری کنید.",
   "buy.loginFirst": "ابتدا یک حساب کاربری انتخاب کنید",
   "buy.bulkHint": "تخفیف عمده",
   "buy.subtotal": "جمع جزء",
@@ -1121,7 +1128,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.topupDemo": "شارژ کیف پول (دمو)",
   "wallet.amountPlaceholder": "مبلغ به تومان",
   "wallet.charge": "شارژ",
-  "wallet.demoNote": "در نسخه واقعی، شارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.",
+  "wallet.demoNote": "در نسخه واقعی، ��ارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.",
   "wallet.minTopup": "حداقل مبلغ شارژ ۱۰٬۰۰۰ تومان است",
   "wallet.topupSuccess": "کیف پول شارژ شد",
   "wallet.topupError": "خطا در شارژ کیف پول",
@@ -1188,6 +1195,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "دقیقه",
   "adetail.secs": "ثانیه",
   "adetail.buyNowStat": "خرید فوری",
+  "adetail.trueValue": "ارزش حقیقی محصول",
   "adetail.nextMinBid": "حداقل پیشنهاد بعدی",
   "adetail.finalPrice": "قیمت نهایی",
   "adetail.winner": "برنده",
@@ -1489,7 +1497,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.uploadReceipt": "بارگذاری رسید پرداخت",
   "wallet.receiptUploaded": "رسید بارگذاری شد",
   "wallet.iPaid": "پرداخت کردم",
-  "wallet.cryptoWarning": "حتماً دقیقاً همین مبلغ را ارسال کنید تا تراکنش شما به‌درستی شناسایی شود.",
+  "wallet.cryptoWarning": "حتما�� دقیقاً همین مبلغ را ارسال کنید تا تراکنش شما به‌درستی شناسایی شود.",
   "wallet.expiresIn": "زمان باقی‌مانده",
   "wallet.expired": "زمان این درخواست به پایان رسید",
   "wallet.pendingReview": "در حال بررسی توسط مدیر",
@@ -1553,7 +1561,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.startRegUntil": "شروع ثبت‌نام تا",
   "gwd.participants": "شرکت‌کنندگان",
   "gwd.prize": "جایزه",
-  "gwd.mustJoin": "برای شرکت باید عضو این کانال‌ها باشی",
+  "gwd.mustJoin": "برای شرکت باید عضو این کانال��ها باشی",
   "gwd.afterJoinRetry": "بعد از عضویت، دوباره دکمه شرکت را بزن.",
   "gwd.winners": "برندگان قرعه‌کشی",
   "gwd.noWinners": "برنده‌ای ثبت نشده است.",
@@ -1753,6 +1761,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "Next minimum bid",
   "auctions.finalPrice": "Final price",
   "auctions.startingPrice": "Starting price",
+  "auctions.trueValue": "True value",
   "auctions.startsAt": "Starts",
   "auctions.sold": "Sold",
   "auctions.endingSoon": "Ending soon",
@@ -1771,6 +1780,7 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "Link copied",
   "detail.notFound": "This product was not found or is no longer available.",
   "detail.eachFrom": "Each from",
+  "detail.youSave": "You save",
   "detail.restockNotice": "This product is out of stock. Turn on alerts to be notified when it is back.",
   "plan.choose": "Choose your plan",
   "plan.compare": "Compare plans",
@@ -1812,6 +1822,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "Sold out",
   "flash.stock": "Stock",
   "flash.sold": "Sold",
+  "flash.off": "OFF",
   "flash.autoDelivery": "Auto delivery",
   "flash.manualDelivery": "Manual delivery",
   "buy.quantity": "Quantity",
@@ -2014,6 +2025,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "min",
   "adetail.secs": "sec",
   "adetail.buyNowStat": "Buy now",
+  "adetail.trueValue": "Real market value",
   "adetail.nextMinBid": "Next minimum bid",
   "adetail.finalPrice": "Final price",
   "adetail.winner": "Winner",
@@ -2492,7 +2504,7 @@ type Catalog = Record<MessageKey, string>
     "soon.body": "Мы разрабатываем эту функцию, и скоро она появится на платформе.",
     "soon.back": "На панель",
     "vps.title": "VPS-хостинг",
-    "vps.subtitle": "Мощный и надёжный облачный хостинг",
+    "vps.subtitle": "Мощный и надёжный об��ачный хостинг",
     "domains.title": "Регистрация домена",
     "domains.subtitle": "Поиск, цена и регистрация вашего домена",
   "nav.home": "Главная",
@@ -2570,6 +2582,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "Следующая мин. ставка",
   "auctions.finalPrice": "Итоговая цена",
   "auctions.startingPrice": "Стартовая цена",
+  "auctions.trueValue": "Реальная цена",
   "auctions.startsAt": "Начало",
   "auctions.sold": "Продано",
   "auctions.endingSoon": "Скоро завершится",
@@ -2588,7 +2601,8 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "Ссылка скопирована",
   "detail.notFound": "Товар не найден или больше недоступен.",
   "detail.eachFrom": "За единицу от",
-  "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступлении.",
+  "detail.youSave": "Ваша выгода",
+  "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступ��ении.",
   "plan.choose": "Выберите тариф",
   "plan.compare": "Сравнить тарифы",
   "plan.selected": "Выбрано",
@@ -2621,7 +2635,7 @@ type Catalog = Record<MessageKey, string>
   "reviews.commentPlaceholder": "Поделитесь впечатлением (необязательно)…",
   "reviews.submit": "Отправить",
   "reviews.delete": "Удалить отзыв",
-  "reviews.mustBuy": "Оставить отзыв могут только покупатели этого товара.",
+  "reviews.mustBuy": "Оставить отзыв м��гут только покупатели этого товара.",
   "reviews.you": "Вы",
   "reviews.thanks": "Спасибо за ваш отзыв!",
   "reviews.ratingsCount": "отзывов",
@@ -2629,6 +2643,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "Распродано",
   "flash.stock": "В наличии",
   "flash.sold": "Продано",
+  "flash.off": "скидка",
   "flash.autoDelivery": "Авто-доставка",
   "flash.manualDelivery": "Ручная доставка",
   "buy.quantity": "Количество",
@@ -2772,7 +2787,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.rewardsSubtitle": "Посмотрите свой уровень, задания и достижения",
   "notif.title": "Уведомления",
   "notif.subtitle": "Последние события вашего аккаунта: пополнения товаров, заказы, аукционы и транзакции.",
-  "notif.signInRequired": "Войдите, чтобы увидеть уведомления.",
+  "notif.signInRequired": "Войдите, чтобы увидеть ��ведомления.",
   "orders.signInRequired": "Войдите, чтобы увидеть заказы.",
   "orders.emptyDesc": "Загляните в распродажу и сделайте первую покупку.",
   "orders.emptyAction": "К распродаже",
@@ -2831,9 +2846,10 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "мин",
   "adetail.secs": "сек",
   "adetail.buyNowStat": "Купить сейчас",
+  "adetail.trueValue": "Реальная рыночная стоимость",
   "adetail.nextMinBid": "Следующая мин. ставка",
   "adetail.finalPrice": "Итоговая цена",
-  "adetail.winner": "Победитель",
+  "adetail.winner": "��обедитель",
   "adetail.soldViaBuyNow": "Продано через «Купить сейчас»",
   "adetail.overview": "Описание",
   "wins.signInRequired": "Войдите, чтобы увидеть свои призы.",
@@ -2995,7 +3011,7 @@ type Catalog = Record<MessageKey, string>
   "acctPwd.title": "Пароль",
   "acctPwd.subtitle": "Изменить пароль аккаунта",
   "acctPwd.change": "Изменить",
-  "acctPwd.success": "Пароль успешно изменён.",
+  "acctPwd.success": "П��роль успешно изменён.",
   "acctPwd.errMin": "Новый пароль должен содержать не менее 8 символов",
   "acctPwd.errMismatch": "Пароли не совпадают",
   "acctPwd.failed": "Не удалось изменить пароль",
@@ -3025,7 +3041,7 @@ type Catalog = Record<MessageKey, string>
   "flash.followCategoryHint": "Подпишитесь на категорию, чтобы получать звуковое уведомление о новых товарах.",
   "signIn.title": "Требуется вход",
   "signIn.defaultDesc": "Войдите в свой аккаунт, чтобы продолжить.",
-  "signIn.action": "Войти в аккаунт",
+  "signIn.action": "Войт�� в аккаунт",
   "watch.errUpdate": "Не удалось обновить список отслеживания",
   "watch.auctionRemoved": "Удалено из отслеживания",
   "watch.auctionAdded": "Добавлено в отслеживание; вы получите уведомление о начале аукциона",
@@ -3260,7 +3276,7 @@ type Catalog = Record<MessageKey, string>
   "missions.weekly_giveaway.title": "Участвовать в розыгрыше",
   "missions.weekly_giveaway.description": "Участвуйте в одном розыгрыше на этой неделе.",
   "missions.weekly_purchase.title": "Еженедельная покупка",
-  "missions.weekly_purchase.description": "Совершите одну покупку на этой неделе.",
+  "missions.weekly_purchase.description": "Совершите одну покупку на это�� неделе.",
   "missions.onboard_profile.title": "Заполнить профиль",
   "missions.onboard_profile.description": "Заполните информацию профиля.",
   "refAct.pending": "Ожидание",
@@ -3388,6 +3404,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "Agli minimum boli",
   "auctions.finalPrice": "Final price",
   "auctions.startingPrice": "Starting price",
+  "auctions.trueValue": "Asli value",
   "auctions.startsAt": "Shuru",
   "auctions.sold": "Bik gaya",
   "auctions.endingSoon": "Jald khatam",
@@ -3406,6 +3423,7 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "Link copy ho gaya",
   "detail.notFound": "Yeh product nahi mila ya ab available nahi hai.",
   "detail.eachFrom": "Per unit se",
+  "detail.youSave": "Aap bachate hain",
   "detail.restockNotice": "Yeh product stock mein nahi hai. Wapas aane par notify hone ke liye alert on karein.",
   "plan.choose": "Apna plan chunein",
   "plan.compare": "Plans ki tulna karein",
@@ -3447,6 +3465,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "Sold out",
   "flash.stock": "Stock",
   "flash.sold": "Bike",
+  "flash.off": "OFF",
   "flash.autoDelivery": "Auto delivery",
   "flash.manualDelivery": "Manual delivery",
   "buy.quantity": "Quantity",
@@ -3649,6 +3668,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "min",
   "adetail.secs": "sec",
   "adetail.buyNowStat": "Abhi khareedein",
+  "adetail.trueValue": "Asli bazaar value",
   "adetail.nextMinBid": "Agli minimum boli",
   "adetail.finalPrice": "Final price",
   "adetail.winner": "Winner",

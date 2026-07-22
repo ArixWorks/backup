@@ -24,6 +24,7 @@ type TutorialOption = { id: string; title: string; slug: string }
 
 type FixedSale = {
   price: number
+  compareAtPrice?: number | null
   stock: number
   purchaseLimit: number | null
   soldCount?: number
@@ -384,6 +385,7 @@ function FlashEditor({
   onSaved: () => void
 }) {
   const [price, setPrice] = useState(String(sale.price))
+  const [compareAtPrice, setCompareAtPrice] = useState(sale.compareAtPrice ? String(sale.compareAtPrice) : "")
   const [stock, setStock] = useState(String(sale.stock))
   const [soldBaseline, setSoldBaseline] = useState(String(sale.soldBaseline ?? 0))
   const [bulkMinQty, setBulkMinQty] = useState(sale.bulkMinQty ? String(sale.bulkMinQty) : "")
@@ -402,6 +404,7 @@ function FlashEditor({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           price,
+          compareAtPrice: compareAtPrice ? compareAtPrice : null,
           stock: Number(stock),
           soldBaseline: Number(soldBaseline || 0),
           bulkMinQty: bulkMinQty ? Number(bulkMinQty) : null,
@@ -430,7 +433,7 @@ function FlashEditor({
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="price">قیمت (تومان)</Label>
+          <Label htmlFor="price">قیمت فروش (تومان)</Label>
           <Input
             id="price"
             value={price}
@@ -438,6 +441,20 @@ function FlashEditor({
             onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
             className="tabular-nums"
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="compareAtPrice">قیمت اصلی (خط‌خورده)</Label>
+          <Input
+            id="compareAtPrice"
+            value={compareAtPrice}
+            inputMode="numeric"
+            placeholder="مثلاً ۲۰۰۰۰۰۰"
+            onChange={(e) => setCompareAtPrice(e.target.value.replace(/[^0-9]/g, ""))}
+            className="tabular-nums"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            اگر بیشتر از قیمت فروش باشد، روی محصول خط‌خورده و درصد تخفیف نمایش داده می‌شود.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="stock">موجودی انبار</Label>

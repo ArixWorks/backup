@@ -67,6 +67,7 @@ export default function NewProductPage() {
 
   // flash
   const [price, setPrice] = useState("")
+  const [compareAtPrice, setCompareAtPrice] = useState("")
   const [stock, setStock] = useState("")
   const [purchaseLimit, setPurchaseLimit] = useState("")
   const [soldBaseline, setSoldBaseline] = useState("")
@@ -79,6 +80,7 @@ export default function NewProductPage() {
   const [minIncrement, setMinIncrement] = useState("")
   const [reservePrice, setReservePrice] = useState("")
   const [buyNowPrice, setBuyNowPrice] = useState("")
+  const [estimatedValue, setEstimatedValue] = useState("")
   const [quantity, setQuantity] = useState("1")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
@@ -154,6 +156,7 @@ export default function NewProductPage() {
           ? {
               ...base,
               price: Number(price),
+              compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
               stock: Number(stock || 0),
               purchaseLimit: purchaseLimit ? Number(purchaseLimit) : null,
               soldBaseline: soldBaseline ? Number(soldBaseline) : undefined,
@@ -167,6 +170,7 @@ export default function NewProductPage() {
               minimumIncrement: Number(minIncrement),
               reservePrice: reservePrice ? Number(reservePrice) : null,
               buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
+              estimatedValue: estimatedValue ? Number(estimatedValue) : null,
               quantity: Number(quantity || 1),
               startTime: tehranInputToUtcISO(startTime),
               endTime: tehranInputToUtcISO(endTime),
@@ -194,7 +198,7 @@ export default function NewProductPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">محصول جدید</h1>
           <p className="text-sm text-muted-foreground">
-            نوع فروش، اطلاعات پایه و قیمت‌گذاری را تعیین کنید
+            نو�� فروش، اطلاعات پایه و قیمت‌گذاری را تعیین کنید
           </p>
         </div>
         <CopilotLauncher />
@@ -294,8 +298,11 @@ export default function NewProductPage() {
                 این قیمت، قیمت پایه است. پس از «ساخت محصول»، در صفحه ویرایش بخش «پلن‌های فروش» را باز کنید تا
                 پلن‌های مختلف (مثلاً ۱ ماهه، ۳ ماهه، ۱ ساله) هرکدام با قیمت و موجودی مستقل اضافه کنید.
               </div>
-              <Field label="قیمت پایه (تومان)">
+              <Field label="قیمت فروش پایه (تومان)">
                 <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="750000" />
+              </Field>
+              <Field label="قیمت اصلی (خط‌خورده)" hint="اختیاری؛ اگر بیشتر از قیمت فروش باشد، خط‌خورده و درصد تخفیف نمایش داده می‌شود">
+                <Input value={compareAtPrice} onChange={(e) => setCompareAtPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="2000000" />
               </Field>
               <Field label="موجودی انبار">
                 <Input value={stock} onChange={(e) => setStock(e.target.value)} inputMode="numeric" dir="ltr" placeholder="20" />
@@ -323,6 +330,9 @@ export default function NewProductPage() {
               </Field>
               <Field label="حداقل افزایش پیشنهاد">
                 <Input value={minIncrement} onChange={(e) => setMinIncrement(e.target.value)} inputMode="numeric" dir="ltr" placeholder="50000" />
+              </Field>
+              <Field label="ارزش حقیقی محصول (تومان)" hint="اختیاری؛ فقط نمایشی — ارزش واقعی کالا به‌عنوان مرجع به شرکت‌کننده‌ها نشان داده می‌شود و روی قیمت‌گذاری اثری ندارد">
+                <Input value={estimatedValue} onChange={(e) => setEstimatedValue(e.target.value)} inputMode="numeric" dir="ltr" placeholder="500000" />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="قیمت رزرو" hint="اختیاری">

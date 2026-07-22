@@ -33,6 +33,7 @@ export type FlashSale = {
   coverImage: string | null
   deliveryType: string
   price: number
+  compareAtPrice?: number | null
   stock: number
   purchaseLimit: number | null
   links?: ProductLink[]
@@ -47,6 +48,10 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
   const soldOut = sale.stock <= 0
   const low = !soldOut && sale.stock <= 5
   const hasBulk = !!sale.bulkMinQty && !!sale.bulkDiscountPercent
+  const hasDiscount = sale.compareAtPrice != null && sale.compareAtPrice > sale.price
+  const discountPercent = hasDiscount
+    ? Math.round((1 - sale.price / (sale.compareAtPrice as number)) * 100)
+    : 0
 
   return (
     <div className="card-premium group flex flex-col overflow-hidden rounded-2xl border border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:elevate-lg">
@@ -84,11 +89,21 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
             {num(sale.stock)} {t("flash.stock")}
           </span>
         )}
-        {hasBulk && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
-            <Tag className="h-3 w-3" />
-            {sale.bulkDiscountPercent}%
-          </span>
+        {(hasDiscount || hasBulk) && (
+          <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+            {hasDiscount && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-[11px] font-bold text-destructive-foreground shadow-sm">
+                <Tag className="h-3 w-3" />
+                {discountPercent}% {t("flash.off")}
+              </span>
+            )}
+            {hasBulk && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">
+                <Tag className="h-3 w-3" />
+                {sale.bulkDiscountPercent}%
+              </span>
+            )}
+          </div>
         )}
       </Link>
 
@@ -127,10 +142,15 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
         <div className="mt-auto flex items-end justify-between gap-2">
           <div>
             <span className="text-xs text-muted-foreground">{currency}</span>
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-baseline gap-1.5">
               <span className="text-lg font-extrabold tabular-nums text-primary">
                 {priceValue(sale.price)}
               </span>
+              {hasDiscount && (
+                <span className="text-xs text-muted-foreground line-through tabular-nums">
+                  {priceValue(sale.compareAtPrice as number)}
+                </span>
+              )}
             </div>
             {hasBulk && (
               <span className="text-[11px] text-success">
