@@ -412,7 +412,7 @@ export async function approveWithdrawal(withdrawalId: string, adminId: string) {
 export async function rejectWithdrawal(withdrawalId: string, adminId: string, reason?: string) {
   return prisma.$transaction(async (tx) => {
     const req = await tx.withdrawalRequest.findUnique({ where: { id: withdrawalId } })
-    if (!req) throw new NotFoundError("��رخواست برداشت یافت نشد")
+    if (!req) throw new NotFoundError("درخواست برداشت یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")
     await unfreeze(req.userId, req.amount, tx, { type: "withdrawal", id: req.id })
     const updated = await tx.withdrawalRequest.update({

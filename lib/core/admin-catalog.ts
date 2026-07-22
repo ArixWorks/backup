@@ -413,7 +413,7 @@ export async function deleteProducts(
       result.skipped.push({
         id,
         title: product.title,
-        reason: `دارای ${product._count.orders} سفارش ثبت���شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,
+        reason: `دارای ${product._count.orders} سفارش ثبت‌شده است؛ برای حفظ سوابق مالی حذف نشد. آن را مخفی کنید.`,
       })
       continue
     }
