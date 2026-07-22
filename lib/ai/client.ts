@@ -1,5 +1,5 @@
 import "server-only"
-import { createGateway, embedMany, generateObject, generateText, streamText } from "ai"
+import { createGateway, embedMany, generateObject, generateText, Output, stepCountIs, streamText } from "ai"
 import type { ModelMessage, StopCondition, ToolSet } from "ai"
 import type { z } from "zod"
 import { withTimeout } from "@/lib/core/resilience"
@@ -207,6 +207,104 @@ export async function runObject<T>(
     return { object: res.object as T, model: p.model, usage: res.usage }
   } catch (err) {
     await recordFailure(opts, config.provider, p.model, "generateObject", startedAt, err)
+    throw new AiProviderError()
+  }
+}
+
+export interface ResearchSource {
+  title?: string
+  url?: string
+  date?: string
+  snippet?: string
+}
+export interface RunResearchResult<T> {
+  object: T
+  sources: ResearchSource[]
+  model: string
+  usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number }
+}
+
+/**
+ * Live web-research generation: runs a bounded tool loop where the model may
+ * call the Gateway's built-in web-search tool (Perplexity) one or more times,
+ * then returns a Zod-validated structured object via `Output.object`. This is
+ * the single path for any feature that needs *fresh internet data* (e.g. market
+ * price research) rather than the model's static knowledge.
+ *
+ * Domain/language/recency filtering is delegated to the provided `searchConfig`
+ * so callers can scope results (e.g. Iranian Persian sites, last month only).
+ */
+export async function runResearch<T>(
+  opts: RunOptions & {
+    schema: z.ZodType<T>
+    /** Perplexity search config: country, language, recency, domain filters. */
+    searchConfig?: Record<string, unknown>
+    /** Max tool-loop steps (search rounds + final answer). Default 4. */
+    maxSteps?: number
+  },
+): Promise<RunResearchResult<T>> {
+  const config = await preflight(opts.feature, opts.userId)
+  const gw = await gatewayProvider()
+  const p = callParams(config, opts)
+  const startedAt = Date.now()
+  const sources: ResearchSource[] = []
+  try {
+    const res = await withTimeout(
+      opts.timeoutMs ?? config.timeoutMs,
+      (signal) =>
+        generateText({
+          model: gw(p.model),
+          system: opts.system,
+          ...promptPayload(opts),
+          tools: { web_search: gw.tools.perplexitySearch(opts.searchConfig ?? {}) },
+          stopWhen: stepCountIs(opts.maxSteps ?? 4),
+          output: Output.object({ schema: opts.schema }),
+          temperature: p.temperature,
+          maxOutputTokens: p.maxOutputTokens,
+          maxRetries: p.maxRetries,
+          abortSignal: signal,
+          onStepFinish: (step) => {
+            for (const tr of step.toolResults ?? []) {
+              const out = (tr as { output?: unknown }).output
+              const results = (out as { results?: unknown[] })?.results
+              if (Array.isArray(results)) {
+                for (const r of results as Array<Record<string, unknown>>) {
+                  sources.push({
+                    title: typeof r.title === "string" ? r.title : undefined,
+                    url: typeof r.url === "string" ? r.url : undefined,
+                    date: typeof r.date === "string" ? r.date : undefined,
+                    snippet: typeof r.snippet === "string" ? r.snippet.slice(0, 300) : undefined,
+                  })
+                }
+              }
+            }
+          },
+        }),
+      `ai:${opts.feature}`,
+    )
+    await recordUsage({
+      feature: opts.feature,
+      provider: config.provider,
+      model: p.model,
+      operation: "research",
+      userId: opts.userId,
+      refType: opts.refType,
+      refId: opts.refId,
+      inputTokens: res.usage.inputTokens,
+      outputTokens: res.usage.outputTokens,
+      totalTokens: res.usage.totalTokens,
+      latencyMs: Date.now() - startedAt,
+      ok: true,
+      meta: opts.meta as never,
+    })
+    return {
+      object: res.output as T,
+      sources,
+      model: p.model,
+      usage: res.usage,
+    }
+  } catch (err) {
+    await recordFailure(opts, config.provider, p.model, "research", startedAt, err)
     throw new AiProviderError()
   }
 }
