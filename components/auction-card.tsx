@@ -23,6 +23,8 @@ export type AuctionSummary = {
   currentPrice: number
   minNextBid: number
   buyNowPrice: number | null
+  // Real market value reference anchor (presentational only; may be absent).
+  estimatedValue?: number | null
   status: string
   endTime: string
   startTime: string
@@ -141,6 +143,12 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
               </span>
               <span className="text-xs text-muted-foreground">{currency}</span>
             </div>
+            {!ds.isTerminal && auction.estimatedValue != null && (
+              <span className="mt-0.5 flex items-baseline gap-1 text-[11px] text-muted-foreground">
+                {t("auctions.trueValue")}:
+                <span className="tabular-nums line-through">{priceValue(auction.estimatedValue)}</span>
+              </span>
+            )}
           </div>
           <div className="text-left">
             <span className="text-xs text-muted-foreground">

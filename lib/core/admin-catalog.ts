@@ -255,6 +255,7 @@ export interface AuctionProductInput {
   minimumIncrement: bigint
   reservePrice?: bigint | null
   buyNowPrice?: bigint | null
+  estimatedValue?: bigint | null
   quantity: number
   startTime: Date
   endTime: Date
@@ -290,6 +291,7 @@ export async function createAuctionProduct(input: AuctionProductInput, adminId: 
           minimumIncrement: input.minimumIncrement,
           reservePrice: input.reservePrice ?? null,
           buyNowPrice: input.buyNowPrice ?? null,
+          estimatedValue: input.estimatedValue ?? null,
           quantity: input.quantity,
           startTime: input.startTime,
           endTime: input.endTime,

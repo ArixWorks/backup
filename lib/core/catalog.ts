@@ -259,6 +259,8 @@ type AuctionSummaryInput = {
   minimumIncrement: bigint
   buyNowPrice: bigint | null
   reservePrice: bigint | null
+  // Admin-set "real market value" reference anchor (presentational only).
+  estimatedValue: bigint | null
   winnerUserId: string | null
   finalPrice: bigint | null
   endReason: string | null
@@ -321,6 +323,9 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     minNextBid,
     buyNowPrice,
     buyNowAvailable,
+    // Real market value shown as a reference anchor. Only surfaced when set and
+    // strictly greater than the live price so it always reads as a "worth" hint.
+    estimatedValue: a.estimatedValue != null && a.estimatedValue > currentPrice ? a.estimatedValue : null,
     // Reserve display (PR7): computed server-side against the policy visibility
     // so hidden data (exact amount, and in HIDDEN mode even the met/not-met
     // status) never reaches the client. Legacy callers with no policy fall back

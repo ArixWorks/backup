@@ -81,6 +81,7 @@ export type MessageKey =
   | "auctions.nextBid"
   | "auctions.finalPrice"
   | "auctions.startingPrice"
+  | "auctions.trueValue"
   | "auctions.startsAt"
   | "auctions.sold"
   | "auctions.endingSoon"
@@ -140,6 +141,7 @@ export type MessageKey =
   | "flash.soldOut"
   | "flash.stock"
   | "flash.sold"
+  | "flash.off"
   | "flash.autoDelivery"
   | "flash.manualDelivery"
   | "buy.quantity"
@@ -333,6 +335,7 @@ export type MessageKey =
   | "adetail.mins"
   | "adetail.secs"
   | "adetail.buyNowStat"
+  | "adetail.trueValue"
   | "adetail.nextMinBid"
   | "adetail.finalPrice"
   | "adetail.winner"
@@ -936,6 +939,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "حداقل پیشنهاد بعدی",
   "auctions.finalPrice": "قیمت نهایی",
   "auctions.startingPrice": "قیمت پایه",
+  "auctions.trueValue": "ارزش حقیقی",
   "auctions.startsAt": "شروع",
   "auctions.sold": "فروخته شد",
   "auctions.endingSoon": "رو به پایان",
@@ -995,6 +999,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "ناموجود",
   "flash.stock": "موجودی",
   "flash.sold": "فروخته‌شده",
+  "flash.off": "تخفیف",
   "flash.autoDelivery": "تحویل خودکار",
   "flash.manualDelivery": "تحویل دستی",
   "buy.quantity": "تعداد",
@@ -1007,7 +1012,7 @@ type Catalog = Record<MessageKey, string>
   "buy.confirm": "تأیید و پرداخت",
   "buy.success": "خرید موفق",
   "buy.deliveryInfo": "اطلاعات تحویل (تحویل خودکار):",
-  "buy.pendingManual": "سفارش شما ثبت شد و در انتظار تحویل دستی است. وضعیت را از بخش سفارش‌ها پیگیری کنید.",
+  "buy.pendingManual": "سفارش شما ثبت شد و در ا��تظار تحویل دستی است. وضعیت را از بخش سفارش‌ها پیگیری کنید.",
   "buy.loginFirst": "ابتدا یک حساب کاربری انتخاب کنید",
   "buy.bulkHint": "تخفیف عمده",
   "buy.subtotal": "جمع جزء",
@@ -1121,7 +1126,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.topupDemo": "شارژ کیف پول (دمو)",
   "wallet.amountPlaceholder": "مبلغ به تومان",
   "wallet.charge": "شارژ",
-  "wallet.demoNote": "در نسخه واقعی، شارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.",
+  "wallet.demoNote": "در نسخه واقعی، ��ارژ از طریق کارت‌به‌کارت و تأیید مدیر انجام می‌شود.",
   "wallet.minTopup": "حداقل مبلغ شارژ ۱۰٬۰۰۰ تومان است",
   "wallet.topupSuccess": "کیف پول شارژ شد",
   "wallet.topupError": "خطا در شارژ کیف پول",
@@ -1188,6 +1193,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "دقیقه",
   "adetail.secs": "ثانیه",
   "adetail.buyNowStat": "خرید فوری",
+  "adetail.trueValue": "ارزش حقیقی محصول",
   "adetail.nextMinBid": "حداقل پیشنهاد بعدی",
   "adetail.finalPrice": "قیمت نهایی",
   "adetail.winner": "برنده",
@@ -1489,7 +1495,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.uploadReceipt": "بارگذاری رسید پرداخت",
   "wallet.receiptUploaded": "رسید بارگذاری شد",
   "wallet.iPaid": "پرداخت کردم",
-  "wallet.cryptoWarning": "حتماً دقیقاً همین مبلغ را ارسال کنید تا تراکنش شما به‌درستی شناسایی شود.",
+  "wallet.cryptoWarning": "حتما�� دقیقاً همین مبلغ را ارسال کنید تا تراکنش شما به‌درستی شناسایی شود.",
   "wallet.expiresIn": "زمان باقی‌مانده",
   "wallet.expired": "زمان این درخواست به پایان رسید",
   "wallet.pendingReview": "در حال بررسی توسط مدیر",
@@ -1553,7 +1559,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.startRegUntil": "شروع ثبت‌نام تا",
   "gwd.participants": "شرکت‌کنندگان",
   "gwd.prize": "جایزه",
-  "gwd.mustJoin": "برای شرکت باید عضو این کانال‌ها باشی",
+  "gwd.mustJoin": "برای شرکت باید عضو این کانال��ها باشی",
   "gwd.afterJoinRetry": "بعد از عضویت، دوباره دکمه شرکت را بزن.",
   "gwd.winners": "برندگان قرعه‌کشی",
   "gwd.noWinners": "برنده‌ای ثبت نشده است.",
@@ -1753,6 +1759,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "Next minimum bid",
   "auctions.finalPrice": "Final price",
   "auctions.startingPrice": "Starting price",
+  "auctions.trueValue": "True value",
   "auctions.startsAt": "Starts",
   "auctions.sold": "Sold",
   "auctions.endingSoon": "Ending soon",
@@ -1812,6 +1819,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "Sold out",
   "flash.stock": "Stock",
   "flash.sold": "Sold",
+  "flash.off": "OFF",
   "flash.autoDelivery": "Auto delivery",
   "flash.manualDelivery": "Manual delivery",
   "buy.quantity": "Quantity",
@@ -2014,6 +2022,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "min",
   "adetail.secs": "sec",
   "adetail.buyNowStat": "Buy now",
+  "adetail.trueValue": "Real market value",
   "adetail.nextMinBid": "Next minimum bid",
   "adetail.finalPrice": "Final price",
   "adetail.winner": "Winner",
@@ -2492,7 +2501,7 @@ type Catalog = Record<MessageKey, string>
     "soon.body": "Мы разрабатываем эту функцию, и скоро она появится на платформе.",
     "soon.back": "На панель",
     "vps.title": "VPS-хостинг",
-    "vps.subtitle": "Мощный и надёжный облачный хостинг",
+    "vps.subtitle": "Мощный и надёжный об��ачный хостинг",
     "domains.title": "Регистрация домена",
     "domains.subtitle": "Поиск, цена и регистрация вашего домена",
   "nav.home": "Главная",
@@ -2570,6 +2579,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "Следующая мин. ставка",
   "auctions.finalPrice": "Итоговая цена",
   "auctions.startingPrice": "Стартовая цена",
+  "auctions.trueValue": "Реальная цена",
   "auctions.startsAt": "Начало",
   "auctions.sold": "Продано",
   "auctions.endingSoon": "Скоро завершится",
@@ -2621,7 +2631,7 @@ type Catalog = Record<MessageKey, string>
   "reviews.commentPlaceholder": "Поделитесь впечатлением (необязательно)…",
   "reviews.submit": "Отправить",
   "reviews.delete": "Удалить отзыв",
-  "reviews.mustBuy": "Оставить отзыв могут только покупатели этого товара.",
+  "reviews.mustBuy": "Оставить отзыв м��гут только покупатели этого товара.",
   "reviews.you": "Вы",
   "reviews.thanks": "Спасибо за ваш отзыв!",
   "reviews.ratingsCount": "отзывов",
@@ -2629,6 +2639,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "Распродано",
   "flash.stock": "В наличии",
   "flash.sold": "Продано",
+  "flash.off": "скидка",
   "flash.autoDelivery": "Авто-доставка",
   "flash.manualDelivery": "Ручная доставка",
   "buy.quantity": "Количество",
@@ -2831,9 +2842,10 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "мин",
   "adetail.secs": "сек",
   "adetail.buyNowStat": "Купить сейчас",
+  "adetail.trueValue": "Реальная рыночная стоимость",
   "adetail.nextMinBid": "Следующая мин. ставка",
   "adetail.finalPrice": "Итоговая цена",
-  "adetail.winner": "Победитель",
+  "adetail.winner": "��обедитель",
   "adetail.soldViaBuyNow": "Продано через «Купить сейчас»",
   "adetail.overview": "Описание",
   "wins.signInRequired": "Войдите, чтобы увидеть свои призы.",
@@ -3388,6 +3400,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.nextBid": "Agli minimum boli",
   "auctions.finalPrice": "Final price",
   "auctions.startingPrice": "Starting price",
+  "auctions.trueValue": "Asli value",
   "auctions.startsAt": "Shuru",
   "auctions.sold": "Bik gaya",
   "auctions.endingSoon": "Jald khatam",
@@ -3447,6 +3460,7 @@ type Catalog = Record<MessageKey, string>
   "flash.soldOut": "Sold out",
   "flash.stock": "Stock",
   "flash.sold": "Bike",
+  "flash.off": "OFF",
   "flash.autoDelivery": "Auto delivery",
   "flash.manualDelivery": "Manual delivery",
   "buy.quantity": "Quantity",
@@ -3649,6 +3663,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.mins": "min",
   "adetail.secs": "sec",
   "adetail.buyNowStat": "Abhi khareedein",
+  "adetail.trueValue": "Asli bazaar value",
   "adetail.nextMinBid": "Agli minimum boli",
   "adetail.finalPrice": "Final price",
   "adetail.winner": "Winner",
