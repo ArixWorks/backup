@@ -104,6 +104,7 @@ export type FlashProductRow = {
   links: unknown
   fixedSale: {
     price: bigint
+    compareAtPrice: bigint | null
     stock: number
     reservedStock: number
     purchaseLimit: number | null
@@ -140,6 +141,9 @@ export function summarizeFlash(p: FlashProductRow) {
     deliveryType: p.deliveryType,
     links: parseLinks(p.links),
     price: fs?.price ?? 0n,
+    // Original "was" price for the strike-through discount display. Only shown
+    // when strictly greater than the selling price; null otherwise.
+    compareAtPrice: fs?.compareAtPrice != null && fs.compareAtPrice > (fs?.price ?? 0n) ? fs.compareAtPrice : null,
     stock: (fs?.stock ?? 0) - (fs?.reservedStock ?? 0),
     purchaseLimit: fs?.purchaseLimit ?? null,
     soldCount: fs?.soldCount ?? 0,

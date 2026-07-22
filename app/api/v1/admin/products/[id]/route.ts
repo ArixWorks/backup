@@ -28,6 +28,7 @@ const schema = z.object({
   coverImage: z.string().optional(),
   gallery: z.array(z.string()).optional(),
   price: money.optional(),
+  compareAtPrice: money.nullable().optional(),
   stock: z.number().int().min(0).optional(),
   purchaseLimit: z.number().int().positive().nullable().optional(),
   links: z.array(linkSchema).optional(),
@@ -76,6 +77,8 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
       i18n: (body.i18n ?? undefined) as never,
       coverImage: body.coverImage,
       price: body.price != null ? BigInt(body.price) : undefined,
+      compareAtPrice:
+        body.compareAtPrice === undefined ? undefined : body.compareAtPrice === null ? null : BigInt(body.compareAtPrice),
       stock: body.stock,
       purchaseLimit: body.purchaseLimit,
       links: body.links,

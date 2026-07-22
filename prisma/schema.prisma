@@ -969,6 +969,10 @@ model FixedSale {
   productId           String    @unique
   product             Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   price               BigInt
+  // Optional "original" price shown struck-through next to the discounted
+  // `price` (sales psychology). Purely presentational — the real charge and all
+  // coupon/tier math run on `price`, never on this value. Must be > price to show.
+  compareAtPrice      BigInt?
   stock               Int       @default(0)
   reservedStock       Int       @default(0) // temporary reservations for in-flight checkouts
   purchaseLimit       Int? // max units per user
@@ -1045,6 +1049,10 @@ model Auction {
   startPrice         BigInt
   currentPrice       BigInt        @default(0)
   minimumIncrement   BigInt        @default(1000)
+  // Admin-set "real market value" of the item ("ارزش حقیقی محصول"), shown to
+  // bidders as a reference anchor (e.g. a NordVPN account worth 500,000 T).
+  // Presentational only — it never affects bids, reserve, or Buy-Now pricing.
+  estimatedValue     BigInt?
   reservePrice       BigInt?
   buyNowPrice        BigInt?
   startTime          DateTime

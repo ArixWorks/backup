@@ -67,6 +67,7 @@ export default function NewProductPage() {
 
   // flash
   const [price, setPrice] = useState("")
+  const [compareAtPrice, setCompareAtPrice] = useState("")
   const [stock, setStock] = useState("")
   const [purchaseLimit, setPurchaseLimit] = useState("")
   const [soldBaseline, setSoldBaseline] = useState("")
@@ -154,6 +155,7 @@ export default function NewProductPage() {
           ? {
               ...base,
               price: Number(price),
+              compareAtPrice: compareAtPrice ? Number(compareAtPrice) : null,
               stock: Number(stock || 0),
               purchaseLimit: purchaseLimit ? Number(purchaseLimit) : null,
               soldBaseline: soldBaseline ? Number(soldBaseline) : undefined,
@@ -294,8 +296,11 @@ export default function NewProductPage() {
                 این قیمت، قیمت پایه است. پس از «ساخت محصول»، در صفحه ویرایش بخش «پلن‌های فروش» را باز کنید تا
                 پلن‌های مختلف (مثلاً ۱ ماهه، ۳ ماهه، ۱ ساله) هرکدام با قیمت و موجودی مستقل اضافه کنید.
               </div>
-              <Field label="قیمت پایه (تومان)">
+              <Field label="قیمت فروش پایه (تومان)">
                 <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="750000" />
+              </Field>
+              <Field label="قیمت اصلی (خط‌خورده)" hint="اختیاری؛ اگر بیشتر از قیمت فروش باشد، خط‌خورده و درصد تخفیف نمایش داده می‌شود">
+                <Input value={compareAtPrice} onChange={(e) => setCompareAtPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="2000000" />
               </Field>
               <Field label="موجودی انبار">
                 <Input value={stock} onChange={(e) => setStock(e.target.value)} inputMode="numeric" dir="ltr" placeholder="20" />

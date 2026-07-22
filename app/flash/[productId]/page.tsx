@@ -116,6 +116,9 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
   const shownPrice = selectedVariant ? selectedVariant.price : p.price
   const shownStock = selectedVariant ? selectedVariant.stock : p.stock
   const shownDelivery = selectedVariant ? selectedVariant.deliveryType : p.deliveryType
+  const shownCompareAt = selectedVariant ? selectedVariant.compareAtPrice : (p.compareAtPrice ?? null)
+  const hasDiscount = shownCompareAt != null && shownCompareAt > shownPrice
+  const discountPercent = hasDiscount ? Math.round((1 - shownPrice / (shownCompareAt as number)) * 100) : 0
   const soldOut = shownStock <= 0
   const hasBulk = !!p.bulkMinQty && !!p.bulkDiscountPercent
 
@@ -213,11 +216,27 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
               <span className="text-xs text-muted-foreground">
                 {selectedVariant && variants.length > 1 ? t("plan.from") : ""} {currency}
               </span>
-              <div className="flex items-baseline gap-1.5">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                 <span className="text-3xl font-extrabold tabular-nums text-primary">
                   {priceValue(shownPrice)}
                 </span>
+                {hasDiscount && (
+                  <>
+                    <span className="text-base text-muted-foreground line-through tabular-nums">
+                      {priceValue(shownCompareAt as number)}
+                    </span>
+                    <span className="inline-flex items-center gap-1 self-center rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
+                      <Tag className="h-3 w-3" />
+                      {discountPercent}% {t("flash.off")}
+                    </span>
+                  </>
+                )}
               </div>
+              {hasDiscount && (
+                <p className="mt-1 text-xs font-medium text-success">
+                  {t("detail.youSave")} {priceValue((shownCompareAt as number) - shownPrice)} {currency}
+                </p>
+              )}
               {hasBulk && p.bulkUnitPrice != null && !hasPlans && (
                 <p className="mt-1 text-xs text-success">
                   {p.bulkMinQty}+ : {t("detail.eachFrom")} {priceValue(p.bulkUnitPrice)} {currency}
