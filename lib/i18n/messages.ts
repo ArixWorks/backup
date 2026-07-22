@@ -100,6 +100,7 @@ export type MessageKey =
   | "detail.shareCopied"
   | "detail.notFound"
   | "detail.eachFrom"
+  | "detail.youSave"
   | "detail.restockNotice"
   | "plan.choose"
   | "plan.compare"
@@ -958,6 +959,7 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "لینک کپی شد",
   "detail.notFound": "این محصول یافت نشد یا دیگر در دسترس نیست.",
   "detail.eachFrom": "هر واحد از",
+  "detail.youSave": "سود شما",
   "detail.restockNotice": "این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.",
   "plan.choose": "پلن مورد نظر را انتخاب کنید",
   "plan.compare": "مقایسه پلن‌ها",
@@ -1006,7 +1008,7 @@ type Catalog = Record<MessageKey, string>
   "buy.unitPrice": "قیمت هر واحد",
   "buy.total": "مبلغ کل",
   "buy.selectPayment": "انتخاب روش پرداخت",
-  "buy.payWallet": "پرداخت با کیف پول",
+  "buy.payWallet": "پرداخت با ��یف پول",
   "buy.comingSoon": "به‌زودی",
   "buy.insufficient": "موجودی کیف پول کافی نیست.",
   "buy.confirm": "تأیید و پرداخت",
@@ -1778,6 +1780,7 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "Link copied",
   "detail.notFound": "This product was not found or is no longer available.",
   "detail.eachFrom": "Each from",
+  "detail.youSave": "You save",
   "detail.restockNotice": "This product is out of stock. Turn on alerts to be notified when it is back.",
   "plan.choose": "Choose your plan",
   "plan.compare": "Compare plans",
@@ -2598,7 +2601,8 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "Ссылка скопирована",
   "detail.notFound": "Товар не найден или больше недоступен.",
   "detail.eachFrom": "За единицу от",
-  "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступлении.",
+  "detail.youSave": "Ваша выгода",
+  "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступ��ении.",
   "plan.choose": "Выберите тариф",
   "plan.compare": "Сравнить тарифы",
   "plan.selected": "Выбрано",
@@ -2783,7 +2787,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.rewardsSubtitle": "Посмотрите свой уровень, задания и достижения",
   "notif.title": "Уведомления",
   "notif.subtitle": "Последние события вашего аккаунта: пополнения товаров, заказы, аукционы и транзакции.",
-  "notif.signInRequired": "Войдите, чтобы увидеть уведомления.",
+  "notif.signInRequired": "Войдите, чтобы увидеть ��ведомления.",
   "orders.signInRequired": "Войдите, чтобы увидеть заказы.",
   "orders.emptyDesc": "Загляните в распродажу и сделайте первую покупку.",
   "orders.emptyAction": "К распродаже",
@@ -3007,7 +3011,7 @@ type Catalog = Record<MessageKey, string>
   "acctPwd.title": "Пароль",
   "acctPwd.subtitle": "Изменить пароль аккаунта",
   "acctPwd.change": "Изменить",
-  "acctPwd.success": "Пароль успешно изменён.",
+  "acctPwd.success": "П��роль успешно изменён.",
   "acctPwd.errMin": "Новый пароль должен содержать не менее 8 символов",
   "acctPwd.errMismatch": "Пароли не совпадают",
   "acctPwd.failed": "Не удалось изменить пароль",
@@ -3037,7 +3041,7 @@ type Catalog = Record<MessageKey, string>
   "flash.followCategoryHint": "Подпишитесь на категорию, чтобы получать звуковое уведомление о новых товарах.",
   "signIn.title": "Требуется вход",
   "signIn.defaultDesc": "Войдите в свой аккаунт, чтобы продолжить.",
-  "signIn.action": "Войти в аккаунт",
+  "signIn.action": "Войт�� в аккаунт",
   "watch.errUpdate": "Не удалось обновить список отслеживания",
   "watch.auctionRemoved": "Удалено из отслеживания",
   "watch.auctionAdded": "Добавлено в отслеживание; вы получите уведомление о начале аукциона",
@@ -3272,7 +3276,7 @@ type Catalog = Record<MessageKey, string>
   "missions.weekly_giveaway.title": "Участвовать в розыгрыше",
   "missions.weekly_giveaway.description": "Участвуйте в одном розыгрыше на этой неделе.",
   "missions.weekly_purchase.title": "Еженедельная покупка",
-  "missions.weekly_purchase.description": "Совершите одну покупку на этой неделе.",
+  "missions.weekly_purchase.description": "Совершите одну покупку на это�� неделе.",
   "missions.onboard_profile.title": "Заполнить профиль",
   "missions.onboard_profile.description": "Заполните информацию профиля.",
   "refAct.pending": "Ожидание",
@@ -3419,6 +3423,7 @@ type Catalog = Record<MessageKey, string>
   "detail.shareCopied": "Link copy ho gaya",
   "detail.notFound": "Yeh product nahi mila ya ab available nahi hai.",
   "detail.eachFrom": "Per unit se",
+  "detail.youSave": "Aap bachate hain",
   "detail.restockNotice": "Yeh product stock mein nahi hai. Wapas aane par notify hone ke liye alert on karein.",
   "plan.choose": "Apna plan chunein",
   "plan.compare": "Plans ki tulna karein",
