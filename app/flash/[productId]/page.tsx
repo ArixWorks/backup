@@ -183,7 +183,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
         {/* Right: purchase panel */}
         <div className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <div className="aurora-border space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5">
+          <div className="gold-border-spin space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5">
             <div className="flex items-start justify-between gap-2">
               <h1 dir="auto" className="text-xl font-extrabold leading-tight text-balance">{p.title}</h1>
               <Button
