@@ -30,7 +30,7 @@ type Finding = {
   markers: string[]
   firstSeenAt: string
 }
-type Payload = { data: { findings: Finding[]; pending: number; latestRun: { status: string; scannedCount: number; suspiciousCount: number; completedAt: string | null } | null } }
+type Payload = { data: { findings: Finding[]; pending: number; sourceApplyEnabled: boolean; latestRun: { status: string; scannedCount: number; suspiciousCount: number; completedAt: string | null } | null } }
 
 async function post(url: string, body?: unknown) {
   const response = await fetch(url, { method: "POST", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined })
@@ -89,8 +89,10 @@ export function TextIntegrityManager() {
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4"><p className="mb-2 text-xs font-bold text-primary">پیشنهاد اصلاح</p><p className="break-words text-sm leading-7">{item.proposedText ?? "مدل اصلاح مطمئنی ارائه نکرده است."}</p></div>
               </div>
               {item.explanation && <p className="text-sm text-muted-foreground">{item.explanation}</p>}
-              {item.status === "PENDING" && <div className="flex gap-2 border-t border-border pt-4">
-                {item.source === "DATABASE" && item.proposedText && <Button size="sm" onClick={() => review(item.id, "approve")} disabled={busy !== null} className="gap-1"><Check className="h-4 w-4" />تأیید و اعمال</Button>}
+              {item.status === "PENDING" && <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                {item.source === "DATABASE" && item.proposedText && <Button size="sm" onClick={() => review(item.id, "approve")} disabled={busy !== null} className="gap-1">{busy === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}تأیید و اعمال</Button>}
+                {item.source === "SOURCE_CODE" && item.proposedText && result?.sourceApplyEnabled && <Button size="sm" onClick={() => review(item.id, "approve")} disabled={busy !== null} className="gap-1">{busy === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}اصلاح خودکار فایل</Button>}
+                {item.source === "SOURCE_CODE" && item.proposedText && !result?.sourceApplyEnabled && <span className="text-xs text-muted-foreground">اصلاح خودکار فقط در محیط توسعه فعال است.</span>}
                 <Button size="sm" variant="outline" onClick={() => review(item.id, "reject")} disabled={busy !== null} className="gap-1"><X className="h-4 w-4" />رد پیشنهاد</Button>
               </div>}
             </article>

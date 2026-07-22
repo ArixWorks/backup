@@ -194,6 +194,60 @@ async function updateValue(entity: string, recordId: string, field: string, valu
   }
 }
 
+/**
+ * Whether SOURCE_CODE findings can be applied by writing directly to the file.
+ * Only possible in development — deployed environments (Vercel) have a
+ * read-only filesystem and any write would fail or be wiped on next deploy.
+ */
+export function isSourceApplyEnabled() {
+  return process.env.NODE_ENV !== "production" && !process.env.VERCEL
+}
+
+async function applySourceFinding(
+  finding: { id: string; sourcePath: string | null; sourceLine: number | null; originalText: string; proposedText: string | null },
+  adminId: string,
+) {
+  if (!isSourceApplyEnabled()) {
+    throw new DomainError("اعمال خودکار روی فایل کد فقط در محیط توسعه امکان‌پذیر است.", "READ_ONLY_ENV", 422)
+  }
+  if (!finding.sourcePath || !finding.sourceLine || !finding.proposedText) {
+    throw new DomainError("این پیشنهاد قابل اعمال نیست.", "NOT_APPLICABLE", 422)
+  }
+  const { readFile, writeFile } = await import("node:fs/promises")
+  const path = await import("node:path")
+  const root = process.cwd()
+  const abs = path.resolve(root, finding.sourcePath)
+  if (abs !== root && !abs.startsWith(root + path.sep)) {
+    throw new DomainError("مسیر فایل نامعتبر است.", "INVALID_PATH", 422)
+  }
+  let content: string
+  try {
+    content = await readFile(abs, "utf8")
+  } catch {
+    throw new DomainError("فایل مبدأ یافت نشد.", "NOT_FOUND", 404)
+  }
+  const newline = content.includes("\r\n") ? "\r\n" : "\n"
+  const lines = content.split(/\r?\n/)
+  const idx = finding.sourceLine - 1
+  const currentLine = lines[idx]
+  // The manifest stores the trimmed line, so compare/replace on the trimmed
+  // portion while preserving the original indentation.
+  if (currentLine === undefined || currentLine.trim() !== finding.originalText.trim()) {
+    await prisma.textIntegrityFinding.update({ where: { id: finding.id }, data: { status: "STALE", reviewedAt: new Date(), reviewedById: adminId } })
+    throw new DomainError("خط کد پس از اسکن تغییر کرده و پیشنهاد منقضی شد.", "STALE", 409)
+  }
+  const indent = currentLine.slice(0, currentLine.length - currentLine.trimStart().length)
+  lines[idx] = indent + finding.proposedText.trim()
+  try {
+    await writeFile(abs, lines.join(newline), "utf8")
+  } catch {
+    throw new DomainError("نوشتن روی فایل ناموفق بود (فایل‌سیستم فقط‌خواندنی است).", "WRITE_FAILED", 422)
+  }
+  await prisma.textIntegrityFinding.update({ where: { id: finding.id }, data: { status: "APPROVED", reviewedAt: new Date(), reviewedById: adminId, appliedAt: new Date() } })
+  await audit({ actorId: adminId, action: "text_integrity.apply_source", entity: "SourceCode", entityId: finding.id, meta: { path: finding.sourcePath, line: finding.sourceLine, before: finding.originalText, after: finding.proposedText } })
+  return { status: "APPROVED" }
+}
+
 export async function reviewFinding(id: string, decision: "approve" | "reject", adminId: string) {
   const finding = await prisma.textIntegrityFinding.findUnique({ where: { id } })
   if (!finding || finding.status !== "PENDING") throw new DomainError("پیشنهاد در انتظار یافت نشد.", "NOT_FOUND", 404)
@@ -202,6 +256,7 @@ export async function reviewFinding(id: string, decision: "approve" | "reject", 
     await audit({ actorId: adminId, action: "text_integrity.reject", entity: "TextIntegrityFinding", entityId: id })
     return { status: "REJECTED" }
   }
+  if (finding.source === "SOURCE_CODE") return applySourceFinding(finding, adminId)
   if (finding.source !== "DATABASE" || !finding.recordId || !finding.proposedText) throw new DomainError("این پیشنهاد قابل اعمال نیست.", "NOT_APPLICABLE", 422)
   const current = await currentValue(finding.entity, finding.recordId, finding.field)
   if (current === null || checksum(current) !== finding.sourceChecksum) {
@@ -220,5 +275,5 @@ export async function listTextIntegrityFindings(status?: "PENDING" | "APPROVED" 
     prisma.textIntegrityScanRun.findFirst({ orderBy: { createdAt: "desc" } }),
     prisma.textIntegrityFinding.count({ where: { status: "PENDING" } }),
   ])
-  return { findings, latestRun, pending }
+  return { findings, latestRun, pending, sourceApplyEnabled: isSourceApplyEnabled() }
 }
