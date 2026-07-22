@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
+import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
 import { RichContentEditor, EnhancedTextarea } from "@/components/rich-content"
 import { tehranInputToUtcISO } from "@/lib/format"
 import {
@@ -36,14 +37,19 @@ function Field({
   label,
   children,
   hint,
+  action,
 }: {
   label: string
   children: React.ReactNode
   hint?: string
+  action?: React.ReactNode
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        {action}
+      </div>
       {children}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
@@ -301,7 +307,17 @@ export default function NewProductPage() {
               <Field label="قیمت فروش پایه (تومان)">
                 <Input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="750000" />
               </Field>
-              <Field label="قیمت اصلی (خط‌خورده)" hint="اختیاری؛ اگر بیشتر از قیمت فروش باشد، خط‌خورده و درصد تخفیف نمایش داده می‌شود">
+              <Field
+                label="قیمت اصلی (خط‌خورده)"
+                hint="اختیاری؛ اگر بیشتر از قیمت فروش باشد، خط‌خورده و درصد تخفیف نمایش داده می‌شود"
+                action={
+                  <PriceResearchDialog
+                    title={title}
+                    currentPrice={compareAtPrice ? Number(compareAtPrice) : null}
+                    onApply={(p) => setCompareAtPrice(String(p))}
+                  />
+                }
+              >
                 <Input value={compareAtPrice} onChange={(e) => setCompareAtPrice(e.target.value)} inputMode="numeric" dir="ltr" placeholder="2000000" />
               </Field>
               <Field label="موجودی انبار">

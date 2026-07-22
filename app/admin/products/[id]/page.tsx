@@ -18,6 +18,7 @@ import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
 import { VariantsEditor } from "@/components/admin/products/variants-editor"
+import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
 
 type ProductLink = { label: string; url: string }
 type TutorialOption = { id: string; title: string; slug: string }
@@ -146,6 +147,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <FlashEditor
                 id={id}
                 sale={product.fixedSale}
+                productTitle={product.title}
+                category={product.category}
                 initialLinks={product.links ?? []}
                 onSaved={mutate}
               />
@@ -376,11 +379,15 @@ function MediaEditor({
 function FlashEditor({
   id,
   sale,
+  productTitle,
+  category,
   initialLinks,
   onSaved,
 }: {
   id: string
   sale: FixedSale
+  productTitle: string
+  category: string | null
   initialLinks: ProductLink[]
   onSaved: () => void
 }) {
@@ -443,7 +450,15 @@ function FlashEditor({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="compareAtPrice">قیمت اصلی (خط‌خورده)</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="compareAtPrice">قیمت اصلی (خط‌خورده)</Label>
+            <PriceResearchDialog
+              title={productTitle}
+              category={category}
+              currentPrice={compareAtPrice ? Number(compareAtPrice) : null}
+              onApply={(p) => setCompareAtPrice(String(p))}
+            />
+          </div>
           <Input
             id="compareAtPrice"
             value={compareAtPrice}
