@@ -83,13 +83,16 @@ export function PriceResearchDialog({
     setResult(null)
     setError(null)
     try {
-      const res = await apiPost<PriceResearch>("/api/v1/admin/products/price-research", {
-        title: title.trim(),
-        planName: planName || undefined,
-        category: category || undefined,
-        currentPrice: currentPrice ?? undefined,
-      })
-      setResult(res)
+      const res = await apiPost<{ ok: boolean; data: PriceResearch }>(
+        "/api/v1/admin/products/price-research",
+        {
+          title: title.trim(),
+          planName: planName || undefined,
+          category: category || undefined,
+          currentPrice: currentPrice ?? undefined,
+        },
+      )
+      setResult(res.data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "تحقیق قیمت ناموفق بود. می‌توانید مبلغ را دستی وارد کنید.")
     } finally {
@@ -105,7 +108,7 @@ export function PriceResearchDialog({
     }
   }
 
-  const meta = result ? SCENARIO_META[result.scenario] : null
+  const meta = result ? (SCENARIO_META[result.scenario] ?? SCENARIO_META.similar_only) : null
   const ScenarioIcon = meta?.icon ?? Search
 
   return (
