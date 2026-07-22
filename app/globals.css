@@ -134,12 +134,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .celebration-beam { transform: none !important; }
-  /* Freeze the dancing neon border into a calm static neon frame. */
-  .aurora-border,
-  .aurora-border::before {
+  /* Freeze the rotating gold border into a calm static gold frame. */
+  .gold-border-spin {
     animation: none !important;
   }
-  .aurora-border::before { opacity: 0.4; }
 }
 
 /* ============================================================================
@@ -748,58 +746,26 @@ html[data-motion='minimal'] {
     border: 1px solid transparent;
   }
 
-  /* Live "dancing light" neon border: a bright band of accent colour that
-     continuously rotates around the frame (via the animated --aurora-angle
-     custom property) plus a soft outer bloom that breathes. Scoped premium
-     variant of .gold-border for the hero purchase card. Falls back to a calm
-     static frame when the user prefers reduced motion (see media query below). */
-  .aurora-border {
+  /* Same visual as .gold-border, but the exact gold gradient now rotates
+     continuously around the frame (driven by the animated --gold-angle custom
+     property). Background stays the plain card fill — nothing else changes.
+     Freezes to a calm static frame under prefers-reduced-motion (see above). */
+  .gold-border-spin {
     position: relative;
-    isolation: isolate;
+    border-radius: var(--radius-3xl);
     background:
-      radial-gradient(
-          120% 120% at 85% 0%,
-          color-mix(in oklch, var(--primary) 18%, transparent) 0%,
-          transparent 55%
-        )
-        padding-box,
       linear-gradient(var(--card), var(--card)) padding-box,
       conic-gradient(
-          from var(--aurora-angle),
-          color-mix(in oklch, var(--primary) 22%, transparent) 0%,
-          color-mix(in oklch, var(--accent-1) 96%, transparent) 12%,
-          color-mix(in oklch, var(--halo-2) 92%, transparent) 24%,
-          color-mix(in oklch, var(--primary) 20%, transparent) 40%,
-          color-mix(in oklch, var(--primary) 20%, transparent) 60%,
-          color-mix(in oklch, var(--accent-2) 94%, transparent) 74%,
-          color-mix(in oklch, var(--halo-2) 88%, transparent) 87%,
-          color-mix(in oklch, var(--primary) 22%, transparent) 100%
+          from var(--gold-angle),
+          color-mix(in oklch, var(--accent-deep) 15%, transparent) 0%,
+          color-mix(in oklch, var(--accent-1) 90%, transparent) 25%,
+          color-mix(in oklch, var(--accent-deep) 15%, transparent) 50%,
+          color-mix(in oklch, var(--accent-2) 80%, transparent) 75%,
+          color-mix(in oklch, var(--accent-deep) 15%, transparent) 100%
         )
         border-box;
-    border: 1.5px solid transparent;
-    animation: aurora-spin 6s linear infinite;
-  }
-  /* Rotating neon bloom that travels with the border band. */
-  .aurora-border::before {
-    content: "";
-    position: absolute;
-    inset: -2px;
-    z-index: -1;
-    border-radius: inherit;
-    background: conic-gradient(
-      from var(--aurora-angle),
-      transparent 0%,
-      color-mix(in oklch, var(--accent-1) 90%, transparent) 12%,
-      color-mix(in oklch, var(--halo-2) 85%, transparent) 24%,
-      transparent 42%,
-      transparent 60%,
-      color-mix(in oklch, var(--accent-2) 88%, transparent) 76%,
-      transparent 92%
-    );
-    filter: blur(11px);
-    opacity: 0.55;
-    animation: aurora-spin 6s linear infinite, aurora-breathe 3.4s ease-in-out infinite;
-    pointer-events: none;
+    border: 1px solid transparent;
+    animation: gold-spin 6s linear infinite;
   }
 
   /* Moving sheen sweep used on hero + primary CTAs. */
@@ -825,27 +791,17 @@ html[data-motion='minimal'] {
   }
 }
 
-@property --aurora-angle {
+@property --gold-angle {
   syntax: "<angle>";
   inherits: false;
   initial-value: 0deg;
 }
 
 @layer utilities {
-  /* Rotates the neon border band around the frame. */
-  @keyframes aurora-spin {
+  /* Rotates the gold gradient band around the frame. */
+  @keyframes gold-spin {
     to {
-      --aurora-angle: 360deg;
-    }
-  }
-  /* Gentle brightness pulse for the neon bloom. */
-  @keyframes aurora-breathe {
-    0%,
-    100% {
-      opacity: 0.4;
-    }
-    50% {
-      opacity: 0.7;
+      --gold-angle: 360deg;
     }
   }
   @keyframes sheen-sweep {
