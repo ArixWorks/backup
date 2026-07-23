@@ -42,6 +42,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import type { DeliveryField } from "@/lib/core/delivery-fields"
 
 type Winner = {
   id: string

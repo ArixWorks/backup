@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { getGiveawayById, updateGiveaway, deleteGiveaway, getGiveawayStats } from "@/lib/core/giveaway"
 import { richTextField } from "@/lib/rich-content/zod"
 import { getGiveawayChannelPublication } from "@/lib/core/giveaway-channel"
+import { resolveTemplate } from "@/lib/core/delivery-fields"
 
 export const dynamic = "force-dynamic"
 
@@ -56,6 +57,11 @@ export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: stri
     giveaway,
     stats,
     channelPublication,
+    // Resolved credential template for the manual delivery form (prize product
+    // override → default). Giveaways without a linked product get the default.
+    deliveryTemplate: resolveTemplate(
+      (giveaway.prizeProduct as { deliveryFields?: unknown } | null)?.deliveryFields ?? null,
+    ),
     // Admins see the real winner identity (needed for manual prize delivery).
     winners: winners.map((w) => ({
       id: w.id,

@@ -8,6 +8,7 @@ import { isTerminalStatus } from "./auction/lifecycle"
 import { computeReserveDisplay } from "./auction/reserve"
 import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
+import { resolveTemplate } from "./delivery-fields"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -448,7 +449,8 @@ export async function getOrdersForUser(userId: string) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
-      product: { select: { title: true, slug: true } },
+      product: { select: { title: true, slug: true, deliveryFields: true } },
+      variant: { select: { deliveryFields: true } },
       delivery: {
         include: { tutorial: { select: { id: true, title: true, slug: true } } },
       },
@@ -468,6 +470,10 @@ export async function getOrdersForUser(userId: string) {
           method: o.delivery.method,
           status: o.delivery.status,
           payload: o.delivery.status === "DELIVERED" ? o.delivery.payload : null,
+          // Resolved credential template: variant override → product → default.
+          template: resolveTemplate(
+            o.variant?.deliveryFields ?? o.product.deliveryFields ?? null,
+          ),
           error: o.delivery.error,
           tutorial: o.delivery.tutorial
             ? {

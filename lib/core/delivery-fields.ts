@@ -46,8 +46,27 @@ export interface DeliveryFieldDef {
 
 export type DeliveryTemplate = DeliveryFieldDef[]
 
+/** Convenience alias used by editor UIs. */
+export type DeliveryField = DeliveryFieldDef
+
 /** Map of resolved field key -> delivered string value. */
 export type DeliveryValues = Record<string, string>
+
+/**
+ * Derive a stable, valid machine key from a free-text label. Keeps ASCII
+ * letters/digits, collapses the rest to underscores, and guarantees the key
+ * starts with a letter. Returns "" when nothing usable remains (e.g. a purely
+ * Persian label) so callers can keep the previous key.
+ */
+export function slugifyFieldKey(input: string): string {
+  const cleaned = (input || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40)
+  if (!cleaned) return ""
+  return /^[a-z]/.test(cleaned) ? cleaned : `f_${cleaned}`.slice(0, 40)
+}
 
 // ---------------------------------------------------------------------------
 // Zod validation

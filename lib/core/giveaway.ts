@@ -355,7 +355,7 @@ export async function getGiveawayById(id: string) {
     where: { id },
     include: {
       _count: { select: { entries: true, winners: true } },
-      prizeProduct: { select: { id: true, title: true } },
+      prizeProduct: { select: { id: true, title: true, deliveryFields: true } },
     },
   })
   if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
