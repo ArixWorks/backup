@@ -171,7 +171,7 @@ export function CelebrationOverlay({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-overlay/75 px-4 py-[max(1rem,env(safe-area-inset-top))] backdrop-blur-2xl"
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-overlay/45 px-4 py-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -195,9 +195,10 @@ export function CelebrationOverlay({
             }
           />
 
-          {/* Colorful ribbons sweeping in from both edges. */}
-          {!reduced &&
-            streamers.map((s) => (
+          {/* Colorful ribbons sweeping in from both edges. One-shot entrance,
+              so we render it even under reduced-motion (Telegram/mobile often
+              report reduced-motion, which used to silence the whole show). */}
+          {streamers.map((s) => (
               <motion.span
                 key={s.id}
                 aria-hidden="true"
