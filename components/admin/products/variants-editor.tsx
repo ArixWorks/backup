@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
+import { InventoryTotpDialog } from "@/components/admin/products/inventory-totp-dialog"
 
 // A sale plan as returned by the API (BigInt fields serialized to string).
 type Variant = {
@@ -621,6 +622,8 @@ function VariantInventory({ productId, variantId }: { productId: string; variant
       capacity?: number
       seatsUsed?: number
       status: string
+      hasTotp?: boolean
+      totpMaxUses?: number | null
     }[]
   }>(`/api/v1/admin/products/${productId}/inventory?variantId=${variantId}`, fetcher)
   const items = data?.data ?? []
@@ -716,11 +719,22 @@ function VariantInventory({ productId, variantId }: { productId: string; variant
                 {it.username ? `${it.username}:${it.password ?? ""}` : it.licenseKey || it.note}
               </span>
               <div className="flex shrink-0 items-center gap-1.5">
+                {it.hasTotp && (
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                    2FA
+                  </span>
+                )}
                 {(it.capacity ?? 1) > 1 && (
                   <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
                     {faNum(it.seatsUsed ?? 0)}/{faNum(it.capacity ?? 1)}
                   </span>
                 )}
+                <InventoryTotpDialog
+                  itemId={it.id}
+                  hasTotp={Boolean(it.hasTotp)}
+                  maxUses={it.totpMaxUses ?? null}
+                  onChange={mutate}
+                />
                 {it.status === "AVAILABLE" && (
                   <button onClick={() => remove(it.id)} className="text-muted-foreground hover:text-destructive" aria-label="حذف">
                     <Trash2 className="h-3.5 w-3.5" />
