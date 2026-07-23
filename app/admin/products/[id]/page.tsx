@@ -3,7 +3,7 @@
 import { use, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save } from "lucide-react"
+import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save, Tag, Package, Layers } from "lucide-react"
 import Link from "next/link"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
 import { RichContent, RichContentEditor } from "@/components/rich-content"
@@ -402,6 +402,11 @@ function FlashEditor({
   const [links, setLinks] = useState<ProductLink[]>(initialLinks)
   const [saving, setSaving] = useState(false)
 
+  const priceNum = Number(price || 0)
+  const compareNum = Number(compareAtPrice || 0)
+  const discountPct =
+    compareNum > priceNum && priceNum > 0 ? Math.round((1 - priceNum / compareNum) * 100) : null
+
   async function save() {
     setSaving(true)
     try {
@@ -431,102 +436,137 @@ function FlashEditor({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
-      <div>
-        <h2 className="font-bold">قیمت پایه، تخفیف عمده و لینک‌ها</h2>
-        <p className="mt-1 text-[11px] text-muted-foreground">
+    <div className="rounded-xl border border-border bg-card">
+      <div className="border-b border-border px-5 py-4">
+        <h2 className="text-base font-bold">قیمت پایه، تخفیف عمده و لینک‌ها</h2>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           قیمت و موجودی واقعی از «پلن‌های فروش» بالا خوانده می‌شود. مقادیر زیر فقط زمانی استفاده می‌شوند که هیچ پلنی تعریف نشده باشد.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="price">قیمت فروش (تومان)</Label>
-          <Input
-            id="price"
-            value={price}
-            inputMode="numeric"
-            onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
-            className="tabular-nums"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="compareAtPrice">قیمت اصلی (خط‌خورده)</Label>
-            <PriceResearchDialog
-              title={productTitle}
-              category={category}
-              currentPrice={compareAtPrice ? Number(compareAtPrice) : null}
-              onApply={(p) => setCompareAtPrice(String(p))}
-            />
+
+      <div className="space-y-6 p-5">
+        {/* Pricing group */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <Tag className="h-3.5 w-3.5" />
+            قیمت‌گذاری
           </div>
-          <Input
-            id="compareAtPrice"
-            value={compareAtPrice}
-            inputMode="numeric"
-            placeholder="مثلاً ۲۰۰۰۰۰۰"
-            onChange={(e) => setCompareAtPrice(e.target.value.replace(/[^0-9]/g, ""))}
-            className="tabular-nums"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            اگر بیشتر از قیمت فروش باشد، روی محصول خط‌خورده و درصد تخفیف نمایش داده می‌شود.
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="stock">موجودی انبار</Label>
-          <Input
-            id="stock"
-            value={stock}
-            inputMode="numeric"
-            onChange={(e) => setStock(e.target.value.replace(/[^0-9]/g, ""))}
-            className="tabular-nums"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="soldBaseline">فروش نمایشی (پایه)</Label>
-          <Input
-            id="soldBaseline"
-            value={soldBaseline}
-            inputMode="numeric"
-            onChange={(e) => setSoldBaseline(e.target.value.replace(/[^0-9]/g, ""))}
-            className="tabular-nums"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            فروش واقعی: {sale.soldCount ?? 0}
-          </p>
-        </div>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="price">قیمت فروش (تومان)</Label>
+              <Input
+                id="price"
+                value={price}
+                inputMode="numeric"
+                onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                className="tabular-nums"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="compareAtPrice">قیمت اصلی (خط‌خورده)</Label>
+                <PriceResearchDialog
+                  title={productTitle}
+                  category={category}
+                  currentPrice={compareAtPrice ? Number(compareAtPrice) : null}
+                  onApply={(p) => setCompareAtPrice(String(p))}
+                />
+              </div>
+              <Input
+                id="compareAtPrice"
+                value={compareAtPrice}
+                inputMode="numeric"
+                placeholder="مثلاً ۲۰۰۰۰۰۰"
+                onChange={(e) => setCompareAtPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                className="tabular-nums"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              اگر قیمت اصلی بیشتر از قیمت فروش باشد، روی محصول خط‌خورده و درصد تخفیف نمایش داده می‌شود.
+            </p>
+            {discountPct !== null && (
+              <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-500">
+                {discountPct}% تخفیف
+              </span>
+            )}
+          </div>
+        </section>
+
+        {/* Inventory & display sales group */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <Package className="h-3.5 w-3.5" />
+            موجودی و فروش
+          </div>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="stock">موجودی انبار</Label>
+              <Input
+                id="stock"
+                value={stock}
+                inputMode="numeric"
+                onChange={(e) => setStock(e.target.value.replace(/[^0-9]/g, ""))}
+                className="tabular-nums"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="soldBaseline">فروش نمایشی (پایه)</Label>
+              <Input
+                id="soldBaseline"
+                value={soldBaseline}
+                inputMode="numeric"
+                onChange={(e) => setSoldBaseline(e.target.value.replace(/[^0-9]/g, ""))}
+                className="tabular-nums"
+              />
+              <p className="text-[11px] text-muted-foreground">فروش واقعی: {sale.soldCount ?? 0}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Bulk discount group */}
+        <section className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <Layers className="h-3.5 w-3.5" />
+            تخفیف عمده (اختیاری)
+          </div>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bulkMinQty">حداقل تعداد</Label>
+              <Input
+                id="bulkMinQty"
+                value={bulkMinQty}
+                inputMode="numeric"
+                placeholder="مثلاً ۱۰"
+                onChange={(e) => setBulkMinQty(e.target.value.replace(/[^0-9]/g, ""))}
+                className="tabular-nums"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bulkDiscountPercent">درصد تخفیف</Label>
+              <Input
+                id="bulkDiscountPercent"
+                value={bulkDiscountPercent}
+                inputMode="numeric"
+                placeholder="مثلاً ۷"
+                onChange={(e) => setBulkDiscountPercent(e.target.value.replace(/[^0-9]/g, ""))}
+                className="tabular-nums"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Links group */}
+        <section className="space-y-3 border-t border-border pt-5">
+          <LinksEditor links={links} onChange={setLinks} />
+        </section>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="bulkMinQty">حداقل تعداد تخفیف عمده</Label>
-          <Input
-            id="bulkMinQty"
-            value={bulkMinQty}
-            inputMode="numeric"
-            placeholder="مثلاً ۱۰"
-            onChange={(e) => setBulkMinQty(e.target.value.replace(/[^0-9]/g, ""))}
-            className="tabular-nums"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bulkDiscountPercent">درصد تخفیف عمده</Label>
-          <Input
-            id="bulkDiscountPercent"
-            value={bulkDiscountPercent}
-            inputMode="numeric"
-            placeholder="مثلاً ۷"
-            onChange={(e) => setBulkDiscountPercent(e.target.value.replace(/[^0-9]/g, ""))}
-            className="tabular-nums"
-          />
-        </div>
-      </div>
-
-      <LinksEditor links={links} onChange={setLinks} />
-
-      <div className="flex justify-end">
+      <div className="flex justify-end border-t border-border px-5 py-4">
         <Button onClick={save} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          ذخیره
+          ذخیره تغییرات
         </Button>
       </div>
     </div>
