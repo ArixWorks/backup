@@ -24,8 +24,11 @@ import {
   Send,
   Package,
   RadioTower,
+  Plus,
+  Minus,
 } from "lucide-react"
 import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
+import { formatNumber } from "@/lib/format"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -107,6 +110,9 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
     { refreshInterval: 8000 },
   )
   const [busy, setBusy] = useState<string | null>(null)
+  // Custom time-adjust controls: amount in minutes + which window it applies to.
+  const [adjustMinutes, setAdjustMinutes] = useState("10")
+  const [adjustTarget, setAdjustTarget] = useState<"registration" | "draw">("registration")
   const [deliveryWinner, setDeliveryWinner] = useState<Winner | null>(null)
   const [deliveryForm, setDeliveryForm] = useState<Record<string, string>>({})
   const [deliverySaving, setDeliverySaving] = useState(false)
@@ -117,10 +123,18 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
   const status = g?.status ?? ""
   const meta = STATUS_META[status] ?? STATUS_META.DRAFT
 
-  async function lifecycle(action: "publish" | "pause" | "resume" | "cancel" | "delay", minutes?: number) {
+  async function lifecycle(
+    action: "publish" | "pause" | "resume" | "cancel" | "delay" | "adjust",
+    minutes?: number,
+    target?: "registration" | "draw",
+  ) {
     setBusy(action)
     try {
-      await apiPost(`/api/v1/admin/giveaways/${id}/lifecycle`, { action, ...(minutes ? { minutes } : {}) })
+      await apiPost(`/api/v1/admin/giveaways/${id}/lifecycle`, {
+        action,
+        ...(minutes !== undefined ? { minutes } : {}),
+        ...(target ? { target } : {}),
+      })
       toast.success("انجام شد")
       await mutate()
     } catch (e) {
@@ -343,16 +357,16 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
               {busy === "delay" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
               تعویق ۳۰ دقیقه
             </Button>
-            {status === "ACTIVE" && (
+            {(status === "ACTIVE" || status === "LOCKED") && (
               <Button variant="outline" onClick={() => lifecycle("pause")} disabled={busy !== null} className="gap-1.5">
                 {busy === "pause" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
-                توقف ثبت‌نام
+                توقف قرعه‌کشی
               </Button>
             )}
             {status === "PAUSED" && (
               <Button variant="outline" onClick={() => lifecycle("resume")} disabled={busy !== null} className="gap-1.5">
                 {busy === "resume" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                ادامه ثبت‌نام
+                ادامه قرعه‌کشی
               </Button>
             )}
             {(status === "DRAFT" || status === "SCHEDULED") && (
@@ -365,6 +379,96 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
               {busy === "cancel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
               لغو
             </Button>
+          </div>
+
+          {/* Custom time adjustment: extend or shorten the registration window or
+              the draw time by any number of minutes. */}
+          <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              تنظیم زمان قرعه‌کشی
+            </div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <div className="flex overflow-hidden rounded-lg border border-border">
+                <button
+                  type="button"
+                  onClick={() => setAdjustTarget("registration")}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium transition-colors",
+                    adjustTarget === "registration" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  مهلت ثبت‌نام
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdjustTarget("draw")}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-medium transition-colors",
+                    adjustTarget === "draw" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  زمان قرعه‌کشی
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  min={1}
+                  value={adjustMinutes}
+                  onChange={(e) => setAdjustMinutes(e.target.value)}
+                  className="h-8 w-20 text-center"
+                  aria-label="دقیقه"
+                />
+                <span className="text-xs text-muted-foreground">دقیقه</span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy !== null || !(Number(adjustMinutes) > 0)}
+                onClick={() => lifecycle("adjust", Math.abs(Number(adjustMinutes)), adjustTarget)}
+                className="h-8 gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                افزودن
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy !== null || !(Number(adjustMinutes) > 0)}
+                onClick={() => lifecycle("adjust", -Math.abs(Number(adjustMinutes)), adjustTarget)}
+                className="h-8 gap-1"
+              >
+                <Minus className="h-3.5 w-3.5" />
+                کاهش
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {[5, 10, 30].map((m) => (
+                <Button
+                  key={m}
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy !== null}
+                  onClick={() => lifecycle("adjust", m, adjustTarget)}
+                  className="h-7 px-2 text-xs"
+                >
+                  {`+${formatNumber(m)}`}
+                </Button>
+              ))}
+              {[5, 10].map((m) => (
+                <Button
+                  key={`minus-${m}`}
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy !== null}
+                  onClick={() => lifecycle("adjust", -m, adjustTarget)}
+                  className="h-7 px-2 text-xs text-destructive"
+                >
+                  {`−${formatNumber(m)}`}
+                </Button>
+              ))}
+            </div>
           </div>
           {!canDraw && status !== "DRAFT" && status !== "SCHEDULED" && (
             <p className="text-xs text-muted-foreground">
