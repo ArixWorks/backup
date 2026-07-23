@@ -214,6 +214,42 @@ export async function approveReRequest(reRequestId: string, grantedUses: number,
   })
 }
 
+/** Admin: list re-requests, newest first, optionally filtered by status. */
+export async function listReRequests(status?: "PENDING" | "APPROVED" | "REJECTED") {
+  const rows = await prisma.twoFactorReRequest.findMany({
+    where: status ? { status } : undefined,
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    take: 200,
+    select: {
+      id: true,
+      reason: true,
+      status: true,
+      adminMessage: true,
+      grantedUses: true,
+      createdAt: true,
+      resolvedAt: true,
+      user: { select: { id: true, displayName: true, alias: true } },
+      totpUsage: {
+        select: {
+          usedCount: true,
+          bonusUses: true,
+          deliveryId: true,
+          winnerId: true,
+          totpSecret: {
+            select: {
+              maxUses: true,
+              inventoryItem: {
+                select: { product: { select: { title: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  return rows
+}
+
 /** Admin: reject a re-request with an optional message. */
 export async function rejectReRequest(reRequestId: string, adminMessage?: string) {
   const req = await prisma.twoFactorReRequest.findUnique({

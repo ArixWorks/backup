@@ -13,6 +13,7 @@ import { formatToman, formatDateTime, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import { CredentialFields } from "@/components/delivery/credential-fields"
+import { TwoFactorCode } from "@/components/delivery/two-factor-code"
 import type { DeliveryTemplate } from "@/lib/core/delivery-fields"
 
 type Order = {
@@ -25,8 +26,10 @@ type Order = {
   quantity: number
   createdAt: string
   delivery: {
+    id: string
     method: string
     status: string
+    has2fa: boolean
     payload: Record<string, unknown> | string | null
     template: DeliveryTemplate | null
     error: string | null
@@ -123,6 +126,11 @@ export default function OrdersPage() {
                       template={o.delivery.template}
                       title={t("orders.deliveryInfo")}
                     />
+                  </div>
+                )}
+                {o.delivery?.has2fa && o.delivery.id && (
+                  <div className="mt-3">
+                    <TwoFactorCode deliveryId={o.delivery.id} />
                   </div>
                 )}
                 {o.delivery?.tutorial && o.delivery.status === "DELIVERED" && (

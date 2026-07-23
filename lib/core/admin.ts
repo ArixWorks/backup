@@ -262,12 +262,19 @@ export async function markDeliveryFailed(deliveryId: string, error: string, admi
 // --- Inventory pool ----------------------------------------------------------
 
 export async function listInventory(productId: string, variantId?: string | null) {
-  return prisma.inventoryItem.findMany({
+  const items = await prisma.inventoryItem.findMany({
     // Scope to a specific sale plan when given; otherwise the whole product.
     where: variantId ? { productId, variantId } : { productId },
     orderBy: { createdAt: "desc" },
     take: 500,
+    include: { totpSecret: { select: { maxUses: true } } },
   })
+  // Flatten the 2FA secret into presentational flags; never leak the ciphertext.
+  return items.map(({ totpSecret, ...item }) => ({
+    ...item,
+    hasTotp: Boolean(totpSecret),
+    totpMaxUses: totpSecret?.maxUses ?? null,
+  }))
 }
 
 export interface InventoryItemInput {

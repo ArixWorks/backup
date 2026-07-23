@@ -20,6 +20,7 @@ import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
 import { VariantsEditor } from "@/components/admin/products/variants-editor"
 import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
 import { DeliveryTemplateCard } from "@/components/admin/products/delivery-template-card"
+import { InventoryTotpDialog } from "@/components/admin/products/inventory-totp-dialog"
 import { resolveTemplate, type DeliveryField } from "@/lib/core/delivery-fields"
 
 type ProductLink = { label: string; url: string }
@@ -66,6 +67,8 @@ type Inv = {
   seatsUsed?: number
   status: string
   createdAt: string
+  hasTotp?: boolean
+  totpMaxUses?: number | null
 }
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -752,7 +755,18 @@ function InventoryManager({
                     {it.seatsUsed ?? 0}/{it.capacity}
                   </span>
                 )}
+                {it.hasTotp && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                    2FA
+                  </span>
+                )}
                 <StatusPill status={it.status === "AVAILABLE" ? "ACTIVE" : it.status} />
+                <InventoryTotpDialog
+                  itemId={it.id}
+                  hasTotp={Boolean(it.hasTotp)}
+                  maxUses={it.totpMaxUses ?? null}
+                  onChange={mutate}
+                />
                 {it.status === "AVAILABLE" && (
                   <button
                     onClick={() => remove(it.id)}

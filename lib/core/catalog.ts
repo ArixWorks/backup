@@ -452,7 +452,11 @@ export async function getOrdersForUser(userId: string) {
       product: { select: { title: true, slug: true, deliveryFields: true } },
       variant: { select: { deliveryFields: true } },
       delivery: {
-        include: { tutorial: { select: { id: true, title: true, slug: true } } },
+        include: {
+          tutorial: { select: { id: true, title: true, slug: true } },
+          // Detect an attached on-demand 2FA secret without exposing it.
+          inventoryItem: { select: { totpSecret: { select: { id: true } } } },
+        },
       },
     },
   })
@@ -467,8 +471,13 @@ export async function getOrdersForUser(userId: string) {
     createdAt: o.createdAt,
     delivery: o.delivery
       ? {
+          id: o.delivery.id,
           method: o.delivery.method,
           status: o.delivery.status,
+          // On-demand 2FA available only once the order is delivered.
+          has2fa:
+            o.delivery.status === "DELIVERED" &&
+            Boolean(o.delivery.inventoryItem?.totpSecret),
           payload: o.delivery.status === "DELIVERED" ? o.delivery.payload : null,
           // Resolved credential template: variant override → product → default.
           template: resolveTemplate(
