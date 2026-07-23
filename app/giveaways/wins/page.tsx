@@ -14,6 +14,7 @@ import { formatToman, formatDateTime } from "@/lib/format"
 import { Stagger, FadeItem } from "@/components/motion"
 import { useI18n } from "@/components/i18n-provider"
 import { CredentialFields } from "@/components/delivery/credential-fields"
+import { TwoFactorCode } from "@/components/delivery/two-factor-code"
 import type { DeliveryTemplate } from "@/lib/core/delivery-fields"
 
 type Win = {
@@ -24,6 +25,7 @@ type Win = {
   deliveryError: string | null
   claimData: Record<string, unknown> | null
   template: DeliveryTemplate | null
+  has2fa: boolean
   createdAt: string
   giveaway: {
     slug: string
@@ -113,12 +115,13 @@ function ClaimDetails({ win }: { win: Win }) {
   // their credential fields dynamically against the resolved template. This is
   // what fixes CUSTOM prizes previously falling through to a blank card.
   return (
-    <div className="mt-3">
+    <div className="mt-3 space-y-3">
       <CredentialFields
         payload={credentialPayload(claimData)}
         template={win.template}
         title={t("wins.claimTitle")}
       />
+      {win.has2fa && <TwoFactorCode winnerId={win.id} />}
     </div>
   )
 }

@@ -34,8 +34,17 @@ type Status = {
 
 type Issued = { code: string; expiresInSec: number; period: number; remaining: number | null }
 
-export function TwoFactorCode({ deliveryId }: { deliveryId: string }) {
-  const base = `/api/v1/orders/deliveries/${deliveryId}/totp`
+type TwoFactorCodeProps =
+  // Order delivery recipient (default).
+  | { deliveryId: string; winnerId?: never }
+  // Giveaway winner recipient.
+  | { winnerId: string; deliveryId?: never }
+
+export function TwoFactorCode(props: TwoFactorCodeProps) {
+  const base =
+    "winnerId" in props && props.winnerId
+      ? `/api/v1/giveaways/wins/${props.winnerId}/totp`
+      : `/api/v1/orders/deliveries/${props.deliveryId}/totp`
   // The API wraps responses in a `{ ok, data }` envelope; unwrap `.data`.
   const { data: raw, mutate } = useSWR<{ data: Status }>(base, fetcher)
   const status = raw?.data ?? null

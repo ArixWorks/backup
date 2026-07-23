@@ -1280,6 +1280,7 @@ model TotpUsage {
   // Exactly one recipient reference is set.
   deliveryId    String?
   winnerId      String?
+  winner        GiveawayWinner? @relation("WinnerTotpUsages", fields: [winnerId], references: [id], onDelete: Cascade)
   userId        String
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   usedCount     Int        @default(0)
@@ -1610,6 +1611,9 @@ model GiveawayWinner {
   createdAt     DateTime      @default(now())
   // Optional per-winner 2FA secret for a manually-delivered prize (Method B).
   totpSecret    TotpSecret?
+  // 2FA usage rows linking this winner to a secret (Method A inventory link or
+  // Method B winner-owned secret), used for code-fetch allowance tracking.
+  totpUsages    TotpUsage[]   @relation("WinnerTotpUsages")
 
   @@unique([giveawayId, userId])
   @@index([giveawayId, position])

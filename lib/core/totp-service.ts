@@ -317,6 +317,7 @@ export async function listReRequests(status?: "PENDING" | "APPROVED" | "REJECTED
           bonusUses: true,
           deliveryId: true,
           winnerId: true,
+          winner: { select: { giveaway: { select: { title: true } } } },
           totpSecret: {
             select: {
               maxUses: true,

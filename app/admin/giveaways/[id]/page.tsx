@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { DeliveryField } from "@/lib/core/delivery-fields"
+import { WinnerTotpDialog } from "@/components/admin/giveaways/winner-totp-dialog"
 
 type Winner = {
   id: string
@@ -53,6 +54,8 @@ type Winner = {
   delivered: boolean
   deliveryError: string | null
   claimData: unknown
+  has2fa: boolean
+  totpMaxUses: number | null
 }
 
 type Detail = {
@@ -390,7 +393,19 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
                     {w.username && <p className="text-xs text-muted-foreground" dir="ltr">@{w.username}</p>}
                   </div>
                 </div>
-                <div className="text-left">
+                <div className="flex items-center gap-2 text-left">
+                  {w.has2fa && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                      2FA
+                    </span>
+                  )}
+                  <WinnerTotpDialog
+                    giveawayId={detail.giveaway.id}
+                    winnerId={w.id}
+                    hasTotp={w.has2fa}
+                    maxUses={w.totpMaxUses}
+                    onChange={() => mutate()}
+                  />
                   {w.delivered ? (
                     <span className="flex items-center gap-1 text-xs text-success">
                       <CheckCircle2 className="h-3.5 w-3.5" />
