@@ -6,7 +6,7 @@ import { listTextIntegrityFindings, runTextIntegrityScan } from "@/lib/ai/text-i
 
 export const dynamic = "force-dynamic"
 
-const statusSchema = z.enum(["PENDING", "APPROVED", "REJECTED", "STALE"])
+const statusSchema = z.enum(["PENDING", "APPROVED", "REJECTED", "STALE", "RESOLVED"])
 
 export const GET = route(async (req: Request) => {
   await requireAdmin()

@@ -204,7 +204,7 @@ export default function NewProductPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">محصول جدید</h1>
           <p className="text-sm text-muted-foreground">
-            نو�� فروش، اطلاعات پایه و قیمت‌گذاری را تعیین کنید
+            نوع فروش، اطلاعات پایه و قیمت‌گذاری را تعیین کنید
           </p>
         </div>
         <CopilotLauncher />

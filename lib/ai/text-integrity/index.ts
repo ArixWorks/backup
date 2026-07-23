@@ -77,6 +77,10 @@ export async function runTextIntegrityScan(limit = 180) {
   let suspiciousCount = 0
   let newFindings = 0
   let aiCalls = 0
+  // Fingerprints of every corruption still present in this scan. Anything open
+  // in the DB but NOT in this set has been fixed since it was first found, so
+  // we auto-resolve it at the end (this is what keeps the list live).
+  const seen = new Set<string>()
   try {
     for (const item of await candidates(limit)) {
       scannedCount++
@@ -85,6 +89,7 @@ export async function runTextIntegrityScan(limit = 180) {
       suspiciousCount++
       const sourceChecksum = checksum(item.text)
       const id = fingerprint({ ...item, checksum: sourceChecksum })
+      seen.add(id)
       const existing = await prisma.textIntegrityFinding.findUnique({ where: { fingerprint: id } })
       if (existing) {
         await prisma.textIntegrityFinding.update({ where: { id: existing.id }, data: { lastSeenAt: new Date() } })
@@ -126,6 +131,7 @@ export async function runTextIntegrityScan(limit = 180) {
       suspiciousCount++
       const sourceChecksum = checksum(source.text)
       const id = checksum(`SOURCE_CODE:${source.path}:${source.line}:${sourceChecksum}`)
+      seen.add(id)
       const existing = await prisma.textIntegrityFinding.findUnique({ where: { fingerprint: id } })
       if (existing) {
         await prisma.textIntegrityFinding.update({ where: { id: existing.id }, data: { lastSeenAt: new Date() } })
@@ -159,8 +165,26 @@ export async function runTextIntegrityScan(limit = 180) {
       })
       newFindings++
     }
-    await prisma.textIntegrityScanRun.update({ where: { id: run.id }, data: { status: "COMPLETED", scannedCount, suspiciousCount, newFindings, aiCalls, completedAt: new Date() } })
-    return { runId: run.id, scannedCount, suspiciousCount, newFindings, aiCalls }
+    // Live reconciliation: every finding that is still open (PENDING or STALE)
+    // but was NOT re-detected in this scan has been fixed in the meantime, so
+    // it no longer represents a real problem. Auto-resolve it so the list only
+    // ever shows corruptions that currently exist. APPROVED/REJECTED findings
+    // are terminal and left untouched.
+    const openFindings = await prisma.textIntegrityFinding.findMany({
+      where: { status: { in: ["PENDING", "STALE"] } },
+      select: { id: true, fingerprint: true },
+    })
+    const staleIds = openFindings.filter((f) => !seen.has(f.fingerprint)).map((f) => f.id)
+    let resolvedCount = 0
+    if (staleIds.length > 0) {
+      const res = await prisma.textIntegrityFinding.updateMany({
+        where: { id: { in: staleIds } },
+        data: { status: "RESOLVED", reviewedAt: new Date() },
+      })
+      resolvedCount = res.count
+    }
+    await prisma.textIntegrityScanRun.update({ where: { id: run.id }, data: { status: "COMPLETED", scannedCount, suspiciousCount, newFindings, resolvedCount, aiCalls, completedAt: new Date() } })
+    return { runId: run.id, scannedCount, suspiciousCount, newFindings, resolvedCount, aiCalls }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     await prisma.textIntegrityScanRun.update({ where: { id: run.id }, data: { status: "FAILED", scannedCount, suspiciousCount, newFindings, aiCalls, error: message.slice(0, 500), completedAt: new Date() } })
@@ -269,7 +293,7 @@ export async function reviewFinding(id: string, decision: "approve" | "reject", 
   return { status: "APPROVED" }
 }
 
-export async function listTextIntegrityFindings(status?: "PENDING" | "APPROVED" | "REJECTED" | "STALE") {
+export async function listTextIntegrityFindings(status?: "PENDING" | "APPROVED" | "REJECTED" | "STALE" | "RESOLVED") {
   const [findings, latestRun, pending] = await Promise.all([
     prisma.textIntegrityFinding.findMany({ where: status ? { status } : undefined, orderBy: { lastSeenAt: "desc" }, take: 100 }),
     prisma.textIntegrityScanRun.findFirst({ orderBy: { createdAt: "desc" } }),
