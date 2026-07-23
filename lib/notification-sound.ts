@@ -65,6 +65,69 @@ export function playNotificationChime() {
   }
 }
 
+type ToneSpec = {
+  freq: number
+  start: number
+  dur: number
+  gain?: number
+  type?: OscillatorType
+}
+
+/** Schedule a single oscillator "note" with a quick attack + smooth decay. */
+function scheduleTone(ctx: AudioContext, now: number, spec: ToneSpec) {
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  osc.type = spec.type ?? "sine"
+  osc.frequency.value = spec.freq
+  const t0 = now + spec.start
+  const peak = spec.gain ?? 0.16
+  gain.gain.setValueAtTime(0.0001, t0)
+  gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + spec.dur)
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+  osc.start(t0)
+  osc.stop(t0 + spec.dur + 0.03)
+}
+
+/**
+ * Celebration audio cues. "entry" is a gentle three-note rising arpeggio for
+ * joining a giveaway / completing a purchase; "win" is a distinctly richer,
+ * triumphant fanfare (ascending run into a sustained major chord with a high
+ * shimmer) so winning feels unmistakably special. Respects the mute
+ * preference and no-ops when audio is blocked.
+ */
+export function playCelebrationSound(kind: "entry" | "win") {
+  if (isNotifMuted()) return
+  const ctx = getCtx()
+  if (!ctx) return
+  try {
+    if (ctx.state === "suspended") ctx.resume().catch(() => {})
+    const now = ctx.currentTime
+    if (kind === "entry") {
+      // C5 → E5 → G5, soft triangle.
+      scheduleTone(ctx, now, { freq: 523.25, start: 0, dur: 0.18, gain: 0.14, type: "triangle" })
+      scheduleTone(ctx, now, { freq: 659.25, start: 0.1, dur: 0.2, gain: 0.14, type: "triangle" })
+      scheduleTone(ctx, now, { freq: 783.99, start: 0.2, dur: 0.3, gain: 0.15, type: "triangle" })
+      return
+    }
+    // Win fanfare: quick ascending run G4 B4 D5 G5 ...
+    scheduleTone(ctx, now, { freq: 392.0, start: 0, dur: 0.14, gain: 0.15, type: "triangle" })
+    scheduleTone(ctx, now, { freq: 493.88, start: 0.09, dur: 0.14, gain: 0.15, type: "triangle" })
+    scheduleTone(ctx, now, { freq: 587.33, start: 0.18, dur: 0.14, gain: 0.15, type: "triangle" })
+    scheduleTone(ctx, now, { freq: 783.99, start: 0.27, dur: 0.18, gain: 0.17, type: "triangle" })
+    // ... resolving into a sustained G major chord.
+    scheduleTone(ctx, now, { freq: 783.99, start: 0.42, dur: 0.7, gain: 0.13, type: "sine" })
+    scheduleTone(ctx, now, { freq: 987.77, start: 0.42, dur: 0.7, gain: 0.12, type: "sine" })
+    scheduleTone(ctx, now, { freq: 1174.66, start: 0.42, dur: 0.7, gain: 0.12, type: "sine" })
+    // High sparkle on top.
+    scheduleTone(ctx, now, { freq: 1567.98, start: 0.5, dur: 0.4, gain: 0.08, type: "sine" })
+    scheduleTone(ctx, now, { freq: 2093.0, start: 0.62, dur: 0.35, gain: 0.06, type: "sine" })
+  } catch {
+    // ignore
+  }
+}
+
 /** Unlock/resume the audio context on a user gesture (call once on first click). */
 export function primeAudio() {
   const ctx = getCtx()
