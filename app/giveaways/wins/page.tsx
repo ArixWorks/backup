@@ -4,7 +4,7 @@ import useSWR from "swr"
 import Image from "next/image"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Trophy, Gift, Copy, Wallet, Ticket, KeyRound, Clock, ChevronLeft } from "lucide-react"
+import { Trophy, Gift, Copy, Wallet, Ticket, Clock, ChevronLeft } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { EmptyState, SignInRequired } from "@/components/empty-state"
@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime } from "@/lib/format"
 import { Stagger, FadeItem } from "@/components/motion"
 import { useI18n } from "@/components/i18n-provider"
-import type { MessageKey } from "@/lib/i18n/messages"
+import { CredentialFields } from "@/components/delivery/credential-fields"
+import type { DeliveryTemplate } from "@/lib/core/delivery-fields"
 
 type Win = {
   id: string
@@ -22,6 +23,7 @@ type Win = {
   deliveredAt: string | null
   deliveryError: string | null
   claimData: Record<string, unknown> | null
+  template: DeliveryTemplate | null
   createdAt: string
   giveaway: {
     slug: string
@@ -30,6 +32,14 @@ type Win = {
     prizeKind: "WALLET" | "COUPON" | "INVENTORY" | "CUSTOM"
     image: string | null
   }
+}
+
+/** Internal control keys stored in claimData that are not user-facing values. */
+const CONTROL_KEYS = new Set(["kind"])
+
+function credentialPayload(claimData: Record<string, unknown> | null): Record<string, unknown> {
+  if (!claimData) return {}
+  return Object.fromEntries(Object.entries(claimData).filter(([k]) => !CONTROL_KEYS.has(k)))
 }
 
 function CopyRow({ label, value }: { label: string; value: string }) {
@@ -99,30 +109,18 @@ function ClaimDetails({ win }: { win: Win }) {
     )
   }
 
-  if (giveaway.prizeKind === "INVENTORY") {
-    const rows: { label: string; value: unknown }[] = [
-      { label: t("payload.username"), value: claimData?.username },
-      { label: t("payload.password"), value: claimData?.password },
-      { label: t("payload.licenseKey"), value: claimData?.licenseKey },
-      { label: t("payload.note"), value: claimData?.note },
-    ].filter((r) => r.value)
-    if (rows.length === 0) return null
-    return (
-      <div className="mt-3 overflow-hidden rounded-lg border border-border bg-secondary/60">
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs font-semibold text-foreground">
-          <KeyRound className="h-4 w-4 text-primary" />
-          {t("wins.claimTitle")}
-        </div>
-        <dl className="divide-y divide-border">
-          {rows.map((r) => (
-            <CopyRow key={r.label} label={r.label} value={String(r.value)} />
-          ))}
-        </dl>
-      </div>
-    )
-  }
-
-  return null
+  // INVENTORY and CUSTOM prizes (and any manually-delivered payload) render
+  // their credential fields dynamically against the resolved template. This is
+  // what fixes CUSTOM prizes previously falling through to a blank card.
+  return (
+    <div className="mt-3">
+      <CredentialFields
+        payload={credentialPayload(claimData)}
+        template={win.template}
+        title={t("wins.claimTitle")}
+      />
+    </div>
+  )
 }
 
 export default function MyPrizesPage() {

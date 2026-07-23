@@ -262,12 +262,19 @@ export async function markDeliveryFailed(deliveryId: string, error: string, admi
 // --- Inventory pool ----------------------------------------------------------
 
 export async function listInventory(productId: string, variantId?: string | null) {
-  return prisma.inventoryItem.findMany({
+  const items = await prisma.inventoryItem.findMany({
     // Scope to a specific sale plan when given; otherwise the whole product.
     where: variantId ? { productId, variantId } : { productId },
     orderBy: { createdAt: "desc" },
     take: 500,
+    include: { totpSecret: { select: { maxUses: true } } },
   })
+  // Flatten the 2FA secret into presentational flags; never leak the ciphertext.
+  return items.map(({ totpSecret, ...item }) => ({
+    ...item,
+    hasTotp: Boolean(totpSecret),
+    totpMaxUses: totpSecret?.maxUses ?? null,
+  }))
 }
 
 export interface InventoryItemInput {
@@ -275,6 +282,10 @@ export interface InventoryItemInput {
   password?: string
   licenseKey?: string
   note?: string
+  /** Dynamic credential values keyed to the product/variant field template. */
+  fields?: Record<string, string>
+  /** How many recipients this single credential can serve (shared account). */
+  capacity?: number
 }
 
 /**
@@ -297,18 +308,35 @@ export async function addInventoryItems(
     })
     if (!variant) throw new NotFoundError("پلن یافت نشد")
   }
-  const clean = items.filter((i) => i.username || i.password || i.licenseKey || i.note)
+  const nonEmptyFields = (i: InventoryItemInput) =>
+    i.fields && Object.values(i.fields).some((v) => v != null && String(v).trim() !== "")
+  const clean = items.filter(
+    (i) => i.username || i.password || i.licenseKey || i.note || nonEmptyFields(i),
+  )
   if (clean.length === 0) throw new ValidationError("حداقل یک آیتم معتبر وارد کنید")
 
   const created = await prisma.inventoryItem.createMany({
-    data: clean.map((i) => ({
-      productId,
-      variantId: variantId ?? null,
-      username: i.username || null,
-      password: i.password || null,
-      licenseKey: i.licenseKey || null,
-      note: i.note || null,
-    })),
+    data: clean.map((i) => {
+      // Prefer the dynamic template-keyed values; keep only non-empty entries.
+      const fields = i.fields
+        ? Object.fromEntries(
+            Object.entries(i.fields).filter(([, v]) => v != null && String(v).trim() !== ""),
+          )
+        : null
+      // Clamp capacity to a sane range; default 1 (single-use).
+      const capacity = Math.min(Math.max(Math.trunc(i.capacity ?? 1), 1), 10_000)
+      return {
+        productId,
+        variantId: variantId ?? null,
+        fields: fields && Object.keys(fields).length > 0 ? fields : undefined,
+        capacity,
+        // Mirror common keys into legacy columns for backward-compatible reads.
+        username: i.username || (fields?.username as string | undefined) || null,
+        password: i.password || (fields?.password as string | undefined) || null,
+        licenseKey: i.licenseKey || (fields?.licenseKey as string | undefined) || null,
+        note: i.note || (fields?.note as string | undefined) || null,
+      }
+    }),
   })
   await audit({ actorId: adminId, action: "inventory.add", entity: "product", entityId: productId, meta: { count: created.count } })
   try {

@@ -42,6 +42,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import type { DeliveryField } from "@/lib/core/delivery-fields"
 
 type Winner = {
   id: string
@@ -73,6 +74,7 @@ type Detail = {
   stats: { total: number; eligible: number; ineligible: number; winners: number }
   channelPublication: { status: "NOT_SENT" | "SENT" | "FAILED"; sentAt?: string; error?: string }
   winners: Winner[]
+  deliveryTemplate: DeliveryField[]
 }
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -103,7 +105,7 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
   )
   const [busy, setBusy] = useState<string | null>(null)
   const [deliveryWinner, setDeliveryWinner] = useState<Winner | null>(null)
-  const [deliveryForm, setDeliveryForm] = useState({ username: "", password: "", licenseKey: "", note: "" })
+  const [deliveryForm, setDeliveryForm] = useState<Record<string, string>>({})
   const [deliverySaving, setDeliverySaving] = useState(false)
 
   const detail = data?.data
@@ -166,13 +168,23 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
   }
 
   function openDelivery(winner: Winner) {
-    setDeliveryForm({ username: "", password: "", licenseKey: "", note: "" })
+    setDeliveryForm({})
     setDeliveryWinner(winner)
   }
 
   async function deliverPrize() {
     if (!deliveryWinner) return
-    if (!Object.values(deliveryForm).some((value) => value.trim())) {
+    const fields = Object.fromEntries(
+      Object.entries(deliveryForm).filter(([, v]) => v.trim() !== ""),
+    )
+    const missing = (detail?.deliveryTemplate ?? []).filter(
+      (f) => f.required && f.type !== "totp" && !fields[f.key],
+    )
+    if (missing.length > 0) {
+      toast.error(`فیلدهای الزامی: ${missing.map((f) => f.label.fa).join("، ")}`)
+      return
+    }
+    if (Object.keys(fields).length === 0) {
       toast.error("حداقل یک فیلد تحویل را پر کنید")
       return
     }
@@ -180,7 +192,7 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
     try {
       await apiPost(
         `/api/v1/admin/giveaways/${id}/winners/${deliveryWinner.id}/deliver`,
-        deliveryForm,
+        { fields },
       )
       toast.success("اطلاعات جایزه با موفقیت برای برنده ثبت شد")
       setDeliveryWinner(null)
@@ -417,24 +429,43 @@ export default function GiveawayDetailPage({ params }: { params: Promise<{ id: s
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="winner-username">نام کاربری اکانت</Label>
-                <Input id="winner-username" dir="ltr" autoComplete="off" value={deliveryForm.username} onChange={(event) => setDeliveryForm({ ...deliveryForm, username: event.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="winner-password">رمز عبور</Label>
-                <Input id="winner-password" dir="ltr" type="text" autoComplete="off" value={deliveryForm.password} onChange={(event) => setDeliveryForm({ ...deliveryForm, password: event.target.value })} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="winner-license">کلید لایسنس</Label>
-              <Input id="winner-license" dir="ltr" autoComplete="off" value={deliveryForm.licenseKey} onChange={(event) => setDeliveryForm({ ...deliveryForm, licenseKey: event.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="winner-note">توضیحات تحویل</Label>
-              <EnhancedTextarea id="winner-note" value={deliveryForm.note} onChange={(value) => setDeliveryForm({ ...deliveryForm, note: value })} minRows={3} maxRows={10} showCount={false} />
-            </div>
+            {(detail.deliveryTemplate ?? [])
+              .filter((f) => f.type !== "totp")
+              .map((f) =>
+                f.type === "note" ? (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label htmlFor={`winner-${f.key}`}>
+                      {f.label.fa}
+                      {f.required && <span className="text-destructive"> *</span>}
+                    </Label>
+                    <EnhancedTextarea
+                      id={`winner-${f.key}`}
+                      value={deliveryForm[f.key] ?? ""}
+                      onChange={(value) => setDeliveryForm((s) => ({ ...s, [f.key]: value }))}
+                      minRows={3}
+                      maxRows={10}
+                      showCount={false}
+                    />
+                  </div>
+                ) : (
+                  <div key={f.key} className="space-y-1.5">
+                    <Label htmlFor={`winner-${f.key}`}>
+                      {f.label.fa}
+                      {f.required && <span className="text-destructive"> *</span>}
+                    </Label>
+                    <Input
+                      id={`winner-${f.key}`}
+                      dir="ltr"
+                      autoComplete="off"
+                      placeholder={f.placeholder}
+                      value={deliveryForm[f.key] ?? ""}
+                      onChange={(event) =>
+                        setDeliveryForm((s) => ({ ...s, [f.key]: event.target.value }))
+                      }
+                    />
+                  </div>
+                ),
+              )}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeliveryWinner(null)}>انصراف</Button>

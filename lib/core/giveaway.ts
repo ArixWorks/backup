@@ -11,6 +11,8 @@ import { serializableTx } from "./ledger"
 import { earnPoints, progressMission, awardBadge } from "./gamification"
 import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
+import { resolveTemplate, inventoryToValues } from "./delivery-fields"
+import { claimInventorySeat } from "./delivery"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
 import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
@@ -354,7 +356,7 @@ export async function getGiveawayById(id: string) {
     where: { id },
     include: {
       _count: { select: { entries: true, winners: true } },
-      prizeProduct: { select: { id: true, title: true } },
+      prizeProduct: { select: { id: true, title: true, deliveryFields: true } },
     },
   })
   if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
@@ -554,7 +556,15 @@ export async function listUserWins(userId: string) {
     orderBy: { createdAt: "desc" },
     include: {
       giveaway: {
-        select: { slug: true, title: true, prizeLabel: true, prizeKind: true, prizeImage: true, coverImage: true },
+        select: {
+          slug: true,
+          title: true,
+          prizeLabel: true,
+          prizeKind: true,
+          prizeImage: true,
+          coverImage: true,
+          prizeProduct: { select: { deliveryFields: true } },
+        },
       },
     },
   })
@@ -565,6 +575,8 @@ export async function listUserWins(userId: string) {
     deliveredAt: w.deliveredAt ? w.deliveredAt.toISOString() : null,
     deliveryError: w.deliveryError,
     claimData: (w.claimData as Record<string, unknown> | null) ?? null,
+    // Resolved credential field template so the client can label dynamic values.
+    template: resolveTemplate(w.giveaway.prizeProduct?.deliveryFields ?? null),
     createdAt: w.createdAt.toISOString(),
     giveaway: {
       slug: w.giveaway.slug,
@@ -871,29 +883,15 @@ async function deliverGiveawayPrize(
   }
 
   if (g.prizeKind === "INVENTORY" && g.prizeProductId) {
-    const item = await tx.inventoryItem.findFirst({
-      where: { productId: g.prizeProductId, status: "AVAILABLE" },
-      orderBy: { createdAt: "asc" },
-    })
+    // Sequential shared-account fill: exhaust one account's seats before the
+    // next (e.g. 10 winners on account A, next 10 on account B).
+    const item = await claimInventorySeat(tx, { productId: g.prizeProductId })
     if (!item) {
       return { delivered: false, error: "موجودی جایزه تمام شده است؛ نیازمند تحویل دستی" }
     }
-    const claimed = await tx.inventoryItem.updateMany({
-      where: { id: item.id, status: "AVAILABLE" },
-      data: { status: "DELIVERED", reservedAt: new Date() },
-    })
-    if (claimed.count !== 1) {
-      return { delivered: false, error: "آیتم موجودی هم‌زمان رزرو شد؛ نیازمند تحویل دستی" }
-    }
     return {
       delivered: true,
-      claimData: {
-        kind: "INVENTORY",
-        username: item.username,
-        password: item.password,
-        licenseKey: item.licenseKey,
-        note: item.note,
-      },
+      claimData: { kind: "INVENTORY", ...inventoryToValues(item) },
     }
   }
 

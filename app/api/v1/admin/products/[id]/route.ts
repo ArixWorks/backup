@@ -12,6 +12,7 @@ import {
 import { ValidationError } from "@/lib/core/errors"
 import { richTextField } from "@/lib/rich-content/zod"
 import { requireTestCleanupOwner } from "@/lib/core/admin/test-cleanup"
+import { deliveryTemplateSchema } from "@/lib/core/delivery-fields"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,7 @@ const schema = z.object({
   hidden: z.boolean().optional(),
   active: z.boolean().optional(),
   defaultTutorialId: z.string().cuid().nullable().optional(),
+  deliveryFields: deliveryTemplateSchema.nullable().optional(),
 })
 
 export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -87,6 +89,7 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
       bulkDiscountPercent: body.bulkDiscountPercent,
       hidden: body.hidden,
       active: body.active,
+      deliveryFields: body.deliveryFields,
     },
     admin.id,
   )

@@ -13,7 +13,7 @@ import {
   generateAssetSet,
 } from "@/lib/ai/image/manager"
 import { buildImagePrompt } from "@/lib/ai/image/prompt"
-import { IMAGE_ASPECTS } from "@/lib/ai/image/settings"
+import { IMAGE_ASPECTS, getBrandArtDirection } from "@/lib/ai/image/settings"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 240
@@ -146,6 +146,7 @@ export const POST = route(async (req: Request) => {
         aspect: body.aspect,
         form: body.form,
         entityId: body.entityId,
+        brand: await getBrandArtDirection(),
       })
       const folder = body.folder ?? "ai-images"
       if (body.variations && body.variations > 1) {
@@ -175,6 +176,7 @@ export const POST = route(async (req: Request) => {
         form: body.form,
         entityId: body.entityId,
         omitAspectRule: true,
+        brand: await getBrandArtDirection(),
       })
       return {
         assets: await generateAssetSet(

@@ -19,6 +19,9 @@ import { ImageUpload } from "@/components/admin/image-upload"
 import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
 import { VariantsEditor } from "@/components/admin/products/variants-editor"
 import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
+import { DeliveryTemplateCard } from "@/components/admin/products/delivery-template-card"
+import { InventoryTotpDialog } from "@/components/admin/products/inventory-totp-dialog"
+import { resolveTemplate, type DeliveryField } from "@/lib/core/delivery-fields"
 
 type ProductLink = { label: string; url: string }
 type TutorialOption = { id: string; title: string; slug: string }
@@ -50,6 +53,7 @@ type Product = {
   links?: ProductLink[] | null
   defaultTutorial: TutorialOption | null
   fixedSale: FixedSale | null
+  deliveryFields?: DeliveryField[] | null
 }
 
 type Inv = {
@@ -58,8 +62,13 @@ type Inv = {
   password: string | null
   licenseKey: string | null
   note: string | null
+  fields?: Record<string, string> | null
+  capacity?: number
+  seatsUsed?: number
   status: string
   createdAt: string
+  hasTotp?: boolean
+  totpMaxUses?: number | null
 }
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -139,6 +148,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             onSaved={mutate}
           />
 
+          <DeliveryTemplateCard
+            productId={id}
+            initial={product.deliveryFields ?? null}
+            onSaved={mutate}
+          />
+
           {product.saleMode === "FIXED_PRICE" && product.fixedSale && (
             <>
               <div className="relative">
@@ -159,7 +174,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               lives per sale plan inside the plans editor above. */}
           {product.saleMode !== "FIXED_PRICE" &&
             (product.deliveryType === "AUTOMATIC" ? (
-              <InventoryManager productId={id} />
+              <InventoryManager
+                productId={id}
+                template={resolveTemplate(product.deliveryFields ?? null)}
+              />
             ) : (
               <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 این محصول تحویل دستی دارد؛ نیازی به مخزن اکانت نیست.
@@ -573,36 +591,48 @@ function FlashEditor({
   )
 }
 
-function InventoryManager({ productId }: { productId: string }) {
+function InventoryManager({
+  productId,
+  template,
+}: {
+  productId: string
+  template: DeliveryField[]
+}) {
   const { data, isLoading, mutate } = useSWR<{ data: Inv[] }>(
     `/api/v1/admin/products/${productId}/inventory`,
     fetcher,
   )
   const items = data?.data ?? []
-  const available = items.filter((i) => i.status === "AVAILABLE").length
+  // Count remaining seats, not rows, so shared accounts report their free slots.
+  const availableSeats = items
+    .filter((i) => i.status === "AVAILABLE")
+    .reduce((sum, i) => sum + Math.max(0, (i.capacity ?? 1) - (i.seatsUsed ?? 0)), 0)
+  // Value fields the admin fills per account (TOTP secrets are entered in the
+  // separate 2FA subsystem, so they are excluded from the plaintext form).
+  const valueFields = template.filter((f) => f.type !== "totp")
 
-  const [bulk, setBulk] = useState("")
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [capacity, setCapacity] = useState("1")
   const [adding, setAdding] = useState(false)
 
   async function add() {
-    const lines = bulk
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean)
-    if (lines.length === 0) return toast.error("حداقل یک خط وارد کنید")
-    // Each line: username:password  or  licenseKey
-    const parsed = lines.map((line) => {
-      if (line.includes(":")) {
-        const [username, ...rest] = line.split(":")
-        return { username: username.trim(), password: rest.join(":").trim() }
-      }
-      return { licenseKey: line }
-    })
+    const filled = Object.fromEntries(
+      Object.entries(values).filter(([, v]) => v.trim() !== ""),
+    )
+    const missing = valueFields.filter((f) => f.required && !filled[f.key])
+    if (missing.length > 0) {
+      return toast.error(`فیلدهای الزامی: ${missing.map((f) => f.label.fa).join("، ")}`)
+    }
+    if (Object.keys(filled).length === 0) return toast.error("حداقل یک مقدار وارد کنید")
+
     setAdding(true)
     try {
-      const res = await apiPost(`/api/v1/admin/products/${productId}/inventory`, { items: parsed })
+      const res = await apiPost(`/api/v1/admin/products/${productId}/inventory`, {
+        items: [{ fields: filled, capacity: Math.max(1, Number(capacity) || 1) }],
+      })
       toast.success(`${res.data.added} آیتم اضافه شد`)
-      setBulk("")
+      setValues({})
+      setCapacity("1")
       await mutate()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "خطا در افزودن")
@@ -621,6 +651,25 @@ function InventoryManager({ productId }: { productId: string }) {
     }
   }
 
+  /** Human-readable one-line summary of an item's stored credentials. */
+  function summarize(it: Inv): string {
+    const map = it.fields && Object.keys(it.fields).length > 0
+      ? it.fields
+      : { username: it.username, password: it.password, licenseKey: it.licenseKey, note: it.note }
+    const parts = valueFields
+      .map((f) => (map as Record<string, unknown>)[f.key])
+      .filter((v) => v != null && String(v).trim() !== "")
+      .map(String)
+    if (parts.length > 0) return parts.join(" · ")
+    // Fallback for legacy items whose keys don't match the current template.
+    return (
+      Object.values(map)
+        .filter((v) => v != null && String(v).trim() !== "")
+        .map(String)
+        .join(" · ") || "—"
+    )
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="mb-3 flex items-center justify-between">
@@ -629,24 +678,57 @@ function InventoryManager({ productId }: { productId: string }) {
           مخزن تحویل خودکار
         </h2>
         <span className="text-xs text-muted-foreground">
-          {available} آماده از {items.length} آیتم
+          {availableSeats} ظرفیت آماده از {items.length} اکانت
         </span>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="bulk">افزودن گروهی (هر خط یک آیتم)</Label>
-        <Textarea
-          id="bulk"
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          rows={4}
-          dir="ltr"
-          placeholder={"user1:pass1\nuser2:pass2\nLICENSE-KEY-XXXX"}
-          className="font-mono text-xs"
-        />
-        <p className="text-xs text-muted-foreground">
-          قالب: «نام‌کاربری:رمز» برای اکانت، یا یک کلید لایسنس در هر خط.
-        </p>
+      <div className="space-y-3 rounded-lg border border-border/60 bg-secondary/30 p-4">
+        <p className="text-xs font-semibold text-muted-foreground">افزودن اکانت جدید</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {valueFields.map((f) => (
+            <div key={f.key} className="space-y-1">
+              <Label htmlFor={`inv-${f.key}`} className="text-[11px]">
+                {f.label.fa}
+                {f.required && <span className="text-destructive"> *</span>}
+              </Label>
+              {f.type === "note" ? (
+                <Textarea
+                  id={`inv-${f.key}`}
+                  value={values[f.key] ?? ""}
+                  rows={2}
+                  dir="ltr"
+                  className="font-mono text-xs"
+                  onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+                />
+              ) : (
+                <Input
+                  id={`inv-${f.key}`}
+                  value={values[f.key] ?? ""}
+                  dir="ltr"
+                  placeholder={f.placeholder}
+                  className="font-mono text-xs"
+                  onChange={(e) => setValues((s) => ({ ...s, [f.key]: e.target.value }))}
+                />
+              )}
+            </div>
+          ))}
+          <div className="space-y-1">
+            <Label htmlFor="inv-capacity" className="text-[11px]">
+              ظرفیت (تعداد گیرنده)
+            </Label>
+            <Input
+              id="inv-capacity"
+              value={capacity}
+              inputMode="numeric"
+              dir="ltr"
+              className="tabular-nums text-xs"
+              onChange={(e) => setCapacity(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+            <p className="text-[10px] leading-relaxed text-muted-foreground">
+              اکانت اشتراکی: چند گیرنده می‌توانند از این اکانت استفاده کنند. پیش‌فرض ۱ (تک‌مصرف). به‌ترتیب پر می‌شود.
+            </p>
+          </div>
+        </div>
         <Button onClick={add} disabled={adding} className="gap-2">
           {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           افزودن به مخزن
@@ -664,11 +746,27 @@ function InventoryManager({ productId }: { productId: string }) {
               key={it.id}
               className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
             >
-              <div className="min-w-0 font-mono text-xs" dir="ltr">
-                {it.username ? `${it.username}:${it.password ?? ""}` : it.licenseKey || it.note}
+              <div className="min-w-0 truncate font-mono text-xs" dir="ltr">
+                {summarize(it)}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {(it.capacity ?? 1) > 1 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-primary">
+                    {it.seatsUsed ?? 0}/{it.capacity}
+                  </span>
+                )}
+                {it.hasTotp && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                    2FA
+                  </span>
+                )}
                 <StatusPill status={it.status === "AVAILABLE" ? "ACTIVE" : it.status} />
+                <InventoryTotpDialog
+                  itemId={it.id}
+                  hasTotp={Boolean(it.hasTotp)}
+                  maxUses={it.totpMaxUses ?? null}
+                  onChange={mutate}
+                />
                 {it.status === "AVAILABLE" && (
                   <button
                     onClick={() => remove(it.id)}

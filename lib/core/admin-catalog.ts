@@ -196,6 +196,8 @@ export interface FlashUpdateInput {
   bulkDiscountPercent?: number | null
   hidden?: boolean
   active?: boolean
+  // Credential field template (array of field defs) or null to clear.
+  deliveryFields?: Prisma.InputJsonValue | null
 }
 
 export async function updateFlashProduct(productId: string, input: FlashUpdateInput, adminId: string) {
@@ -214,6 +216,10 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
       links: input.links !== undefined ? cleanLinks(input.links) : undefined,
       hidden: input.hidden,
       active: input.active,
+      deliveryFields:
+        input.deliveryFields === undefined
+          ? undefined
+          : (input.deliveryFields ?? Prisma.DbNull),
       fixedSale: {
         update: {
           price: input.price,
@@ -443,7 +449,7 @@ export async function deleteProducts(
       })
     } catch (e) {
       console.log("[v0] deleteProducts error for", id, (e as Error).message)
-      result.skipped.push({ id, title: product.title, reason: "حذف به دلیل وابستگی داده‌ها ممکن نشد" })
+      result.skipped.push({ id, title: product.title, reason: "حذف به دلیل وابستگی داده‌ه�� ممکن نشد" })
     }
   }
 

@@ -14,6 +14,7 @@ import {
   Users,
   ScrollText,
   ShieldAlert,
+  ShieldCheck,
   Bot,
   Megaphone,
   Ticket,
@@ -58,7 +59,7 @@ type NavItem = {
   label: string
   icon: typeof LayoutDashboard
   exact?: boolean
-  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions"
+  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions" | "twofa"
 }
 
 type NavGroup = { title: string; items: NavItem[] }
@@ -73,6 +74,7 @@ const navGroups: NavGroup[] = [
       { href: "/admin/withdrawals", label: "برداشت‌ها", icon: ArrowDownToLine, badge: "withdrawals" },
       { href: "/admin/refunds", label: "بازگشت وجه", icon: Undo2, badge: "refunds" },
       { href: "/admin/deliveries", label: "تحویل سفارش", icon: Package, badge: "deliveries" },
+      { href: "/admin/two-factor", label: "درخواست‌های ۲FA", icon: ShieldCheck, badge: "twofa" },
       { href: "/admin/orders", label: "خریدهای آزمایشی", icon: ShoppingBag },
       { href: "/admin/support", label: "تیکت‌ها", icon: LifeBuoy, badge: "tickets" },
     ],
@@ -158,6 +160,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   )
   const pendingQuestions = questionData?.data?.pending ?? 0
 
+  // Pending 2FA re-requests, for the sidebar badge.
+  const { data: twofaData } = useSWR<{ data: unknown[] }>(
+    isAdmin ? "/api/v1/admin/2fa-requests?status=PENDING" : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  )
+  const pendingTwoFa = Array.isArray(twofaData?.data) ? twofaData.data.length : 0
+
   const activeItem =
     items.find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href))) ?? items[0]
 
@@ -165,6 +175,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (!key) return 0
     if (key === "ops") return firingAlerts
     if (key === "questions") return pendingQuestions
+    if (key === "twofa") return pendingTwoFa
     if (!stats) return 0
     if (key === "deposits") return stats.pendingDeposits
     if (key === "withdrawals") return stats.pendingWithdrawals

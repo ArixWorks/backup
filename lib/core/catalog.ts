@@ -8,6 +8,7 @@ import { isTerminalStatus } from "./auction/lifecycle"
 import { computeReserveDisplay } from "./auction/reserve"
 import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
+import { resolveTemplate } from "./delivery-fields"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -448,9 +449,14 @@ export async function getOrdersForUser(userId: string) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
-      product: { select: { title: true, slug: true } },
+      product: { select: { title: true, slug: true, deliveryFields: true } },
+      variant: { select: { deliveryFields: true } },
       delivery: {
-        include: { tutorial: { select: { id: true, title: true, slug: true } } },
+        include: {
+          tutorial: { select: { id: true, title: true, slug: true } },
+          // Detect an attached on-demand 2FA secret without exposing it.
+          inventoryItem: { select: { totpSecret: { select: { id: true } } } },
+        },
       },
     },
   })
@@ -465,9 +471,18 @@ export async function getOrdersForUser(userId: string) {
     createdAt: o.createdAt,
     delivery: o.delivery
       ? {
+          id: o.delivery.id,
           method: o.delivery.method,
           status: o.delivery.status,
+          // On-demand 2FA available only once the order is delivered.
+          has2fa:
+            o.delivery.status === "DELIVERED" &&
+            Boolean(o.delivery.inventoryItem?.totpSecret),
           payload: o.delivery.status === "DELIVERED" ? o.delivery.payload : null,
+          // Resolved credential template: variant override → product → default.
+          template: resolveTemplate(
+            o.variant?.deliveryFields ?? o.product.deliveryFields ?? null,
+          ),
           error: o.delivery.error,
           tutorial: o.delivery.tutorial
             ? {

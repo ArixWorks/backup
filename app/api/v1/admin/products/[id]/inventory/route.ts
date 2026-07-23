@@ -14,6 +14,10 @@ const schema = z.object({
         password: z.string().optional(),
         licenseKey: z.string().optional(),
         note: z.string().optional(),
+        // Dynamic credential values keyed to the product/variant template.
+        fields: z.record(z.string(), z.string()).optional(),
+        // Shared-account seat count (how many recipients this credential serves).
+        capacity: z.coerce.number().int().min(1).max(10_000).optional(),
       }),
     )
     .min(1),

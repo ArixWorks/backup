@@ -12,6 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { formatToman, formatDateTime, formatNumber } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
+import { CredentialFields } from "@/components/delivery/credential-fields"
+import { TwoFactorCode } from "@/components/delivery/two-factor-code"
+import type { DeliveryTemplate } from "@/lib/core/delivery-fields"
 
 type Order = {
   id: string
@@ -23,49 +26,15 @@ type Order = {
   quantity: number
   createdAt: string
   delivery: {
+    id: string
     method: string
     status: string
+    has2fa: boolean
     payload: Record<string, unknown> | string | null
+    template: DeliveryTemplate | null
     error: string | null
     tutorial: { title: string; href: string } | null
   } | null
-}
-
-const payloadLabels: Record<string, MessageKey> = {
-  username: "payload.username",
-  password: "payload.password",
-  email: "payload.email",
-  licenseKey: "payload.licenseKey",
-  code: "payload.code",
-  note: "payload.note",
-  url: "payload.url",
-}
-
-function DeliveryPayload({ payload }: { payload: Record<string, unknown> | string }) {
-  const { t } = useI18n()
-  if (typeof payload === "string") {
-    return (
-      <pre className="overflow-x-auto rounded-lg border border-border bg-secondary/60 p-3 text-left font-mono text-sm">
-        {payload}
-      </pre>
-    )
-  }
-  return (
-    <div className="overflow-hidden rounded-lg border border-border bg-secondary/60">
-      <dl className="divide-y divide-border">
-        {Object.entries(payload)
-          .filter(([, value]) => value !== null && value !== undefined && value !== "")
-          .map(([key, value]) => (
-          <div key={key} className="flex items-center justify-between gap-3 px-3 py-2">
-            <dt className="text-xs text-muted-foreground">{payloadLabels[key] ? t(payloadLabels[key]) : key}</dt>
-            <dd className="text-left font-mono text-sm" dir="ltr">
-              {String(value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  )
 }
 
 type StatusVariant = "warning" | "secondary" | "success" | "destructive"
@@ -151,9 +120,17 @@ export default function OrdersPage() {
                 )}
 
                 {o.delivery?.payload && (
-                  <div className="mt-3 space-y-1.5">
-                    <span className="text-xs text-muted-foreground">{t("orders.deliveryInfo")}</span>
-                    <DeliveryPayload payload={o.delivery.payload} />
+                  <div className="mt-3">
+                    <CredentialFields
+                      payload={o.delivery.payload}
+                      template={o.delivery.template}
+                      title={t("orders.deliveryInfo")}
+                    />
+                  </div>
+                )}
+                {o.delivery?.has2fa && o.delivery.id && (
+                  <div className="mt-3">
+                    <TwoFactorCode deliveryId={o.delivery.id} />
                   </div>
                 )}
                 {o.delivery?.tutorial && o.delivery.status === "DELIVERED" && (

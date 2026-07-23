@@ -329,6 +329,8 @@ model User {
   broadcastRecipients BroadcastRecipient[]
   productQuestions    ProductQuestion[]    @relation("QuestionAuthor")
   productAnswers      ProductAnswer[]      @relation("AnswerAdmin")
+  totpUsages          TotpUsage[]
+  twoFactorReRequests TwoFactorReRequest[]
 
   @@index([status])
   @@index([referredById])
@@ -677,6 +679,12 @@ model Product {
   links        Json?
   saleMode     SaleMode
   deliveryType      DeliveryType @default(MANUAL)
+  // Ordered credential field template for delivery. Array of field defs:
+  // { key, label:{fa,en?}, type, required?, sensitive?, placeholder? }
+  // where type ∈ text|password|email|username|url|note|totp. When null, the
+  // system falls back to the default username+password template. Variants may
+  // override this per sale plan (ProductVariant.deliveryFields).
+  deliveryFields    Json?
   defaultTutorialId String?
   defaultTutorial   Content?     @relation("ProductDefaultTutorial", fields: [defaultTutorialId], references: [id], onDelete: SetNull)
   hidden            Boolean      @default(false)
@@ -1022,6 +1030,9 @@ model ProductVariant {
   purchaseLimit  Int? // max units per user for this plan
   // Per-plan delivery. Defaults to the product's deliveryType on creation.
   deliveryType   DeliveryType @default(MANUAL)
+  // Optional per-plan credential field template override. Same shape as
+  // Product.deliveryFields. When null, resolves to the product template.
+  deliveryFields Json?
   displayOrder   Int          @default(0)
   active         Boolean      @default(true)
   // Marks the auto-migrated single default plan (hidden selector when it is the
@@ -1182,7 +1193,9 @@ model Delivery {
   order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   method          DeliveryType
   status          DeliveryStatus @default(PENDING)
-  inventoryItemId String?        @unique
+  // No longer @unique: a shared credential (capacity > 1) backs one delivery
+  // per seat, so multiple deliveries can reference the same inventory item.
+  inventoryItemId String?
   inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
   payload         Json? // delivered credentials / manual message
   tutorialId      String?
@@ -1192,6 +1205,7 @@ model Delivery {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  @@index([inventoryItemId])
   @@index([tutorialId])
 }
 
@@ -1204,18 +1218,102 @@ model InventoryItem {
   // before variants existed (backfilled to the default variant by migration).
   variantId  String?
   variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  // Dynamic credential values keyed to the product/variant field template:
+  // { [fieldKey]: string }. The legacy typed columns below are retained for
+  // backward compatibility and backfilled into `fields`; new items write here.
+  fields     Json?
   username   String?
   password   String?
   licenseKey String?
   note       String?
+  // Shared-account support: a single credential can serve up to `capacity`
+  // recipients (e.g. one Windscribe account with 10 device slots). Delivery
+  // fills each account sequentially and only flips to DELIVERED once full.
+  // capacity=1 preserves the original single-use behaviour.
+  capacity   Int             @default(1)
+  seatsUsed  Int             @default(0)
   status     InventoryStatus @default(AVAILABLE)
   reservedAt DateTime?
   createdAt  DateTime        @default(now())
 
-  delivery Delivery?
+  // One shared credential may back multiple deliveries (one per seat).
+  deliveries Delivery[]
+  // Optional 2FA secret attached to this credential (on-demand TOTP codes).
+  totpSecret TotpSecret?
 
   @@index([productId, status])
   @@index([variantId, status])
+}
+
+// On-demand two-factor (TOTP) secret attached to a shared credential. The
+// secret itself is encrypted at rest (AES-256-GCM via lib/ai/crypto). Users
+// fetch short-lived codes on demand; `maxUses` (null = unlimited) caps how many
+// codes a single recipient may draw before needing a re-request approval.
+model TotpSecret {
+  id              String        @id @default(cuid())
+  inventoryItemId String        @unique
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  // Encrypted base32 TOTP secret. Never returned to clients.
+  secretEnc       String
+  algo            String        @default("SHA1")
+  digits          Int           @default(6)
+  period          Int           @default(30)
+  // Per-recipient allowance. Null = unlimited fetches.
+  maxUses         Int?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  usages TotpUsage[]
+}
+
+// Tracks how many codes a given recipient (delivery or giveaway winner) has
+// drawn from a TotpSecret, plus any bonus uses granted by an approved
+// re-request. One row per recipient per secret.
+model TotpUsage {
+  id            String     @id @default(cuid())
+  totpSecretId  String
+  totpSecret    TotpSecret @relation(fields: [totpSecretId], references: [id], onDelete: Cascade)
+  // Exactly one recipient reference is set.
+  deliveryId    String?
+  winnerId      String?
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usedCount     Int        @default(0)
+  // Extra fetches granted by approved re-requests (added on top of maxUses).
+  bonusUses     Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  reRequests TwoFactorReRequest[]
+
+  @@unique([totpSecretId, deliveryId])
+  @@unique([totpSecretId, winnerId])
+  @@index([userId])
+}
+
+enum ReRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A user's request for additional 2FA code fetches once their allowance is
+// exhausted. Admin approves (granting bonus uses) or rejects (with a message).
+model TwoFactorReRequest {
+  id           String          @id @default(cuid())
+  totpUsageId  String
+  totpUsage    TotpUsage       @relation(fields: [totpUsageId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason       String
+  status       ReRequestStatus @default(PENDING)
+  adminMessage String?
+  grantedUses  Int             @default(0)
+  createdAt    DateTime        @default(now())
+  resolvedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
