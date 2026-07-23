@@ -677,6 +677,12 @@ model Product {
   links        Json?
   saleMode     SaleMode
   deliveryType      DeliveryType @default(MANUAL)
+  // Ordered credential field template for delivery. Array of field defs:
+  // { key, label:{fa,en?}, type, required?, sensitive?, placeholder? }
+  // where type ∈ text|password|email|username|url|note|totp. When null, the
+  // system falls back to the default username+password template. Variants may
+  // override this per sale plan (ProductVariant.deliveryFields).
+  deliveryFields    Json?
   defaultTutorialId String?
   defaultTutorial   Content?     @relation("ProductDefaultTutorial", fields: [defaultTutorialId], references: [id], onDelete: SetNull)
   hidden            Boolean      @default(false)
@@ -1022,6 +1028,9 @@ model ProductVariant {
   purchaseLimit  Int? // max units per user for this plan
   // Per-plan delivery. Defaults to the product's deliveryType on creation.
   deliveryType   DeliveryType @default(MANUAL)
+  // Optional per-plan credential field template override. Same shape as
+  // Product.deliveryFields. When null, resolves to the product template.
+  deliveryFields Json?
   displayOrder   Int          @default(0)
   active         Boolean      @default(true)
   // Marks the auto-migrated single default plan (hidden selector when it is the
@@ -1204,6 +1213,10 @@ model InventoryItem {
   // before variants existed (backfilled to the default variant by migration).
   variantId  String?
   variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  // Dynamic credential values keyed to the product/variant field template:
+  // { [fieldKey]: string }. The legacy typed columns below are retained for
+  // backward compatibility and backfilled into `fields`; new items write here.
+  fields     Json?
   username   String?
   password   String?
   licenseKey String?

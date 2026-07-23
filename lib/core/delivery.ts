@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client"
 import { ConflictError, DomainError } from "./errors"
+import { inventoryToValues } from "./delivery-fields"
 
 type Tx = Prisma.TransactionClient
 
@@ -56,12 +57,9 @@ export async function reserveAndDeliverAuto(
       inventoryItemId: item.id,
       tutorialId: product?.defaultTutorialId ?? null,
       deliveredAt: new Date(),
-      payload: {
-        username: item.username,
-        password: item.password,
-        licenseKey: item.licenseKey,
-        note: item.note,
-      },
+      // Resolve the delivered credentials from the dynamic `fields` map, falling
+      // back to the legacy typed columns for pre-migration inventory.
+      payload: inventoryToValues(item),
     },
   })
 

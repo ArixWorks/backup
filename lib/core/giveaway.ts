@@ -11,6 +11,7 @@ import { serializableTx } from "./ledger"
 import { earnPoints, progressMission, awardBadge } from "./gamification"
 import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
+import { resolveTemplate, sanitizeValues, type DeliveryTemplate } from "./delivery-fields"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
 import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
@@ -554,7 +555,15 @@ export async function listUserWins(userId: string) {
     orderBy: { createdAt: "desc" },
     include: {
       giveaway: {
-        select: { slug: true, title: true, prizeLabel: true, prizeKind: true, prizeImage: true, coverImage: true },
+        select: {
+          slug: true,
+          title: true,
+          prizeLabel: true,
+          prizeKind: true,
+          prizeImage: true,
+          coverImage: true,
+          prizeProduct: { select: { deliveryFields: true } },
+        },
       },
     },
   })
@@ -565,6 +574,8 @@ export async function listUserWins(userId: string) {
     deliveredAt: w.deliveredAt ? w.deliveredAt.toISOString() : null,
     deliveryError: w.deliveryError,
     claimData: (w.claimData as Record<string, unknown> | null) ?? null,
+    // Resolved credential field template so the client can label dynamic values.
+    template: resolveTemplate(w.giveaway.prizeProduct?.deliveryFields ?? null),
     createdAt: w.createdAt.toISOString(),
     giveaway: {
       slug: w.giveaway.slug,
