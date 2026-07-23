@@ -611,24 +611,37 @@ function AiBuildPlans({
 
 // Per-plan credential pool for AUTOMATIC delivery variants.
 function VariantInventory({ productId, variantId }: { productId: string; variantId: string }) {
-  const { data, isLoading, mutate } = useSWR<{ data: { id: string; username: string | null; password: string | null; licenseKey: string | null; note: string | null; status: string }[] }>(
-    `/api/v1/admin/products/${productId}/inventory?variantId=${variantId}`,
-    fetcher,
-  )
+  const { data, isLoading, mutate } = useSWR<{
+    data: {
+      id: string
+      username: string | null
+      password: string | null
+      licenseKey: string | null
+      note: string | null
+      capacity?: number
+      seatsUsed?: number
+      status: string
+    }[]
+  }>(`/api/v1/admin/products/${productId}/inventory?variantId=${variantId}`, fetcher)
   const items = data?.data ?? []
-  const available = items.filter((i) => i.status === "AVAILABLE").length
+  // Remaining seats across the pool (shared accounts count each free slot).
+  const availableSeats = items
+    .filter((i) => i.status === "AVAILABLE")
+    .reduce((sum, i) => sum + Math.max(0, (i.capacity ?? 1) - (i.seatsUsed ?? 0)), 0)
   const [bulk, setBulk] = useState("")
+  const [capacity, setCapacity] = useState("1")
   const [adding, setAdding] = useState(false)
 
   async function add() {
     const lines = bulk.split("\n").map((l) => l.trim()).filter(Boolean)
     if (lines.length === 0) return toast.error("حداقل یک خط وارد کنید")
+    const cap = Math.max(1, Number(capacity) || 1)
     const parsed = lines.map((line) => {
       if (line.includes(":")) {
         const [username, ...rest] = line.split(":")
-        return { username: username.trim(), password: rest.join(":").trim() }
+        return { username: username.trim(), password: rest.join(":").trim(), capacity: cap }
       }
-      return { licenseKey: line }
+      return { licenseKey: line, capacity: cap }
     })
     setAdding(true)
     try {
@@ -638,6 +651,7 @@ function VariantInventory({ productId, variantId }: { productId: string; variant
       )
       toast.success(`${res.data.added} آیتم اضافه شد`)
       setBulk("")
+      setCapacity("1")
       await mutate()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "خطا در افزودن")
@@ -662,7 +676,7 @@ function VariantInventory({ productId, variantId }: { productId: string; variant
           <Boxes className="h-3.5 w-3.5 text-primary" /> مخزن اکانت این پلن
         </span>
         <span className="text-[11px] text-muted-foreground">
-          {faNum(available)} آماده از {faNum(items.length)}
+          {faNum(availableSeats)} ظرفیت آماده از {faNum(items.length)} اکانت
         </span>
       </div>
       <Textarea
@@ -673,6 +687,21 @@ function VariantInventory({ productId, variantId }: { productId: string; variant
         placeholder={"user1:pass1\nLICENSE-KEY-XXXX"}
         className="font-mono text-xs"
       />
+      <div className="mt-2 flex items-end gap-2">
+        <div className="space-y-1">
+          <Label className="text-[11px]">ظرفیت هر اکانت</Label>
+          <Input
+            value={capacity}
+            inputMode="numeric"
+            dir="ltr"
+            className="h-8 w-24 tabular-nums text-xs"
+            onChange={(e) => setCapacity(e.target.value.replace(/[^0-9]/g, ""))}
+          />
+        </div>
+        <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
+          اکانت اشتراکی؛ چند گیرنده از هر خط. پیش‌فرض ۱.
+        </p>
+      </div>
       <Button onClick={add} disabled={adding} size="sm" className="mt-2 gap-1.5">
         {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
         افزودن به مخزن پلن
@@ -686,11 +715,18 @@ function VariantInventory({ productId, variantId }: { productId: string; variant
               <span className="min-w-0 truncate font-mono text-[11px]" dir="ltr">
                 {it.username ? `${it.username}:${it.password ?? ""}` : it.licenseKey || it.note}
               </span>
-              {it.status === "AVAILABLE" && (
-                <button onClick={() => remove(it.id)} className="text-muted-foreground hover:text-destructive" aria-label="حذف">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {(it.capacity ?? 1) > 1 && (
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary">
+                    {faNum(it.seatsUsed ?? 0)}/{faNum(it.capacity ?? 1)}
+                  </span>
+                )}
+                {it.status === "AVAILABLE" && (
+                  <button onClick={() => remove(it.id)} className="text-muted-foreground hover:text-destructive" aria-label="حذف">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}
