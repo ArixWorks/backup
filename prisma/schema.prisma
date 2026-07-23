@@ -1557,6 +1557,13 @@ model Giveaway {
   visibility          GiveawayVisibility @default(PUBLIC)
   autoDraw            Boolean            @default(false) // draw automatically at drawAt without admin approval
   internalNotes       String?
+  // Set while status=PAUSED. Marks when the countdown was frozen so that on
+  // resume we shift endAt/drawAt forward by the elapsed pause duration,
+  // preserving the exact remaining time.
+  pausedAt            DateTime?
+  // Set when an admin extends the registration window after it had already
+  // ended (drives the "registration extended" banner on the public page).
+  extendedAt          DateTime?
   // True once admins have been alerted ~5 min before drawAt (avoids duplicate alerts).
   preDrawNotified     Boolean            @default(false)
   // Cryptographic seed recorded at draw time so the selection is auditable/reproducible.

@@ -9,7 +9,7 @@ import { motion } from "motion/react"
 import { Gift, Users, Trophy, Clock, Check, ExternalLink, Loader2, Lock, PartyPopper } from "lucide-react"
 import { toast } from "sonner"
 import { apiPost, ApiError } from "@/lib/api-client"
-import { Countdown } from "@/components/countdown"
+import { GiveawayPhaseCountdown } from "@/components/giveaway-phase-countdown"
 import { formatNumber } from "@/lib/format"
 import { useSession } from "@/hooks/use-session"
 import { FadeItem } from "@/components/motion"
@@ -36,6 +36,9 @@ export type GiveawayDetailData = {
   endAt: string
   drawAt: string
   status: string
+  autoDraw: boolean
+  pausedAt: string | null
+  extendedAt: string | null
   participants: number
   entered: boolean
   currentUserWinner: boolean
@@ -131,29 +134,27 @@ export function GiveawayDetail({
       </FadeItem>
 
       {/* Countdown + stats */}
-      {!isFinished && (
-        <FadeItem>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="card-premium flex flex-col items-center justify-center gap-1 rounded-2xl border border-border p-4 text-center">
-              <Clock className="h-4 w-4 text-primary" />
-              <span className="text-[11px] text-muted-foreground">
-                {isScheduled ? t("gwd.startRegUntil") : t("gw.drawUntil")}
-              </span>
-              <Countdown
-                target={isScheduled ? giveaway.startAt : giveaway.drawAt}
-                onComplete={onChange}
-                completedLabel={isScheduled ? t("gwStatus.ACTIVE") : undefined}
-                className="text-lg font-extrabold text-gold"
-              />
-            </div>
-            <div className="card-premium flex flex-col items-center justify-center gap-1 rounded-2xl border border-border p-4 text-center">
-              <Users className="h-4 w-4 text-primary" />
-              <span className="text-[11px] text-muted-foreground">{t("gwd.participants")}</span>
-              <span className="text-lg font-extrabold tabular-nums">{formatNumber(giveaway.participants)}</span>
-            </div>
+      <FadeItem>
+        <div className="grid grid-cols-2 gap-3">
+          <GiveawayPhaseCountdown
+            giveaway={{
+              status: giveaway.status as never,
+              startAt: giveaway.startAt,
+              endAt: giveaway.endAt,
+              drawAt: giveaway.drawAt,
+              autoDraw: giveaway.autoDraw,
+              pausedAt: giveaway.pausedAt,
+              extendedAt: giveaway.extendedAt,
+            }}
+            onPhaseEnd={onChange}
+          />
+          <div className="card-premium flex flex-col items-center justify-center gap-1 rounded-2xl border border-border p-4 text-center">
+            <Users className="h-4 w-4 text-primary" />
+            <span className="text-[11px] text-muted-foreground">{t("gwd.participants")}</span>
+            <span className="text-lg font-extrabold tabular-nums">{formatNumber(giveaway.participants)}</span>
           </div>
-        </FadeItem>
-      )}
+        </div>
+      </FadeItem>
 
       {/* Prize */}
       <FadeItem>

@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import { useEffect, useState } from "react"
 import { msUntil, formatCountdown } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -11,6 +12,8 @@ export function Countdown({
   className,
   prefix,
   completedLabel,
+  /** Seconds remaining below which the text turns red and blinks (accelerating). */
+  blinkBelowSec = 60,
 }: {
   target: string | Date
   onComplete?: () => void
@@ -18,6 +21,7 @@ export function Countdown({
   prefix?: string
   /** Text shown when the countdown reaches zero. Defaults to "ended". */
   completedLabel?: string
+  blinkBelowSec?: number
 }) {
   const { t } = useI18n()
   const [ms, setMs] = useState(() => msUntil(target))
@@ -36,15 +40,18 @@ export function Countdown({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typeof target === "string" ? target : target.getTime()])
 
-  const urgent = ms > 0 && ms < 60 * 1000
+  const totalSec = Math.floor(ms / 1000)
+  const blink = ms > 0 && totalSec < blinkBelowSec
+  const blinkSpeed = blink ? Math.max(0.28, 0.28 + (totalSec / blinkBelowSec) * 0.72) : undefined
 
   return (
     <span
       className={cn(
         "tabular-nums",
-        urgent && "text-destructive",
+        blink && "countdown-urgent",
         className,
       )}
+      style={blink ? ({ "--blink-speed": `${blinkSpeed}s` } as CSSProperties) : undefined}
       dir="ltr"
     >
       {prefix}

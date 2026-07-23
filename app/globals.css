@@ -1499,3 +1499,21 @@ body::-webkit-scrollbar,
 @media (prefers-reduced-motion: reduce) {
   .auction-urgent { animation: none !important; }
 }
+
+/* Final-minute urgency: the whole countdown turns red and blinks. The blink
+   speed is driven by the --blink-speed variable (set inline from the remaining
+   seconds) so it accelerates as the timer approaches zero. */
+@keyframes countdown-blink {
+  0%, 45% { opacity: 1; }
+  55%, 100% { opacity: 0.12; }
+}
+.countdown-urgent {
+  color: var(--destructive);
+  animation: countdown-blink var(--blink-speed, 1s) steps(1, end) infinite;
+}
+[data-motion='minimal'] .countdown-urgent {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .countdown-urgent { animation: none !important; }
+}
