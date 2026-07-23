@@ -53,6 +53,16 @@ export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: stri
     }),
     getGiveawayChannelPublication(id),
   ])
+
+  // Batch-resolve each winner's 2FA state (usage link → secret allowance).
+  const totpByWinner = new Map<string, number | null>()
+  const usages = await prisma.totpUsage.findMany({
+    where: { winnerId: { in: winners.map((w) => w.id) } },
+    select: { winnerId: true, totpSecret: { select: { maxUses: true } } },
+  })
+  for (const u of usages) {
+    if (u.winnerId) totpByWinner.set(u.winnerId, u.totpSecret.maxUses)
+  }
   return {
     giveaway,
     stats,
@@ -72,6 +82,8 @@ export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: stri
       delivered: w.delivered,
       deliveryError: w.deliveryError,
       claimData: w.claimData,
+      has2fa: totpByWinner.has(w.id),
+      totpMaxUses: totpByWinner.get(w.id) ?? null,
     })),
   }
 })

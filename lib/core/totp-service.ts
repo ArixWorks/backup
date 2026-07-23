@@ -55,6 +55,88 @@ export async function removeInventoryTotpSecret(inventoryItemId: string) {
 }
 
 /**
+ * Attach (or replace) a per-winner 2FA secret for a manually-delivered giveaway
+ * prize that has no inventory backing (Method B). Also (re)establishes the
+ * linking usage row the winner-facing resolver relies on.
+ */
+export async function setWinnerTotpSecret(
+  winnerId: string,
+  rawSecret: string,
+  opts: { maxUses?: number | null; digits?: number; period?: number; algo?: string } = {},
+) {
+  if (!isValidBase32Secret(rawSecret)) {
+    throw new DomainError("کلید ۲مرحله‌ای نامعتبر است (Base32 ≥ ۱۶ کاراکتر)", "INVALID_TOTP_SECRET", 422)
+  }
+  const winner = await prisma.giveawayWinner.findUnique({
+    where: { id: winnerId },
+    select: { userId: true },
+  })
+  if (!winner) throw new NotFoundError("برنده یافت نشد")
+
+  const secretEnc = encryptSecret(rawSecret.replace(/\s+/g, "").toUpperCase())
+  const data = {
+    secretEnc,
+    maxUses: opts.maxUses ?? null,
+    digits: opts.digits ?? 6,
+    period: opts.period ?? 30,
+    algo: opts.algo ?? "SHA1",
+  }
+  const secret = await prisma.totpSecret.upsert({
+    where: { winnerId },
+    create: { winnerId, ...data },
+    update: data,
+  })
+  // Ensure the winner↔secret usage link exists so the recipient resolver and
+  // allowance tracking work immediately after attaching.
+  await prisma.totpUsage.upsert({
+    where: { totpSecretId_winnerId: { totpSecretId: secret.id, winnerId } },
+    create: { totpSecretId: secret.id, winnerId, userId: winner.userId },
+    update: {},
+  })
+  return secret
+}
+
+export async function removeWinnerTotpSecret(winnerId: string) {
+  await prisma.totpSecret.deleteMany({ where: { winnerId } })
+}
+
+/** Admin-facing 2FA state for a winner (no secret material exposed). */
+export async function getWinnerTotpInfo(winnerId: string): Promise<{ hasTotp: boolean; maxUses: number | null }> {
+  // Either a winner-owned secret (Method B) or an inventory-linked secret via
+  // the usage row (Method A) counts as "has 2FA".
+  const [owned, usage] = await Promise.all([
+    prisma.totpSecret.findUnique({ where: { winnerId }, select: { maxUses: true } }),
+    prisma.totpUsage.findFirst({
+      where: { winnerId },
+      select: { totpSecret: { select: { maxUses: true } } },
+    }),
+  ])
+  const secret = owned ?? usage?.totpSecret ?? null
+  return { hasTotp: Boolean(secret), maxUses: secret?.maxUses ?? null }
+}
+
+/**
+ * Method A auto-link: when an INVENTORY giveaway prize is claimed and the
+ * claimed item carries a 2FA secret, link the winner to it so they can draw
+ * codes on their wins page. Idempotent; safe to call inside the draw tx.
+ */
+export async function linkWinnerToInventoryTotp(
+  tx: typeof prisma | Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  args: { winnerId: string; userId: string; inventoryItemId: string },
+): Promise<void> {
+  const secret = await tx.totpSecret.findUnique({
+    where: { inventoryItemId: args.inventoryItemId },
+    select: { id: true },
+  })
+  if (!secret) return
+  await tx.totpUsage.upsert({
+    where: { totpSecretId_winnerId: { totpSecretId: secret.id, winnerId: args.winnerId } },
+    create: { totpSecretId: secret.id, winnerId: args.winnerId, userId: args.userId },
+    update: {},
+  })
+}
+
+/**
  * Resolve the TOTP secret backing a recipient and assert the caller owns it.
  * Returns null when the recipient's credential carries no 2FA secret.
  */

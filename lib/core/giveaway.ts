@@ -13,6 +13,7 @@ import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { resolveTemplate, inventoryToValues } from "./delivery-fields"
 import { claimInventorySeat } from "./delivery"
+import { linkWinnerToInventoryTotp } from "./totp-service"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
 import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
@@ -568,6 +569,18 @@ export async function listUserWins(userId: string) {
       },
     },
   })
+  // Which of these wins have a 2FA secret linked (via the usage row, covering
+  // both a winner-owned secret and an inventory-linked one)?
+  const twoFaWinnerIds = new Set(
+    (
+      await prisma.totpUsage.findMany({
+        where: { winnerId: { in: wins.map((w) => w.id) } },
+        select: { winnerId: true },
+      })
+    )
+      .map((u) => u.winnerId)
+      .filter((id): id is string => Boolean(id)),
+  )
   return wins.map((w) => ({
     id: w.id,
     position: w.position,
@@ -575,6 +588,8 @@ export async function listUserWins(userId: string) {
     deliveredAt: w.deliveredAt ? w.deliveredAt.toISOString() : null,
     deliveryError: w.deliveryError,
     claimData: (w.claimData as Record<string, unknown> | null) ?? null,
+    // Whether the winner can draw on-demand 2FA codes for this prize.
+    has2fa: twoFaWinnerIds.has(w.id),
     // Resolved credential field template so the client can label dynamic values.
     template: resolveTemplate(w.giveaway.prizeProduct?.deliveryFields ?? null),
     createdAt: w.createdAt.toISOString(),
@@ -786,6 +801,15 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
             },
           })
           winners.push(settled)
+          // Method A: if the claimed inventory credential carries a 2FA secret,
+          // link this winner to it so they can draw codes on their wins page.
+          if (delivery.inventoryItemId) {
+            await linkWinnerToInventoryTotp(tx, {
+              winnerId: winner.id,
+              userId: s.userId,
+              inventoryItemId: delivery.inventoryItemId,
+            })
+          }
           // Achievement: giveaway winner (idempotent, in-transaction).
           await awardBadge(s.userId, "GIVEAWAY_WINNER", tx)
         }
@@ -856,7 +880,13 @@ async function deliverGiveawayPrize(
   g: Giveaway,
   userId: string,
   tx: Tx,
-): Promise<{ delivered: boolean; claimData?: Record<string, unknown> | null; error?: string | null }> {
+): Promise<{
+  delivered: boolean
+  claimData?: Record<string, unknown> | null
+  error?: string | null
+  // Set when an INVENTORY prize was claimed, so the draw can auto-link any 2FA.
+  inventoryItemId?: string | null
+}> {
   if (g.prizeKind === "WALLET" && g.prizeAmount && g.prizeAmount > 0n) {
     await ensureWallet(userId, tx)
     await deposit(userId, g.prizeAmount, tx, { type: "giveaway", id: g.id })
@@ -892,6 +922,7 @@ async function deliverGiveawayPrize(
     return {
       delivered: true,
       claimData: { kind: "INVENTORY", ...inventoryToValues(item) },
+      inventoryItemId: item.id,
     }
   }
 

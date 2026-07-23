@@ -1250,9 +1250,13 @@ model InventoryItem {
 // fetch short-lived codes on demand; `maxUses` (null = unlimited) caps how many
 // codes a single recipient may draw before needing a re-request approval.
 model TotpSecret {
-  id              String        @id @default(cuid())
-  inventoryItemId String        @unique
-  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  // Exactly one owner is set: either a shared inventory credential OR a single
+  // giveaway winner's manually-delivered prize (no inventory backing).
+  inventoryItemId String?        @unique
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  winnerId        String?        @unique
+  winner          GiveawayWinner? @relation(fields: [winnerId], references: [id], onDelete: Cascade)
   // Encrypted base32 TOTP secret. Never returned to clients.
   secretEnc       String
   algo            String        @default("SHA1")
@@ -1604,6 +1608,8 @@ model GiveawayWinner {
   claimData     Json?
   deliveryError String?
   createdAt     DateTime      @default(now())
+  // Optional per-winner 2FA secret for a manually-delivered prize (Method B).
+  totpSecret    TotpSecret?
 
   @@unique([giveawayId, userId])
   @@index([giveawayId, position])
