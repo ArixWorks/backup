@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/i18n-provider"
 import { Reveal } from "@/components/motion"
+import { useReactiveGoldBorder } from "@/hooks/use-reactive-gold-border"
 import type { FlashSale } from "@/components/flash-card"
 
 type FlashDetail = FlashSale & {
@@ -36,6 +37,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
   const { t, priceValue, currency, num, dir, locale } = useI18n()
   const [copied, setCopied] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+  const borderRef = useReactiveGoldBorder<HTMLDivElement>()
   const { data, isLoading, error, mutate } = useSWR<{ data: FlashDetail }>(
     `/api/v1/flash-sales/${productId}?locale=${locale}`,
     fetcher,
@@ -183,7 +185,10 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
 
         {/* Right: purchase panel */}
         <div className="min-w-0 space-y-4 lg:sticky lg:top-20 lg:self-start">
-          <div className="gold-border-spin space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5">
+          <div
+            ref={borderRef}
+            className="gold-border-spin space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5"
+          >
             <div className="flex items-start justify-between gap-2">
               <h1 dir="auto" className="text-xl font-extrabold leading-tight text-balance">{p.title}</h1>
               <Button
