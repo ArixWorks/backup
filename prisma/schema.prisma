@@ -1191,7 +1191,9 @@ model Delivery {
   order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   method          DeliveryType
   status          DeliveryStatus @default(PENDING)
-  inventoryItemId String?        @unique
+  // No longer @unique: a shared credential (capacity > 1) backs one delivery
+  // per seat, so multiple deliveries can reference the same inventory item.
+  inventoryItemId String?
   inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
   payload         Json? // delivered credentials / manual message
   tutorialId      String?
@@ -1201,6 +1203,7 @@ model Delivery {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  @@index([inventoryItemId])
   @@index([tutorialId])
 }
 
@@ -1221,11 +1224,18 @@ model InventoryItem {
   password   String?
   licenseKey String?
   note       String?
+  // Shared-account support: a single credential can serve up to `capacity`
+  // recipients (e.g. one Windscribe account with 10 device slots). Delivery
+  // fills each account sequentially and only flips to DELIVERED once full.
+  // capacity=1 preserves the original single-use behaviour.
+  capacity   Int             @default(1)
+  seatsUsed  Int             @default(0)
   status     InventoryStatus @default(AVAILABLE)
   reservedAt DateTime?
   createdAt  DateTime        @default(now())
 
-  delivery Delivery?
+  // One shared credential may back multiple deliveries (one per seat).
+  deliveries Delivery[]
 
   @@index([productId, status])
   @@index([variantId, status])

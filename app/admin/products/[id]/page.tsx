@@ -62,6 +62,8 @@ type Inv = {
   licenseKey: string | null
   note: string | null
   fields?: Record<string, string> | null
+  capacity?: number
+  seatsUsed?: number
   status: string
   createdAt: string
 }
@@ -598,12 +600,16 @@ function InventoryManager({
     fetcher,
   )
   const items = data?.data ?? []
-  const available = items.filter((i) => i.status === "AVAILABLE").length
+  // Count remaining seats, not rows, so shared accounts report their free slots.
+  const availableSeats = items
+    .filter((i) => i.status === "AVAILABLE")
+    .reduce((sum, i) => sum + Math.max(0, (i.capacity ?? 1) - (i.seatsUsed ?? 0)), 0)
   // Value fields the admin fills per account (TOTP secrets are entered in the
   // separate 2FA subsystem, so they are excluded from the plaintext form).
   const valueFields = template.filter((f) => f.type !== "totp")
 
   const [values, setValues] = useState<Record<string, string>>({})
+  const [capacity, setCapacity] = useState("1")
   const [adding, setAdding] = useState(false)
 
   async function add() {
@@ -619,10 +625,11 @@ function InventoryManager({
     setAdding(true)
     try {
       const res = await apiPost(`/api/v1/admin/products/${productId}/inventory`, {
-        items: [{ fields: filled }],
+        items: [{ fields: filled, capacity: Math.max(1, Number(capacity) || 1) }],
       })
       toast.success(`${res.data.added} آیتم اضافه شد`)
       setValues({})
+      setCapacity("1")
       await mutate()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "خطا در افزودن")
@@ -668,7 +675,7 @@ function InventoryManager({
           مخزن تحویل خودکار
         </h2>
         <span className="text-xs text-muted-foreground">
-          {available} آماده از {items.length} آیتم
+          {availableSeats} ظرفیت آماده از {items.length} اکانت
         </span>
       </div>
 
@@ -702,6 +709,22 @@ function InventoryManager({
               )}
             </div>
           ))}
+          <div className="space-y-1">
+            <Label htmlFor="inv-capacity" className="text-[11px]">
+              ظرفیت (تعداد گیرنده)
+            </Label>
+            <Input
+              id="inv-capacity"
+              value={capacity}
+              inputMode="numeric"
+              dir="ltr"
+              className="tabular-nums text-xs"
+              onChange={(e) => setCapacity(e.target.value.replace(/[^0-9]/g, ""))}
+            />
+            <p className="text-[10px] leading-relaxed text-muted-foreground">
+              اکانت اشتراکی: چند گیرنده می‌توانند از این اکانت استفاده کنند. پیش‌فرض ۱ (تک‌مصرف). به‌ترتیب پر می‌شود.
+            </p>
+          </div>
         </div>
         <Button onClick={add} disabled={adding} className="gap-2">
           {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -724,6 +747,11 @@ function InventoryManager({
                 {summarize(it)}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {(it.capacity ?? 1) > 1 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold tabular-nums text-primary">
+                    {it.seatsUsed ?? 0}/{it.capacity}
+                  </span>
+                )}
                 <StatusPill status={it.status === "AVAILABLE" ? "ACTIVE" : it.status} />
                 {it.status === "AVAILABLE" && (
                   <button

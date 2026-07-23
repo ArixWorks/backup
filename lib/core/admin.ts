@@ -277,6 +277,8 @@ export interface InventoryItemInput {
   note?: string
   /** Dynamic credential values keyed to the product/variant field template. */
   fields?: Record<string, string>
+  /** How many recipients this single credential can serve (shared account). */
+  capacity?: number
 }
 
 /**
@@ -314,10 +316,13 @@ export async function addInventoryItems(
             Object.entries(i.fields).filter(([, v]) => v != null && String(v).trim() !== ""),
           )
         : null
+      // Clamp capacity to a sane range; default 1 (single-use).
+      const capacity = Math.min(Math.max(Math.trunc(i.capacity ?? 1), 1), 10_000)
       return {
         productId,
         variantId: variantId ?? null,
         fields: fields && Object.keys(fields).length > 0 ? fields : undefined,
+        capacity,
         // Mirror common keys into legacy columns for backward-compatible reads.
         username: i.username || (fields?.username as string | undefined) || null,
         password: i.password || (fields?.password as string | undefined) || null,

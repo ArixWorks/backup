@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client"
-import { ConflictError, DomainError } from "./errors"
+import { DomainError } from "./errors"
 import { inventoryToValues } from "./delivery-fields"
 
 type Tx = Prisma.TransactionClient
@@ -9,6 +9,56 @@ export class NoInventoryError extends DomainError {
     super(message, "NO_INVENTORY", 409)
   }
 }
+
+type InventoryScope = { productId: string; variantId?: string | null }
+
+/**
+ * Atomically claim one seat from the inventory pool, filling shared accounts
+ * sequentially: the oldest AVAILABLE item is used until its `capacity` seats
+ * are exhausted, then the next item is used. capacity=1 behaves exactly like
+ * the original single-use claim.
+ *
+ * Returns the claimed item (with a fresh `seatsUsed`) or null when the pool is
+ * exhausted. Race-safe via a conditional updateMany guarded by the observed
+ * seatsUsed value; callers should retry a few times on a null-from-contention.
+ */
+export async function claimInventorySeat(
+  db: Tx,
+  scope: InventoryScope,
+): Promise<InventoryItemRow | null> {
+  const where = scope.variantId
+    ? { variantId: scope.variantId, status: "AVAILABLE" as const }
+    : { productId: scope.productId, status: "AVAILABLE" as const }
+
+  // A few attempts to absorb concurrent seat grabs on the same hot account.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const item = await db.inventoryItem.findFirst({
+      where,
+      orderBy: { createdAt: "asc" },
+    })
+    if (!item) return null
+
+    const nextSeats = item.seatsUsed + 1
+    const willBeFull = nextSeats >= item.capacity
+
+    // Conditional claim: only succeeds if no one else took this exact seat.
+    const claimed = await db.inventoryItem.updateMany({
+      where: { id: item.id, status: "AVAILABLE", seatsUsed: item.seatsUsed },
+      data: {
+        seatsUsed: nextSeats,
+        reservedAt: item.reservedAt ?? new Date(),
+        ...(willBeFull ? { status: "DELIVERED" as const } : {}),
+      },
+    })
+    if (claimed.count === 1) {
+      return { ...item, seatsUsed: nextSeats }
+    }
+    // Lost the race — retry with a fresh read.
+  }
+  return null
+}
+
+type InventoryItemRow = Prisma.InventoryItemGetPayload<Record<string, never>>
 
 /**
  * Claim a single-use inventory item for an order and record a completed
@@ -27,27 +77,13 @@ export async function reserveAndDeliverAuto(
   // variant. Legacy single-plan orders (no variantId) fall back to the whole
   // product pool, preserving pre-variants behaviour.
   const [item, product] = await Promise.all([
-    db.inventoryItem.findFirst({
-    where: variantId
-      ? { variantId, status: "AVAILABLE" }
-      : { productId, status: "AVAILABLE" },
-      orderBy: { createdAt: "asc" },
-    }),
+    claimInventorySeat(db, { productId, variantId }),
     db.product.findUnique({
       where: { id: productId },
       select: { defaultTutorialId: true },
     }),
   ])
   if (!item) throw new NoInventoryError()
-
-  // Atomic claim: only succeeds if the item is still AVAILABLE.
-  const claimed = await db.inventoryItem.updateMany({
-    where: { id: item.id, status: "AVAILABLE" },
-    data: { status: "DELIVERED", reservedAt: new Date() },
-  })
-  if (claimed.count !== 1) {
-    throw new ConflictError("Inventory item was claimed concurrently")
-  }
 
   await db.delivery.create({
     data: {
@@ -83,7 +119,11 @@ export async function availableInventoryCount(
   db: Tx,
   variantId?: string | null,
 ): Promise<number> {
-  return db.inventoryItem.count({
+  // Count remaining seats across the pool, not just item rows, so a single
+  // shared account with capacity 10 reports 10 available slots.
+  const items = await db.inventoryItem.findMany({
     where: variantId ? { variantId, status: "AVAILABLE" } : { productId, status: "AVAILABLE" },
+    select: { capacity: true, seatsUsed: true },
   })
+  return items.reduce((sum, i) => sum + Math.max(0, i.capacity - i.seatsUsed), 0)
 }

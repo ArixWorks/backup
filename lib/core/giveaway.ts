@@ -11,7 +11,8 @@ import { serializableTx } from "./ledger"
 import { earnPoints, progressMission, awardBadge } from "./gamification"
 import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
-import { resolveTemplate, sanitizeValues, type DeliveryTemplate } from "./delivery-fields"
+import { resolveTemplate, inventoryToValues } from "./delivery-fields"
+import { claimInventorySeat } from "./delivery"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
 import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
@@ -882,29 +883,15 @@ async function deliverGiveawayPrize(
   }
 
   if (g.prizeKind === "INVENTORY" && g.prizeProductId) {
-    const item = await tx.inventoryItem.findFirst({
-      where: { productId: g.prizeProductId, status: "AVAILABLE" },
-      orderBy: { createdAt: "asc" },
-    })
+    // Sequential shared-account fill: exhaust one account's seats before the
+    // next (e.g. 10 winners on account A, next 10 on account B).
+    const item = await claimInventorySeat(tx, { productId: g.prizeProductId })
     if (!item) {
       return { delivered: false, error: "موجودی جایزه تمام شده است؛ نیازمند تحویل دستی" }
     }
-    const claimed = await tx.inventoryItem.updateMany({
-      where: { id: item.id, status: "AVAILABLE" },
-      data: { status: "DELIVERED", reservedAt: new Date() },
-    })
-    if (claimed.count !== 1) {
-      return { delivered: false, error: "آیتم موجودی هم‌زمان رزرو شد؛ نیازمند تحویل دستی" }
-    }
     return {
       delivered: true,
-      claimData: {
-        kind: "INVENTORY",
-        username: item.username,
-        password: item.password,
-        licenseKey: item.licenseKey,
-        note: item.note,
-      },
+      claimData: { kind: "INVENTORY", ...inventoryToValues(item) },
     }
   }
 
