@@ -22,7 +22,7 @@ import {
   DialogBody,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { EnhancedTextarea } from "@/components/ui/enhanced-textarea"
+import { EnhancedTextarea } from "@/components/rich-content/enhanced-textarea"
 
 type Status = {
   available: boolean
@@ -36,7 +36,9 @@ type Issued = { code: string; expiresInSec: number; period: number; remaining: n
 
 export function TwoFactorCode({ deliveryId }: { deliveryId: string }) {
   const base = `/api/v1/orders/deliveries/${deliveryId}/totp`
-  const { data: status, mutate } = useSWR<Status>(base, fetcher)
+  // The API wraps responses in a `{ ok, data }` envelope; unwrap `.data`.
+  const { data: raw, mutate } = useSWR<{ data: Status }>(base, fetcher)
+  const status = raw?.data ?? null
   const [issued, setIssued] = useState<Issued | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -61,9 +63,9 @@ export function TwoFactorCode({ deliveryId }: { deliveryId: string }) {
   const getCode = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiPost<Issued>(base)
-      setIssued(res)
-      setSecondsLeft(res.expiresInSec)
+      const res = await apiPost<{ data: Issued }>(base)
+      setIssued(res.data)
+      setSecondsLeft(res.data.expiresInSec)
       await mutate()
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "خطا در دریافت کد")

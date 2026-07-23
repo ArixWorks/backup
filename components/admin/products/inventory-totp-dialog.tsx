@@ -79,19 +79,16 @@ export function InventoryTotpDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label="مدیریت رمز دومرحله‌ای"
-          title={hasTotp ? "رمز ۲FA فعال است" : "افزودن رمز ۲FA"}
-          className={
-            hasTotp
-              ? "text-primary transition hover:opacity-80"
-              : "text-muted-foreground transition hover:text-primary"
-          }
-        >
-          <ShieldCheck className="h-4 w-4" />
-        </button>
+      <DialogTrigger
+        aria-label="مدیریت رمز دومرحله‌ای"
+        title={hasTotp ? "رمز ۲FA فعال است" : "افزودن رمز ۲FA"}
+        className={
+          hasTotp
+            ? "text-primary transition hover:opacity-80"
+            : "text-muted-foreground transition hover:text-primary"
+        }
+      >
+        <ShieldCheck className="h-4 w-4" />
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

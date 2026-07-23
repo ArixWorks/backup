@@ -161,12 +161,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const pendingQuestions = questionData?.data?.pending ?? 0
 
   // Pending 2FA re-requests, for the sidebar badge.
-  const { data: twofaData } = useSWR<unknown[]>(
+  const { data: twofaData } = useSWR<{ data: unknown[] }>(
     isAdmin ? "/api/v1/admin/2fa-requests?status=PENDING" : null,
     fetcher,
     { refreshInterval: 15000 },
   )
-  const pendingTwoFa = Array.isArray(twofaData) ? twofaData.length : 0
+  const pendingTwoFa = Array.isArray(twofaData?.data) ? twofaData.data.length : 0
 
   const activeItem =
     items.find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href))) ?? items[0]

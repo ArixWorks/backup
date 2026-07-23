@@ -46,12 +46,13 @@ type Filter = "PENDING" | "APPROVED" | "REJECTED"
 
 export default function TwoFactorRequestsPage() {
   const [filter, setFilter] = useState<Filter>("PENDING")
-  const { data, isLoading, mutate } = useSWR<ReRequest[]>(
+  // The API wraps the list in a `{ ok, data }` envelope; unwrap `.data`.
+  const { data, isLoading, mutate } = useSWR<{ data: ReRequest[] }>(
     `/api/v1/admin/2fa-requests?status=${filter}`,
     fetcher,
     { refreshInterval: 15000 },
   )
-  const rows = data ?? []
+  const rows = data?.data ?? []
 
   const [active, setActive] = useState<ReRequest | null>(null)
   const [mode, setMode] = useState<"approve" | "reject">("approve")
