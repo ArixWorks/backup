@@ -746,10 +746,12 @@ html[data-motion='minimal'] {
     border: 1px solid transparent;
   }
 
-  /* Same visual as .gold-border, but the exact gold gradient now rotates
-     continuously around the frame (driven by the animated --gold-angle custom
-     property). Background stays the plain card fill — nothing else changes.
-     Freezes to a calm static frame under prefers-reduced-motion (see above). */
+  /* Pointer-reactive gold gradient frame. The brightest band of the conic
+     gradient sits at the `--gold-angle` `from` line, which `useReactiveGoldBorder`
+     rotates to face the pointer/finger (anywhere on screen) via a rAF loop, and
+     free-spins briskly when idle. A masked `::before` glow lights the border
+     segment nearest the cursor. Falls back to a calm static frame when JS is
+     absent or under prefers-reduced-motion / minimal tier (angle stays put). */
   .gold-border-spin {
     position: relative;
     border-radius: var(--radius-3xl);
@@ -757,15 +759,40 @@ html[data-motion='minimal'] {
       linear-gradient(var(--card), var(--card)) padding-box,
       conic-gradient(
           from var(--gold-angle),
-          color-mix(in oklch, var(--accent-deep) 15%, transparent) 0%,
-          color-mix(in oklch, var(--accent-1) 90%, transparent) 25%,
-          color-mix(in oklch, var(--accent-deep) 15%, transparent) 50%,
-          color-mix(in oklch, var(--accent-2) 80%, transparent) 75%,
-          color-mix(in oklch, var(--accent-deep) 15%, transparent) 100%
+          color-mix(in oklch, var(--accent-2) 96%, transparent) 0%,
+          color-mix(in oklch, var(--accent-1) 92%, transparent) 9%,
+          color-mix(in oklch, var(--accent-deep) 12%, transparent) 34%,
+          color-mix(in oklch, var(--accent-deep) 12%, transparent) 66%,
+          color-mix(in oklch, var(--accent-1) 92%, transparent) 91%,
+          color-mix(in oklch, var(--accent-2) 96%, transparent) 100%
         )
         border-box;
-    border: 1px solid transparent;
-    animation: gold-spin 6s linear infinite;
+    border: 1.5px solid transparent;
+  }
+  /* Edge glow that follows the pointer, masked to the border ring only. */
+  .gold-border-spin::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    padding: 1.5px;
+    border-radius: inherit;
+    background: radial-gradient(
+      42% 60% at var(--glow-x, 50%) var(--glow-y, 50%),
+      color-mix(in oklch, var(--accent-1) 85%, transparent),
+      transparent 72%
+    );
+    opacity: var(--glow-o, 0);
+    transition: opacity 400ms ease;
+    pointer-events: none;
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
   }
 
   /* Moving sheen sweep used on hero + primary CTAs. */
