@@ -184,7 +184,7 @@ export function TwoFactorCode({ deliveryId }: { deliveryId: string }) {
             <Button variant="ghost" onClick={() => setReqOpen(false)} disabled={submitting}>
               انصراف
             </Button>
-            <Button variant="gold" onClick={submitReRequest} disabled={submitting} className="gap-2">
+            <Button onClick={submitReRequest} disabled={submitting} className="gap-2">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               ثبت درخواست
             </Button>
