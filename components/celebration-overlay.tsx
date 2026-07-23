@@ -48,21 +48,6 @@ const icons = {
   "giveaway-win": Trophy,
 } as const
 
-// Themed streamer palettes (DOM elements → can use oklch tokens directly).
-const STD_COLORS = [
-  "var(--success)",
-  "var(--primary)",
-  "color-mix(in oklab, var(--success) 55%, white)",
-  "var(--chart-3)",
-]
-const WIN_COLORS = [
-  "var(--primary)",
-  "var(--accent-2)",
-  "var(--success)",
-  "color-mix(in oklab, var(--primary) 55%, white)",
-  "var(--warning)",
-]
-
 export function CelebrationOverlay({
   open,
   kind,
@@ -110,26 +95,6 @@ export function CelebrationOverlay({
         badgeBg: "var(--primary)",
         badgeFg: "var(--primary-foreground)",
       }
-
-  // Colorful ribbons that shoot in from the left & right screen edges.
-  const streamers = useMemo(() => {
-    const palette = isWin ? WIN_COLORS : STD_COLORS
-    const perSide = isWin ? 7 : 5
-    const build = (side: "left" | "right") =>
-      Array.from({ length: perSide }, (_, i) => {
-        const f = i / (perSide - 1)
-        return {
-          id: `${side}-${i}`,
-          side,
-          top: 6 + f * 82,
-          delay: 0.12 + i * 0.07,
-          color: palette[i % palette.length],
-          thickness: (isWin ? 6 : 4) + (i % 3) * 2,
-          length: (isWin ? 34 : 26) + (i % 3) * 10,
-        }
-      })
-    return [...build("left"), ...build("right")]
-  }, [isWin])
 
   // Sparkles that float *outside* the medallion (never clipping its ring).
   const twinkles = useMemo(
@@ -194,36 +159,6 @@ export function CelebrationOverlay({
                   : { duration: 0.9, ease: [0.22, 1, 0.36, 1] }
             }
           />
-
-          {/* Colorful ribbons sweeping in from both edges. One-shot entrance,
-              so we render it even under reduced-motion (Telegram/mobile often
-              report reduced-motion, which used to silence the whole show). */}
-          {streamers.map((s) => (
-              <motion.span
-                key={s.id}
-                aria-hidden="true"
-                className="pointer-events-none absolute rounded-full"
-                style={{
-                  top: `${s.top}%`,
-                  [s.side]: 0,
-                  height: s.thickness,
-                  width: `${s.length}vw`,
-                  background: `linear-gradient(${s.side === "left" ? "90deg" : "270deg"}, ${s.color}, transparent)`,
-                  filter: "blur(0.4px)",
-                }}
-                initial={{ x: s.side === "left" ? "-110%" : "110%", opacity: 0 }}
-                animate={{
-                  x: 0,
-                  opacity: [0, 1, isWin ? 0.9 : 0.75],
-                  scaleX: isWin ? [1, 1.06, 1] : 1,
-                }}
-                transition={{
-                  x: { duration: 0.7, delay: s.delay, ease: [0.16, 1, 0.3, 1] },
-                  opacity: { duration: 0.7, delay: s.delay },
-                  scaleX: isWin ? { duration: 2.4, delay: s.delay + 0.7, repeat: Infinity, ease: "easeInOut" } : undefined,
-                }}
-              />
-            ))}
 
           <motion.section
             className={cn(
