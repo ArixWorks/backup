@@ -213,7 +213,12 @@ export default function TwoFactorRequestsPage() {
             <Button variant="outline" onClick={() => setActive(null)} disabled={saving}>
               انصراف
             </Button>
-            <Button onClick={submit} disabled={saving} className="gap-2">
+            <Button
+              variant={mode === "approve" ? "default" : "destructive"}
+              onClick={submit}
+              disabled={saving}
+              className="gap-2"
+            >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : mode === "approve" ? (
