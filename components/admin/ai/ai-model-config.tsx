@@ -1,6 +1,7 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -139,6 +140,48 @@ export function AiModelConfig({
         </div>
         <ModelTestControl model={form[AI_KEYS.imageModel] ?? ""} capability="image" />
       </Field>
+
+      {/* Brand art-direction — consistent premium template + signature mascot */}
+      <div className="space-y-4 rounded-lg border border-border bg-secondary/40 p-4">
+        <Toggle
+          label="قالب هنری برند (مسکات + تم پرمیوم)"
+          hint="همه تصاویر محصولات با یک قالب سینمایی و یک مسکات ثابت ساخته می‌شوند؛ فقط محصول و رنگ لهجه (بر اساس دسته/عنوان) تغییر می‌کند. قیمت/تخفیف داخل عکس نوشته نمی‌شود."
+          checked={form[AI_KEYS.imageBrandEnabled] !== "false"}
+          onChange={(v) => set(AI_KEYS.imageBrandEnabled, v)}
+        />
+
+        {form[AI_KEYS.imageBrandEnabled] !== "false" && (
+          <>
+            <Field
+              label="توضیح مسکات (کاراکتر برند)"
+              hint="ظاهر ثابت آدمک برند. انگلیسی بنویسید تا مدل تصویر بهتر بسازد."
+              source={source[AI_KEYS.imageBrandMascot]}
+            >
+              <Textarea
+                value={form[AI_KEYS.imageBrandMascot] ?? ""}
+                onChange={(e) => set(AI_KEYS.imageBrandMascot, e.target.value)}
+                rows={5}
+                dir="ltr"
+                className="text-xs leading-relaxed"
+              />
+            </Field>
+
+            <Field
+              label="توضیح صحنه/تم پرمیوم"
+              hint="نورپردازی، پس‌زمینه و حال‌وهوای مشترک همه تصاویر. انگلیسی بنویسید."
+              source={source[AI_KEYS.imageBrandScene]}
+            >
+              <Textarea
+                value={form[AI_KEYS.imageBrandScene] ?? ""}
+                onChange={(e) => set(AI_KEYS.imageBrandScene, e.target.value)}
+                rows={4}
+                dir="ltr"
+                className="text-xs leading-relaxed"
+              />
+            </Field>
+          </>
+        )}
+      </div>
 
       <Field
         label="مدل Embedding (پایگاه دانش)"
