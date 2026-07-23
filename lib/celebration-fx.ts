@@ -10,6 +10,11 @@ import confetti from "canvas-confetti"
  * oklch tokens. The confetti canvas is transient, pointer-events:none, and
  * sits above the overlay (zIndex 200) so it rains over the whole viewport
  * without blocking the action button.
+ *
+ * NOTE: we deliberately do NOT set `disableForReducedMotion`. This is a brief,
+ * one-shot, user-initiated reward moment (not ambient/looping motion), and many
+ * targets — the Telegram in-app webview in particular — report reduced-motion
+ * by default, which previously silenced the celebration entirely.
  */
 
 const ENTRY_COLORS = ["#34d399", "#10b981", "#5eead4", "#fbbf24", "#ffffff"]
@@ -17,40 +22,37 @@ const WIN_COLORS = ["#fbbf24", "#f59e0b", "#fde68a", "#34d399", "#a78bfa", "#38b
 
 const Z = 200
 
-/** Modest, tasteful burst for entering a giveaway / completing a purchase. */
+/** Lively, festive burst for entering a giveaway / completing a purchase. */
 export function fireEntryConfetti() {
   // Center pop.
   confetti({
-    particleCount: 70,
-    spread: 74,
-    startVelocity: 38,
+    particleCount: 110,
+    spread: 90,
+    startVelocity: 42,
     origin: { y: 0.62 },
     colors: ENTRY_COLORS,
     zIndex: Z,
-    disableForReducedMotion: true,
   })
-  // Quick side cannons sweeping inward from both edges.
-  const end = Date.now() + 700
+  // Side cannons sweeping inward from both edges.
+  const end = Date.now() + 1100
   const frame = () => {
     confetti({
-      particleCount: 3,
+      particleCount: 4,
       angle: 60,
-      spread: 55,
-      startVelocity: 45,
+      spread: 60,
+      startVelocity: 48,
       origin: { x: 0, y: 0.7 },
       colors: ENTRY_COLORS,
       zIndex: Z,
-      disableForReducedMotion: true,
     })
     confetti({
-      particleCount: 3,
+      particleCount: 4,
       angle: 120,
-      spread: 55,
-      startVelocity: 45,
+      spread: 60,
+      startVelocity: 48,
       origin: { x: 1, y: 0.7 },
       colors: ENTRY_COLORS,
       zIndex: Z,
-      disableForReducedMotion: true,
     })
     if (Date.now() < end) requestAnimationFrame(frame)
   }
@@ -61,49 +63,45 @@ export function fireEntryConfetti() {
 export function fireWinConfetti() {
   // Big opening burst.
   confetti({
-    particleCount: 150,
-    spread: 100,
-    startVelocity: 48,
-    scalar: 1.1,
+    particleCount: 180,
+    spread: 110,
+    startVelocity: 50,
+    scalar: 1.15,
     origin: { y: 0.5 },
     colors: WIN_COLORS,
     zIndex: Z,
-    disableForReducedMotion: true,
   })
   // Follow-up fireworks.
   window.setTimeout(() => {
     confetti({
-      particleCount: 100,
-      spread: 130,
-      startVelocity: 40,
+      particleCount: 120,
+      spread: 140,
+      startVelocity: 42,
       origin: { y: 0.42 },
       colors: WIN_COLORS,
       zIndex: Z,
-      disableForReducedMotion: true,
     })
   }, 380)
-  // Sustained dual side cannons for a couple of seconds.
-  const end = Date.now() + 2400
+  // Sustained dual side cannons for a few seconds.
+  const end = Date.now() + 3200
   const frame = () => {
     confetti({
-      particleCount: 6,
+      particleCount: 7,
       angle: 60,
-      spread: 68,
-      startVelocity: 58,
+      spread: 72,
+      startVelocity: 60,
       origin: { x: 0, y: 0.64 },
       colors: WIN_COLORS,
       zIndex: Z,
-      disableForReducedMotion: true,
     })
     confetti({
-      particleCount: 6,
+      particleCount: 7,
       angle: 120,
-      spread: 68,
-      startVelocity: 58,
+      spread: 72,
+      startVelocity: 60,
       origin: { x: 1, y: 0.64 },
       colors: WIN_COLORS,
       zIndex: Z,
-      disableForReducedMotion: true,
     })
     if (Date.now() < end) requestAnimationFrame(frame)
   }
