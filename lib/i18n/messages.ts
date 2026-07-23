@@ -693,6 +693,18 @@ export type MessageKey =
   | "gwStatus.LOCKED"
   | "gwStatus.DRAWING"
   | "gwStatus.FINISHED"
+  | "gwPhase.caption.beforeStart"
+  | "gwPhase.caption.accepting"
+  | "gwPhase.caption.ended"
+  | "gwPhase.beforeStart"
+  | "gwPhase.accepting"
+  | "gwPhase.paused"
+  | "gwPhase.endedAuto"
+  | "gwPhase.endedManual"
+  | "gwPhase.drawing"
+  | "gwPhase.finished"
+  | "gwPhase.cancelled"
+  | "gwPhase.extended"
   | "gw.winnersCount"
   | "gw.participants"
   | "gw.startsUntil"
@@ -1554,12 +1566,24 @@ type Catalog = Record<MessageKey, string>
   "gwStatus.LOCKED": "بسته شد",
   "gwStatus.DRAWING": "در حال قرعه‌کشی",
   "gwStatus.FINISHED": "پایان‌یافته",
+  "gwPhase.caption.beforeStart": "تا شروع ثبت‌نام",
+  "gwPhase.caption.accepting": "تا اتمام مهلت ثبت‌نام",
+  "gwPhase.caption.ended": "قرعه‌کشی",
+  "gwPhase.beforeStart": "به‌زودی آغاز می‌شود",
+  "gwPhase.accepting": "ثبت‌نام باز است",
+  "gwPhase.paused": "قرعه‌کشی توسط ادمین متوقف شد",
+  "gwPhase.endedAuto": "ثبت‌نام به اتمام رسید؛ قرعه‌کشی خودکار به‌زودی",
+  "gwPhase.endedManual": "ثبت‌نام به اتمام رسید؛ در انتظار تایید ادمین",
+  "gwPhase.drawing": "در حال قرعه‌کشی…",
+  "gwPhase.finished": "قرعه‌کشی به اتمام رسید",
+  "gwPhase.cancelled": "لغو شد",
+  "gwPhase.extended": "مهلت ثبت‌نام تمدید شد",
   "gw.winnersCount": "{count} برنده",
   "gw.participants": "شرکت‌کننده",
   "gw.startsUntil": "شروع تا",
   "gw.drawn": "قرعه‌کشی شد",
   "gw.drawUntil": "قرعه‌کشی تا",
-  "gwd.entered": "شرکت شما ثبت شد! موفق باشی",
+  "gwd.entered": "شر��ت شما ثبت شد! موفق باشی",
   "gwd.joinChannelsFirst": "برای شرکت، اول در کانال‌های زیر عضو شو",
   "gwd.errEnter": "خطا در ثبت شرکت",
   "gwd.startRegUntil": "شروع ثبت‌نام تا",
@@ -2386,6 +2410,18 @@ type Catalog = Record<MessageKey, string>
   "gwStatus.LOCKED": "Locked",
   "gwStatus.DRAWING": "Drawing",
   "gwStatus.FINISHED": "Finished",
+  "gwPhase.caption.beforeStart": "until registration opens",
+  "gwPhase.caption.accepting": "until registration closes",
+  "gwPhase.caption.ended": "Giveaway",
+  "gwPhase.beforeStart": "Starting soon",
+  "gwPhase.accepting": "Registration open",
+  "gwPhase.paused": "Paused by an admin",
+  "gwPhase.endedAuto": "Registration closed; automatic draw coming soon",
+  "gwPhase.endedManual": "Registration closed; awaiting admin approval",
+  "gwPhase.drawing": "Drawing winners…",
+  "gwPhase.finished": "Giveaway ended",
+  "gwPhase.cancelled": "Cancelled",
+  "gwPhase.extended": "Registration extended",
   "gw.winnersCount": "{count} winners",
   "gw.participants": "Participants",
   "gw.startsUntil": "Starts in",
@@ -3209,6 +3245,18 @@ type Catalog = Record<MessageKey, string>
   "gwStatus.LOCKED": "Заблокирован",
   "gwStatus.DRAWING": "Розыгрыш",
   "gwStatus.FINISHED": "Завершён",
+  "gwPhase.caption.beforeStart": "до открытия регистрации",
+  "gwPhase.caption.accepting": "до закрытия регистрации",
+  "gwPhase.caption.ended": "Розыгрыш",
+  "gwPhase.beforeStart": "Скоро начнётся",
+  "gwPhase.accepting": "Регистрация открыта",
+  "gwPhase.paused": "Приостановлено администратором",
+  "gwPhase.endedAuto": "Регистрация закрыта; автоматический розыгрыш скоро",
+  "gwPhase.endedManual": "Регистрация закрыта; ожидается подтверждение администратора",
+  "gwPhase.drawing": "Идёт розыгрыш…",
+  "gwPhase.finished": "Розыгрыш завершён",
+  "gwPhase.cancelled": "Отменён",
+  "gwPhase.extended": "Регистрация продлена",
   "gw.winnersCount": "{count} победителей",
   "gw.participants": "Участники",
   "gw.startsUntil": "Начнётся через",
@@ -4033,6 +4081,18 @@ type Catalog = Record<MessageKey, string>
   "gwStatus.LOCKED": "Locked",
   "gwStatus.DRAWING": "Drawing",
   "gwStatus.FINISHED": "Finished",
+  "gwPhase.caption.beforeStart": "until registration opens",
+  "gwPhase.caption.accepting": "until registration closes",
+  "gwPhase.caption.ended": "Giveaway",
+  "gwPhase.beforeStart": "Starting soon",
+  "gwPhase.accepting": "Registration open",
+  "gwPhase.paused": "Paused by an admin",
+  "gwPhase.endedAuto": "Registration closed; automatic draw coming soon",
+  "gwPhase.endedManual": "Registration closed; awaiting admin approval",
+  "gwPhase.drawing": "Drawing winners…",
+  "gwPhase.finished": "Giveaway ended",
+  "gwPhase.cancelled": "Cancelled",
+  "gwPhase.extended": "Registration extended",
   "gw.winnersCount": "{count} winners",
   "gw.participants": "Participants",
   "gw.startsUntil": "Starts in",

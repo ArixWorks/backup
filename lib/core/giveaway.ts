@@ -13,6 +13,7 @@ import { SETTING_KEYS, getSetting, toBool, toNumber } from "./settings"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { resolveTemplate, inventoryToValues } from "./delivery-fields"
 import { claimInventorySeat } from "./delivery"
+import { linkWinnerToInventoryTotp } from "./totp-service"
 import { getChatMember } from "@/lib/telegram/api"
 import { tehranInputToUtc } from "@/lib/format"
 import { enqueueTranslations, getLocalizedData } from "@/lib/i18n/content-translation"
@@ -274,15 +275,20 @@ export async function deleteGiveaway(id: string, actorId: string) {
 /**
  * High-level lifecycle transitions used by the admin UI / bot:
  * - publish: DRAFT -> SCHEDULED (or ACTIVE if already within the window)
- * - pause:   ACTIVE -> PAUSED
- * - resume:  PAUSED -> ACTIVE
+ * - pause:   ACTIVE -> PAUSED, freezing the countdown (records pausedAt)
+ * - resume:  PAUSED -> ACTIVE, shifting endAt/drawAt forward by the paused
+ *            duration so the remaining time is preserved exactly
  * - cancel:  any non-finished -> CANCELLED
  * - delay:   push drawAt back by `minutes` (default 30) and reopen if it was LOCKED
+ * - adjust:  add/subtract `minutes` (may be negative) to either the registration
+ *            window (`target: "registration"`) or the draw time (`target: "draw"`).
+ *            Positive extends, negative shortens. Reopens a LOCKED giveaway when
+ *            the new registration end is pushed into the future.
  */
 export async function setGiveawayLifecycle(
   id: string,
-  action: "publish" | "pause" | "resume" | "cancel" | "delay",
-  opts: { actorId?: string; minutes?: number } = {},
+  action: "publish" | "pause" | "resume" | "cancel" | "delay" | "adjust",
+  opts: { actorId?: string; minutes?: number; target?: "registration" | "draw" } = {},
 ) {
   const g = await prisma.giveaway.findUnique({ where: { id } })
   if (!g) throw new NotFoundError("قرعه‌کشی یافت نشد")
@@ -307,15 +313,33 @@ export async function setGiveawayLifecycle(
       break
     }
     case "pause":
-      if (g.status !== "ACTIVE") throw new ValidationError("فقط قرعه‌کشی فعال قابل توقف است")
+      // Pausing is allowed while entries are open OR after they've closed but
+      // before the draw (LOCKED), so an admin can halt the process at any point.
+      if (g.status !== "ACTIVE" && g.status !== "LOCKED") {
+        throw new ValidationError("فقط قرعه‌کشی فعال یا در انتظار قرعه قابل توقف است")
+      }
       data.status = "PAUSED"
+      data.pausedAt = now // freeze marker
       break
-    case "resume":
+    case "resume": {
       if (g.status !== "PAUSED") throw new ValidationError("این قرعه‌کشی متوقف نیست")
-      data.status = "ACTIVE"
+      // Shift the schedule forward by however long we were paused so the
+      // remaining time picks up exactly where it froze.
+      const pausedMs = g.pausedAt ? now.getTime() - g.pausedAt.getTime() : 0
+      if (pausedMs > 0) {
+        data.endAt = new Date(g.endAt.getTime() + pausedMs)
+        data.drawAt = new Date(g.drawAt.getTime() + pausedMs)
+      }
+      const effectiveEnd = (data.endAt as Date) ?? g.endAt
+      // Reopen for entries if the (shifted) registration window is still open;
+      // otherwise go back to awaiting the draw.
+      data.status = now < effectiveEnd ? "ACTIVE" : "LOCKED"
+      data.pausedAt = null
       break
+    }
     case "cancel":
       data.status = "CANCELLED"
+      data.pausedAt = null
       break
     case "delay": {
       const minutes = opts.minutes ?? 30
@@ -324,7 +348,34 @@ export async function setGiveawayLifecycle(
       data.drawAt = nextDraw
       if (nextDraw > g.endAt) data.endAt = nextDraw
       // A locked-but-not-drawn giveaway reopens for entries until the new draw time.
-      if (g.status === "LOCKED") data.status = "ACTIVE"
+      if (g.status === "LOCKED") {
+        data.status = "ACTIVE"
+        data.extendedAt = now
+      }
+      data.preDrawNotified = false
+      break
+    }
+    case "adjust": {
+      const minutes = opts.minutes ?? 0
+      if (minutes === 0) throw new ValidationError("مقدار زمان نامعتبر است")
+      const deltaMs = minutes * 60_000
+      const target = opts.target ?? "registration"
+      if (target === "registration") {
+        const nextEnd = new Date(g.endAt.getTime() + deltaMs)
+        if (nextEnd <= g.startAt) throw new ValidationError("زمان پایان ثبت‌نام باید بعد از شروع باشد")
+        data.endAt = nextEnd
+        // Keep the draw at/after the registration end.
+        if (g.drawAt < nextEnd) data.drawAt = nextEnd
+        // Extending a closed window reopens it and flags the "extended" banner.
+        if (minutes > 0 && (g.status === "LOCKED" || nextEnd > now)) {
+          if (g.status === "LOCKED" && nextEnd > now) data.status = "ACTIVE"
+          data.extendedAt = now
+        }
+      } else {
+        const nextDraw = new Date(g.drawAt.getTime() + deltaMs)
+        if (nextDraw < g.endAt) throw new ValidationError("زمان قرعه‌کشی نمی‌تواند قبل از پایان ثبت‌نام باشد")
+        data.drawAt = nextDraw
+      }
       data.preDrawNotified = false
       break
     }
@@ -336,7 +387,7 @@ export async function setGiveawayLifecycle(
     action: `giveaway.${action}`,
     entity: "giveaway",
     entityId: id,
-    meta: { minutes: opts.minutes },
+    meta: { minutes: opts.minutes, target: opts.target },
   })
   return updated
 }
@@ -450,8 +501,10 @@ export async function reconcileDueGiveaways(): Promise<void> {
     where: { status: "SCHEDULED", startAt: { lte: now }, endAt: { gt: now } },
     data: { status: "ACTIVE" },
   })
+  // Note: PAUSED giveaways are intentionally excluded — while paused the
+  // countdown is frozen, so we must not auto-close their registration window.
   await prisma.giveaway.updateMany({
-    where: { status: { in: ["ACTIVE", "SCHEDULED", "PAUSED"] }, endAt: { lte: now } },
+    where: { status: { in: ["ACTIVE", "SCHEDULED"] }, endAt: { lte: now } },
     data: { status: "LOCKED" },
   })
 }
@@ -534,6 +587,9 @@ export async function getPublicGiveaway(slug: string, userId?: string, locale = 
     endAt: g.endAt.toISOString(),
     drawAt: g.drawAt.toISOString(),
     status: g.status,
+    autoDraw: g.autoDraw,
+    pausedAt: g.pausedAt ? g.pausedAt.toISOString() : null,
+    extendedAt: g.extendedAt ? g.extendedAt.toISOString() : null,
     participants: g._count.entries,
     entered,
     currentUserWinner: userId ? g.winners.some((winner) => winner.userId === userId) : false,
@@ -568,6 +624,18 @@ export async function listUserWins(userId: string) {
       },
     },
   })
+  // Which of these wins have a 2FA secret linked (via the usage row, covering
+  // both a winner-owned secret and an inventory-linked one)?
+  const twoFaWinnerIds = new Set(
+    (
+      await prisma.totpUsage.findMany({
+        where: { winnerId: { in: wins.map((w) => w.id) } },
+        select: { winnerId: true },
+      })
+    )
+      .map((u) => u.winnerId)
+      .filter((id): id is string => Boolean(id)),
+  )
   return wins.map((w) => ({
     id: w.id,
     position: w.position,
@@ -575,6 +643,8 @@ export async function listUserWins(userId: string) {
     deliveredAt: w.deliveredAt ? w.deliveredAt.toISOString() : null,
     deliveryError: w.deliveryError,
     claimData: (w.claimData as Record<string, unknown> | null) ?? null,
+    // Whether the winner can draw on-demand 2FA codes for this prize.
+    has2fa: twoFaWinnerIds.has(w.id),
     // Resolved credential field template so the client can label dynamic values.
     template: resolveTemplate(w.giveaway.prizeProduct?.deliveryFields ?? null),
     createdAt: w.createdAt.toISOString(),
@@ -786,6 +856,15 @@ export async function drawGiveaway(giveawayId: string, opts: { actorId?: string 
             },
           })
           winners.push(settled)
+          // Method A: if the claimed inventory credential carries a 2FA secret,
+          // link this winner to it so they can draw codes on their wins page.
+          if (delivery.inventoryItemId) {
+            await linkWinnerToInventoryTotp(tx, {
+              winnerId: winner.id,
+              userId: s.userId,
+              inventoryItemId: delivery.inventoryItemId,
+            })
+          }
           // Achievement: giveaway winner (idempotent, in-transaction).
           await awardBadge(s.userId, "GIVEAWAY_WINNER", tx)
         }
@@ -856,7 +935,13 @@ async function deliverGiveawayPrize(
   g: Giveaway,
   userId: string,
   tx: Tx,
-): Promise<{ delivered: boolean; claimData?: Record<string, unknown> | null; error?: string | null }> {
+): Promise<{
+  delivered: boolean
+  claimData?: Record<string, unknown> | null
+  error?: string | null
+  // Set when an INVENTORY prize was claimed, so the draw can auto-link any 2FA.
+  inventoryItemId?: string | null
+}> {
   if (g.prizeKind === "WALLET" && g.prizeAmount && g.prizeAmount > 0n) {
     await ensureWallet(userId, tx)
     await deposit(userId, g.prizeAmount, tx, { type: "giveaway", id: g.id })
@@ -892,6 +977,7 @@ async function deliverGiveawayPrize(
     return {
       delivered: true,
       claimData: { kind: "INVENTORY", ...inventoryToValues(item) },
+      inventoryItemId: item.id,
     }
   }
 
@@ -985,15 +1071,16 @@ export async function tickGiveaways(): Promise<{
     activated += res.count
   }
 
-  // ACTIVE/SCHEDULED/PAUSED -> LOCKED once endAt passes (entries closed).
+  // ACTIVE/SCHEDULED -> LOCKED once endAt passes (entries closed).
+  // PAUSED is excluded: its countdown is frozen, so it must not auto-close.
   const toLock = await prisma.giveaway.findMany({
-    where: { status: { in: ["ACTIVE", "SCHEDULED", "PAUSED"] }, endAt: { lte: now } },
+    where: { status: { in: ["ACTIVE", "SCHEDULED"] }, endAt: { lte: now } },
     select: { id: true },
     take: 100,
   })
   for (const g of toLock) {
     const res = await prisma.giveaway.updateMany({
-      where: { id: g.id, status: { in: ["ACTIVE", "SCHEDULED", "PAUSED"] } },
+      where: { id: g.id, status: { in: ["ACTIVE", "SCHEDULED"] } },
       data: { status: "LOCKED" },
     })
     locked += res.count

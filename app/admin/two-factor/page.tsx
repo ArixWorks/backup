@@ -35,6 +35,7 @@ type ReRequest = {
     bonusUses: number
     deliveryId: string | null
     winnerId: string | null
+    winner: { giveaway: { title: string } } | null
     totpSecret: {
       maxUses: number | null
       inventoryItem: { product: { title: string } } | null
@@ -137,7 +138,8 @@ export default function TwoFactorRequestsPage() {
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-bold">
-                      {r.totpUsage?.totpSecret?.inventoryItem?.product.title ?? "اکانت"}
+                      {r.totpUsage?.totpSecret?.inventoryItem?.product.title ??
+                        (r.totpUsage?.winner ? `قرعه‌کشی: ${r.totpUsage.winner.giveaway.title}` : "اکانت")}
                     </span>
                     <StatusPill status={r.status} />
                   </div>

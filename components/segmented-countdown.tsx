@@ -1,5 +1,6 @@
 "use client"
 
+import type { CSSProperties } from "react"
 import { useEffect, useState } from "react"
 import { msUntil } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -15,11 +16,14 @@ export function SegmentedCountdown({
   onComplete,
   className,
   compact,
+  /** Seconds remaining below which the whole widget turns red and blinks. */
+  blinkBelowSec = 60,
 }: {
   target: string | Date
   onComplete?: () => void
   className?: string
   compact?: boolean
+  blinkBelowSec?: number
 }) {
   const { t } = useI18n()
   const [ms, setMs] = useState(() => msUntil(target))
@@ -43,7 +47,12 @@ export function SegmentedCountdown({
   const hours = Math.floor((totalSec % 86400) / 3600)
   const mins = Math.floor((totalSec % 3600) / 60)
   const secs = totalSec % 60
-  const urgent = ms > 0 && ms < 60 * 60 * 1000
+
+  // Final-stretch urgency: the entire widget turns red and blinks, accelerating
+  // as it nears zero. Blink period eases from ~1s at the threshold down to
+  // ~0.28s in the last few seconds.
+  const blink = ms > 0 && totalSec < blinkBelowSec
+  const blinkSpeed = blink ? Math.max(0.28, 0.28 + (totalSec / blinkBelowSec) * 0.72) : undefined
 
   const segments = [
     { value: days, label: t("adetail.days"), show: days > 0 },
@@ -53,26 +62,35 @@ export function SegmentedCountdown({
   ].filter((s) => s.show)
 
   return (
-    <div dir="ltr" className={cn("flex items-stretch gap-2", className)}>
-      {segments.map((s, i) => (
+    <div
+      dir="ltr"
+      className={cn("flex items-stretch gap-2", blink && "countdown-urgent", className)}
+      style={blink ? ({ "--blink-speed": `${blinkSpeed}s` } as CSSProperties) : undefined}
+    >
+      {segments.map((s) => (
         <div
           key={s.label}
           className={cn(
-            "flex flex-1 flex-col items-center justify-center rounded-xl border border-border/70 bg-secondary/50 tabular-nums",
+            "flex flex-1 flex-col items-center justify-center rounded-xl border tabular-nums",
             compact ? "px-2 py-1.5" : "px-2.5 py-2.5",
-            urgent && i === segments.length - 1 && "border-destructive/40",
+            blink ? "border-destructive/50 bg-destructive/10" : "border-border/70 bg-secondary/50",
           )}
         >
           <span
             className={cn(
               "font-extrabold leading-none",
               compact ? "text-lg" : "text-2xl",
-              urgent && i === segments.length - 1 ? "text-destructive" : "text-foreground",
+              blink ? "text-destructive" : "text-foreground",
             )}
           >
             {s.value.toString().padStart(2, "0")}
           </span>
-          <span className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span
+            className={cn(
+              "mt-1 text-[10px] font-medium uppercase tracking-wide",
+              blink ? "text-destructive/80" : "text-muted-foreground",
+            )}
+          >
             {s.label}
           </span>
         </div>
