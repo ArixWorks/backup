@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 const statuses = [
   ["PENDING", "در انتظار"],
   ["APPROVED", "تأییدشده"],
+  ["RESOLVED", "حل‌شده"],
   ["REJECTED", "ردشده"],
   ["STALE", "منقضی"],
 ] as const
@@ -30,7 +31,7 @@ type Finding = {
   markers: string[]
   firstSeenAt: string
 }
-type Payload = { data: { findings: Finding[]; pending: number; sourceApplyEnabled: boolean; latestRun: { status: string; scannedCount: number; suspiciousCount: number; completedAt: string | null } | null } }
+type Payload = { data: { findings: Finding[]; pending: number; sourceApplyEnabled: boolean; latestRun: { status: string; scannedCount: number; suspiciousCount: number; resolvedCount: number; completedAt: string | null } | null } }
 
 async function post(url: string, body?: unknown) {
   const response = await fetch(url, { method: "POST", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined })
@@ -63,7 +64,10 @@ export function TextIntegrityManager() {
           <div className="rounded-xl bg-primary/10 p-3 text-primary"><AlertTriangle className="h-5 w-5" /></div>
           <div>
             <p className="font-bold text-foreground">{result?.pending ?? 0} پیشنهاد در انتظار</p>
-            <p className="text-sm text-muted-foreground">آخرین اسکن: {result?.latestRun?.completedAt ? new Date(result.latestRun.completedAt).toLocaleString("fa-IR") : "هنوز اجرا نشده"}</p>
+            <p className="text-sm text-muted-foreground">
+              آخرین اسکن: {result?.latestRun?.completedAt ? new Date(result.latestRun.completedAt).toLocaleString("fa-IR") : "هنوز اجرا نشده"}
+              {result?.latestRun && result.latestRun.resolvedCount > 0 ? ` — ${result.latestRun.resolvedCount} مورد اصلاح‌شده به‌صورت خودکار حذف شد` : ""}
+            </p>
           </div>
         </div>
         <Button onClick={scan} disabled={busy !== null} className="gap-2"><Play className="h-4 w-4" />{busy === "scan" ? "در حال اسکن…" : "اجرای اسکن"}</Button>

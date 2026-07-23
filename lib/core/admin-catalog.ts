@@ -449,7 +449,7 @@ export async function deleteProducts(
       })
     } catch (e) {
       console.log("[v0] deleteProducts error for", id, (e as Error).message)
-      result.skipped.push({ id, title: product.title, reason: "حذف به دلیل وابستگی داده‌ه�� ممکن نشد" })
+      result.skipped.push({ id, title: product.title, reason: "حذف به دلیل وابستگی داده‌ها ممکن نشد" })
     }
   }
 
