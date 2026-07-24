@@ -4,6 +4,7 @@ import { getBotConfig } from "./settings"
 import { render, esc } from "./format"
 import { sendMessage, sendPhoto, botConfigured, inlineKeyboard } from "./api"
 import { auctionButton, openAppKeyboard } from "./keyboards"
+import { adminTelegramIds } from "./user"
 import { formatToman } from "@/lib/format"
 import type { BotTextKey } from "./config"
 
@@ -142,6 +143,98 @@ export async function notifyOrderDelivered(userId: string, title: string, photo?
 
 export async function notifyDepositPending(userId: string, amount: bigint) {
   await notify(userId, "notifDepositPending", { amount: formatToman(amount) })
+}
+
+/** User-facing labels for each deposit method (matches the web app). */
+const DEPOSIT_METHOD_LABEL: Record<string, string> = {
+  CARD: "کارت به کارت",
+  TON: "کیف پول تون (TON)",
+  USDT: "تتر (USDT)",
+  STARS: "استارز تلگرام",
+}
+
+/**
+ * Every admin chat that should receive an operational alert: the permanent
+ * built-in owner id(s) (private chat id == telegram id) unioned with every DB
+ * admin that has a linked Telegram chat. De-duplicated so an admin who is also
+ * a bootstrap owner is only messaged once.
+ */
+async function adminChatIds(): Promise<string[]> {
+  const ids = new Set<string>()
+  for (const id of adminTelegramIds()) ids.add(id)
+  const admins = await prisma.user.findMany({
+    where: {
+      role: "ADMIN",
+      isTestAccount: false,
+      OR: [{ telegramChatId: { not: null } }, { telegramId: { not: null } }],
+    },
+    select: { telegramChatId: true, telegramId: true },
+  })
+  for (const a of admins) {
+    const cid = a.telegramChatId || a.telegramId
+    if (cid) ids.add(cid)
+  }
+  return [...ids]
+}
+
+/**
+ * Operational alert pushed to every admin the moment a user submits a top-up
+ * request (from the web app OR the bot, for any manual-review method). Mirrors
+ * the web app's admin review card: user name / username / numeric id / amount /
+ * method + gateway, the receipt screenshot attached inline when present, and
+ * Approve / Reject action buttons. Approving credits the wallet; rejecting
+ * prompts the admin for a reason that is delivered to the user — exactly the
+ * same core flow (`approveDeposit` / `rejectDeposit`) the dashboard uses.
+ * Best-effort: a delivery failure must never break the submit transaction.
+ */
+export async function notifyAdminDepositRequest(depositId: string) {
+  try {
+    if (!botConfigured()) return
+    const req = await prisma.depositRequest.findUnique({
+      where: { id: depositId },
+      include: {
+        user: {
+          select: { displayName: true, alias: true, telegramUsername: true, telegramId: true },
+        },
+      },
+    })
+    if (!req) return
+    const u = req.user
+    const name = u.displayName || u.alias || "کاربر"
+    const username = u.telegramUsername ? `@${u.telegramUsername}` : "—"
+    const numericId = u.telegramId || "—"
+    const methodLabel = DEPOSIT_METHOD_LABEL[req.method] ?? req.method
+    const gatewayParts = [req.payCurrency, req.payNetwork].filter(Boolean) as string[]
+    const gateway = gatewayParts.length ? gatewayParts.join(" · ") : methodLabel
+    const html =
+      `💰 <b>درخواست افزایش موجودی جدید</b>\n` +
+      `➖➖➖➖➖➖➖➖\n` +
+      `👤 نام: <b>${esc(name)}</b>\n` +
+      `🔗 یوزرنیم: ${esc(username)}\n` +
+      `🆔 آیدی عددی: <code>${esc(String(numericId))}</code>\n` +
+      `💵 مبلغ: <b>${esc(formatToman(req.amount))}</b> تومان\n` +
+      `💳 روش واریز: <b>${esc(methodLabel)}</b>\n` +
+      `🏦 درگاه: <b>${esc(gateway)}</b>`
+    const markup = inlineKeyboard([
+      [
+        { text: "✅ تایید", callback_data: `depadm:approve:${req.id}`, style: "success" },
+        { text: "✖️ لغو", callback_data: `depadm:reject:${req.id}`, style: "danger" },
+      ],
+    ])
+    const photo = req.receiptUrl && /^https?:\/\//i.test(req.receiptUrl) ? req.receiptUrl : null
+    const targets = await adminChatIds()
+    for (const chatId of targets) {
+      if (photo) {
+        await sendPhoto(chatId, photo, html, { replyMarkup: markup }).catch(() =>
+          sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {}),
+        )
+      } else {
+        await sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {})
+      }
+    }
+  } catch (e) {
+    console.log("[v0] notifyAdminDepositRequest error:", (e as Error).message)
+  }
 }
 
 export async function notifyDepositApproved(userId: string, amount: bigint) {

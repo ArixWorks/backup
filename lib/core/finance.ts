@@ -12,6 +12,7 @@ import {
   notifyWithdrawApproved,
   notifyDepositPending,
   notifyDepositRejected,
+  notifyAdminDepositRequest,
 } from "@/lib/telegram/notify"
 import { createNotification } from "./notifications"
 import { sendDepositApprovedEmail, sendDepositRejectedEmail } from "@/lib/email"
@@ -207,6 +208,9 @@ export async function claimDepositPaid(
       href: "/wallet",
     }).catch(() => {})
     await notifyDepositPending(updated.userId, updated.amount).catch(() => {})
+    // Push an actionable admin review card to the bot (owner chat + linked
+    // admins) with Approve / Reject buttons and the receipt attached inline.
+    await notifyAdminDepositRequest(updated.id).catch(() => {})
   }
   return updated
 }

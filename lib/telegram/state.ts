@@ -22,6 +22,7 @@ export type PendingAction =
   | { kind: "awaiting_support_message"; category?: string; subject: string; canvasMessageId?: number }
   | { kind: "awaiting_ticket_reply"; ticketId: string; canvasMessageId?: number }
   | { kind: "awaiting_deposit_receipt"; depositId: string; canvasMessageId?: number }
+  | { kind: "awaiting_deposit_reject_reason"; depositId: string; messageId?: number; canvasMessageId?: number }
   | { kind: "awaiting_ban_appeal"; canvasMessageId?: number }
 
 const TTL = 600 // 10 min
