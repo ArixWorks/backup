@@ -19,6 +19,7 @@ import {
 import { fetcher, apiPost, apiPatch, ApiError } from "@/lib/api-client"
 import { uploadFile } from "@/lib/upload-client"
 import { useI18n } from "@/components/i18n-provider"
+import { useTelegramAuth } from "@/components/telegram-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -73,6 +74,10 @@ export function AddFundsSheet({
   allowedMethods?: Array<MethodConfig["method"]>
 }) {
   const { t, errorMessage, locale } = useI18n()
+  // Telegram Stars invoices only work inside the Telegram Mini App. Outside
+  // Telegram we keep the option visible but disabled and explain why on tap.
+  const { phase } = useTelegramAuth()
+  const inTelegram = phase === "authenticated"
   const { data: cfg } = useSWR<{ data: PaymentConfig }>(
     open ? "/api/v1/wallet/payment-config" : null,
     fetcher,
@@ -133,28 +138,42 @@ export function AddFundsSheet({
 
   async function chooseMethod(m: MethodConfig) {
     if (!m.enabled) return toast.error(t("wallet.methodUnavailable"))
+    // Stars is a Telegram-only gateway. Block it (with an explanation) anywhere
+    // the Mini App is not running so we never create a request that can't be paid.
+    if (m.method === "STARS" && !inTelegram) return toast.error(t("wallet.starsOnlyTelegram"))
     setMethod(m)
     setBusy(true)
     try {
       if (m.method === "STARS") {
-        const res = await apiPost<{ data: { invoiceUrl: string; stars: number } }>(
+        const res = await apiPost<{ data: { id: string; invoiceUrl: string; stars: number } }>(
           "/api/v1/wallet/deposits/stars",
           { amount: tomanAmount },
         )
+        const depositId = res.data.id
         const url = res.data.invoiceUrl
         const wa = typeof window !== "undefined" ? window.Telegram?.WebApp : undefined
-        if (wa?.openInvoice) {
-          wa.openInvoice(url, (status: string) => {
-            if (status === "paid") {
-              toast.success(t("wallet.depositCreated"))
-              onChanged()
-              onOpenChange(false)
-            }
-          })
-        } else {
-          window.open(url, "_blank")
-          toast.success(t("wallet.payWithStars"))
+        const failDraft = async () => {
+          await apiPost("/api/v1/wallet/deposits/stars/cancel", { id: depositId }).catch(() => {})
+          toast.error(t("wallet.starsFailed"))
+          onChanged()
         }
+        if (!wa?.openInvoice) {
+          await failDraft()
+          setBusy(false)
+          return
+        }
+        // Fully automatic settlement: the webhook credits on "paid", and any
+        // other outcome (cancelled/failed/closed) fails the draft so it never
+        // lingers as a phantom "pending admin review" entry.
+        wa.openInvoice(url, async (status: string) => {
+          if (status === "paid") {
+            toast.success(t("wallet.starsPaid"))
+            onChanged()
+            onOpenChange(false)
+          } else {
+            await failDraft()
+          }
+        })
         setBusy(false)
         return
       }
@@ -162,10 +181,11 @@ export function AddFundsSheet({
         amount: tomanAmount,
         method: m.method,
       })
+      // No toast here: the request is only a private draft until the user taps
+      // "I've paid" on the next screen. Confirming there fires the real
+      // "received, awaiting admin" toast.
       setInstructions(res.data)
       setStep("pay")
-      toast.success(t("wallet.depositCreated"))
-      onChanged()
     } catch (err) {
       toast.error(errorMessage(err))
     } finally {
@@ -214,6 +234,7 @@ export function AddFundsSheet({
               busy={busy}
               onPick={chooseMethod}
               active={method?.method}
+              inTelegram={inTelegram}
             />
           )}
 
@@ -319,12 +340,14 @@ function MethodStep({
   busy,
   onPick,
   active,
+  inTelegram,
 }: {
   t: ReturnType<typeof useI18n>["t"]
   methods: MethodConfig[]
   busy: boolean
   onPick: (m: MethodConfig) => void
   active?: string
+  inTelegram: boolean
 }) {
   const labels: Record<string, { title: string; sub: string }> = {
     CARD: { title: t("wallet.methodCard"), sub: t("wallet.methodCardSub") },
@@ -345,13 +368,18 @@ function MethodStep({
         {visible.map((m) => {
           const icon = METHOD_ICON[m.method]
           const l = labels[m.method]
+          // Stars requires Telegram; show it dimmed with a hint when unavailable.
+          const starsBlocked = m.method === "STARS" && !inTelegram
           return (
             <button
               key={m.method}
               type="button"
               disabled={busy}
               onClick={() => onPick(m)}
-              className="active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-start transition-colors hover:border-primary/40 disabled:opacity-60"
+              aria-disabled={starsBlocked}
+              className={`active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-start transition-colors hover:border-primary/40 disabled:opacity-60 ${
+                starsBlocked ? "opacity-55" : ""
+              }`}
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted">
                 {icon?.lucide ? (
@@ -362,7 +390,9 @@ function MethodStep({
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-bold text-foreground">{l.title}</span>
-                <span className="block text-xs text-muted-foreground">{l.sub}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {starsBlocked ? t("wallet.starsOnlyTelegram") : l.sub}
+                </span>
               </span>
               {busy && active === m.method ? (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -462,7 +492,10 @@ function PayStep({
         <p className="text-xs text-muted-foreground">{t("wallet.sendExactly")}</p>
         <button
           type="button"
-          onClick={() => copy(String(isCard ? cardRialAmount : instructions.payAmount), "amount")}
+          onClick={() =>
+            // Copy the bare number only — never the display separators.
+            copy(String(isCard ? cardRialAmount : instructions.payAmount).replace(/[^\d.]/g, ""), "amount")
+          }
           className="mt-1 flex w-full items-center justify-center gap-2 text-2xl font-extrabold tabular-nums text-foreground"
         >
           {isCard ? formatMoney(cardRialAmount, 0) : payAmountStr}{" "}
@@ -477,16 +510,24 @@ function PayStep({
         </button>
       </div>
 
-      {/* Destination */}
-      {instructions.payAddress && (
-        <CopyRow
-          label={isCard ? t("wallet.toCard") : t("wallet.toAddress")}
-          value={instructions.payAddress}
-          mono
-          copied={copied === "addr"}
-          onCopy={() => copy(instructions.payAddress!, "addr")}
-        />
-      )}
+      {/* Destination — card numbers get a centered, dash-grouped treatment */}
+      {instructions.payAddress &&
+        (isCard ? (
+          <CardNumberRow
+            label={t("wallet.toCard")}
+            digits={instructions.payAddress}
+            copied={copied === "addr"}
+            onCopy={() => copy(instructions.payAddress!.replace(/\D/g, ""), "addr")}
+          />
+        ) : (
+          <CopyRow
+            label={t("wallet.toAddress")}
+            value={instructions.payAddress}
+            mono
+            copied={copied === "addr"}
+            onCopy={() => copy(instructions.payAddress!, "addr")}
+          />
+        ))}
       {isCard && holder && <InfoRow label={t("wallet.cardHolder")} value={holder} />}
       {instructions.payNetwork && isCrypto && (
         <InfoRow label={t("wallet.network")} value={instructions.payNetwork} />

@@ -186,6 +186,9 @@ enum DepositStatus {
   APPROVED
   REJECTED
   EXPIRED
+  // Automatic gateway (e.g. Telegram Stars) payment that the user cancelled or
+  // that failed mid-flow. Never credited and never shown to admins for review.
+  FAILED
 }
 
 enum DepositMethod {
