@@ -661,6 +661,52 @@ function CopyRow({
   )
 }
 
+/**
+ * Card number shown centered and grouped in 4-digit blocks joined by dashes
+ * (e.g. 6219-8619-8628-2308) with an eye-catching mono display. The value that
+ * gets copied is the bare digit string — the dashes are display-only.
+ */
+function CardNumberRow({
+  label,
+  digits,
+  copied,
+  onCopy,
+}: {
+  label: string
+  digits: string
+  copied: boolean
+  onCopy: () => void
+}) {
+  const clean = digits.replace(/\D/g, "")
+  const grouped = clean.replace(/(\d{4})(?=\d)/g, "$1-")
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 text-center"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+        {copied ? (
+          <Check className="h-4 w-4 text-success" />
+        ) : (
+          <Copy className="h-4 w-4 text-muted-foreground" />
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col items-center gap-1">
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span
+          dir="ltr"
+          className="block font-mono text-lg font-extrabold tracking-[0.15em] tabular-nums text-primary"
+        >
+          {grouped}
+        </span>
+      </span>
+      {/* Spacer to keep the number optically centered opposite the copy icon */}
+      <span className="h-8 w-8 shrink-0" aria-hidden />
+    </button>
+  )
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">

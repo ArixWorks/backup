@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useState } from "react"
-import { Gavel, Users, Trophy, Clock } from "lucide-react"
+import { Gavel, Trophy, Clock } from "lucide-react"
 import { Countdown } from "@/components/countdown"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { formatNumber } from "@/lib/format"
@@ -124,8 +124,9 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
           <h3 dir="auto" className="line-clamp-1 font-bold leading-6">
             {auction.title}
           </h3>
+          {/* Bid count — a gavel (bid), not a people count. */}
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <Users className="h-3.5 w-3.5" />
+            <Gavel className="h-3.5 w-3.5" />
             {formatNumber(auction.bidCount)}
           </span>
         </div>
