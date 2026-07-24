@@ -247,7 +247,7 @@ function bannedCopy(locale: Locale): {
     default:
       return {
         title: "اکانت شما مسدود شده",
-        body: "لطفا جهت بررسی مشکل با ادمین در ارتباط باشید.",
+        body: "لطفا جهت بررسی مشکل با ادم��ن در ارتباط باشید.",
         button: "ارتباط با پشتیبانی",
         prompt: "پیام خود را برای پشتیبانی بنویسید تا برای ادمین ارسال شود:",
         sent: "پیام شما برای پشتیبانی ارسال شد. پاسخ را همین‌جا دریافت می‌کنید.",
@@ -776,7 +776,7 @@ function gwLabels(locale: Locale) {
       return {
         prize: "Приз", winners: "Победители", participants: "Участники",
         drawAt: "Розыгрыш", enter: "🎉 Участвовать", entered: "✅ Вы участвуете",
-        open: "Открыть в приложении", results: "🏆 Результаты", join: "Сначала подпишитесь",
+        open: "Открыть в приложении", results: "🏆 Ре��ультаты", join: "Сначала подпишитесь",
         ended: "Розыгрыш завершён", retry: "✅ Я подписался — повторить",
         entrySaved: "Готово! Вы участвуете. Удачи 🍀", joinNeeded: "Подпишитесь на каналы и нажмите повторить.",
       }
@@ -1272,7 +1272,7 @@ function secLabels(locale: Locale): SecLabelBag {
       profileTitle: "Мой профиль", points: "Баллы", tier: "Уровень", streak: "Серия", spent: "Всего потрачено", referrals: "Приглашения",
       rewardsTitle: "Награды и задания", noMissions: "Нет активных заданий.", claim: "Получить", claimedOk: "Награда получена!", claimFail: "Недоступно",
       notifTitle: "Уведомления", notifEmpty: "Нет уведомлений.", allRead: "Всё прочитано",
-      supportTitle: "Поддержка", supportEmpty: "Пока нет обращений.", subjectPrompt: "Введите тему обращения:", messagePrompt: "Введите сообщение:",
+      supportTitle: "Поддержка", supportEmpty: "Пока н��т обращений.", subjectPrompt: "Введите тему обращения:", messagePrompt: "Введите сообщение:",
       subjectShort: "Тема должна быть не короче 3 символов.", ticketCreated: "Обращение создано:", ticketReplied: "Ваш ответ отправлен.", ticketNotFound: "Обращение не найдено.",
       stOpen: "Открыт", stPending: "В ожидании", stClosed: "Закрыт",
       couponApplied: "Купон", couponOk: "Купон применён.", couponInvalid: "Купон недействителен.", couponNoProduct: "Сначала откройте товар.",
@@ -2242,7 +2242,7 @@ async function handlePreCheckout(q: TgPreCheckout) {
   })
   const valid = Boolean(
     deposit &&
-      deposit.status === "PENDING" &&
+      (deposit.status === "AWAITING_PAYMENT" || deposit.status === "PENDING") &&
       !deposit.starsChargeId &&
       deposit.user.telegramId === String(q.from.id) &&
       deposit.payCurrency === "XTR" &&

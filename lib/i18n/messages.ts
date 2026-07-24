@@ -645,6 +645,9 @@ export type MessageKey =
   | "wallet.expired"
   | "wallet.pendingReview"
   | "wallet.payWithStars"
+  | "wallet.starsOnlyTelegram"
+  | "wallet.starsPaid"
+  | "wallet.starsFailed"
   | "wallet.starsAmount"
   | "wallet.depositCreated"
   | "wallet.uploading"
@@ -1240,9 +1243,9 @@ type Catalog = Record<MessageKey, string>
   "rewards.tabHistory": "تاریخچه",
   "rewards.noMissions": "در حال حاضر مأموریت فعالی وجود ندارد",
   "invite.title": "دعوت دوستان",
-  "invite.subtitle": "دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ از عضویت تا هر خرید آن‌ها.",
+  "invite.subtitle": "دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ ��ز عضویت تا هر خرید آن‌ها.",
   "invite.signInRequired": "برای دریافت لینک دعوت، ابتدا وارد حساب کاربری خود شوید.",
-  "invite.how": "چطور پاداش می‌گیرم؟",
+  "invite.how": "چطور پاد��ش می‌گیرم؟",
   "invite.recent": "دعوت‌های اخیر",
   "invite.s1.title": "دوستت عضو می‌شود",
   "invite.s1.desc": "وقتی دوستت با لینک تو وارد ربات شود و عضویت را کامل کند، پاداش اول را می‌گیری.",
@@ -1466,7 +1469,7 @@ type Catalog = Record<MessageKey, string>
   "txn.WITHDRAWAL": "برداشت",
   "txn.FREEZE": "مسدودسازی",
   "txn.UNFREEZE": "آزادسازی",
-  "txn.PURCHASE": "کسر بابت خرید",
+  "txn.PURCHASE": "کسر بابت خ��ید",
   "txn.REFUND": "بازگشت وجه",
   "txn.BID_LOCK": "قفل پیشنهاد",
   "txn.BID_RELEASE": "آزادسازی پیشنهاد",
@@ -1518,6 +1521,9 @@ type Catalog = Record<MessageKey, string>
   "wallet.expired": "زمان این درخواست به پایان رسید",
   "wallet.pendingReview": "در حال بررسی توسط مدیر",
   "wallet.payWithStars": "پرداخت با استارز",
+  "wallet.starsOnlyTelegram": "پرداخت با استارز فقط در تلگرام فعال است",
+  "wallet.starsPaid": "پرداخت انجام شد و موجودی شما شارژ شد",
+  "wallet.starsFailed": "پرداخت انجام نشد",
   "wallet.starsAmount": "{n} استارز",
   "wallet.depositCreated": "درخواست واریز ثبت شد",
   "wallet.uploading": "در حال بارگذاری…",
@@ -1673,7 +1679,7 @@ type Catalog = Record<MessageKey, string>
   "refAct.minutesAgo": "{count} دقیقه پیش",
   "refAct.now": "همین حالا",
   "refAct.empty": "هنوز کسی را دعوت نکرده‌اید.",
-  "refAct.emptyDesc": "لینک خود را به اشتراک بگذارید تا اینجا دوستانتان را ببینید.",
+  "refAct.emptyDesc": "لینک خود را به اشتراک بگذارید تا ای��جا دوستانتان را ببینید.",
 }
 
   const en: Catalog = {
@@ -2362,6 +2368,9 @@ type Catalog = Record<MessageKey, string>
   "wallet.expired": "This request has expired",
   "wallet.pendingReview": "Pending admin review",
   "wallet.payWithStars": "Pay with Stars",
+  "wallet.starsOnlyTelegram": "Paying with Stars is only available inside Telegram",
+  "wallet.starsPaid": "Payment successful — your balance has been topped up",
+  "wallet.starsFailed": "Payment was not completed",
   "wallet.starsAmount": "{n} Stars",
   "wallet.depositCreated": "Top-up request created",
   "wallet.uploading": "Uploading…",
@@ -3143,7 +3152,7 @@ type Catalog = Record<MessageKey, string>
   "referral.statEarned": "Заработано (Т)",
   "txn.DEPOSIT": "Пополнение",
   "txn.WITHDRAWAL": "Вывод",
-  "txn.FREEZE": "Заморозка",
+  "txn.FREEZE": "Зам��розка",
   "txn.UNFREEZE": "Разморозка",
   "txn.PURCHASE": "Списание за покупку",
   "txn.REFUND": "Возврат",
@@ -3197,6 +3206,9 @@ type Catalog = Record<MessageKey, string>
   "wallet.expired": "Срок запроса истёк",
   "wallet.pendingReview": "На проверке у администратора",
   "wallet.payWithStars": "Оплатить звёздами",
+  "wallet.starsOnlyTelegram": "Оплата звёздами доступна только в Telegram",
+  "wallet.starsPaid": "Оплата прошла успешно — баланс пополнен",
+  "wallet.starsFailed": "Оплата не была завершена",
   "wallet.starsAmount": "{n} звёзд",
   "wallet.depositCreated": "Запрос на пополнение создан",
   "wallet.uploading": "Загрузка…",
@@ -3234,7 +3246,7 @@ type Catalog = Record<MessageKey, string>
   "notifList.emptySearch": "Уведомления по этому запросу не найдены",
   "notifList.emptyArchived": "Ваш архив пуст",
   "notifList.emptyUnread": "У вас нет непрочитанных уведомлений",
-  "notifList.emptyAll": "У вас пока нет уведомлений",
+  "notifList.emptyAll": "У ва�� пока нет уведомлений",
   "notifList.emptyAllDesc": "Когда появятся новости о заказах, аукционах или транзакциях, они отобразятся здесь.",
   "notifList.restore": "Вернуть во входящие",
   "notifList.delete": "Удалить",
@@ -3288,7 +3300,7 @@ type Catalog = Record<MessageKey, string>
   "bid.submit": "Сделать ставку",
   "bid.buyNow": "Купить сейчас за {amount}",
   "bid.hint": "Сумма ставки замораживается в кошельке до окончания аукциона.",
-  "auth.errTelegram": "Не удалось войти через Telegram",
+  "auth.errTelegram": "Не уда��ось войти через Telegram",
   "auth.forgotLink": "Забыли пароль?",
   "forcePwd.errMin": "Пароль должен содержать не менее 8 символов",
   "forcePwd.errChange": "Ошибка смены пароля",
@@ -4033,6 +4045,9 @@ type Catalog = Record<MessageKey, string>
   "wallet.expired": "Yeh request expire ho gaya",
   "wallet.pendingReview": "Admin review pending",
   "wallet.payWithStars": "Stars se pay karein",
+  "wallet.starsOnlyTelegram": "Stars se payment sirf Telegram ke andar available hai",
+  "wallet.starsPaid": "Payment safal — aapka balance top-up ho gaya",
+  "wallet.starsFailed": "Payment poora nahin hua",
   "wallet.starsAmount": "{n} Stars",
   "wallet.depositCreated": "Top-up request ban gaya",
   "wallet.uploading": "Upload ho raha hai…",
@@ -4166,7 +4181,7 @@ type Catalog = Record<MessageKey, string>
   "missions.weekly_invite.title": "दोस्त को आमंत्रित करें",
   "missions.weekly_invite.description": "इस सप्ताह एक दोस्त को आमंत्रित करें।",
   "missions.weekly_giveaway.title": "गिवअवे में भाग लें",
-  "missions.weekly_giveaway.description": "इस सप्ताह एक गिवअवे में भाग लें।",
+  "missions.weekly_giveaway.description": "इस सप्ताह एक ���िवअवे में भाग लें।",
   "missions.weekly_purchase.title": "साप्ताहिक खरीदारी",
   "missions.weekly_purchase.description": "इस सप्ताह एक खरीदारी पूरी करें।",
   "missions.onboard_profile.title": "प्रोफ़ाइल पूरी करें",

@@ -269,7 +269,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 {t("adetail.bidHistory")}
               </span>
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
+                <Gavel className="h-3.5 w-3.5" />
                 {t("adetail.bids", { n: formatNumber(a.bidCount) })}
               </span>
             </div>

@@ -119,10 +119,12 @@ export async function createDepositRequest(input: CreateDepositInput): Promise<D
       userId: input.userId,
       amount: input.amount,
       method,
-      // Card / crypto requests start as a private draft and are only submitted
-      // for admin review once the user confirms the transfer ("I've paid").
-      // Stars are settled by the Telegram webhook so they stay PENDING.
-      status: method === "STARS" ? "PENDING" : "AWAITING_PAYMENT",
+      // Every request starts as a private draft (AWAITING_PAYMENT) that is
+      // invisible to admins. Card / crypto are promoted to PENDING for admin
+      // review only when the user taps "I've paid". Stars stay a draft and are
+      // settled fully automatically by the Telegram webhook (approve on
+      // success, fail on cancel) — they are never manually reviewed.
+      status: "AWAITING_PAYMENT",
       payCurrency,
       payAmount,
       payAddress,
@@ -237,7 +239,9 @@ export async function approveStarsDeposit(input: {
     if (req.payCurrency !== "XTR" || req.payAmount !== input.totalAmount) {
       throw new ValidationError("مبلغ پرداخت با فاکتور مطابقت ندارد")
     }
-    if (req.status !== "PENDING") {
+    // Stars invoices are settled from the draft state (AWAITING_PAYMENT); a
+    // legacy PENDING record is still accepted for backwards compatibility.
+    if (req.status !== "AWAITING_PAYMENT" && req.status !== "PENDING") {
       if (req.status === "APPROVED" && req.starsChargeId === input.chargeId) return { updated: req, credited: false }
       throw new ConflictError("این فاکتور دیگر قابل پرداخت نیست")
     }
@@ -268,6 +272,26 @@ export async function approveStarsDeposit(input: {
       href: "/wallet",
     }).catch(() => {})
   }
+  return updated
+}
+
+/**
+ * Mark a Stars top-up draft as FAILED when the user cancels the Telegram
+ * invoice or the payment errors out. Never credits. Idempotent: an already
+ * settled (APPROVED) or failed request is returned untouched so a late
+ * "cancelled" callback can never undo a real payment.
+ */
+export async function failStarsDeposit(depositId: string, userId: string) {
+  const req = await prisma.depositRequest.findUnique({ where: { id: depositId } })
+  if (!req || req.userId !== userId) throw new NotFoundError("درخواست واریز یافت نشد")
+  if (req.method !== "STARS") throw new ValidationError("این درخواست پرداخت استارز نیست")
+  // Only an unpaid draft can be failed; approved/charged requests are final.
+  if (req.status !== "AWAITING_PAYMENT" || req.starsChargeId) return req
+  const updated = await prisma.depositRequest.update({
+    where: { id: req.id, status: "AWAITING_PAYMENT" },
+    data: { status: "FAILED", reviewedAt: new Date() },
+  })
+  await audit({ actorId: userId, action: "deposit.stars.fail", entity: "deposit", entityId: req.id }).catch(() => {})
   return updated
 }
 
