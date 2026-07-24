@@ -10,6 +10,7 @@ import {
   editMessageText,
   editMessageCaption,
   editMessageMedia,
+  editMessageReplyMarkup,
   answerCallbackQuery,
   inlineKeyboard,
   answerPreCheckoutQuery,
@@ -116,6 +117,8 @@ import {
   createWithdrawalRequest,
   approveStarsDeposit,
   claimDepositPaid,
+  approveDeposit,
+  rejectDeposit,
 } from "@/lib/core/finance"
 import { formatToman, formatDateTimeLocale } from "@/lib/format"
 import { formatPrice } from "@/lib/i18n/currency"
@@ -1106,6 +1109,8 @@ async function handlePendingInput(
       await sendMessage(chatId, `${emo(c, "warning")} ${esc(L.receiptPhotoOnly)}`)
       return
     }
+    case "awaiting_deposit_reject_reason":
+      return handleDepositRejectReason(chatId, user, pending.depositId, text)
     case "awaiting_deposit_amount":
     case "awaiting_withdraw_amount": {
       const amount = parseAmount(text)
@@ -1241,7 +1246,7 @@ function secLabels(locale: Locale): SecLabelBag {
       couponApplied: "کد تخفیف", couponOk: "کد تخفیف اعمال شد.", couponInvalid: "کد تخفیف معتبر نیست.", couponNoProduct: "ابتدا یک محصول را باز کنید.",
       bidPrompt: "مبلغ پیشنهاد خود را وارد کنید. حداقل:", bidInvalid: "مبلغ معتبر وارد کنید.", bidPlaced: "پیشنهاد شما ثبت شد.", buyNowDone: "با خرید فوری خریداری شد!",
       watchOn: "به لیست علاقه‌مندی افزوده شد.", watchOff: "از لیست علاقه‌مندی حذف شد.",
-      depositChoose: "روش واریز را انتخاب کنید:", depInstrTitle: "راهنمای پرداخت", depAmount: "مبلغ", depAddress: "مقصد",
+      depositChoose: "روش واریز را انتخاب کنید:", depInstrTitle: "راهنمای پرداخت", depAmount: "مبلغ", depAddress: "��قصد",
       depNetwork: "شبکه", depTag: "کد پیگیری", depNote: "پس از پرداخت روی «پرداخت کردم» بزنید یا رسید را ارسال کنید.", toman: "تومان",
       receiptPrompt: "لطفاً تصویر رسید پرداخت را ارسال کنید.", receiptSaved: "رسید دریافت شد. به‌زودی بررسی می‌شود.", receiptPhotoOnly: "لطفاً یک تصویر (عکس) ارسال کنید.",
       paidClaimed: "سپاس! پرداخت شما بررسی و کیف پول شارژ می‌شود.", paidClaimedShort: "ثبت شد", methodUnavailable: "این روش پرداخت در دسترس نیست",
@@ -1514,6 +1519,33 @@ async function handleReceiptPhoto(
     await sendMessage(chatId, `${emo(c, "check")} ${esc(L.receiptSaved)}`, {
       replyMarkup: mainMenu(c, locale),
     })
+  } catch (e) {
+    await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
+  }
+}
+
+/**
+ * Admin typed the rejection reason after tapping "لغو" on a deposit review
+ * card. Runs the same `rejectDeposit` core flow the dashboard uses (marks the
+ * request REJECTED and delivers the reason to the user via notification + bot +
+ * email). Admin-guarded implicitly: the pending state is only ever armed by the
+ * admin-only `depadm:reject` callback.
+ */
+async function handleDepositRejectReason(
+  chatId: number,
+  user: User,
+  depositId: string,
+  text: string,
+) {
+  const c = await cfg()
+  const reason = text.trim()
+  await clearPending(chatId)
+  try {
+    const dep = await rejectDeposit(depositId, user.id, reason || undefined)
+    await sendMessage(
+      chatId,
+      `✖️ <b>درخواست واریز لغو شد</b>\n💵 مبلغ: <b>${esc(fa(dep.amount))}</b> تومان\n📝 دلیل برای کاربر ارسال شد.`,
+    )
   } catch (e) {
     await sendMessage(chatId, `${emo(c, "cross")} ${esc((e as Error).message)}`)
   }
@@ -2056,6 +2088,40 @@ async function handleCallback(cb: TgCallback) {
     } catch (e) {
       await answerCallbackQuery(cb.id, (e as Error).message.slice(0, 190), true)
     }
+    return
+  }
+
+  // Admin deposit review card: depadm:approve|reject:<id>. Approving credits the
+  // wallet; rejecting arms a reason prompt whose text is delivered to the user —
+  // the same core flow the web dashboard uses.
+  if (data.startsWith("depadm:")) {
+    const [, action, id] = data.split(":")
+    if (!(await isAdminTelegram(cb.from.id))) {
+      await answerCallbackQuery(cb.id, "⛔", true)
+      return
+    }
+    if (action === "approve") {
+      try {
+        const dep = await approveDeposit(id, user.id)
+        await answerCallbackQuery(cb.id, "✅ تأیید شد", true)
+        if (messageId) await editMessageReplyMarkup(chatId, messageId, { inline_keyboard: [] }).catch(() => {})
+        await sendMessage(
+          chatId,
+          `✅ <b>واریز تأیید شد</b>\n💵 مبلغ <b>${esc(fa(dep.amount))}</b> تومان به کیف پول کاربر اضافه شد.`,
+        )
+      } catch (e) {
+        await answerCallbackQuery(cb.id, (e as Error).message.slice(0, 190), true)
+      }
+      return
+    }
+    if (action === "reject") {
+      await setPending(chatId, { kind: "awaiting_deposit_reject_reason", depositId: id, messageId })
+      await answerCallbackQuery(cb.id, "✍️ دلیل لغو را بنویسید", true)
+      if (messageId) await editMessageReplyMarkup(chatId, messageId, { inline_keyboard: [] }).catch(() => {})
+      await sendMessage(chatId, "✍️ لطفاً دلیل لغو این درخواست را بنویسید تا برای کاربر ارسال شود:")
+      return
+    }
+    await answerCallbackQuery(cb.id)
     return
   }
 
