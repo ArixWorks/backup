@@ -1,11 +1,16 @@
+import { readFile } from "node:fs/promises"
+import { join } from "node:path"
 import { ImageResponse } from "next/og"
-import mascotArtwork from "@/public/brand/subio-og.png"
 
 export const alt = "SubIO — بازار هوشمند محصولات دیجیتال و مزایده‌های آنلاین"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
+export const runtime = "nodejs"
 
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
+  const mascotFile = await readFile(join(process.cwd(), "public/brand/subio-og.png"))
+  const mascotArtwork = `data:image/png;base64,${mascotFile.toString("base64")}`
+
   return new ImageResponse(
     (
       <div
@@ -23,7 +28,7 @@ export default function OpenGraphImage() {
         {/* The locally stored mascot artwork is the stable brand source for all social cards. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={mascotArtwork.src}
+          src={mascotArtwork}
           alt=""
           width={630}
           height={630}
