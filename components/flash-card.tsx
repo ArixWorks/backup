@@ -7,6 +7,7 @@ import { DeliveryBadge } from "@/components/delivery-badge"
 import { FlashBuyButton } from "@/components/flash-buy-button"
 import { useI18n } from "@/components/i18n-provider"
 import { richExcerpt } from "@/lib/rich-content/render"
+import { getProductDiscount, type SerializedPrice } from "@/lib/core/product-pricing"
 
 export type ProductLink = { label: string; url: string }
 
@@ -16,8 +17,8 @@ export type PlanVariant = {
   name: string
   attributes: Record<string, unknown> | null
   description: string | null
-  price: number
-  compareAtPrice: number | null
+  price: SerializedPrice
+  compareAtPrice: SerializedPrice | null
   stock: number
   purchaseLimit: number | null
   deliveryType: string
@@ -48,10 +49,10 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
   const soldOut = sale.stock <= 0
   const low = !soldOut && sale.stock <= 5
   const hasBulk = !!sale.bulkMinQty && !!sale.bulkDiscountPercent
-  const hasDiscount = sale.compareAtPrice != null && sale.compareAtPrice > sale.price
-  const discountPercent = hasDiscount
-    ? Math.round((1 - sale.price / (sale.compareAtPrice as number)) * 100)
-    : 0
+  const { hasDiscount, percent: discountPercent, compareAtPrice } = getProductDiscount(
+    sale.price,
+    sale.compareAtPrice,
+  )
 
   return (
     <div className="card-premium group flex flex-col overflow-hidden rounded-2xl border border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:elevate-lg">
@@ -148,7 +149,7 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
               </span>
               {hasDiscount && (
                 <span className="text-xs text-muted-foreground line-through tabular-nums">
-                  {priceValue(sale.compareAtPrice as number)}
+                  {priceValue(compareAtPrice!)}
                 </span>
               )}
             </div>

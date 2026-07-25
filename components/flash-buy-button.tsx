@@ -49,7 +49,7 @@ export function FlashBuyButton({
 
   // The chosen plan is the source of truth for price/stock/limit when present;
   // otherwise fall back to the product-level fixed sale (legacy single-plan).
-  const effPrice = variant ? variant.price : sale.price
+  const effPrice = Number(variant ? variant.price : sale.price)
   const effStock = variant ? variant.stock : sale.stock
   const effLimit = variant ? variant.purchaseLimit : sale.purchaseLimit
 

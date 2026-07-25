@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1246,
+    "text": "\"invite.subtitle\": \"دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ ��ز عضویت تا هر خرید آن‌ها.\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1248,
+    "text": "\"invite.how\": \"چطور پاد��ش می‌گیرم؟\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1472,
+    "text": "\"txn.PURCHASE\": \"کسر بابت خ��ید\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1682,
+    "text": "\"refAct.emptyDesc\": \"لینک خود را به اشتراک بگذارید تا ای��جا دوستانتان را ببینید.\","
+  },
+  {
+    "path": "lib/telegram/handler.ts",
+    "line": 250,
+    "text": "body: \"لطفا جهت بررسی مشکل با ادم��ن در ارتباط باشید.\","
+  },
+  {
+    "path": "lib/telegram/handler.ts",
+    "line": 1249,
+    "text": "depositChoose: \"روش واریز را انتخاب کنید:\", depInstrTitle: \"راهنمای پرداخت\", depAmount: \"مبلغ\", depAddress: \"��قصد\","
+  }
+]

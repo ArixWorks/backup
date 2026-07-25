@@ -23,6 +23,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { Reveal } from "@/components/motion"
 import { useReactiveGoldBorder } from "@/hooks/use-reactive-gold-border"
 import type { FlashSale } from "@/components/flash-card"
+import { getProductDiscount } from "@/lib/core/product-pricing"
 
 type FlashDetail = FlashSale & {
   images: string[]
@@ -119,8 +120,12 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
   const shownStock = selectedVariant ? selectedVariant.stock : p.stock
   const shownDelivery = selectedVariant ? selectedVariant.deliveryType : p.deliveryType
   const shownCompareAt = selectedVariant ? selectedVariant.compareAtPrice : (p.compareAtPrice ?? null)
-  const hasDiscount = shownCompareAt != null && shownCompareAt > shownPrice
-  const discountPercent = hasDiscount ? Math.round((1 - shownPrice / (shownCompareAt as number)) * 100) : 0
+  const {
+    hasDiscount,
+    percent: discountPercent,
+    price: normalizedPrice,
+    compareAtPrice: normalizedCompareAt,
+  } = getProductDiscount(shownPrice, shownCompareAt)
   const soldOut = shownStock <= 0
   const hasBulk = !!p.bulkMinQty && !!p.bulkDiscountPercent
 
@@ -228,7 +233,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
                 {hasDiscount && (
                   <>
                     <span className="text-base text-muted-foreground line-through tabular-nums">
-                      {priceValue(shownCompareAt as number)}
+                      {priceValue(normalizedCompareAt!)}
                     </span>
                     <span className="inline-flex items-center gap-1 self-center rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
                       <Tag className="h-3 w-3" />
@@ -239,7 +244,7 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
               </div>
               {hasDiscount && (
                 <p className="mt-1 text-xs font-medium text-success">
-                  {t("detail.youSave")} {priceValue((shownCompareAt as number) - shownPrice)} {currency}
+                  {t("detail.youSave")} {priceValue(normalizedCompareAt! - normalizedPrice)} {currency}
                 </p>
               )}
               {hasBulk && p.bulkUnitPrice != null && !hasPlans && (
