@@ -22,44 +22,48 @@ export function SiteHeader() {
   return (
     <header className="glass sticky top-0 z-40 pt-safe">
       <div
-        className="mx-auto flex h-16 w-full max-w-[var(--shell-max)] items-center justify-between gap-3 web:lg:h-[var(--header-h-web)] web:lg:max-w-[var(--content-max)]"
+        className="mx-auto flex h-16 w-full max-w-[var(--shell-max)] items-center justify-between gap-1.5 min-[360px]:gap-2 web:lg:h-[var(--header-h-web)] web:lg:max-w-[var(--content-max)] web:lg:gap-3"
         style={{
-          // Base 20px gutter PLUS any device safe-area inset, so the header
-          // never hugs the screen edges on phones without a side notch.
-          paddingLeft: "calc(max(env(safe-area-inset-left), var(--tg-safe-left, 0px)) + 1.25rem)",
-          paddingRight: "calc(max(env(safe-area-inset-right), var(--tg-safe-right, 0px)) + 1.25rem)",
+          // Narrow Telegram webviews need compact gutters, while wider phones
+          // retain the original breathing room. Device safe areas are additive.
+          paddingLeft:
+            "calc(max(env(safe-area-inset-left), var(--tg-safe-left, 0px)) + clamp(0.5rem, 3.2vw, 1.25rem))",
+          paddingRight:
+            "calc(max(env(safe-area-inset-right), var(--tg-safe-right, 0px)) + clamp(0.5rem, 3.2vw, 1.25rem))",
         }}
       >
         {/* Brand + mobile menu. The hamburger opens the nav Drawer on phones and
             is hidden at lg+, where the persistent Sidebar owns navigation. */}
-        <div className="flex min-w-0 items-center gap-1.5">
+        <div className="flex min-w-0 shrink items-center gap-1 min-[360px]:gap-1.5">
           <MobileNavDrawer />
           <Link
             href="/"
             aria-label="SubIO"
-            className="active:scale-press flex shrink-0 items-center transition-transform web:lg:hidden"
+            className="active:scale-press flex min-w-0 shrink items-center transition-transform web:lg:hidden"
           >
-            <Logo />
+            <Logo compactOnNarrow />
           </Link>
         </div>
 
-        {/* Account cluster — every control shares the same 36px height so the
-            wallet pill and the avatar sit on one perfectly aligned baseline. */}
-        <div className="flex min-w-0 items-center gap-2">
+        {/* Account cluster remains fully visible down to 320px. The compact
+            formatter keeps the amount readable while the pill owns a strict
+            width budget instead of pushing the avatar beyond the viewport. */}
+        <div className="flex min-w-0 shrink-0 items-center gap-1 min-[360px]:gap-2">
           <Link
             href="/wallet"
-            aria-label={t("nav.wallet")}
-            className="active:scale-press group flex h-9 min-w-0 items-center gap-2 rounded-full border border-primary/25 bg-primary/10 pl-3 pr-2.5 transition-all hover:border-primary/55 hover:bg-primary/15"
+            aria-label={`${t("nav.wallet")}: ${balance.value}${balance.suffix ? ` ${balance.suffix}` : ""}`}
+            title={`${balance.value}${balance.suffix ? ` ${balance.suffix}` : ""}`}
+            className="active:scale-press group flex h-11 min-w-0 max-w-28 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2 transition-all hover:border-primary/55 hover:bg-primary/15 min-[390px]:max-w-32 min-[390px]:gap-2 min-[390px]:px-2.5"
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary transition-transform group-hover:scale-105">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary transition-transform group-hover:scale-105">
               <Wallet className="h-3.5 w-3.5" />
             </span>
-            <span className="flex min-w-0 items-baseline gap-1">
-              <span className="text-gold tabular-nums truncate text-sm font-extrabold leading-none">
+            <span className="flex min-w-0 items-baseline gap-1 overflow-hidden whitespace-nowrap">
+              <span className="text-gold min-w-0 truncate text-sm font-extrabold leading-none tabular-nums">
                 {balance.value}
               </span>
               {balance.suffix && (
-                <span className="shrink-0 text-[11px] font-medium leading-none text-muted-foreground">
+                <span className="shrink-0 text-[10px] font-medium leading-none text-muted-foreground min-[390px]:text-[11px]">
                   {balance.suffix}
                 </span>
               )}

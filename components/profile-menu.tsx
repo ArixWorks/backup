@@ -103,9 +103,9 @@ export function ProfileMenu() {
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Trigger
         aria-label={t("menu.accountAria")}
-        className="active:scale-press relative rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
+        className="active:scale-press relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
       >
-        <Avatar size="default" className="h-9 w-9 ring-1 ring-primary/30">
+        <Avatar size="default" className="h-10 w-10 ring-1 ring-primary/30">
           {user.photoUrl && <AvatarImage src={user.photoUrl || "/placeholder.svg"} alt={user.displayName} />}
           <AvatarFallback className="bg-primary/15 text-sm font-bold text-primary">
             {initials(user.displayName)}
