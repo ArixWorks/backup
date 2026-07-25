@@ -5,6 +5,7 @@ import { Check, Package } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import type { PlanVariant } from "@/components/flash-card"
+import { getProductDiscount } from "@/lib/core/product-pricing"
 
 // Attribute keys we know how to render in the comparison table, in display order.
 const FEATURE_ROWS: { key: string; label: MessageKey }[] = [
@@ -77,7 +78,7 @@ export function PlanSelector({
           {variants.map((v) => {
             const selected = v.id === selectedId
             const soldOut = v.stock <= 0
-            const hasDiscount = v.compareAtPrice != null && v.compareAtPrice > v.price
+            const { hasDiscount, compareAtPrice } = getProductDiscount(v.price, v.compareAtPrice)
             return (
               <button
                 key={v.id}
@@ -112,7 +113,7 @@ export function PlanSelector({
                   <span className="text-[11px] text-muted-foreground">{currency}</span>
                   {hasDiscount && (
                     <span className="text-[11px] text-muted-foreground line-through tabular-nums">
-                      {priceValue(v.compareAtPrice as number)}
+                      {priceValue(compareAtPrice!)}
                     </span>
                   )}
                 </div>
