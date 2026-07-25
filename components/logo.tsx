@@ -8,14 +8,25 @@ import { cn } from "@/lib/utils"
  * The name is always rendered in Latin script ("SubIO") for a clean, modern,
  * internationally legible identity — never transliterated to Persian.
  */
-export function Logo({ className }: { className?: string }) {
+export function Logo({
+  className,
+  compactOnNarrow = false,
+}: {
+  className?: string
+  compactOnNarrow?: boolean
+}) {
   return (
     // No forced direction: the lockup follows the page direction, so the badge
     // sits on the reading-start side (right in RTL/Persian, left in LTR/English)
     // while the wordmark keeps its Latin glyphs rendering left-to-right.
     <div className={cn("flex items-center gap-2.5", className)}>
       <BrandMark className="h-9 w-9 shrink-0" />
-      <span className="flex flex-col justify-center items-start text-start leading-none">
+      <span
+        className={cn(
+          "flex flex-col items-start justify-center text-start leading-none",
+          compactOnNarrow && "max-[359px]:hidden",
+        )}
+      >
         <span dir="ltr" className="text-[1.3rem] font-extrabold leading-[1.05] tracking-tight">
           <span className="text-foreground">Sub</span>
           <span className="text-gold">IO</span>
