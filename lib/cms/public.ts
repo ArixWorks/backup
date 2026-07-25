@@ -94,27 +94,43 @@ export function buildCmsMetadata(
     ogImageUrl?: string | null
     coverImageUrl?: string | null
     canonicalUrl?: string | null
+    slug?: string | null
     noindex?: boolean
   } | null,
 ): Metadata {
   const def = getContentType(type)
   const suffix = def?.seoDefaults?.titleSuffix ?? ""
-  if (!content) return { title: "یافت نشد" }
+  if (!content) return { title: "یافت نشد", robots: { index: false, follow: false } }
 
   const title = content.seoTitle || `${content.title}${suffix}`
   const description = content.seoDescription || content.excerpt || undefined
-  const image = content.ogImageUrl || content.coverImageUrl || undefined
+  const image = content.ogImageUrl || content.coverImageUrl || "/opengraph-image"
+  const collectionPath = type === "article" ? "/articles" : type === "help" ? "/help" : null
+  const singletonPath = type === "rules" ? "/rules" : type === "vps" ? "/vps" : null
+  const routeCanonical = content.slug && collectionPath
+    ? `${collectionPath}/${content.slug}`
+    : singletonPath
+  const canonical = content.canonicalUrl || routeCanonical || undefined
 
   return {
     title,
     description,
     keywords: content.seoKeywords?.length ? content.seoKeywords : undefined,
-    alternates: content.canonicalUrl ? { canonical: content.canonicalUrl } : undefined,
+    alternates: canonical ? { canonical } : undefined,
     robots: content.noindex ? { index: false, follow: false } : undefined,
     openGraph: {
+      type: type === "article" ? "article" : "website",
       title,
       description,
-      images: image ? [{ url: image }] : undefined,
+      url: canonical,
+      siteName: "SubIO",
+      images: [{ url: image, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
     },
   }
 }

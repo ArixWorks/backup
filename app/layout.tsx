@@ -28,11 +28,106 @@ const geistMono = Geist_Mono({
   display: 'swap',
 })
 
+const SITE_URL = 'https://acciran.com'
+const SITE_TITLE = 'SubIO | بازار هوشمند محصولات دیجیتال و مزایده آنلاین'
+const SITE_DESCRIPTION =
+  'خرید امن محصولات دیجیتال، شرکت در مزایده‌های آنلاین، تحویل خودکار و مدیریت پرداخت‌ها در تجربه‌ای سریع و حرفه‌ای با SubIO.'
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'SubIO',
+      url: SITE_URL,
+      logo: {
+        '@type': 'ImageObject',
+        url: `${SITE_URL}/icon.png`,
+        width: 512,
+        height: 512,
+      },
+      description: SITE_DESCRIPTION,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: 'SubIO',
+      description: SITE_DESCRIPTION,
+      inLanguage: 'fa-IR',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+  ],
+}
+
 export const metadata: Metadata = {
-  title: 'SubIO | بازار مزایده و فروشگاه محصولات دیجیتال',
-  description:
-    'پلتفرم حرفه‌ای مزایده زنده و فروشگاه محصولات دیجیتال با کیف پول داخلی، تحویل خودکار و تجربه‌ای امن و سریع.',
-  generator: 'v0.app',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: '%s | SubIO',
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: 'SubIO',
+  authors: [{ name: 'SubIO', url: SITE_URL }],
+  creator: 'SubIO',
+  publisher: 'SubIO',
+  generator: 'Next.js',
+  referrer: 'origin-when-cross-origin',
+  keywords: [
+    'SubIO',
+    'فروشگاه محصولات دیجیتال',
+    'مزایده آنلاین',
+    'خرید اکانت پریمیوم',
+    'تحویل خودکار',
+    'محصولات دیجیتال',
+    'کیف پول دیجیتال',
+  ],
+  category: 'technology',
+  openGraph: {
+    type: 'website',
+    locale: 'fa_IR',
+    url: '/',
+    siteName: 'SubIO',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'ربات اختصاصی SubIO در بازار محصولات دیجیتال و مزایده آنلاین',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: ['/twitter-image'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
+  manifest: '/manifest.webmanifest',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
 }
 
 export async function generateViewport(): Promise<Viewport> {
@@ -68,6 +163,12 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
+          }}
+        />
         {/* Environment detection runs BEFORE hydration so the layout engine
             (CSS `tg:`/`web:` variants) picks the right shell on first paint.
             Mirrors TelegramProvider.launchedFromTelegram() but width-free and
