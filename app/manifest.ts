@@ -18,7 +18,13 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["shopping", "business", "utilities"],
     icons: [
       {
-        src: "/icon.png",
+        src: "/brand/subio-app-icon.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/brand/subio-app-icon.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
