@@ -45,21 +45,20 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        {/* Account cluster remains fully visible down to 320px. The compact
-            formatter keeps the amount readable while the pill owns a strict
-            width budget instead of pushing the avatar beyond the viewport. */}
-        <div className="flex min-w-0 shrink-0 items-center gap-1 min-[360px]:gap-2">
+        {/* priceCompact already bounds the amount for small screens, so the
+            balance must keep its intrinsic width rather than truncating digits. */}
+        <div className="flex shrink-0 items-center gap-1 min-[360px]:gap-2">
           <Link
             href="/wallet"
             aria-label={`${t("nav.wallet")}: ${balance.value}${balance.suffix ? ` ${balance.suffix}` : ""}`}
             title={`${balance.value}${balance.suffix ? ` ${balance.suffix}` : ""}`}
-            className="active:scale-press group flex h-11 min-w-0 max-w-28 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2 transition-all hover:border-primary/55 hover:bg-primary/15 min-[390px]:max-w-32 min-[390px]:gap-2 min-[390px]:px-2.5"
+            className="active:scale-press group flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2 transition-all hover:border-primary/55 hover:bg-primary/15 min-[390px]:gap-2 min-[390px]:px-2.5"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary transition-transform group-hover:scale-105">
               <Wallet className="h-3.5 w-3.5" />
             </span>
-            <span className="flex min-w-0 items-baseline gap-1 overflow-hidden whitespace-nowrap">
-              <span className="text-gold min-w-0 truncate text-sm font-extrabold leading-none tabular-nums">
+            <span className="flex shrink-0 items-baseline gap-1 whitespace-nowrap">
+              <span className="text-gold shrink-0 text-sm font-extrabold leading-none tabular-nums">
                 {balance.value}
               </span>
               {balance.suffix && (
