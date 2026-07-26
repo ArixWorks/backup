@@ -140,6 +140,106 @@
   }
 }
 
+/* Authenticated home: compact digital-network surfaces. Decorative layers are
+   token-driven so membership and admin-selected themes recolor them together. */
+.profile-network {
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--card) 95%, var(--primary) 5%), var(--card));
+}
+.profile-network::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 16%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(90deg, black, transparent 72%);
+}
+.profile-network__beam {
+  position: absolute;
+  inset-block: -120%;
+  inset-inline-start: 62%;
+  width: 22%;
+  rotate: 18deg;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 15%, transparent), transparent);
+  animation: network-beam 7s var(--ease-in-out-soft) infinite;
+}
+.profile-balance {
+  background: color-mix(in oklab, var(--background) 70%, var(--primary) 8%);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+.profile-balance__scan {
+  position: absolute;
+  inset: 0;
+  translate: -115% 0;
+  background: linear-gradient(100deg, transparent 35%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 65%);
+  animation: balance-scan 5.5s var(--ease-in-out-soft) infinite;
+}
+.service-node {
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--card) 96%, var(--primary) 4%), var(--card));
+  box-shadow: var(--inset-highlight), 0 12px 30px -24px color-mix(in oklab, var(--primary) 55%, transparent);
+  isolation: isolate;
+}
+.service-node__grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.25;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 16%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(circle at 14% 50%, black, transparent 62%);
+  transition: opacity var(--duration-base) var(--ease-out-quint);
+}
+.service-node__orbit {
+  position: absolute;
+  z-index: -1;
+  inset-inline-start: -4rem;
+  top: 50%;
+  width: 11rem;
+  aspect-ratio: 1;
+  translate: 0 -50%;
+  border: 1px solid color-mix(in oklab, var(--primary) 20%, transparent);
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 1.5rem color-mix(in oklab, var(--primary) 4%, transparent),
+    0 0 0 3rem color-mix(in oklab, var(--primary) 2%, transparent);
+  transition: scale var(--duration-slow) var(--ease-out-quint), rotate var(--duration-slow) var(--ease-out-quint);
+}
+.service-node__beam {
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: linear-gradient(transparent, var(--primary), transparent);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 70%, transparent);
+  opacity: 0.75;
+}
+@media (hover: hover) and (pointer: fine) {
+  .service-node:hover .service-node__grid { opacity: 0.42; }
+  .service-node:hover .service-node__orbit { scale: 1.12; rotate: 18deg; }
+}
+@keyframes network-beam {
+  0%, 100% { translate: -220% 0; opacity: 0; }
+  20%, 72% { opacity: 1; }
+  88% { translate: 260% 0; opacity: 0; }
+}
+@keyframes balance-scan {
+  0%, 72%, 100% { translate: -115% 0; }
+  88% { translate: 115% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-network__beam,
+  .profile-balance__scan { animation: none; }
+  .service-node__orbit { transition: none; }
+}
+
 /* ============================================================================
    THEME PALETTES
    Admin-selectable via data-theme on <html> (applied server-side from the

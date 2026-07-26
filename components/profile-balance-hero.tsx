@@ -2,116 +2,84 @@
 
 import Link from "next/link"
 import { Activity, BadgePercent, Wallet } from "lucide-react"
+import { motion, useReducedMotion } from "motion/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
 import { MembershipBadge } from "@/components/membership-badge"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
 
-/**
- * The dashboard signature surface: a single compact, horizontal "wallet card"
- * that fuses the user's identity (avatar · name · @handle · membership tier)
- * on one end with their wallet balance + a live-activity shortcut on the other.
- *
- * Built on the reusable `PremiumHeroCard` (frozen cinematic utilities +
- * tier-aware `LivingSurface`), so the whole card reskins automatically with the
- * user's active membership tier. All ambient motion is decoration-only and
- * auto-tuned by the app's motion tiers / OS Reduce-Motion.
- */
 export function ProfileBalanceHero() {
   const { user } = useSession()
   const { t, priceValue, currency } = useI18n()
-
+  const reduceMotion = useReducedMotion()
   const initials = (user?.displayName ?? "?").slice(0, 2)
   const handle = user?.telegramUsername ?? user?.alias ?? null
   const discount = user?.membership?.discountPercent ?? 0
 
   return (
-    <PremiumHeroCard aria-label={t("home.welcome")} deviceTilt ambient={false}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Identity cluster */}
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="relative shrink-0">
-            {/* glowing gold ring frame */}
-            <span
-              aria-hidden
-              className="bg-gold absolute -inset-0.5 rounded-full opacity-90 blur-[1px]"
-            />
-            <Avatar className="relative h-12 w-12 border-2 border-background sm:h-14 sm:w-14">
-              {user?.photoUrl && <AvatarImage src={user.photoUrl} alt={user.displayName ?? ""} />}
-              <AvatarFallback className="bg-secondary text-sm font-bold text-gold sm:text-base">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {/* online status dot */}
-            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-background bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          </span>
+    <PremiumHeroCard aria-label={t("home.welcome")} deviceTilt ambient={false} className="!p-0">
+      <div className="profile-network relative overflow-hidden rounded-[inherit] px-3.5 py-3.5 sm:px-5 sm:py-4">
+        <div aria-hidden className="profile-network__beam" />
+        <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <motion.span
+              className="relative shrink-0"
+              animate={reduceMotion ? undefined : { y: [0, -2, 0] }}
+              transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <span aria-hidden className="absolute -inset-1 rounded-full bg-primary/25 blur-md" />
+              <span aria-hidden className="absolute -inset-0.5 rounded-full border border-primary/60 shadow-[0_0_18px_color-mix(in_oklab,var(--primary)_38%,transparent)]" />
+              <Avatar className="relative size-12 border-2 border-background sm:size-14">
+                {user?.photoUrl ? <AvatarImage src={user.photoUrl} alt={user.displayName ?? ""} /> : null}
+                <AvatarFallback className="bg-secondary text-sm font-bold text-primary sm:text-base">{initials}</AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 end-0 size-3.5 rounded-full border-2 border-background bg-success shadow-[0_0_8px_color-mix(in_oklab,var(--success)_80%,transparent)]" />
+            </motion.span>
 
-          <div className="min-w-0">
-            <p dir="auto" className="truncate text-base font-extrabold leading-tight text-foreground sm:text-lg">
-              {user?.displayName ?? t("home.welcome")}
-            </p>
-            {handle && (
-              <p dir="ltr" className="truncate text-xs text-muted-foreground/90">
-                @{handle}
+            <div className="min-w-0">
+              <p dir="auto" className="truncate text-sm font-extrabold leading-5 text-foreground sm:text-lg">
+                {user?.displayName ?? t("home.welcome")}
               </p>
-            )}
-            {user ? (
-              <Link href="/rewards" className="active:scale-press mt-1.5 inline-flex">
-                <MembershipBadge tier={user.membership.tier} size="sm" />
-              </Link>
-            ) : null}
+              {handle ? <p dir="ltr" className="truncate text-[11px] leading-4 text-muted-foreground sm:text-xs">@{handle}</p> : null}
+              {user ? <Link href="/rewards" className="mt-1 inline-flex"><MembershipBadge tier={user.membership.tier} size="sm" /></Link> : null}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <Link
+              href="/wallet"
+              aria-label={t("nav.wallet")}
+              className="profile-balance group relative flex min-h-14 min-w-0 items-center gap-2 overflow-hidden rounded-2xl border border-primary/25 px-2 py-1.5 transition-[border-color,transform] duration-300 hoverable:hover:-translate-y-0.5 hoverable:hover:border-primary/55 sm:min-w-48 sm:gap-3 sm:px-3"
+            >
+              <span aria-hidden className="profile-balance__scan" />
+              <motion.span
+                className="relative flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary text-primary-foreground shadow-[var(--shadow-accent)] sm:size-10"
+                whileHover={reduceMotion ? undefined : { rotate: -6, scale: 1.06 }}
+              >
+                <Wallet className="size-4.5 sm:size-5" strokeWidth={2.2} />
+              </motion.span>
+              <span className="relative flex min-w-0 flex-col items-start">
+                <span className="hidden text-[10px] leading-none text-muted-foreground min-[350px]:block">{t("home.balance")}</span>
+                <span className="mt-0.5 flex items-baseline gap-1">
+                  <span className="text-gold max-w-24 truncate text-base font-black leading-none tabular-nums sm:max-w-none sm:text-xl">{priceValue(user?.balances?.availableBalance ?? 0)}</span>
+                  <span className="text-[9px] font-semibold text-muted-foreground sm:text-[11px]">{currency}</span>
+                </span>
+                {discount > 0 ? (
+                  <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-primary sm:text-[10px]">
+                    <BadgePercent className="size-3" />
+                    {t("membership.discount").replace("{n}", String(discount))}
+                  </span>
+                ) : null}
+              </span>
+            </Link>
+
+            <Link href="/reports" aria-label={t("menu.reports")} className="hidden size-11 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-primary/[0.08] text-primary transition-colors hoverable:hover:border-primary/55 hoverable:hover:bg-primary/15 sm:flex">
+              <Activity className="size-5" strokeWidth={2} />
+            </Link>
           </div>
         </div>
-
-        {/* Balance cluster */}
-        <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:gap-2.5">
-          <Link
-            href="/wallet"
-            aria-label={t("nav.wallet")}
-            className="active:scale-press group flex min-h-14 flex-1 items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/[0.06] py-1.5 pl-2 pr-2.5 transition-colors hover:border-primary/40 hover:bg-primary/10 sm:flex-none sm:gap-3 sm:pl-2.5 sm:pr-3.5"
-          >
-            <span className="bg-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-foreground shadow-[var(--shadow-gold)] ring-1 ring-primary/40 transition-transform group-hover:scale-105 sm:h-11 sm:w-11">
-              <Wallet className="h-5 w-5" strokeWidth={2} />
-            </span>
-            <span className="flex min-w-0 flex-col items-start">
-              <span className="text-[11px] leading-none text-muted-foreground">{t("home.balance")}</span>
-              <span className="mt-1 flex items-baseline gap-1">
-                <span className="text-gold tabular-nums truncate text-lg font-extrabold leading-none tracking-tight sm:text-xl">
-                  {priceValue(user?.balances?.availableBalance ?? 0)}
-                </span>
-                <span className="shrink-0 text-[11px] font-medium text-muted-foreground">{currency}</span>
-              </span>
-            </span>
-          </Link>
-
-          {/* Live-activity shortcut */}
-          <Link
-            href="/reports"
-            aria-label={t("menu.reports")}
-            className="active:scale-press relative hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/[0.06] text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 sm:flex"
-          >
-            <Activity className="h-5 w-5" strokeWidth={2} />
-            <span className="animate-twinkle absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-          </Link>
-        </div>
       </div>
-
-      {/* ── Tier perk strip: the membership discount, folded neatly inside the
-          card as a slim shimmering banner instead of a stray pill below it. ── */}
-      {discount > 0 ? (
-        <Link
-          href="/rewards"
-          className="shimmer active:scale-press group mt-3 flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/[0.07] px-3 py-2 transition-colors hover:border-primary/45 hover:bg-primary/10"
-        >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/25">
-            <BadgePercent className="h-3.5 w-3.5" strokeWidth={2.4} />
-          </span>
-          <span dir="auto" className="min-w-0 flex-1 truncate text-[12px] font-bold text-gold">
-            {t("membership.discount").replace("{n}", String(discount))}
-          </span>
-        </Link>
-      ) : null}
     </PremiumHeroCard>
   )
 }
