@@ -93,6 +93,12 @@ export type MessageKey =
   | "flash.title"
   | "flash.subtitle"
   | "flash.empty"
+  | "store.allProducts"
+  | "store.allProductsHint"
+  | "store.productsCount"
+  | "store.noCategories"
+  | "store.categoryEmpty"
+  | "store.categoriesHint"
   | "detail.back"
   | "detail.description"
   | "detail.tags"
@@ -969,6 +975,12 @@ type Catalog = Record<MessageKey, string>
   "flash.title": "فروشگاه",
   "flash.subtitle": "خرید آنی با قیمت ثابت؛ محصولات تحویل خودکار بلافاصله پس از پرداخت ارسال می‌شوند.",
   "flash.empty": "محصولی در فروشگاه موجود نیست.",
+  "store.allProducts": "همه محصولات",
+  "store.allProductsHint": "مشاهده و جستجو در کل فروشگاه",
+  "store.productsCount": "محصول",
+  "store.noCategories": "هنوز دسته‌بندی فعالی وجود ندارد.",
+  "store.categoryEmpty": "در حال حاضر محصولی برای این بخش موجود نیست.",
+  "store.categoriesHint": "برای مشاهده محصولات، یک دسته‌بندی را انتخاب کنید.",
   "detail.back": "بازگشت به فروشگاه",
   "detail.description": "توضیحات",
   "detail.tags": "برچسب‌ها",
@@ -1807,6 +1819,12 @@ type Catalog = Record<MessageKey, string>
   "flash.title": "Flash Sale",
   "flash.subtitle": "Instant fixed-price purchase; products are auto-delivered right after payment.",
   "flash.empty": "No active flash sales.",
+  "store.allProducts": "All products",
+  "store.allProductsHint": "Browse and search the complete store",
+  "store.productsCount": "products",
+  "store.noCategories": "There are no active categories yet.",
+  "store.categoryEmpty": "There are currently no products in this section.",
+  "store.categoriesHint": "Choose a category to browse its products.",
   "detail.back": "Back to flash sales",
   "detail.description": "Description",
   "detail.tags": "Tags",
@@ -2631,7 +2649,7 @@ type Catalog = Record<MessageKey, string>
   "auctions.ended": "Завершён",
   "auctions.currentBid": "Высшая ставка",
   "auctions.nextBid": "Следующая мин. ставка",
-  "auctions.finalPrice": "Итоговая цена",
+  "auctions.finalPrice": "Итогова�� цена",
   "auctions.startingPrice": "Стартовая цена",
   "auctions.trueValue": "Реальная цена",
   "auctions.startsAt": "Начало",
@@ -2645,6 +2663,12 @@ type Catalog = Record<MessageKey, string>
   "flash.title": "Распродажа",
   "flash.subtitle": "Мгновенная покупка по фиксированной цене; товары доставляются сразу после оплаты.",
   "flash.empty": "Нет активных распродаж.",
+  "store.allProducts": "Все товары",
+  "store.allProductsHint": "Просмотреть весь каталог магазина",
+  "store.productsCount": "товаров",
+  "store.noCategories": "Активных категорий пока нет.",
+  "store.categoryEmpty": "В этом разделе пока нет товаров.",
+  "store.categoriesHint": "Выберите категорию для просмотра товаров.",
   "detail.back": "Назад к распродажам",
   "detail.description": "Описание",
   "detail.tags": "Теги",
@@ -2807,7 +2831,7 @@ type Catalog = Record<MessageKey, string>
   "motion.cinematic": "Кинематографичное",
   "motion.balanced": "Сбалансированное",
   "motion.minimal": "Минимальное",
-  "motion.hint": "В режиме «Авто» эффекты подбираются под производительность устройства.",
+  "motion.hint": "В режиме «Авто» эффекты подбираются под производительност�� устройства.",
   "motion.enableTilt": "Включить движение карты",
   "motion.permissionDenied": "Разрешите доступ к движению и ориентации в настройках iPhone.",
   "join.title": "Только для участников",
@@ -2853,7 +2877,7 @@ type Catalog = Record<MessageKey, string>
   "status.refunded": "Возвращено",
   "status.cancelled": "Отменено",
   "payload.username": "Имя пользователя",
-  "payload.password": "Пароль",
+  "payload.password": "Пар��ль",
   "payload.email": "Эл. почта",
   "payload.licenseKey": "Лицензионный ключ",
   "payload.code": "Код",
@@ -3056,7 +3080,7 @@ type Catalog = Record<MessageKey, string>
   "acctEmail.sentNotice": "Письмо для подтверждения отправлено. Проверьте почту.",
   "acctEmail.sendFailed": "Не удалось отправить письмо подтверждения",
   "acctEmail.errMinPassword": "Пароль должен содержать не менее 8 символов",
-  "acctEmail.verifiedLocked": "Ваш email подтверждён и не может быть изменён.",
+  "acctEmail.verifiedLocked": "Ваш email подтвержд��н и не может быть изменён.",
   "acctEmail.choosePassword": "Выберите пароль (не менее 8 символов)",
   "acctEmail.sendVerify": "Отправить письмо подтверждения",
   "acctEmail.resend": "Отправить письмо повторно",
@@ -3287,7 +3311,7 @@ type Catalog = Record<MessageKey, string>
   "gwd.alreadyEntered": "Вы уже участвуете",
   "gwd.notStarted": "Ещё не началось",
   "gwd.regClosed": "Регистрация закрыта",
-  "gwd.signInToEnter": "Войдите, чтобы участвовать",
+  "gwd.signInToEnter": "Вой��ите, чтобы участвовать",
   "gwd.enter": "Участвовать",
   "bid.minBid": "Минимальная ставка — {amount} томан",
   "bid.placed": "Ваша ставка принята",
@@ -3484,6 +3508,12 @@ type Catalog = Record<MessageKey, string>
   "flash.title": "Flash Sale",
   "flash.subtitle": "Fixed price par turant kharidein; payment ke turant baad products auto-deliver ho jaate hain.",
   "flash.empty": "Koi active flash sale nahi hai.",
+  "store.allProducts": "Sabhi products",
+  "store.allProductsHint": "Poore store ko browse aur search karein",
+  "store.productsCount": "products",
+  "store.noCategories": "Abhi koi active category nahi hai.",
+  "store.categoryEmpty": "Is section mein abhi koi product available nahi hai.",
+  "store.categoriesHint": "Products dekhne ke liye category chunein.",
   "detail.back": "Flash sale par wapas",
   "detail.description": "Vivaran",
   "detail.tags": "Tags",

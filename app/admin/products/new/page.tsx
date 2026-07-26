@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import useSWR from "swr"
 import { toast } from "sonner"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { apiPost } from "@/lib/api-client"
+import { apiPost, fetcher } from "@/lib/api-client"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -65,7 +66,10 @@ export default function NewProductPage() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [shortDescription, setShortDescription] = useState("")
-  const [category, setCategory] = useState("")
+  const [categoryId, setCategoryId] = useState("")
+  const { data: categoryData } = useSWR<{ data: { id: string; name: string; active: boolean }[] }>("/api/v1/admin/product-categories", fetcher)
+  const categories = categoryData?.data ?? []
+  const category = categories.find((item) => item.id === categoryId)?.name ?? ""
   const [tags, setTags] = useState<string[]>([])
   const [coverImage, setCoverImage] = useState("")
   const [gallery, setGallery] = useState<string[]>([])
@@ -96,7 +100,7 @@ export default function NewProductPage() {
     title: { get: () => title, set: (v) => setTitle(String(v ?? "")), localized: true },
     shortDescription: { get: () => shortDescription, set: (v) => setShortDescription(String(v ?? "")), localized: true },
     description: { get: () => description, set: (v) => setDescription(String(v ?? "")), localized: true },
-    category: { get: () => category, set: (v) => setCategory(String(v ?? "")) },
+    category: { get: () => category, set: () => undefined },
     tags: { get: () => tags, set: (v) => setTags(Array.isArray(v) ? v.map(String) : []) },
     deliveryType: { get: () => deliveryType, set: (v) => setDeliveryType((v as DeliveryType) || "MANUAL") },
     price: { get: () => price, set: (v) => setPrice(String(v ?? "")) },
@@ -150,8 +154,9 @@ export default function NewProductPage() {
         mode: mode === "flash" ? ("FIXED_PRICE" as const) : ("AUCTION" as const),
         title: title.trim(),
         description: description || undefined,
-        category: category || undefined,
-        tags: tags.length ? tags : undefined,
+      category: category || undefined,
+      categoryId: categoryId || null,
+      tags: tags.length ? tags : undefined,
         gallery: gallery.length ? gallery : undefined,
         i18n: hasTranslations() ? getI18n() : undefined,
         coverImage: coverImage || undefined,
@@ -233,8 +238,15 @@ export default function NewProductPage() {
               placeholder="توضیح کامل درباره محصول را بنویسید یا «/» را برای دستورها تایپ کنید…"
             />
           </Field>
-          <Field label="دسته‌بندی">
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="هوش مصنوعی" />
+          <Field label="دسته‌بندی فروشگاه" hint="دسته‌ها را از بخش «دسته‌بندی فروشگاه» در پنل مدیریت کنید">
+            <Select value={categoryId} onValueChange={(value) => setCategoryId(value ?? "")}>
+              <SelectTrigger><SelectValue placeholder="انتخاب دسته‌بندی" /></SelectTrigger>
+              <SelectContent>
+                {categories.filter((item) => item.active).map((item) => (
+                  <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="برچسب‌ها" hint="با کاما جدا کنید">
             <Input
