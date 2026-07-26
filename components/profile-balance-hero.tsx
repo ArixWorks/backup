@@ -65,12 +65,6 @@ export function ProfileBalanceHero() {
                   <span className="text-gold max-w-24 truncate text-base font-black leading-none tabular-nums sm:max-w-none sm:text-xl">{priceValue(user?.balances?.availableBalance ?? 0)}</span>
                   <span className="text-[9px] font-semibold text-muted-foreground sm:text-[11px]">{currency}</span>
                 </span>
-                {discount > 0 ? (
-                  <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-primary sm:text-[10px]">
-                    <BadgePercent className="size-3" />
-                    {t("membership.discount").replace("{n}", String(discount))}
-                  </span>
-                ) : null}
               </span>
             </Link>
 
@@ -79,6 +73,16 @@ export function ProfileBalanceHero() {
             </Link>
           </div>
         </div>
+
+        {discount > 0 ? (
+          <Link
+            href="/rewards"
+            className="relative z-10 mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-3 py-2 text-[10px] font-bold text-primary transition-colors hoverable:hover:border-primary/45 hoverable:hover:bg-primary/10 sm:text-xs"
+          >
+            <span>{t("membership.discount").replace("{n}", String(discount))}</span>
+            <BadgePercent className="size-3.5 shrink-0" />
+          </Link>
+        ) : null}
       </div>
     </PremiumHeroCard>
   )
