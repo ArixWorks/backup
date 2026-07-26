@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   inset via max(env, --tg-safe-bottom) (env() is often 0 inside
                   Telegram while the real inset lives in --tg-safe-bottom). On
                   the web desktop shell the tab bar is gone, so we drop it. */}
-              <main className="flex-1 px-4 pt-4 pb-[calc(6.5rem+max(env(safe-area-inset-bottom),var(--tg-safe-bottom,0px)))] web:lg:px-6 web:lg:pt-6 web:lg:pb-10">
+              <main className="flex-1 px-4 pt-4 pb-[calc(6.5rem+max(env(safe-area-inset-bottom),var(--tg-safe-bottom,0px)))] web:lg:px-8 web:lg:pt-5 web:lg:pb-8 web:xl:px-10">
                 <div className="mx-auto w-full max-w-[var(--shell-max)] web:lg:max-w-[var(--content-max)]">
                   <AnimatePresence mode="wait">
                     <motion.div

@@ -8,6 +8,7 @@ import {
   deleteProducts,
 } from "@/lib/core/admin-catalog"
 import { richTextField } from "@/lib/rich-content/zod"
+import { assertCategory } from "@/lib/core/product-categories"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,7 @@ const flashSchema = z.object({
   title: z.string().min(1),
   description: richTextField().optional(),
   category: z.string().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
   tags: z.array(z.string()).optional(),
   gallery: z.array(z.string()).optional(),
   i18n: i18nSchema,
@@ -59,6 +61,7 @@ const auctionSchema = z.object({
   title: z.string().min(1),
   description: richTextField().optional(),
   category: z.string().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
   tags: z.array(z.string()).optional(),
   gallery: z.array(z.string()).optional(),
   i18n: i18nSchema,
@@ -81,6 +84,7 @@ const schema = z.discriminatedUnion("mode", [flashSchema, auctionSchema])
 export const POST = route(async (req: Request) => {
   const admin = await requireAdmin()
   const body = schema.parse(await req.json())
+  await assertCategory(body.categoryId)
 
   if (body.mode === "FIXED_PRICE") {
     return createFlashProduct(
@@ -88,6 +92,7 @@ export const POST = route(async (req: Request) => {
         title: body.title,
         description: body.description,
         category: body.category,
+        categoryId: body.categoryId,
         tags: body.tags,
         gallery: body.gallery,
         i18n: (body.i18n ?? null) as never,

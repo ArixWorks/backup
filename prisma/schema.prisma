@@ -673,7 +673,10 @@ model Product {
   // { fa?: {title,shortDescription,description}, en?: {...}, ru?: {...}, hi?: {...} }
   // The scalar title/description above stay as the primary (fa) fallback.
   i18n         Json?
+  // Legacy category label retained during migration for backward compatibility.
   category     String?
+  categoryId   String?
+  productCategory ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tags         String[]     @default([])
   coverImage   String?
   gallery      String[]     @default([])
@@ -706,7 +709,23 @@ model Product {
   questions      ProductQuestion[]
 
   @@index([saleMode, active, hidden])
+  @@index([categoryId, saleMode, active, hidden])
   @@index([defaultTutorialId])
+}
+
+model ProductCategory {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  name         String    @unique
+  description  String?
+  icon         String?
+  displayOrder Int       @default(0)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  products     Product[]
+
+  @@index([active, displayOrder])
 }
 
 // ---------------------------------------------------------------------------

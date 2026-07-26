@@ -6,7 +6,6 @@ import { Logo } from "@/components/logo"
 import { ProfileMenu } from "@/components/profile-menu"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
-import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer"
 
 /**
  * Deliberately minimal Telegram Mini App header: brand, wallet balance, and
@@ -32,10 +31,7 @@ export function SiteHeader() {
             "calc(max(env(safe-area-inset-right), var(--tg-safe-right, 0px)) + clamp(0.5rem, 3.2vw, 1.25rem))",
         }}
       >
-        {/* Brand + mobile menu. The hamburger opens the nav Drawer on phones and
-            is hidden at lg+, where the persistent Sidebar owns navigation. */}
-        <div className="flex min-w-0 shrink items-center gap-1 min-[360px]:gap-1.5">
-          <MobileNavDrawer />
+        <div className="flex min-w-0 shrink items-center">
           <Link
             href="/"
             aria-label="SubIO"

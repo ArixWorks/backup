@@ -82,7 +82,8 @@ const navGroups: NavGroup[] = [
   {
     title: "خدمات",
     items: [
-      { href: "/admin/products", label: "محصولات", icon: Boxes },
+      { href: "/admin/products", label: "محصولات", icon: Boxes, exact: true },
+      { href: "/admin/product-categories", label: "دسته‌بندی فروشگاه", icon: Package },
       { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
       { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
       { href: "/admin/domains", label: "دامنه‌ها", icon: Globe2 },

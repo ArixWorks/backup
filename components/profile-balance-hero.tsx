@@ -27,9 +27,8 @@ export function ProfileBalanceHero() {
   const discount = user?.membership?.discountPercent ?? 0
 
   return (
-    <PremiumHeroCard aria-label={t("home.welcome")} deviceTilt>
-      {/* ── Content row ── */}
-      <div className="flex items-center justify-between gap-3">
+    <PremiumHeroCard aria-label={t("home.welcome")} deviceTilt ambient={false}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* Identity cluster */}
         <div className="flex min-w-0 items-center gap-3">
           <span className="relative shrink-0">
@@ -66,11 +65,11 @@ export function ProfileBalanceHero() {
         </div>
 
         {/* Balance cluster */}
-        <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+        <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:gap-2.5">
           <Link
             href="/wallet"
             aria-label={t("nav.wallet")}
-            className="active:scale-press group flex items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/[0.06] py-1.5 pl-2 pr-2.5 transition-colors hover:border-primary/40 hover:bg-primary/10 sm:gap-3 sm:pl-2.5 sm:pr-3.5"
+            className="active:scale-press group flex min-h-14 flex-1 items-center gap-2.5 rounded-2xl border border-primary/20 bg-primary/[0.06] py-1.5 pl-2 pr-2.5 transition-colors hover:border-primary/40 hover:bg-primary/10 sm:flex-none sm:gap-3 sm:pl-2.5 sm:pr-3.5"
           >
             <span className="bg-gold flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-primary-foreground shadow-[var(--shadow-gold)] ring-1 ring-primary/40 transition-transform group-hover:scale-105 sm:h-11 sm:w-11">
               <Wallet className="h-5 w-5" strokeWidth={2} />

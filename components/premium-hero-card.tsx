@@ -44,6 +44,7 @@ export function PremiumHeroCard({
   intensity = "soft",
   deviceTilt = false,
   pointerMotion = true,
+  ambient = true,
   "aria-label": ariaLabel,
 }: {
   children: ReactNode
@@ -51,6 +52,8 @@ export function PremiumHeroCard({
   intensity?: "soft" | "normal" | "bold"
   /** Disable whole-card pointer/touch transforms while preserving inner ambient motion. */
   pointerMotion?: boolean
+  /** Render the decorative living-surface blooms. */
+  ambient?: boolean
   /**
    * Opt-in physical tilt: inside the Telegram Mini App on a phone, the card's
    * 3D tilt follows the device's orientation sensor instead of the pointer.
@@ -182,7 +185,7 @@ export function PremiumHeroCard({
   if (!interactive || !pointerMotion) {
     return (
       <section aria-label={ariaLabel} className={cardClass}>
-        <LivingSurface intensity={intensity} lines={false} particles={false} blooms />
+        {ambient ? <LivingSurface intensity={intensity} lines={false} particles={false} blooms /> : null}
         <div className="relative z-[2]">{children}</div>
       </section>
     )
@@ -207,7 +210,7 @@ export function PremiumHeroCard({
       >
         {/* Ambient backdrop: soft breathing edge blooms only — clean, no
             particles or streaks, and no central hotspot. */}
-        <LivingSurface intensity={intensity} lines={false} particles={false} blooms />
+        {ambient ? <LivingSurface intensity={intensity} lines={false} particles={false} blooms /> : null}
 
         {/* Edge-lit accent glow that follows the pointer along the border. */}
         <motion.span

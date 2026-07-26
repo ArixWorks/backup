@@ -21,6 +21,8 @@ export function PageHeader({
   description,
   action,
   breadcrumbs,
+  backHref,
+  backLabel = "Back",
   className,
 }: {
   icon?: LucideIcon
@@ -28,10 +30,18 @@ export function PageHeader({
   description?: React.ReactNode
   action?: React.ReactNode
   breadcrumbs?: Crumb[]
+  backHref?: string
+  backLabel?: string
   className?: string
 }) {
   return (
     <header className={cn("space-y-1", className)}>
+      {backHref ? (
+        <Link href={backHref} className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
+          {backLabel}
+        </Link>
+      ) : null}
       {breadcrumbs && breadcrumbs.length > 0 ? (
         <nav
           aria-label="breadcrumb"

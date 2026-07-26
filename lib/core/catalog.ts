@@ -9,6 +9,7 @@ import { computeReserveDisplay } from "./auction/reserve"
 import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
 import { resolveTemplate } from "./delivery-fields"
+import { listStoreCategories } from "./product-categories"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -55,7 +56,9 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     hidden: false,
   }
 
-  if (filters.category) where.category = filters.category
+  if (filters.category) {
+    where.AND = [{ productCategory: { slug: filters.category, active: true } }]
+  }
 
   const search = filters.search?.trim()
   if (search) {
@@ -80,15 +83,7 @@ export async function listFlashSales(filters: FlashFilters = {}) {
  * each — used to render category browse chips on the storefront.
  */
 export async function listFlashCategories() {
-  const grouped = await prisma.product.groupBy({
-    by: ["category"],
-    where: { saleMode: "FIXED_PRICE", active: true, hidden: false, category: { not: null } },
-    _count: { _all: true },
-    orderBy: { _count: { category: "desc" } },
-  })
-  return grouped
-    .filter((g) => g.category)
-    .map((g) => ({ category: g.category as string, count: g._count._all }))
+  return listStoreCategories()
 }
 
 export type FlashProductRow = {

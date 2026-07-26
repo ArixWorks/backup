@@ -5,7 +5,7 @@ import useSWR from "swr"
 import { toast } from "sonner"
 import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save, Tag, Package, Layers } from "lucide-react"
 import Link from "next/link"
-import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
+import { fetcher, apiPost, apiDelete, apiPatch, ApiError } from "@/lib/api-client"
 import { RichContent, RichContentEditor } from "@/components/rich-content"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { StatusPill } from "@/components/admin/status-pill"
@@ -42,6 +42,7 @@ type Product = {
   title: string
   description: string | null
   category: string | null
+  categoryId: string | null
   tags: string[]
   i18n: I18nStore | null
   saleMode: string
@@ -98,6 +99,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </div>
             {product.description && <RichContent content={product.description} className="mt-2" />}
           </div>
+
+          <ProductCategoryEditor
+            id={id}
+            initialCategoryId={product.categoryId}
+            onSaved={mutate}
+          />
 
           <ProductTutorialEditor
             id={id}
@@ -389,6 +396,39 @@ function MediaEditor({
             />
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ProductCategoryEditor({ id, initialCategoryId, onSaved }: { id: string; initialCategoryId: string | null; onSaved: () => void }) {
+  const { data } = useSWR<{ data: { id: string; name: string; active: boolean }[] }>("/api/v1/admin/product-categories", fetcher)
+  const [categoryId, setCategoryId] = useState(initialCategoryId ?? "")
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    try {
+      const category = data?.data.find((item) => item.id === categoryId)
+      await apiPatch(`/api/v1/admin/products/${id}`, { categoryId: categoryId || null, category: category?.name ?? "" })
+      toast.success("دسته‌بندی محصول ذخیره شد")
+      onSaved()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "خطا در ذخیره دسته‌بندی")
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex flex-1 flex-col gap-1.5">
+          <Label htmlFor="product-category">دسته‌بندی فروشگاه</Label>
+          <select id="product-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">بدون دسته‌بندی</option>
+            {data?.data.filter((item) => item.active || item.id === initialCategoryId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </div>
+        <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="animate-spin" /> : <Save />}ذخیره دسته</Button>
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ import { ValidationError } from "@/lib/core/errors"
 import { richTextField } from "@/lib/rich-content/zod"
 import { requireTestCleanupOwner } from "@/lib/core/admin/test-cleanup"
 import { deliveryTemplateSchema } from "@/lib/core/delivery-fields"
+import { assertCategory } from "@/lib/core/product-categories"
 
 export const dynamic = "force-dynamic"
 
@@ -24,6 +25,7 @@ const schema = z.object({
   title: z.string().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
+  categoryId: z.string().cuid().nullable().optional(),
   tags: z.array(z.string()).optional(),
   i18n: z.record(z.string(), z.unknown()).nullable().optional(),
   coverImage: z.string().optional(),
@@ -52,6 +54,7 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   const admin = await requireAdmin()
   const { id } = await ctx.params
   const body = schema.parse(await req.json())
+  await assertCategory(body.categoryId)
 
   if (typeof body.hidden === "boolean" && Object.keys(body).length === 1) {
     await setProductVisibility(id, body.hidden, admin.id)
@@ -74,6 +77,7 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
       title: body.title,
       description: body.description,
       category: body.category,
+      categoryId: body.categoryId,
       tags: body.tags,
       gallery: body.gallery,
       i18n: (body.i18n ?? undefined) as never,
