@@ -8,6 +8,7 @@ import {
   deleteProducts,
 } from "@/lib/core/admin-catalog"
 import { richTextField } from "@/lib/rich-content/zod"
+import { assertCategory } from "@/lib/core/product-categories"
 
 export const dynamic = "force-dynamic"
 
@@ -83,6 +84,7 @@ const schema = z.discriminatedUnion("mode", [flashSchema, auctionSchema])
 export const POST = route(async (req: Request) => {
   const admin = await requireAdmin()
   const body = schema.parse(await req.json())
+  await assertCategory(body.categoryId)
 
   if (body.mode === "FIXED_PRICE") {
     return createFlashProduct(

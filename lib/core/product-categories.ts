@@ -42,7 +42,6 @@ type CategoryInput = {
   name: string
   slug: string
   description?: string | null
-  icon?: string | null
   displayOrder?: number
   active?: boolean
 }
@@ -53,7 +52,6 @@ export async function createProductCategory(input: CategoryInput, adminId: strin
       name: input.name.trim(),
       slug: input.slug.trim().toLowerCase(),
       description: input.description?.trim() || null,
-      icon: input.icon?.trim() || null,
       displayOrder: input.displayOrder ?? 0,
       active: input.active ?? true,
     },
@@ -71,7 +69,6 @@ export async function updateProductCategory(id: string, input: Partial<CategoryI
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.slug !== undefined ? { slug: input.slug.trim().toLowerCase() } : {}),
       ...(input.description !== undefined ? { description: input.description?.trim() || null } : {}),
-      ...(input.icon !== undefined ? { icon: input.icon?.trim() || null } : {}),
       ...(input.displayOrder !== undefined ? { displayOrder: input.displayOrder } : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
     },
