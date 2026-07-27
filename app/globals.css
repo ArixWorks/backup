@@ -240,6 +240,101 @@
   .service-node__orbit { transition: none; }
 }
 
+/* Store category cards: a quiet kinetic field with four scene personalities. */
+.store-category {
+  --scene-x: 74%;
+  --scene-y: 28%;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at var(--scene-x) var(--scene-y), color-mix(in oklab, var(--primary) 24%, transparent), transparent 36%),
+    color-mix(in oklab, var(--card) 94%, var(--primary) 6%);
+}
+.store-category__field {
+  position: absolute;
+  inset: -35%;
+  z-index: -3;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 18%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 18%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(circle at var(--scene-x) var(--scene-y), black 8%, transparent 58%);
+  animation: store-field-drift 13s var(--ease-in-out-soft) infinite alternate;
+}
+.store-category__orbit {
+  position: absolute;
+  inset-inline-end: -3.75rem;
+  top: -4rem;
+  z-index: -2;
+  width: 11rem;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in oklab, var(--primary) 38%, transparent);
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 1.35rem color-mix(in oklab, var(--primary) 7%, transparent),
+    0 0 0 2.7rem color-mix(in oklab, var(--primary) 4%, transparent);
+  animation: store-orbit-turn 18s linear infinite;
+}
+.store-category__orbit::before,
+.store-category__orbit::after,
+.store-category__orbit > span {
+  content: '';
+  position: absolute;
+  width: 0.42rem;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: var(--primary);
+  box-shadow: 0 0 14px color-mix(in oklab, var(--primary) 75%, transparent);
+}
+.store-category__orbit::before { inset-inline-start: 12%; top: 12%; }
+.store-category__orbit::after { inset-inline-end: -0.2rem; top: 54%; }
+.store-category__orbit > span { inset-inline-start: 18%; bottom: 5%; }
+.store-category__scan {
+  position: absolute;
+  inset-block: -25%;
+  inset-inline-start: -24%;
+  z-index: -1;
+  width: 16%;
+  rotate: 16deg;
+  opacity: 0;
+  background: color-mix(in oklab, var(--foreground) 9%, transparent);
+  filter: blur(10px);
+  animation: store-scan-pass 7s var(--ease-in-out-soft) infinite;
+}
+.store-category__icon {
+  transition: transform var(--duration-slow) var(--ease-out-quint), box-shadow var(--duration-base) var(--ease-out-quint);
+}
+.store-category[data-scene='mesh'] { --scene-x: 22%; --scene-y: 76%; }
+.store-category[data-scene='mesh'] .store-category__field { rotate: 18deg; animation-direction: alternate-reverse; }
+.store-category[data-scene='mesh'] .store-category__orbit { inset-inline-end: auto; inset-inline-start: -4rem; top: auto; bottom: -4.5rem; animation-duration: 23s; }
+.store-category[data-scene='signal'] { --scene-x: 82%; --scene-y: 82%; }
+.store-category[data-scene='signal'] .store-category__field { background-size: 18px 18px; animation-duration: 10s; }
+.store-category[data-scene='signal'] .store-category__orbit { top: auto; bottom: -5rem; scale: 1.18; animation-direction: reverse; }
+.store-category[data-scene='prism'] { --scene-x: 18%; --scene-y: 18%; }
+.store-category[data-scene='prism'] .store-category__field { rotate: -12deg; background-size: 30px 30px; }
+.store-category[data-scene='prism'] .store-category__orbit { inset-inline-end: auto; inset-inline-start: -4.5rem; animation-duration: 26s; }
+@media (hover: hover) and (pointer: fine) {
+  .store-category:hover .store-category__icon { transform: translateY(-2px) rotate(-4deg); box-shadow: 0 10px 26px -12px color-mix(in oklab, var(--primary) 70%, transparent); }
+  .store-category:hover .store-category__field { opacity: 0.52; }
+  .store-category:hover .store-category__orbit { animation-duration: 9s; }
+}
+@keyframes store-field-drift {
+  from { translate: -3% -2%; rotate: -3deg; }
+  to { translate: 4% 3%; rotate: 4deg; }
+}
+@keyframes store-orbit-turn { to { rotate: 1turn; } }
+@keyframes store-scan-pass {
+  0%, 58%, 100% { translate: -160% 0; opacity: 0; }
+  70% { opacity: 0.7; }
+  84% { translate: 850% 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .store-category__field,
+  .store-category__orbit,
+  .store-category__scan { animation: none; }
+  .store-category__icon { transition: none; }
+}
+
 /* ============================================================================
    THEME PALETTES
    Admin-selectable via data-theme on <html> (applied server-side from the

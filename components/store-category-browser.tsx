@@ -8,7 +8,6 @@ import { fetcher } from "@/lib/api-client"
 import { useI18n } from "@/components/i18n-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
@@ -25,7 +24,7 @@ type FeaturedProduct = {
   stock: number
 }
 
-const categoryTones = ["bg-primary text-primary-foreground", "bg-secondary text-secondary-foreground", "bg-accent text-accent-foreground", "bg-muted text-foreground"]
+const categoryScenes = ["orbit", "mesh", "signal", "prism"] as const
 
 export function StoreCategoryBrowser() {
   const { locale, num, price, t } = useI18n()
@@ -110,14 +109,31 @@ export function StoreCategoryBrowser() {
 
             {(data?.data.length ?? 0) > 0 ? data?.data.map((category, index) => {
               const empty = category.count === 0
+              const scene = categoryScenes[index % categoryScenes.length]
               return (
-                <Link key={category.id} href={`/flash/category/${category.slug}`} className="group block">
-                  <Card className={cn("h-full overflow-hidden border-0 shadow-none transition-transform hover:-translate-y-0.5", empty && "opacity-60")}>
-                    <CardContent className={cn("flex aspect-[4/3] flex-col justify-between gap-3 p-4", categoryTones[index % categoryTones.length])}>
-                      <div className="flex items-start justify-between gap-2"><Boxes className="size-7" aria-hidden="true" /><ArrowLeft className="size-4 transition-transform group-hover:-translate-x-1 rtl:rotate-180 rtl:group-hover:translate-x-1" /></div>
-                      <div><h3 className="line-clamp-2 font-extrabold sm:text-lg">{category.name}</h3><p className="mt-1 text-xs font-medium opacity-75">{num(category.count)} {t("store.productsCount")}</p></div>
-                    </CardContent>
-                  </Card>
+                <Link
+                  key={category.id}
+                  href={`/flash/category/${category.slug}`}
+                  className={cn("store-category group relative isolate block aspect-[4/3] overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-md outline-none transition-[transform,border-color,box-shadow] duration-300 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background hoverable:hover:-translate-y-1 hoverable:hover:border-primary/40 hoverable:hover:shadow-lg", empty && "opacity-60")}
+                  data-scene={scene}
+                >
+                  <span className="store-category__field" aria-hidden="true" />
+                  <span className="store-category__orbit" aria-hidden="true"><span /></span>
+                  <span className="store-category__scan" aria-hidden="true" />
+                  <div className="relative z-10 flex size-full flex-col justify-between gap-3 p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="store-category__icon flex size-11 items-center justify-center rounded-2xl border border-foreground/10 bg-background/70 text-primary shadow-sm backdrop-blur-md">
+                        <Boxes className="size-5" aria-hidden="true" />
+                      </span>
+                      <span className="flex size-8 items-center justify-center rounded-full border border-foreground/10 bg-background/55 text-foreground backdrop-blur-md transition-transform duration-300 group-hover:-translate-x-1 rtl:group-hover:translate-x-1">
+                        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="line-clamp-2 text-balance text-base font-black leading-snug sm:text-lg">{category.name}</h3>
+                      <p className="text-xs font-semibold text-muted-foreground">{num(category.count)} {t("store.productsCount")}</p>
+                    </div>
+                  </div>
                 </Link>
               )
             }) : (
