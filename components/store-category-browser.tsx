@@ -99,12 +99,12 @@ export function StoreCategoryBrowser() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3">{[0, 1, 2, 3].map((item) => <Skeleton key={item} className="aspect-[4/3] rounded-2xl" />)}</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 web:xl:grid-cols-3">{[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-32 rounded-3xl" />)}</div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/flash/all" className="group col-span-2 flex min-h-28 items-center justify-between gap-4 rounded-2xl border border-primary/25 bg-primary/10 p-4 transition-colors hover:bg-primary/15">
-              <div className="flex items-center gap-3"><span className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"><ShoppingBag className="size-6" /></span><div><h3 className="font-bold">{t("store.allProducts")}</h3><p className="mt-1 text-sm text-muted-foreground">{t("store.allProductsHint")}</p></div></div>
-              <ArrowLeft className="size-5 shrink-0 text-primary transition-transform group-hover:-translate-x-1 rtl:rotate-180 rtl:group-hover:translate-x-1" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 web:xl:grid-cols-3">
+            <Link href="/flash/all" className="group col-span-full flex min-h-28 items-center justify-between gap-3 overflow-hidden rounded-3xl border border-primary/30 bg-primary/10 p-4 outline-none transition-[background-color,border-color,transform] focus-visible:ring-2 focus-visible:ring-ring hoverable:hover:-translate-y-0.5 hoverable:hover:border-primary/50 hoverable:hover:bg-primary/15 sm:p-5">
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4"><span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md sm:size-14"><ShoppingBag className="size-6" aria-hidden="true" /></span><div className="min-w-0"><h3 className="text-base font-extrabold sm:text-lg">{t("store.allProducts")}</h3><p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">{t("store.allProductsHint")}</p></div></div>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-background/40 text-primary"><ArrowLeft className="size-5 transition-transform group-hover:-translate-x-1 rtl:rotate-180 rtl:group-hover:translate-x-1" aria-hidden="true" /></span>
             </Link>
 
             {(data?.data.length ?? 0) > 0 ? data?.data.map((category, index) => {
@@ -114,30 +114,28 @@ export function StoreCategoryBrowser() {
                 <Link
                   key={category.id}
                   href={`/flash/category/${category.slug}`}
-                  className={cn("store-category group relative isolate block aspect-[4/3] overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-md outline-none transition-[transform,border-color,box-shadow] duration-300 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background hoverable:hover:-translate-y-1 hoverable:hover:border-primary/40 hoverable:hover:shadow-lg", empty && "opacity-60")}
+                  className={cn("store-category group relative isolate block min-h-32 overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-md outline-none transition-[transform,border-color,box-shadow] duration-300 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background hoverable:hover:-translate-y-1 hoverable:hover:border-primary/40 hoverable:hover:shadow-lg", empty && "opacity-60")}
                   data-scene={scene}
                 >
                   <span className="store-category__field" aria-hidden="true" />
                   <span className="store-category__orbit" aria-hidden="true"><span /></span>
                   <span className="store-category__scan" aria-hidden="true" />
-                  <div className="relative z-10 flex size-full flex-col justify-between gap-3 p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="store-category__icon flex size-11 items-center justify-center rounded-2xl border border-foreground/10 bg-background/70 text-primary shadow-sm backdrop-blur-md">
-                        <Boxes className="size-5" aria-hidden="true" />
-                      </span>
-                      <span className="flex size-8 items-center justify-center rounded-full border border-foreground/10 bg-background/55 text-foreground backdrop-blur-md transition-transform duration-300 group-hover:-translate-x-1 rtl:group-hover:translate-x-1">
-                        <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <h3 className="line-clamp-2 text-balance text-base font-black leading-snug sm:text-lg">{category.name}</h3>
+                  <div className="relative z-10 flex min-h-32 items-center gap-3 p-4 sm:min-h-36 sm:gap-4 sm:p-5">
+                    <span className="store-category__icon flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/25 bg-background/65 text-primary shadow-sm backdrop-blur-md sm:size-14">
+                      <Boxes className="size-5 sm:size-6" aria-hidden="true" />
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <h3 dir="auto" className="line-clamp-2 text-pretty text-base font-black leading-6 sm:text-lg">{category.name}</h3>
                       <p className="text-xs font-semibold text-muted-foreground">{num(category.count)} {t("store.productsCount")}</p>
                     </div>
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-background/55 text-foreground backdrop-blur-md transition-transform duration-300 group-hover:-translate-x-1 rtl:group-hover:translate-x-1">
+                      <ArrowLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
+                    </span>
                   </div>
                 </Link>
               )
             }) : (
-              <div className="col-span-2 flex min-h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-center"><PackageOpen className="size-8 text-muted-foreground" /><p className="text-sm text-muted-foreground">{t("store.noCategories")}</p></div>
+              <div className="col-span-full flex min-h-48 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-center"><PackageOpen className="size-8 text-muted-foreground" /><p className="text-sm text-muted-foreground">{t("store.noCategories")}</p></div>
             )}
           </div>
         )}
