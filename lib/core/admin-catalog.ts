@@ -85,12 +85,14 @@ export interface FlashProductInput {
   bulkMinQty?: number | null
   bulkDiscountPercent?: number | null
   hidden?: boolean
+  featured?: boolean
+  featuredOrder?: number
 }
 
 /** Clean a tag list: trim, drop empties, cap at 12. */
 function cleanTags(tags?: string[]): string[] {
   if (!Array.isArray(tags)) return []
-  return Array.from(new Set(tags.map((t) => (t ?? "").trim()).filter(Boolean))).slice(0, 12)
+  return Array.from(new Set(tags.map((tag) => (tag ?? "").trim()).filter(Boolean))).slice(0, 12)
 }
 
 /** Clean a gallery URL list: drop empties, cap at 12. */
@@ -147,6 +149,8 @@ export async function createFlashProduct(input: FlashProductInput, adminId: stri
       saleMode: "FIXED_PRICE",
       deliveryType: input.deliveryType,
       hidden: input.hidden ?? false,
+      featured: input.featured ?? false,
+      featuredOrder: Math.max(0, input.featuredOrder ?? 0),
       fixedSale: {
         create: {
           price: input.price,
@@ -199,6 +203,8 @@ export interface FlashUpdateInput {
   bulkDiscountPercent?: number | null
   hidden?: boolean
   active?: boolean
+  featured?: boolean
+  featuredOrder?: number
   // Credential field template (array of field defs) or null to clear.
   deliveryFields?: Prisma.InputJsonValue | null
 }
@@ -220,6 +226,8 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
       links: input.links !== undefined ? cleanLinks(input.links) : undefined,
       hidden: input.hidden,
       active: input.active,
+      featured: input.featured,
+      featuredOrder: input.featuredOrder === undefined ? undefined : Math.max(0, input.featuredOrder),
       deliveryFields:
         input.deliveryFields === undefined
           ? undefined

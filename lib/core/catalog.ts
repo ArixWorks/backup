@@ -86,6 +86,22 @@ export async function listFlashCategories() {
   return listStoreCategories()
 }
 
+export async function listFeaturedFlashSales(locale = "fa") {
+  const products = await prisma.product.findMany({
+    where: {
+      saleMode: "FIXED_PRICE",
+      active: true,
+      hidden: false,
+      featured: true,
+    },
+    include: { fixedSale: true },
+    orderBy: [{ featuredOrder: "asc" }, { createdAt: "desc" }],
+    take: 8,
+  })
+  const localized = await Promise.all(products.map((product) => localizedProduct(product, locale)))
+  return localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
+}
+
 export type FlashProductRow = {
   id: string
   slug: string

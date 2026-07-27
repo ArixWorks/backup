@@ -1,22 +1,27 @@
 [
   {
     "path": "lib/i18n/messages.ts",
-    "line": 1258,
+    "line": 1274,
     "text": "\"invite.subtitle\": \"دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ ��ز عضویت تا هر خرید آن‌ها.\","
   },
   {
     "path": "lib/i18n/messages.ts",
-    "line": 1260,
+    "line": 1276,
     "text": "\"invite.how\": \"چطور پاد��ش می‌گیرم؟\","
   },
   {
     "path": "lib/i18n/messages.ts",
-    "line": 1484,
+    "line": 1500,
     "text": "\"txn.PURCHASE\": \"کسر بابت خ��ید\","
   },
   {
     "path": "lib/i18n/messages.ts",
-    "line": 1694,
+    "line": 1586,
+    "text": "\"notifList.tabArchived\": \"��ایگانی\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1710,
     "text": "\"refAct.emptyDesc\": \"لینک خود را به اشتراک بگذارید تا ای��جا دوستانتان را ببینید.\","
   },
   {

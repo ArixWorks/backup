@@ -40,6 +40,8 @@ const schema = z.object({
   bulkDiscountPercent: z.number().int().min(1).max(90).nullable().optional(),
   hidden: z.boolean().optional(),
   active: z.boolean().optional(),
+  featured: z.boolean().optional(),
+  featuredOrder: z.number().int().min(0).max(9999).optional(),
   defaultTutorialId: z.string().cuid().nullable().optional(),
   deliveryFields: deliveryTemplateSchema.nullable().optional(),
 })
@@ -93,6 +95,8 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
       bulkDiscountPercent: body.bulkDiscountPercent,
       hidden: body.hidden,
       active: body.active,
+      featured: body.featured,
+      featuredOrder: body.featuredOrder,
       deliveryFields: body.deliveryFields,
     },
     admin.id,

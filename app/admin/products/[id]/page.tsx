@@ -3,7 +3,7 @@
 import { use, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save, Tag, Package, Layers } from "lucide-react"
+import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save, Tag, Package, Layers, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { fetcher, apiPost, apiDelete, apiPatch, ApiError } from "@/lib/api-client"
 import { RichContent, RichContentEditor } from "@/components/rich-content"
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
@@ -49,6 +50,8 @@ type Product = {
   deliveryType: string
   hidden: boolean
   active: boolean
+  featured: boolean
+  featuredOrder: number
   coverImage: string | null
   gallery: string[]
   links?: ProductLink[] | null
@@ -105,6 +108,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             initialCategoryId={product.categoryId}
             onSaved={mutate}
           />
+
+          {product.saleMode === "FIXED_PRICE" && (
+            <FeaturedProductEditor
+              id={id}
+              initialFeatured={product.featured}
+              initialOrder={product.featuredOrder}
+              onSaved={mutate}
+            />
+          )}
 
           <ProductTutorialEditor
             id={id}
@@ -192,6 +204,65 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             ))}
         </>
       )}
+    </div>
+  )
+}
+
+function FeaturedProductEditor({
+  id,
+  initialFeatured,
+  initialOrder,
+  onSaved,
+}: {
+  id: string
+  initialFeatured: boolean
+  initialOrder: number
+  onSaved: () => void
+}) {
+  const [featured, setFeatured] = useState(initialFeatured)
+  const [order, setOrder] = useState(String(initialOrder))
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    try {
+      await apiPatch(`/api/v1/admin/products/${id}`, {
+        featured,
+        featuredOrder: Math.max(0, Number(order) || 0),
+      })
+      toast.success("تنظیمات اسلایدر ذخیره شد")
+      onSaved()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "خطا در ذخیره تنظیمات اسلایدر")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-card p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex flex-1 items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Sparkles className="size-5" aria-hidden="true" />
+          </span>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="featured-product" className="font-bold">نمایش در اسلایدر فروشگاه</Label>
+            <p className="text-xs leading-relaxed text-muted-foreground">محصول فعال و قابل‌نمایش با ترتیب کمتر، زودتر در اسلایدر دیده می‌شود.</p>
+          </div>
+          <Switch id="featured-product" checked={featured} onCheckedChange={setFeatured} aria-label="نمایش در اسلایدر فروشگاه" />
+        </div>
+        <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="featured-order" className="text-xs">ترتیب نمایش</Label>
+            <Input id="featured-order" value={order} onChange={(event) => setOrder(event.target.value)} inputMode="numeric" className="w-28" disabled={!featured} />
+          </div>
+          <Button onClick={save} disabled={saving}>
+            {saving ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Save data-icon="inline-start" />}
+            ذخیره
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

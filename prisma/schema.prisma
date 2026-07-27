@@ -694,8 +694,10 @@ model Product {
   defaultTutorialId String?
   defaultTutorial   Content?     @relation("ProductDefaultTutorial", fields: [defaultTutorialId], references: [id], onDelete: SetNull)
   hidden            Boolean      @default(false)
-  active       Boolean      @default(true)
-  createdAt    DateTime     @default(now())
+  active            Boolean      @default(true)
+  featured          Boolean      @default(false)
+  featuredOrder     Int          @default(0)
+  createdAt         DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   fixedSale      FixedSale?
@@ -709,6 +711,7 @@ model Product {
   questions      ProductQuestion[]
 
   @@index([saleMode, active, hidden])
+  @@index([featured, featuredOrder, saleMode, active, hidden])
   @@index([categoryId, saleMode, active, hidden])
   @@index([defaultTutorialId])
 }
