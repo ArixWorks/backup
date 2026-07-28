@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { ShoppingCart, Loader2, CheckCircle2, Minus, Plus, Wallet, CreditCard, Tag, X } from "lucide-react"
+import { ShoppingCart, Loader2, CheckCircle2, Minus, Plus, Tag, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -397,14 +397,14 @@ function PaymentStep({
     {
       id: "BALANCE",
       title: t("buy.payWallet"),
-      meta: balanceLabel,
-      iconNode: <Wallet className="h-8 w-8 text-primary" />,
+      meta: insufficient ? undefined : balanceLabel,
+      iconSrc: "/pay-icons/3d/balance.png",
       disabled: insufficient,
       disabledHint: insufficient ? t("buy.insufficient") : undefined,
     },
-    { id: "CARD", title: t("wallet.methodCard"), iconNode: <CreditCard className="h-8 w-8 text-primary" /> },
-    { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, iconSrc: "/pay-icons/ton.svg" },
-    { id: "STARS", title: t("wallet.methodStars"), iconSrc: "/pay-icons/telegram.svg" },
+    { id: "CARD", title: t("wallet.methodCard"), iconSrc: "/pay-icons/3d/card.png" },
+    { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, iconSrc: "/pay-icons/3d/ton.png" },
+    { id: "STARS", title: t("wallet.methodStars"), iconSrc: "/pay-icons/3d/stars.png" },
   ]
 
   const active = ids[Math.min(activeIndex, ids.length - 1)]

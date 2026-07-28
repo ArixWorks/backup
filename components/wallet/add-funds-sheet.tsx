@@ -50,10 +50,10 @@ type Instructions = {
 }
 
 const METHOD_ICON: Record<string, { src?: string; lucide?: boolean }> = {
-  CARD: { lucide: true },
-  USDT: { src: "/pay-icons/tether.svg" },
-  TON: { src: "/pay-icons/ton.svg" },
-  STARS: { src: "/pay-icons/telegram.svg" },
+  CARD: { src: "/pay-icons/3d/card.png" },
+  USDT: { src: "/pay-icons/3d/usdt.png" },
+  TON: { src: "/pay-icons/3d/ton.png" },
+  STARS: { src: "/pay-icons/3d/stars.png" },
 }
 
 const PAY_DECIMALS: Record<string, number> = { IRT: 0, USDT: 2, TON: 2, XTR: 0 }
