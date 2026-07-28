@@ -67,14 +67,8 @@ function FeaturedSlider({ featured, activeSlide, direction, reduceMotion, locale
       </div>
 
       <div
-        className="group relative isolate aspect-[16/10] overflow-hidden rounded-[2rem] border border-border bg-card shadow-xl [perspective:1200px] sm:aspect-[21/8]"
+        className="group relative isolate aspect-[16/10] touch-pan-y overflow-hidden rounded-[2rem] border border-border bg-muted shadow-xl [perspective:1200px] sm:aspect-[21/8]"
         dir="ltr"
-        onPointerEnter={() => onPauseChange(true)}
-        onPointerLeave={() => onPauseChange(false)}
-        onFocus={() => onPauseChange(true)}
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) onPauseChange(false)
-        }}
       >
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.article
@@ -84,15 +78,17 @@ function FeaturedSlider({ featured, activeSlide, direction, reduceMotion, locale
             initial={reduceMotion ? { opacity: 0 } : "enter"}
             animate={reduceMotion ? { opacity: 1 } : "center"}
             exit={reduceMotion ? { opacity: 0 } : "exit"}
-            transition={{ duration: reduceMotion ? 0.18 : 0.65, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: reduceMotion ? 0.18 : 0.6, ease: [0.22, 1, 0.36, 1] }}
             drag={featured.length > 1 && !reduceMotion ? "x" : false}
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.12}
+            onDragStart={() => onPauseChange(true)}
             onDragEnd={(_, info) => {
+              onPauseChange(false)
               if (info.offset.x < -55 || info.velocity.x < -450) onNext()
               else if (info.offset.x > 55 || info.velocity.x > 450) onPrev()
             }}
-            className="absolute inset-0 overflow-hidden rounded-[inherit] bg-foreground text-background [transform-style:preserve-3d]"
+            className="absolute inset-0 overflow-hidden rounded-[inherit] bg-muted [transform-style:preserve-3d]"
             dir={locale === "fa" ? "rtl" : "ltr"}
           >
             {product.coverImage ? (
@@ -100,7 +96,8 @@ function FeaturedSlider({ featured, activeSlide, direction, reduceMotion, locale
                 src={product.coverImage}
                 alt=""
                 crossOrigin="anonymous"
-                className="absolute inset-0 size-full object-cover"
+                draggable={false}
+                className="pointer-events-none absolute inset-0 size-full select-none object-cover"
                 initial={reduceMotion ? false : { scale: 1.08 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
@@ -110,19 +107,29 @@ function FeaturedSlider({ featured, activeSlide, direction, reduceMotion, locale
                 <ShoppingBag className="size-28 text-primary-foreground/80 sm:size-36" />
               </div>
             )}
-            <div className="absolute inset-0 bg-foreground/45" aria-hidden="true" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.9),rgba(0,0,0,0.35)_55%,rgba(0,0,0,0.15))]" aria-hidden="true" />
 
-            <div className="relative flex size-full flex-col items-start justify-end gap-4 p-5 sm:max-w-3xl sm:p-8">
+            <div className="relative flex size-full flex-col items-center justify-end gap-3 px-5 pb-7 pt-6 text-center sm:pb-8">
               <motion.h3
-                initial={reduceMotion ? false : { y: 18, opacity: 0 }}
+                initial={reduceMotion ? false : { y: 14, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: reduceMotion ? 0 : 0.2, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className="max-w-2xl text-balance text-2xl font-black leading-tight text-background drop-shadow-lg sm:text-4xl"
+                transition={{ delay: reduceMotion ? 0 : 0.15, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                className="line-clamp-1 max-w-md text-balance text-base font-extrabold leading-snug text-white drop-shadow-lg sm:text-2xl"
+                dir={locale === "fa" ? "rtl" : "ltr"}
               >
                 {product.title}
               </motion.h3>
-              <motion.div initial={reduceMotion ? false : { y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: reduceMotion ? 0 : 0.3, duration: 0.45 }}>
-                <Button render={<Link href={`/flash/${product.slug}`} />} size="lg" className="rounded-full px-6 shadow-lg">
+              <motion.div
+                className="w-full max-w-xs"
+                initial={reduceMotion ? false : { y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: reduceMotion ? 0 : 0.25, duration: 0.45 }}
+              >
+                <Button
+                  render={<Link href={`/flash/${product.slug}`} />}
+                  size="sm"
+                  className="h-9 w-full rounded-full border border-white/25 bg-white/15 text-sm font-semibold text-white shadow-md backdrop-blur-md hover:bg-white/25"
+                >
                   {t("store.viewProduct")}<ArrowLeft data-icon="inline-end" className="rtl:rotate-180" />
                 </Button>
               </motion.div>
@@ -132,13 +139,13 @@ function FeaturedSlider({ featured, activeSlide, direction, reduceMotion, locale
 
         {featured.length > 1 && (
           <>
-            <div className="absolute inset-x-4 top-1/2 z-20 flex -translate-y-1/2 justify-between opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100" dir="ltr">
-              <Button variant="secondary" size="icon" className="rounded-full bg-background/75 shadow-lg backdrop-blur-md" onClick={onPrev} aria-label={t("store.previousSlide")}><ArrowLeft /></Button>
-              <Button variant="secondary" size="icon" className="rounded-full bg-background/75 shadow-lg backdrop-blur-md" onClick={onNext} aria-label={t("store.nextSlide")}><ArrowRight /></Button>
+            <div className="pointer-events-none absolute inset-x-3 top-1/2 z-20 hidden -translate-y-1/2 justify-between opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 sm:flex" dir="ltr">
+              <Button variant="secondary" size="icon-sm" className="pointer-events-auto rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md hover:bg-black/65" onClick={onPrev} aria-label={t("store.previousSlide")}><ArrowLeft /></Button>
+              <Button variant="secondary" size="icon-sm" className="pointer-events-auto rounded-full bg-black/45 text-white shadow-lg backdrop-blur-md hover:bg-black/65" onClick={onNext} aria-label={t("store.nextSlide")}><ArrowRight /></Button>
             </div>
-            <div className="absolute inset-x-0 bottom-3 z-20 flex items-center justify-center gap-2" dir="ltr">
+            <div className="absolute inset-x-0 bottom-2.5 z-20 flex items-center justify-center gap-2" dir="ltr">
               {featured.map((item, index) => (
-                <button key={item.id} type="button" onClick={() => onSelect(index)} className={cn("h-1.5 rounded-full bg-background/55 transition-[width,background-color] duration-300", index === activeSlide ? "w-7 bg-background" : "w-1.5")} aria-label={`${t(index < activeSlide ? "store.previousSlide" : "store.nextSlide")} ${num(index + 1)}`} aria-current={index === activeSlide ? "true" : undefined} />
+                <button key={item.id} type="button" onClick={() => onSelect(index)} className={cn("h-1.5 rounded-full bg-white/50 transition-[width,background-color] duration-300", index === activeSlide ? "w-6 bg-white" : "w-1.5")} aria-label={`${t(index < activeSlide ? "store.previousSlide" : "store.nextSlide")} ${num(index + 1)}`} aria-current={index === activeSlide ? "true" : undefined} />
               ))}
             </div>
           </>
