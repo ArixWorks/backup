@@ -440,9 +440,6 @@ function PaymentStep({
           onActiveChange={onActiveChange}
           onSelect={confirm}
         />
-        {active === "BALANCE" && insufficient && (
-          <p className="text-center text-xs font-medium text-destructive">{t("buy.insufficient")}</p>
-        )}
         <Button onClick={confirm} disabled={loading} className="h-12 w-full text-base font-bold">
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : label}
         </Button>
