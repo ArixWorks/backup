@@ -21,12 +21,12 @@ export type PaymentCarouselItem = {
 }
 
 /**
- * A coverflow-style rotating payment picker inspired by premium wallet UIs:
- * a large glossy icon tile sits in the center while neighbours rotate back in
- * 3D and dim. The active item's label renders below the track, with round
- * prev/next arrows. Users can swipe/drag, tap a side tile, or use the arrows.
- * Fully controlled via `activeIndex` + `onActiveChange`; tapping the centered
- * tile fires `onSelect` so the parent can advance the flow.
+ * Swipeable payment picker modeled on premium wallet bots: one large glossy
+ * 3D icon tile in the center, small dimmed icon tiles on the sides (no 3D
+ * rotation - a flat slide + scale, exactly like the reference video), the
+ * active label below, then round prev/next arrows. Fully controlled via
+ * `activeIndex` + `onActiveChange`; tapping the centered tile fires
+ * `onSelect` so the parent can advance the flow.
  */
 export function PaymentMethodCarousel({
   items,
@@ -53,7 +53,7 @@ export function PaymentMethodCarousel({
     return () => ro.disconnect()
   }, [])
 
-  const spacing = Math.max(112, width * 0.4)
+  const spacing = Math.max(120, Math.min(width * 0.42, 170))
   const dragFraction = spacing > 0 ? drag / spacing : 0
   const active = items[Math.min(activeIndex, items.length - 1)]
 
@@ -68,9 +68,9 @@ export function PaymentMethodCarousel({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div ref={containerRef} className="relative h-40 w-full [perspective:1000px]">
+      <div ref={containerRef} className="relative h-40 w-full overflow-hidden">
         <motion.div
-          className="absolute inset-0 [transform-style:preserve-3d]"
+          className="absolute inset-0"
           style={{ touchAction: "pan-y" }}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
@@ -83,6 +83,8 @@ export function PaymentMethodCarousel({
             const abs = Math.abs(pos)
             const isActive = index === activeIndex
             const hidden = abs > 2.2
+            // Flat coverflow: center tile is full size, neighbours shrink and dim.
+            const scale = Math.max(0.42, 1 - abs * 0.52)
             return (
               <button
                 key={item.id}
@@ -97,12 +99,12 @@ export function PaymentMethodCarousel({
                   else onActiveChange(index)
                 }}
                 className={cn(
-                  "absolute left-1/2 top-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 will-change-transform focus:outline-none",
+                  "absolute left-1/2 top-1/2 h-[8.5rem] w-[8.5rem] will-change-transform focus:outline-none",
                   drag === 0 && "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
                 )}
                 style={{
-                  transform: `translate(-50%, -50%) translateX(${pos * spacing}px) rotateY(${clampNum(-pos * 35, -46, 46)}deg) scale(${Math.max(0.6, 1 - abs * 0.28)})`,
-                  opacity: hidden ? 0 : Math.max(0, 1 - abs * 0.45),
+                  transform: `translate(-50%, -50%) translateX(${pos * spacing}px) scale(${scale})`,
+                  opacity: hidden ? 0 : Math.max(0, 1 - abs * 0.4),
                   zIndex: 100 - Math.round(abs * 10),
                   pointerEvents: hidden ? "none" : "auto",
                 }}
@@ -149,29 +151,27 @@ function IconTile({ item, active }: { item: PaymentCarouselItem; active: boolean
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center rounded-[1.75rem] border transition-colors",
+        "h-full w-full overflow-hidden rounded-[1.9rem] border transition-[border-color,box-shadow]",
         active
-          ? "border-primary/60 bg-card shadow-[0_20px_50px_-12px_var(--primary)] ring-2 ring-primary/50"
-          : "border-border/60 bg-card/70",
+          ? "border-primary/50 shadow-[0_0_36px_-6px_var(--primary)] ring-1 ring-primary/40"
+          : "border-border/50",
         item.disabled && "grayscale",
       )}
     >
-      <span className="relative flex h-24 w-24 items-center justify-center">
-        {item.iconSrc ? (
-          <Image
-            src={item.iconSrc}
-            alt=""
-            width={96}
-            height={96}
-            draggable={false}
-            className="h-24 w-24 select-none object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.45)]"
-          />
-        ) : (
-          <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/15 [&>svg]:h-10 [&>svg]:w-10">
-            {item.iconNode}
-          </span>
-        )}
-      </span>
+      {item.iconSrc ? (
+        <Image
+          src={item.iconSrc}
+          alt=""
+          width={272}
+          height={272}
+          draggable={false}
+          className="h-full w-full select-none object-cover"
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center bg-card [&>svg]:h-14 [&>svg]:w-14">
+          {item.iconNode}
+        </span>
+      )}
     </div>
   )
 }
@@ -192,7 +192,7 @@ function ArrowButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={direction === "prev" ? "Previous" : "Next"}
-      className="active:scale-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-muted text-foreground transition-[background-color,opacity] hover:bg-accent disabled:opacity-35"
+      className="active:scale-press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-muted text-primary transition-[background-color,opacity] hover:bg-accent disabled:opacity-35"
     >
       <Icon className="h-5 w-5" />
     </button>
@@ -201,8 +201,4 @@ function ArrowButton({
 
 function clamp(index: number, length: number) {
   return Math.max(0, Math.min(length - 1, index))
-}
-
-function clampNum(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }
