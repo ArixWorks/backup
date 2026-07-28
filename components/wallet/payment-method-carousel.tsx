@@ -2,14 +2,22 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
+import dynamic from "next/dynamic"
 import { motion } from "motion/react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+const GatewayModel3D = dynamic(
+  () => import("@/components/wallet/gateway-model-3d").then((m) => m.GatewayModel3D),
+  { ssr: false },
+)
 
 export type PaymentCarouselItem = {
   id: string
   title: string
   subtitle?: string
+  /** Path to a real 3D model (.glb). Rendered spinning on the center tile. */
+  modelSrc?: string
   /** Path to a 3D image icon (png/svg). Takes priority over `iconNode`. */
   iconSrc?: string
   /** Fallback node icon (e.g. a lucide icon) when no image is provided. */
@@ -158,7 +166,11 @@ function IconTile({ item, active }: { item: PaymentCarouselItem; active: boolean
         item.disabled && "grayscale",
       )}
     >
-      {item.iconSrc ? (
+      {item.modelSrc && active ? (
+        <div className="h-full w-full bg-card">
+          <GatewayModel3D src={item.modelSrc} />
+        </div>
+      ) : item.iconSrc ? (
         <Image
           src={item.iconSrc}
           alt=""

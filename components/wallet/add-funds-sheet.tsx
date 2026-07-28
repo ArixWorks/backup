@@ -49,8 +49,8 @@ type Instructions = {
   status: string
 }
 
-const METHOD_ICON: Record<string, { src?: string; lucide?: boolean }> = {
-  CARD: { src: "/pay-icons/3d/card.png" },
+const METHOD_ICON: Record<string, { src?: string; model?: string; lucide?: boolean }> = {
+  CARD: { src: "/pay-icons/3d/card.png", model: "/pay-icons/3d/card.glb" },
   USDT: { src: "/pay-icons/3d/usdt.png" },
   TON: { src: "/pay-icons/3d/ton.png" },
   STARS: { src: "/pay-icons/3d/stars.png" },
@@ -383,6 +383,7 @@ function MethodStep({
       title: l.title,
       subtitle: l.sub,
       iconSrc: icon?.lucide ? undefined : icon?.src,
+      modelSrc: icon?.model,
       iconNode: icon?.lucide ? <CreditCard className="h-8 w-8 text-primary" /> : undefined,
       disabled: starsBlocked,
       disabledHint: starsBlocked ? t("wallet.starsOnlyTelegram") : undefined,

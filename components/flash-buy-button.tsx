@@ -402,7 +402,7 @@ function PaymentStep({
       disabled: insufficient,
       disabledHint: insufficient ? t("buy.insufficient") : undefined,
     },
-    { id: "CARD", title: t("wallet.methodCard"), iconSrc: "/pay-icons/3d/card.png" },
+    { id: "CARD", title: t("wallet.methodCard"), iconSrc: "/pay-icons/3d/card.png", modelSrc: "/pay-icons/3d/card.glb" },
     { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, iconSrc: "/pay-icons/3d/ton.png" },
     { id: "STARS", title: t("wallet.methodStars"), iconSrc: "/pay-icons/3d/stars.png" },
   ]
