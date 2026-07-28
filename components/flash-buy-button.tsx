@@ -1,9 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import Image from "next/image"
 import { toast } from "sonner"
-import { ShoppingCart, Loader2, CheckCircle2, Minus, Plus, Wallet, CreditCard, ChevronLeft, Tag, X } from "lucide-react"
+import { ShoppingCart, Loader2, CheckCircle2, Minus, Plus, Wallet, CreditCard, Tag, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -21,14 +20,11 @@ import { useI18n } from "@/components/i18n-provider"
 import type { FlashSale, PlanVariant } from "@/components/flash-card"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { AddFundsSheet } from "@/components/wallet/add-funds-sheet"
+import { PaymentMethodCarousel, type PaymentCarouselItem } from "@/components/wallet/payment-method-carousel"
 
 type Step = "quantity" | "payment" | "done"
 
-const TOP_UP_METHODS = [
-  { id: "CARD", label: "wallet.methodCard", icon: null },
-  { id: "TON", label: "wallet.methodTon", icon: "/pay-icons/ton.svg" },
-  { id: "STARS", label: "wallet.methodStars", icon: "/pay-icons/telegram.svg" },
-] as const
+type TopUpMethod = "CARD" | "TON" | "STARS"
 
 export function FlashBuyButton({
   sale,
@@ -70,6 +66,8 @@ export function FlashBuyButton({
 
   const [open, setOpen] = useState(false)
   const [addFundsOpen, setAddFundsOpen] = useState(false)
+  const [payIndex, setPayIndex] = useState(0)
+  const [topUpAllowed, setTopUpAllowed] = useState<TopUpMethod[]>(["CARD", "TON", "STARS"])
   const [celebrating, setCelebrating] = useState(false)
   const [step, setStep] = useState<Step>("quantity")
   const [qty, setQty] = useState(1)
@@ -110,6 +108,8 @@ export function FlashBuyButton({
     setResult(null)
     setCouponInput("")
     setApplied(null)
+    setPayIndex(0)
+    setTopUpAllowed(["CARD", "TON", "STARS"])
     setOpen(true)
   }
 
@@ -303,60 +303,21 @@ export function FlashBuyButton({
           )}
 
           {step === "payment" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{t("buy.selectPayment")}</DialogTitle>
-                <DialogDescription>
-                  {sale.title} — {priceValue(total)} {currency}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogBody className="space-y-2">
-                <button
-                  type="button"
-                  onClick={pay}
-                  disabled={loading || insufficient}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 p-4 text-start transition-[background-color] duration-[var(--duration-fast)] ease-[var(--ease-out-quint)] hover:bg-primary/15 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className="flex items-center gap-2 font-bold text-foreground">
-                    <Wallet className="h-5 w-5 text-primary" />
-                    {t("buy.payWallet")}
-                  </span>
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {priceValue(balance)} {currency}
-                    </span>
-                  )}
-                </button>
-                {insufficient && (
-                  <p className="text-center text-xs text-destructive">{t("buy.insufficient")}</p>
-                )}
-                {insufficient && (
-                  <div className="grid gap-2 pt-2">
-                    <p className="text-sm font-medium text-muted-foreground">{t("wallet.chooseMethod")}</p>
-                    {TOP_UP_METHODS.map((method) => (
-                      <button
-                        key={method.id}
-                        type="button"
-                        onClick={openTopUp}
-                        className="active:scale-press flex w-full items-center gap-3 rounded-xl border border-border bg-secondary/30 p-4 text-start transition-colors hover:border-primary/40 hover:bg-secondary/50"
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-                          {method.icon ? (
-                            <Image src={method.icon} alt="" width={26} height={26} className="h-6 w-6" />
-                          ) : (
-                            <CreditCard className="h-5 w-5 text-primary" />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1 font-bold text-foreground">{t(method.label)}</span>
-                        <ChevronLeft className="h-5 w-5 text-muted-foreground rtl:rotate-180" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </DialogBody>
-            </>
+            <PaymentStep
+              t={t}
+              title={sale.title}
+              totalLabel={`${priceValue(total)} ${currency}`}
+              balanceLabel={`${priceValue(balance)} ${currency}`}
+              insufficient={insufficient}
+              loading={loading}
+              activeIndex={payIndex}
+              onActiveChange={setPayIndex}
+              onPay={pay}
+              onTopUp={(methods) => {
+                setTopUpAllowed(methods)
+                openTopUp()
+              }}
+            />
           )}
 
           {step === "done" && (
@@ -394,7 +355,7 @@ export function FlashBuyButton({
         onOpenChange={setAddFundsOpen}
         onChanged={refresh}
         initialAmountToman={Math.max(0, Math.ceil(total - balance))}
-        allowedMethods={["CARD", "TON", "STARS"]}
+        allowedMethods={topUpAllowed}
       />
       <CelebrationOverlay
         open={celebrating}
@@ -404,6 +365,88 @@ export function FlashBuyButton({
         actionHref="/orders"
         onClose={() => setCelebrating(false)}
       />
+    </>
+  )
+}
+
+function PaymentStep({
+  t,
+  title,
+  totalLabel,
+  balanceLabel,
+  insufficient,
+  loading,
+  activeIndex,
+  onActiveChange,
+  onPay,
+  onTopUp,
+}: {
+  t: ReturnType<typeof useI18n>["t"]
+  title: string
+  totalLabel: string
+  balanceLabel: string
+  insufficient: boolean
+  loading: boolean
+  activeIndex: number
+  onActiveChange: (index: number) => void
+  onPay: () => void
+  onTopUp: (methods: TopUpMethod[]) => void
+}) {
+  const ids = ["BALANCE", "CARD", "TON", "STARS"] as const
+  const items: PaymentCarouselItem[] = [
+    {
+      id: "BALANCE",
+      title: t("buy.payWallet"),
+      meta: balanceLabel,
+      iconNode: <Wallet className="h-8 w-8 text-primary" />,
+      disabled: insufficient,
+      disabledHint: insufficient ? t("buy.insufficient") : undefined,
+    },
+    { id: "CARD", title: t("wallet.methodCard"), iconNode: <CreditCard className="h-8 w-8 text-primary" /> },
+    { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, iconSrc: "/pay-icons/ton.svg" },
+    { id: "STARS", title: t("wallet.methodStars"), iconSrc: "/pay-icons/telegram.svg" },
+  ]
+
+  const active = ids[Math.min(activeIndex, ids.length - 1)]
+
+  function confirm() {
+    if (active === "BALANCE") {
+      if (insufficient) onTopUp(["CARD", "TON", "STARS"])
+      else onPay()
+    } else {
+      onTopUp([active])
+    }
+  }
+
+  const label =
+    active === "BALANCE"
+      ? insufficient
+        ? t("wallet.addFunds")
+        : t("buy.payWallet")
+      : `${t("wallet.payWith")} ${items[activeIndex]?.title ?? ""}`
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{t("buy.selectPayment")}</DialogTitle>
+        <DialogDescription>
+          {title} — {totalLabel}
+        </DialogDescription>
+      </DialogHeader>
+      <DialogBody className="space-y-5">
+        <PaymentMethodCarousel
+          items={items}
+          activeIndex={Math.min(activeIndex, items.length - 1)}
+          onActiveChange={onActiveChange}
+          onSelect={confirm}
+        />
+        {active === "BALANCE" && insufficient && (
+          <p className="text-center text-xs font-medium text-destructive">{t("buy.insufficient")}</p>
+        )}
+        <Button onClick={confirm} disabled={loading} className="h-12 w-full text-base font-bold">
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : label}
+        </Button>
+      </DialogBody>
     </>
   )
 }

@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import Image from "next/image"
 import useSWR from "swr"
 import { toast } from "sonner"
 import { motion } from "motion/react"
@@ -23,6 +22,7 @@ import { useTelegramAuth } from "@/components/telegram-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { PaymentMethodCarousel, type PaymentCarouselItem } from "@/components/wallet/payment-method-carousel"
 import { formatMoney, formatCountdown, msUntil } from "@/lib/format"
 
 type MethodConfig = {
@@ -356,53 +356,61 @@ function MethodStep({
     STARS: { title: t("wallet.methodStars"), sub: t("wallet.methodStarsSub") },
   }
   const visible = methods.filter((m) => m.enabled)
-  return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-muted-foreground">{t("wallet.chooseMethod")}</p>
-      {visible.length === 0 && (
+  const [index, setIndex] = useState(0)
+
+  // Keep the active index in range if the config changes while open.
+  useEffect(() => {
+    setIndex((i) => Math.min(i, Math.max(0, visible.length - 1)))
+  }, [visible.length])
+
+  if (visible.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-muted-foreground">{t("wallet.chooseMethod")}</p>
         <p className="rounded-xl bg-muted p-4 text-center text-sm text-muted-foreground">
           {t("wallet.methodUnavailable")}
         </p>
-      )}
-      <div className="grid gap-2">
-        {visible.map((m) => {
-          const icon = METHOD_ICON[m.method]
-          const l = labels[m.method]
-          // Stars requires Telegram; show it dimmed with a hint when unavailable.
-          const starsBlocked = m.method === "STARS" && !inTelegram
-          return (
-            <button
-              key={m.method}
-              type="button"
-              disabled={busy}
-              onClick={() => onPick(m)}
-              aria-disabled={starsBlocked}
-              className={`active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-start transition-colors hover:border-primary/40 disabled:opacity-60 ${
-                starsBlocked ? "opacity-55" : ""
-              }`}
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted">
-                {icon?.lucide ? (
-                  <CreditCard className="h-5 w-5 text-primary" />
-                ) : (
-                  <Image src={icon.src!} alt="" width={28} height={28} className="h-7 w-7" />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-bold text-foreground">{l.title}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {starsBlocked ? t("wallet.starsOnlyTelegram") : l.sub}
-                </span>
-              </span>
-              {busy && active === m.method ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              ) : (
-                <ChevronLeft className="h-5 w-5 text-muted-foreground rtl:rotate-180" />
-              )}
-            </button>
-          )
-        })}
       </div>
+    )
+  }
+
+  const items: PaymentCarouselItem[] = visible.map((m) => {
+    const icon = METHOD_ICON[m.method]
+    const l = labels[m.method]
+    const starsBlocked = m.method === "STARS" && !inTelegram
+    return {
+      id: m.method,
+      title: l.title,
+      subtitle: l.sub,
+      iconSrc: icon?.lucide ? undefined : icon?.src,
+      iconNode: icon?.lucide ? <CreditCard className="h-8 w-8 text-primary" /> : undefined,
+      disabled: starsBlocked,
+      disabledHint: starsBlocked ? t("wallet.starsOnlyTelegram") : undefined,
+    }
+  })
+
+  const current = visible[Math.min(index, visible.length - 1)]
+
+  return (
+    <div className="space-y-5">
+      <p className="text-center text-sm font-medium text-muted-foreground">{t("wallet.swipeToChoose")}</p>
+      <PaymentMethodCarousel
+        items={items}
+        activeIndex={Math.min(index, visible.length - 1)}
+        onActiveChange={setIndex}
+        onSelect={(i) => onPick(visible[i])}
+      />
+      <Button
+        onClick={() => onPick(current)}
+        disabled={busy}
+        className="h-12 w-full text-base font-bold"
+      >
+        {busy && active === current.method ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          `${t("wallet.payWith")} ${labels[current.method].title}`
+        )}
+      </Button>
     </div>
   )
 }
