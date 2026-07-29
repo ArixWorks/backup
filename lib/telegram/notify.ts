@@ -2,7 +2,7 @@ import "server-only"
 import { prisma } from "@/lib/db"
 import { getBotConfig } from "./settings"
 import { render, esc } from "./format"
-import { sendMessage, sendPhoto, botConfigured, inlineKeyboard } from "./api"
+import { sendMessage, sendPhoto, sendRichMessage, botConfigured, inlineKeyboard } from "./api"
 import { auctionButton, openAppKeyboard } from "./keyboards"
 import { adminTelegramIds } from "./user"
 import { formatToman } from "@/lib/format"
@@ -206,6 +206,40 @@ export async function notifyAdminDepositRequest(depositId: string) {
     const methodLabel = DEPOSIT_METHOD_LABEL[req.method] ?? req.method
     const gatewayParts = [req.payCurrency, req.payNetwork].filter(Boolean) as string[]
     const gateway = gatewayParts.length ? gatewayParts.join(" · ") : methodLabel
+
+    // Native Rich Message table (Bot API 10.1+). The message stays LTR
+    // (is_rtl:false) because table cell `align` is interpreted in LTR geometry;
+    // the Persian look is produced by column order + per-cell alignment, not by
+    // flipping the whole message. Each row: value column FIRST (centered),
+    // label column SECOND (right-aligned, "<b>label</b>&nbsp;emoji"). Copyable
+    // values (numeric id, amount) go in <code>. `skip_entity_detection` stops
+    // Telegram from auto-linkifying the id/username.
+    const richRow = (value: string, label: string, emoji: string, copyable = false) => {
+      const v = copyable ? `<code>${esc(value)}</code>` : esc(value)
+      return (
+        `<tr>` +
+        `<td align="center" valign="middle">${v}</td>` +
+        `<td align="right" valign="middle"><b>${esc(label)}</b>&nbsp;${emoji}</td>` +
+        `</tr>`
+      )
+    }
+    const richHtml =
+      `<h3>💰 درخواست افزایش موجودی جدید</h3>` +
+      `<table bordered striped>` +
+      `<tr>` +
+      `<th align="center" valign="middle">مقدار</th>` +
+      `<th align="center" valign="middle">عنوان</th>` +
+      `</tr>` +
+      richRow(name, "نام", "👤") +
+      richRow(username, "یوزرنیم", "🔗", username !== "—") +
+      richRow(String(numericId), "آیدی عددی", "🆔", numericId !== "—") +
+      richRow(`${formatToman(req.amount)} تومان`, "مبلغ", "💵", true) +
+      richRow(methodLabel, "روش واریز", "💳") +
+      richRow(gateway, "درگاه", "🏦") +
+      `</table>`
+
+    // Plain-HTML fallback (used when Rich Messages are unavailable, and as the
+    // caption for the receipt photo, which rich messages can't carry inline).
     const html =
       `💰 <b>درخواست افزایش موجودی جدید</b>\n` +
       `➖➖➖➖➖➖➖➖\n` +
@@ -224,13 +258,18 @@ export async function notifyAdminDepositRequest(depositId: string) {
     const photo = req.receiptUrl && /^https?:\/\//i.test(req.receiptUrl) ? req.receiptUrl : null
     const targets = await adminChatIds()
     for (const chatId of targets) {
+      // 1) Receipt photo first (with a caption + the action buttons) when present.
       if (photo) {
         await sendPhoto(chatId, photo, html, { replyMarkup: markup }).catch(() =>
           sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {}),
         )
-      } else {
-        await sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {})
       }
+      // 2) The native rich-message table. If Rich Messages aren't supported the
+      //    call rejects and we fall back to plain HTML (or, if the photo already
+      //    carried the card, we skip a redundant second message).
+      await sendRichMessage(chatId, richHtml, { replyMarkup: photo ? undefined : markup }).catch(() => {
+        if (!photo) return sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {})
+      })
     }
   } catch (e) {
     console.log("[v0] notifyAdminDepositRequest error:", (e as Error).message)
@@ -378,7 +417,7 @@ export async function notifyAdminsPreDraw(giveawayId: string) {
       `🎬 «<b>${g.title}</b>»\n` +
       `🎁 جایزه: <b>${g.prizeLabel}</b>\n` +
       `👥 کل شرکت‌کنندگان: <b>${total}</b>\n` +
-      `✅ واجد شرایط: <b>${eligible}</b>\n` +
+      `✅ واجد ��رایط: <b>${eligible}</b>\n` +
       `🚫 غیرواجد: <b>${total - eligible}</b>\n` +
       `🏆 تعداد برندگان: <b>${winnersWanted}</b>\n\n` +
       `لطفاً یکی از گزینه‌ها را انتخاب کنید:`

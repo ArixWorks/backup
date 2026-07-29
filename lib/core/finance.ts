@@ -302,7 +302,11 @@ export async function approveDeposit(depositId: string, adminId: string) {
     if (!req) throw new NotFoundError("درخواست واریز یافت نشد")
     if (req.status !== "PENDING") throw new ConflictError("این درخواست قبلاً بررسی شده است")
     if (req.method === "STARS") throw new ConflictError("پرداخت استارز قابل تأیید دستی نیست")
-    if (req.expiresAt && req.expiresAt <= new Date()) throw new ConflictError("مهلت این درخواست پرداخت تمام شده است")
+    // NO expiry guard here on purpose: once the user has actually submitted a
+    // receipt (paidClaimedAt set) the money was really sent, so an admin must
+    // always be able to approve even if the original 15-minute payment window
+    // has lapsed. `expireStaleDeposits` only auto-expires *unclaimed* drafts
+    // (paidClaimedAt: null), so a claimed PENDING request never expires anyway.
     if (!req.paidClaimedAt) throw new ConflictError("کاربر هنوز پرداخت را اعلام نکرده است")
 
     await ensureWallet(req.userId, tx)

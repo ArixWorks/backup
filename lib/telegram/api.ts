@@ -166,6 +166,37 @@ export async function sendPhoto(
 }
 
 /**
+ * Send a native Rich Message (Bot API 10.1+). Rich messages render real
+ * structured layout — including bordered/striped `<table>` blocks with per-cell
+ * `align`/`valign` — which normal `sendMessage` HTML cannot express. `html` must
+ * be a rich-message HTML string (see the "rich message formatting options" in
+ * the Bot API docs). `is_rtl` is left off by default because table cell
+ * `align` is interpreted in LTR geometry; a Persian RTL look is achieved via
+ * column order + per-cell alignment rather than flipping the whole message.
+ * `skip_entity_detection` stops Telegram from auto-linkifying ids/usernames.
+ */
+export async function sendRichMessage(
+  chatId: string | number,
+  html: string,
+  opts: {
+    isRtl?: boolean
+    skipEntityDetection?: boolean
+    replyMarkup?: object
+    parseMode?: never
+  } = {},
+) {
+  return call("sendRichMessage", {
+    chat_id: chatId,
+    rich_message: {
+      html: await withAnimatedEmoji(html, { parseMode: "HTML" }),
+      is_rtl: opts.isRtl ?? false,
+      skip_entity_detection: opts.skipEntityDetection ?? true,
+    },
+    reply_markup: await withAnimatedKeyboard(opts.replyMarkup),
+  })
+}
+
+/**
  * Upload a file to a chat (multipart/form-data — Telegram doesn't accept JSON
  * for file uploads, so this bypasses the JSON `call()` helper). Used to deliver
  * database backups to the admin. Bot upload limit is 50MB; gzipped JSON
