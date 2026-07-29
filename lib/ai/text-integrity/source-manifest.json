@@ -58,5 +58,10 @@
     "path": "lib/telegram/handler.ts",
     "line": 1249,
     "text": "depositChoose: \"روش واریز را انتخاب کنید:\", depInstrTitle: \"راهنمای پرداخت\", depAmount: \"مبلغ\", depAddress: \"��قصد\","
+  },
+  {
+    "path": "lib/telegram/notify.ts",
+    "line": 420,
+    "text": "`✅ واجد ��رایط: <b>${eligible}</b>\\n` +"
   }
 ]
