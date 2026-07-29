@@ -22,6 +22,12 @@ export function GatewayModel3D({ src, spinning = true }: { src: string; spinning
       dpr={[1, 2]}
       camera={{ position: [0, 0, 2.7], fov: 38 }}
       gl={{ alpha: true, antialias: true }}
+      // Carousel tiles are CSS scale()-transformed. getBoundingClientRect
+      // (the default measure) bakes that transform into the canvas size and
+      // ResizeObserver never fires on transform changes, so a canvas mounted
+      // in a shrunken side tile stays tiny/corner-stuck when it becomes
+      // active. offsetSize measures layout size, ignoring transforms.
+      resize={{ offsetSize: true }}
       className="h-full w-full"
       aria-hidden
     >
@@ -41,11 +47,34 @@ function SpinningModel({ src, spinning }: { src: string; spinning: boolean }) {
   const group = useRef<THREE.Group>(null)
   const [fitted, setFitted] = useState({ scale: 1, offset: new THREE.Vector3() })
 
-  // Clone so multiple tiles can render the same cached GLTF safely.
-  const cloned = useMemo(() => scene.clone(true), [scene])
+  // Clone so multiple tiles can render the same cached GLTF safely, and
+  // strip cameras/lights that stock GLBs often embed far from the model.
+  const cloned = useMemo(() => {
+    const c = scene.clone(true)
+    const junk: THREE.Object3D[] = []
+    c.traverse((o) => {
+      if ((o as THREE.Camera).isCamera || (o as THREE.Light).isLight) junk.push(o)
+    })
+    for (const o of junk) o.removeFromParent()
+    return c
+  }, [scene])
 
   useLayoutEffect(() => {
-    const box = new THREE.Box3().setFromObject(cloned)
+    // Measure only real mesh geometry. Box3.setFromObject over the whole
+    // scene also includes empty helper nodes, which inflates the box and
+    // makes the model render tiny and off-center.
+    cloned.updateWorldMatrix(true, true)
+    const box = new THREE.Box3()
+    const meshBox = new THREE.Box3()
+    cloned.traverse((o) => {
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh || !mesh.geometry) return
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
+      if (!mesh.geometry.boundingBox) return
+      meshBox.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld)
+      box.union(meshBox)
+    })
+    if (box.isEmpty()) return
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
     // Visible square at z=0 for fov 38 / dist 2.7 is ~1.86 units. Fit inside
