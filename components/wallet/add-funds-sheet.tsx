@@ -49,11 +49,11 @@ type Instructions = {
   status: string
 }
 
-const METHOD_ICON: Record<string, { src?: string; model?: string; lucide?: boolean }> = {
+const METHOD_ICON: Record<string, { src?: string; model?: string; lottie?: string; lucide?: boolean }> = {
   CARD: { model: "/pay-icons/3d/card.glb" },
   USDT: { src: "/pay-icons/3d/usdt.png" },
   TON: { model: "/pay-icons/3d/ton.glb" },
-  STARS: { model: "/pay-icons/3d/stars.glb" },
+  STARS: { lottie: "/pay-icons/lottie/glowing-star.json" },
 }
 
 const PAY_DECIMALS: Record<string, number> = { IRT: 0, USDT: 2, TON: 2, XTR: 0 }
@@ -384,6 +384,7 @@ function MethodStep({
       subtitle: l.sub,
       iconSrc: icon?.lucide ? undefined : icon?.src,
       modelSrc: icon?.model,
+      lottieSrc: icon?.lottie,
       iconNode: icon?.lucide ? <CreditCard className="h-8 w-8 text-primary" /> : undefined,
       disabled: starsBlocked,
       disabledHint: starsBlocked ? t("wallet.starsOnlyTelegram") : undefined,

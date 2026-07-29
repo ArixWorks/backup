@@ -98,4 +98,3 @@ function SpinningModel({ src, spinning }: { src: string; spinning: boolean }) {
 useGLTF.preload("/pay-icons/3d/balance.glb", "/draco/")
 useGLTF.preload("/pay-icons/3d/card.glb", "/draco/")
 useGLTF.preload("/pay-icons/3d/ton.glb", "/draco/")
-useGLTF.preload("/pay-icons/3d/stars.glb", "/draco/")

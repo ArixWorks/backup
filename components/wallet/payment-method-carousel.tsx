@@ -12,12 +12,19 @@ const GatewayModel3D = dynamic(
   { ssr: false },
 )
 
+const GatewayLottie = dynamic(
+  () => import("@/components/wallet/gateway-lottie").then((m) => m.GatewayLottie),
+  { ssr: false },
+)
+
 export type PaymentCarouselItem = {
   id: string
   title: string
   subtitle?: string
   /** Path to a real 3D model (.glb). Rendered spinning on the center tile. */
   modelSrc?: string
+  /** Path to a Lottie JSON. Rendered with its own built-in effect (no spin). */
+  lottieSrc?: string
   /** Path to a 3D image icon (png/svg). Takes priority over `iconNode`. */
   iconSrc?: string
   /** Fallback node icon (e.g. a lucide icon) when no image is provided. */
@@ -172,7 +179,13 @@ export function PaymentMethodCarousel({
 function IconTile({ item }: { item: PaymentCarouselItem }) {
   return (
     <div className={cn("h-full w-full", item.disabled && "grayscale")}>
-      {item.modelSrc ? (
+      {item.lottieSrc ? (
+        // pointer-events-none lets taps and drags pass through to the tile
+        // button / drag surface. The Lottie keeps its own glow effect only.
+        <div className="pointer-events-none h-full w-full">
+          <GatewayLottie src={item.lottieSrc} />
+        </div>
+      ) : item.modelSrc ? (
         // pointer-events-none lets taps and drags pass through the WebGL
         // canvas to the tile button / drag surface.
         <div className="pointer-events-none h-full w-full">
