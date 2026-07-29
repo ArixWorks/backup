@@ -48,8 +48,11 @@ function SpinningModel({ src, spinning }: { src: string; spinning: boolean }) {
     const box = new THREE.Box3().setFromObject(cloned)
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
-    const maxDim = Math.max(size.x, size.y, size.z) || 1
-    setFitted({ scale: 2.05 / maxDim, offset: center.negate() })
+    // Visible square at z=0 for fov 38 / dist 2.7 is ~1.86 units. Fit inside
+    // it, using the worst-case rotating footprint so the Y-spin never clips.
+    const spinWidth = Math.hypot(size.x, size.z)
+    const maxDim = Math.max(spinWidth, size.y) || 1
+    setFitted({ scale: 1.82 / maxDim, offset: center.negate() })
   }, [cloned])
 
   useFrame((_, delta) => {

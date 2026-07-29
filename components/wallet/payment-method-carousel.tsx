@@ -61,7 +61,13 @@ export function PaymentMethodCarousel({
     return () => ro.disconnect()
   }, [])
 
-  const spacing = Math.max(120, Math.min(width * 0.42, 170))
+  // Side tiles at |pos|=1 render at ~scale 0.48 of the 136px tile, so they
+  // extend ~34px past their center. Keep spacing small enough that they stay
+  // fully inside the container instead of being clipped by overflow-hidden.
+  const TILE = 136
+  const sideHalf = (TILE * 0.48) / 2 + 8
+  const spacing =
+    width > 0 ? Math.max(104, Math.min(width * 0.42, width / 2 - sideHalf, 170)) : 140
   const dragFraction = spacing > 0 ? drag / spacing : 0
   const active = items[Math.min(activeIndex, items.length - 1)]
 
@@ -91,10 +97,11 @@ export function PaymentMethodCarousel({
             const abs = Math.abs(pos)
             const isActive = index === activeIndex
             const hidden = abs > 2.2
+            const dragging = drag !== 0
             // Flat coverflow: center tile is full size, neighbours shrink and dim.
             const scale = Math.max(0.42, 1 - abs * 0.52)
             return (
-              <button
+              <motion.button
                 key={item.id}
                 type="button"
                 aria-hidden={hidden}
@@ -106,21 +113,26 @@ export function PaymentMethodCarousel({
                   if (isActive) onSelect?.(index)
                   else onActiveChange(index)
                 }}
-                className={cn(
-                  "absolute left-1/2 top-1/2 h-[8.5rem] w-[8.5rem] will-change-transform focus:outline-none",
-                  drag === 0 &&
-                    "transition-[transform,opacity,filter] duration-500 ease-[cubic-bezier(0.34,1.3,0.5,1)]",
-                )}
+                className="absolute left-1/2 top-1/2 -ml-[4.25rem] -mt-[4.25rem] h-[8.5rem] w-[8.5rem] will-change-transform focus:outline-none"
+                initial={false}
+                animate={{
+                  x: pos * spacing,
+                  scale,
+                  opacity: hidden ? 0 : Math.max(0.2, 1 - abs * 0.4),
+                  filter: `blur(${abs > 0.5 ? Math.min(abs * 1.5, 3) : 0}px)`,
+                }}
+                transition={
+                  dragging
+                    ? { type: "tween", duration: 0 }
+                    : { type: "spring", stiffness: 210, damping: 24, mass: 0.9 }
+                }
                 style={{
-                  transform: `translate(-50%, -50%) translateX(${pos * spacing}px) scale(${scale})`,
-                  opacity: hidden ? 0 : Math.max(0, 1 - abs * 0.4),
-                  filter: abs > 0.5 ? `blur(${Math.min(abs * 1.5, 3)}px)` : "none",
                   zIndex: 100 - Math.round(abs * 10),
                   pointerEvents: hidden ? "none" : "auto",
                 }}
               >
                 <IconTile item={item} />
-              </button>
+              </motion.button>
             )
           })}
         </motion.div>
