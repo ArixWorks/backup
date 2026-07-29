@@ -2,7 +2,16 @@ import "server-only"
 import { prisma } from "@/lib/db"
 import { getBotConfig } from "./settings"
 import { render, esc } from "./format"
-import { sendMessage, sendPhoto, sendRichMessage, botConfigured, inlineKeyboard } from "./api"
+import {
+  sendMessage,
+  sendPhoto,
+  sendPhotoBytes,
+  sendRichMessage,
+  sendDocument,
+  botConfigured,
+  inlineKeyboard,
+} from "./api"
+import { get } from "@vercel/blob"
 import { auctionButton, openAppKeyboard } from "./keyboards"
 import { adminTelegramIds } from "./user"
 import { formatToman } from "@/lib/format"
@@ -187,6 +196,52 @@ async function adminChatIds(): Promise<string[]> {
  * same core flow (`approveDeposit` / `rejectDeposit`) the dashboard uses.
  * Best-effort: a delivery failure must never break the submit transaction.
  */
+type ReceiptFile = { bytes: Uint8Array; contentType: string; filename: string; isImage: boolean }
+
+/**
+ * Resolve a stored `receiptUrl` to raw bytes so we can push it to Telegram via
+ * multipart upload. Receipts are PRIVATE blobs served through our auth-gated
+ * `/api/v1/files/...` proxy, so we CANNOT hand Telegram a URL to fetch (it can't
+ * authenticate). Instead we read the blob's bytes directly here. Absolute
+ * https URLs (legacy/public) are fetched normally. Returns null on any failure
+ * so notification delivery degrades gracefully to a text-only card.
+ */
+async function fetchReceiptFile(receiptUrl: string): Promise<ReceiptFile | null> {
+  try {
+    let bytes: Uint8Array
+    let contentType = "application/octet-stream"
+    if (receiptUrl.startsWith("/api/v1/files/")) {
+      const pathname = receiptUrl.slice("/api/v1/files/".length)
+      if (!pathname || pathname.includes("..")) return null
+      let result
+      try {
+        result = await get(pathname, { access: "private" })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (/private access on a public store/i.test(msg)) result = await get(pathname, { access: "public" })
+        else throw err
+      }
+      if (!result?.stream) return null
+      bytes = new Uint8Array(await new Response(result.stream).arrayBuffer())
+      contentType = result.blob.contentType || contentType
+    } else if (/^https:\/\//.test(receiptUrl)) {
+      const res = await fetch(receiptUrl)
+      if (!res.ok) return null
+      bytes = new Uint8Array(await res.arrayBuffer())
+      contentType = res.headers.get("content-type") || contentType
+    } else {
+      return null
+    }
+    if (bytes.byteLength === 0) return null
+    const isImage = /^image\//i.test(contentType)
+    const ext = isImage ? contentType.split("/")[1]?.split(";")[0] || "jpg" : "pdf"
+    return { bytes, contentType, filename: `receipt.${ext}`, isImage }
+  } catch (e) {
+    console.log("[v0] fetchReceiptFile error:", (e as Error).message)
+    return null
+  }
+}
+
 export async function notifyAdminDepositRequest(depositId: string) {
   try {
     if (!botConfigured()) return
@@ -255,21 +310,41 @@ export async function notifyAdminDepositRequest(depositId: string) {
         { text: "✖️ لغو", callback_data: `depadm:reject:${req.id}`, style: "danger" },
       ],
     ])
-    const photo = req.receiptUrl && /^https?:\/\//i.test(req.receiptUrl) ? req.receiptUrl : null
+    // Download the receipt bytes ONCE (not per-admin) so we can upload it to
+    // Telegram. Falls back to a legacy direct-URL photo, then to nothing.
+    const receipt = req.receiptUrl ? await fetchReceiptFile(req.receiptUrl) : null
+    const legacyPhotoUrl =
+      !receipt && req.receiptUrl && /^https:\/\//i.test(req.receiptUrl) ? req.receiptUrl : null
+
     const targets = await adminChatIds()
     for (const chatId of targets) {
-      // 1) Receipt photo first (with a caption + the action buttons) when present.
-      if (photo) {
-        await sendPhoto(chatId, photo, html, { replyMarkup: markup }).catch(() =>
-          sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {}),
-        )
+      // 1) Receipt FIRST, so the admin sees the proof before the action card.
+      if (receipt) {
+        if (receipt.isImage) {
+          await sendPhotoBytes(chatId, receipt.bytes, receipt.filename, "🧾 رسید پرداخت کاربر").catch(() =>
+            sendDocument(chatId, receipt.bytes, receipt.filename, "🧾 رسید پرداخت کاربر", receipt.contentType).catch(
+              () => {},
+            ),
+          )
+        } else {
+          await sendDocument(
+            chatId,
+            receipt.bytes,
+            receipt.filename,
+            "🧾 رسید پرداخت کاربر",
+            receipt.contentType,
+          ).catch(() => {})
+        }
+      } else if (legacyPhotoUrl) {
+        await sendPhoto(chatId, legacyPhotoUrl, "🧾 رسید پرداخت کاربر").catch(() => {})
       }
-      // 2) The native rich-message table. If Rich Messages aren't supported the
-      //    call rejects and we fall back to plain HTML (or, if the photo already
-      //    carried the card, we skip a redundant second message).
-      await sendRichMessage(chatId, richHtml, { replyMarkup: photo ? undefined : markup }).catch(() => {
-        if (!photo) return sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {})
-      })
+
+      // 2) The native rich-message table WITH the approve/reject buttons. If
+      //    Rich Messages aren't supported the call rejects and we fall back to
+      //    the plain-HTML card (buttons preserved either way).
+      await sendRichMessage(chatId, richHtml, { replyMarkup: markup }).catch(() =>
+        sendMessage(chatId, html, { replyMarkup: markup }).catch(() => {}),
+      )
     }
   } catch (e) {
     console.log("[v0] notifyAdminDepositRequest error:", (e as Error).message)
@@ -373,7 +448,7 @@ export async function notifyGiveawayWon(
     const cfg = await getBotConfig()
     if (!cfg.features.notifications) return
     const html =
-      `🎉🏆 <b>تبریک! شما برنده شدید</b> 🏆🎉\n\n` +
+      `🎉🏆 <b>تبریک! شما برنده شدید</b> ����🎉\n\n` +
       `در قرعه‌کشی «<b>${title}</b>» برنده‌ی زیر شدید:\n` +
       `🎁 <b>${prizeLabel}</b>\n\n` +
       `برای مشاهده‌ی جزئیات و دریافت جایزه روی دکمه‌ی زیر بزنید.`

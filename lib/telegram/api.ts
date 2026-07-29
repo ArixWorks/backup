@@ -231,7 +231,7 @@ export async function sendDocument(
         form.append("caption", animatedCaption)
         form.append("parse_mode", "HTML")
       }
-      form.append("document", new Blob([bytes], { type: "application/gzip" }), filename)
+      form.append("document", new Blob([bytes], { type: contentType }), filename)
 
       const res = await withTimeout(
         60_000,

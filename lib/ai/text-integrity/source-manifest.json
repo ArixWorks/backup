@@ -61,7 +61,12 @@
   },
   {
     "path": "lib/telegram/notify.ts",
-    "line": 420,
+    "line": 451,
+    "text": "`🎉🏆 <b>تبریک! شما برنده شدید</b> ����🎉\\n\\n` +"
+  },
+  {
+    "path": "lib/telegram/notify.ts",
+    "line": 495,
     "text": "`✅ واجد ��رایط: <b>${eligible}</b>\\n` +"
   }
 ]
