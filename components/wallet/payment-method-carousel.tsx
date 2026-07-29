@@ -108,16 +108,18 @@ export function PaymentMethodCarousel({
                 }}
                 className={cn(
                   "absolute left-1/2 top-1/2 h-[8.5rem] w-[8.5rem] will-change-transform focus:outline-none",
-                  drag === 0 && "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  drag === 0 &&
+                    "transition-[transform,opacity,filter] duration-500 ease-[cubic-bezier(0.34,1.3,0.5,1)]",
                 )}
                 style={{
                   transform: `translate(-50%, -50%) translateX(${pos * spacing}px) scale(${scale})`,
                   opacity: hidden ? 0 : Math.max(0, 1 - abs * 0.4),
+                  filter: abs > 0.5 ? `blur(${Math.min(abs * 1.5, 3)}px)` : "none",
                   zIndex: 100 - Math.round(abs * 10),
                   pointerEvents: hidden ? "none" : "auto",
                 }}
               >
-                <IconTile item={item} active={isActive} />
+                <IconTile item={item} />
               </button>
             )
           })}
@@ -155,19 +157,13 @@ export function PaymentMethodCarousel({
   )
 }
 
-function IconTile({ item, active }: { item: PaymentCarouselItem; active: boolean }) {
+function IconTile({ item }: { item: PaymentCarouselItem }) {
   return (
-    <div
-      className={cn(
-        "h-full w-full overflow-hidden rounded-[1.9rem] border transition-[border-color,box-shadow]",
-        active
-          ? "border-primary/50 shadow-[0_0_36px_-6px_var(--primary)] ring-1 ring-primary/40"
-          : "border-border/50",
-        item.disabled && "grayscale",
-      )}
-    >
-      {item.modelSrc && active ? (
-        <div className="h-full w-full bg-card">
+    <div className={cn("h-full w-full", item.disabled && "grayscale")}>
+      {item.modelSrc ? (
+        // pointer-events-none lets taps and drags pass through the WebGL
+        // canvas to the tile button / drag surface.
+        <div className="pointer-events-none h-full w-full">
           <GatewayModel3D src={item.modelSrc} />
         </div>
       ) : item.iconSrc ? (
@@ -177,10 +173,10 @@ function IconTile({ item, active }: { item: PaymentCarouselItem; active: boolean
           width={272}
           height={272}
           draggable={false}
-          className="h-full w-full select-none object-cover"
+          className="h-full w-full select-none rounded-[1.9rem] object-cover"
         />
       ) : (
-        <span className="flex h-full w-full items-center justify-center bg-card [&>svg]:h-14 [&>svg]:w-14">
+        <span className="flex h-full w-full items-center justify-center [&>svg]:h-14 [&>svg]:w-14">
           {item.iconNode}
         </span>
       )}

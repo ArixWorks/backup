@@ -6,14 +6,15 @@ import { useGLTF } from "@react-three/drei"
 import * as THREE from "three"
 
 /**
- * Renders a user-supplied .glb payment-gateway icon inside the carousel tile
- * with a slow continuous Y-axis spin, exactly like premium wallet bots.
+ * Renders a user-supplied .glb payment-gateway icon with a slow continuous
+ * Y-axis spin, exactly like premium wallet bots. No tile box, no background:
+ * the canvas is fully transparent so only the icon itself is visible.
  *
  * - Draco decoder is self-hosted at /draco/ (no foreign CDN - critical for
  *   users on restricted networks).
  * - Lighting is pure lights (no Environment preset) for the same reason.
- * - The model is auto-centered and auto-scaled to fit the tile regardless of
- *   how it was exported from Blender.
+ * - The model is auto-centered and auto-scaled to fit regardless of how it
+ *   was exported.
  */
 export function GatewayModel3D({ src, spinning = true }: { src: string; spinning?: boolean }) {
   return (
@@ -48,7 +49,7 @@ function SpinningModel({ src, spinning }: { src: string; spinning: boolean }) {
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
     const maxDim = Math.max(size.x, size.y, size.z) || 1
-    setFitted({ scale: 1.7 / maxDim, offset: center.negate() })
+    setFitted({ scale: 2.05 / maxDim, offset: center.negate() })
   }, [cloned])
 
   useFrame((_, delta) => {
@@ -62,4 +63,7 @@ function SpinningModel({ src, spinning }: { src: string; spinning: boolean }) {
   )
 }
 
+useGLTF.preload("/pay-icons/3d/balance.glb", "/draco/")
 useGLTF.preload("/pay-icons/3d/card.glb", "/draco/")
+useGLTF.preload("/pay-icons/3d/ton.glb", "/draco/")
+useGLTF.preload("/pay-icons/3d/stars.glb", "/draco/")

@@ -398,13 +398,13 @@ function PaymentStep({
       id: "BALANCE",
       title: t("buy.payWallet"),
       meta: insufficient ? undefined : balanceLabel,
-      iconSrc: "/pay-icons/3d/balance.png",
+      modelSrc: "/pay-icons/3d/balance.glb",
       disabled: insufficient,
       disabledHint: insufficient ? t("buy.insufficient") : undefined,
     },
-    { id: "CARD", title: t("wallet.methodCard"), iconSrc: "/pay-icons/3d/card.png", modelSrc: "/pay-icons/3d/card.glb" },
-    { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, iconSrc: "/pay-icons/3d/ton.png" },
-    { id: "STARS", title: t("wallet.methodStars"), iconSrc: "/pay-icons/3d/stars.png" },
+    { id: "CARD", title: t("wallet.methodCard"), modelSrc: "/pay-icons/3d/card.glb" },
+    { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, modelSrc: "/pay-icons/3d/ton.glb" },
+    { id: "STARS", title: t("wallet.methodStars"), modelSrc: "/pay-icons/3d/stars.glb" },
   ]
 
   const active = ids[Math.min(activeIndex, ids.length - 1)]
