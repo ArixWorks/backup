@@ -215,6 +215,7 @@ export async function sendDocument(
   file: Buffer | Uint8Array,
   filename: string,
   caption?: string,
+  contentType = "application/gzip",
 ): Promise<unknown> {
   if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
   const animatedCaption = caption ? await withAnimatedEmoji(caption, {}) : undefined
@@ -257,6 +258,62 @@ export async function sendDocument(
       delayFor: (err) => err instanceof TelegramRetryAfter ? err.retryAfter * 1000 : undefined,
       onRetry: (err, attempt, delay) =>
         console.log(`[v0] Telegram sendDocument retry ${attempt} in ${delay}ms:`, (err as Error).message),
+    },
+  )
+}
+
+/**
+ * Send an image by uploading its raw bytes as multipart/form-data, rather than
+ * handing Telegram a URL to fetch. Required for PRIVATE receipts/KYC files whose
+ * only address is our auth-gated `/api/v1/files/...` proxy (Telegram cannot
+ * authenticate to fetch those). Mirrors `sendDocument`'s retry/timeout handling.
+ */
+export async function sendPhotoBytes(
+  chatId: string | number,
+  file: Buffer | Uint8Array,
+  filename: string,
+  caption?: string,
+  opts: SendOpts = {},
+): Promise<unknown> {
+  if (!API) throw new Error("TELEGRAM_BOT_TOKEN is not set")
+  const animatedCaption = caption ? await withAnimatedEmoji(caption, opts) : undefined
+  const replyMarkup = await withAnimatedKeyboard(opts.replyMarkup)
+  const bytes = new Uint8Array(file)
+
+  return withRetry(
+    async () => {
+      const form = new FormData()
+      form.append("chat_id", String(chatId))
+      if (animatedCaption) {
+        form.append("caption", animatedCaption)
+        form.append("parse_mode", opts.parseMode ?? "HTML")
+      }
+      if (replyMarkup) form.append("reply_markup", JSON.stringify(replyMarkup))
+      form.append("photo", new Blob([bytes]), filename)
+
+      const res = await withTimeout(
+        60_000,
+        (signal) => fetch(`${API}/sendPhoto`, { method: "POST", body: form, signal }),
+        "telegram.sendPhotoBytes",
+      )
+      const data = await res.json().catch(() => ({ ok: false, description: "Invalid JSON from Telegram" }))
+      if (!data.ok) {
+        const retryAfter = data.parameters?.retry_after
+        if (res.status === 429 && typeof retryAfter === "number") throw new TelegramRetryAfter(retryAfter)
+        const err = new Error(data.description || "Telegram sendPhoto (bytes) failed") as Error & { status?: number }
+        err.status = res.status
+        throw err
+      }
+      return data.result
+    },
+    {
+      attempts: 3,
+      baseDelayMs: 1_000,
+      maxDelayMs: 8_000,
+      retryable: isRetryableTelegramUploadError,
+      delayFor: (err) => (err instanceof TelegramRetryAfter ? err.retryAfter * 1000 : undefined),
+      onRetry: (err, attempt, delay) =>
+        console.log(`[v0] Telegram sendPhotoBytes retry ${attempt} in ${delay}ms:`, (err as Error).message),
     },
   )
 }

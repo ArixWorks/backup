@@ -1,5 +1,43 @@
 import "server-only"
-import { cache } from "@/lib/redis"
+import { prisma } from "@/lib/db"
+
+/**
+ * Durable KV backing for the bot's conversation state.
+ *
+ * The Telegram webhook runs on serverless (Vercel), so the callback that arms a
+ * prompt and the follow-up message that answers it may execute on DIFFERENT
+ * instances. Process memory (the in-memory cache fallback used when REDIS_URL is
+ * unset) therefore cannot carry state between them, which silently broke every
+ * multi-step flow (deposit reject reason, bid, support, coupon…). Persisting to
+ * Postgres makes the state instance-independent and reliable everywhere.
+ *
+ * Redis-like semantics: `expiresAt` is a TTL; expired rows read as absent and
+ * are lazily swept. All writes are best-effort/guarded so a state hiccup can
+ * never throw inside a webhook handler.
+ */
+async function kvSet(key: string, value: string, ttlSeconds: number) {
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000)
+  await prisma.botKV.upsert({
+    where: { key },
+    create: { key, value, expiresAt },
+    update: { value, expiresAt },
+  })
+}
+
+async function kvGet(key: string): Promise<string | null> {
+  const row = await prisma.botKV.findUnique({ where: { key } })
+  if (!row) return null
+  if (row.expiresAt.getTime() <= Date.now()) {
+    // Lazily drop the expired row; ignore races where it's already gone.
+    await prisma.botKV.deleteMany({ where: { key } }).catch(() => {})
+    return null
+  }
+  return row.value
+}
+
+async function kvDel(key: string) {
+  await prisma.botKV.deleteMany({ where: { key } }).catch(() => {})
+}
 
 /**
  * Deposit / payment methods available in the bot. Mirrors the web app payment
@@ -39,11 +77,11 @@ const canvasKey = (chatId: string | number) => `tgcanvas:${chatId}`
 const CANVAS_TTL = 86_400 // 24h
 
 export async function setCanvas(chatId: string | number, id: number, photo: string) {
-  await cache.set(canvasKey(chatId), JSON.stringify({ id, photo }), CANVAS_TTL)
+  await kvSet(canvasKey(chatId), JSON.stringify({ id, photo }), CANVAS_TTL)
 }
 
 export async function getCanvas(chatId: string | number): Promise<CanvasState | null> {
-  const raw = await cache.get(canvasKey(chatId))
+  const raw = await kvGet(canvasKey(chatId))
   if (!raw) return null
   try {
     const v = JSON.parse(raw) as CanvasState
@@ -54,11 +92,11 @@ export async function getCanvas(chatId: string | number): Promise<CanvasState | 
 }
 
 export async function setPending(chatId: string | number, action: PendingAction) {
-  await cache.set(key(chatId), JSON.stringify(action), TTL)
+  await kvSet(key(chatId), JSON.stringify(action), TTL)
 }
 
 export async function getPending(chatId: string | number): Promise<PendingAction | null> {
-  const raw = await cache.get(key(chatId))
+  const raw = await kvGet(key(chatId))
   if (!raw) return null
   try {
     return JSON.parse(raw) as PendingAction
@@ -68,7 +106,7 @@ export async function getPending(chatId: string | number): Promise<PendingAction
 }
 
 export async function clearPending(chatId: string | number) {
-  await cache.del(key(chatId))
+  await kvDel(key(chatId))
 }
 
 /**
@@ -81,11 +119,11 @@ export type OrderDraft = { productId: string; qty: number; couponCode?: string }
 const draftKey = (chatId: string | number) => `tgdraft:${chatId}`
 
 export async function setOrderDraft(chatId: string | number, draft: OrderDraft) {
-  await cache.set(draftKey(chatId), JSON.stringify(draft), TTL)
+  await kvSet(draftKey(chatId), JSON.stringify(draft), TTL)
 }
 
 export async function getOrderDraft(chatId: string | number): Promise<OrderDraft | null> {
-  const raw = await cache.get(draftKey(chatId))
+  const raw = await kvGet(draftKey(chatId))
   if (!raw) return null
   try {
     return JSON.parse(raw) as OrderDraft
@@ -95,5 +133,5 @@ export async function getOrderDraft(chatId: string | number): Promise<OrderDraft
 }
 
 export async function clearOrderDraft(chatId: string | number) {
-  await cache.del(draftKey(chatId))
+  await kvDel(draftKey(chatId))
 }

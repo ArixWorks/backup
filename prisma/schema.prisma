@@ -2787,3 +2787,20 @@ model ContentRelation {
   @@index([fromContentId, relationKey])
   @@index([targetType, targetId])
 }
+
+/// Durable, TTL'd key/value store for the Telegram bot's short-lived
+/// conversation state (pending multi-step flows, the editable "canvas" message,
+/// and order drafts). This lives in Postgres — NOT the in-memory cache — because
+/// the bot webhook runs on serverless where each request may hit a different
+/// instance, so process memory cannot be relied on to carry state between the
+/// callback that arms a prompt and the follow-up message that answers it.
+/// `expiresAt` gives Redis-like TTL semantics; reads treat expired rows as
+/// absent and a periodic sweep deletes them.
+model BotKV {
+  key       String   @id
+  value     String
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
