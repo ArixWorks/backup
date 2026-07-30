@@ -404,7 +404,7 @@ function PaymentStep({
     },
     { id: "CARD", title: t("wallet.methodCard"), modelSrc: "/pay-icons/3d/card.glb" },
     { id: "TON", title: t("wallet.methodTon"), subtitle: `${t("wallet.network")}: TON`, modelSrc: "/pay-icons/3d/ton.glb" },
-    { id: "STARS", title: t("wallet.methodStars"), modelSrc: "/pay-icons/3d/stars.glb" },
+    { id: "STARS", title: t("wallet.methodStars"), lottieSrc: "/pay-icons/lottie/glowing-star.json" },
   ]
 
   const active = ids[Math.min(activeIndex, ids.length - 1)]
