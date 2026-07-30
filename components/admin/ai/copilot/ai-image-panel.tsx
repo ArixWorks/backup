@@ -38,12 +38,21 @@ export function AiImagePanel() {
       for (const a of res.data.assets) {
         if (!a.image) continue
         const slot = def.imageSlots.find((s) => s.key === a.slot)
-        if (slot?.formField) {
-          adapter.applyField(slot.formField, a.image.url)
-          applied++
-        }
+        if (!slot) continue
+        // Apply to the mapped form field, or fall back to the slot key (same
+        // rule as single-slot generation) so slots without an explicit
+        // formField still land on the form.
+        adapter.applyField(slot.formField ?? slot.key, a.image.url)
+        applied++
       }
-      toast.success(`مجموعه تصاویر ساخته شد (${applied} تصویر روی فرم اعمال شد)`)
+      const failed = res.data.assets.filter((a) => !a.image).length
+      if (applied > 0) {
+        toast.success(
+          `مجموعه تصاویر ساخته شد (${applied} تصویر روی فرم اعمال شد${failed > 0 ? `، ${failed} مورد ناموفق` : ""})`,
+        )
+      } else {
+        toast.error("هیچ تصویری تولید نشد")
+      }
     } catch {
       toast.error("تولید مجموعه تصاویر ناموفق بود")
     } finally {

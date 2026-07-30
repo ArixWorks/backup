@@ -14,6 +14,7 @@ import {
 } from "@/lib/ai/image/manager"
 import { buildImagePrompt } from "@/lib/ai/image/prompt"
 import { IMAGE_ASPECTS, getBrandArtDirection } from "@/lib/ai/image/settings"
+import { getEntityDef } from "@/lib/ai/copilot/entities"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 240
@@ -178,12 +179,17 @@ export const POST = route(async (req: Request) => {
         omitAspectRule: true,
         brand: await getBrandArtDirection(),
       })
+      // Drive the set from the ENTITY's own declared image slots (key + aspect)
+      // so every slot the form actually has — e.g. `prize` — is generated with
+      // its correct aspect ratio. Fall back to the caller-provided keys, else
+      // the generic ASSET_SLOTS default inside generateAssetSet.
+      const entityDef = body.entityId ? getEntityDef(body.entityId) : undefined
+      const targets =
+        entityDef && entityDef.imageSlots.length > 0
+          ? entityDef.imageSlots.map((s) => ({ slot: s.key, aspect: s.aspect, label: s.label }))
+          : body.slots
       return {
-        assets: await generateAssetSet(
-          prompt,
-          { folder: body.folder ?? "ai-images", userId },
-          body.slots,
-        ),
+        assets: await generateAssetSet(prompt, { folder: body.folder ?? "ai-images", userId }, targets),
       }
     }
   }

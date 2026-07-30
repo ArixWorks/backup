@@ -170,18 +170,34 @@ export interface AssetSetResult {
   error?: string
 }
 
+/** A single slot to generate in a set: its key, aspect ratio, and label. */
+export interface AssetSlotTarget {
+  slot: string
+  aspect: ImageAspect
+  label: string
+}
+
 /**
  * Generate the full asset set for an entity in one call. Each slot gets its own
  * aspect ratio but shares the same visual style (same base prompt) so the set
  * stays cohesive. Best-effort: a failed slot returns `image: null` with an error.
+ *
+ * `targets` may be either an explicit list of `{ slot, aspect, label }` (used to
+ * drive generation from the entity's OWN declared image slots) or a list of slot
+ * keys resolved against the generic `ASSET_SLOTS` fallback. Passing the entity's
+ * own slots is important: otherwise slots like `prize` are never generated and
+ * only the handful of keys overlapping the generic list come back.
  */
 export async function generateAssetSet(
   basePrompt: string,
   opts: Omit<GenerateImageOptions, "prompt" | "aspect" | "slot">,
-  slots: string[] = ASSET_SLOTS.map((s) => s.slot),
+  targets: string[] | AssetSlotTarget[] = ASSET_SLOTS,
 ): Promise<AssetSetResult[]> {
-  const targets = ASSET_SLOTS.filter((s) => slots.includes(s.slot))
-  const jobs = targets.map(async (t) => {
+  const resolved: AssetSlotTarget[] =
+    targets.length > 0 && typeof targets[0] === "string"
+      ? ASSET_SLOTS.filter((s) => (targets as string[]).includes(s.slot))
+      : (targets as AssetSlotTarget[])
+  const jobs = resolved.map(async (t) => {
     try {
       const image = await generateSingleImage({
         ...opts,
