@@ -142,7 +142,16 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const priceValue = ds.hasWinner && a.finalPrice != null ? a.finalPrice : a.currentPrice
 
   function scrollToBid() {
-    bidPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+    // The primary panel (and its BidPanel) is rendered twice by the shell — an
+    // inline mobile copy and a sticky desktop copy — so a single ref would only
+    // point at one. Scroll to whichever instance is actually visible.
+    if (typeof document === "undefined") return
+    const panels = Array.from(document.querySelectorAll<HTMLElement>("[data-bid-panel]"))
+    const visible = panels.find((el) => el.offsetParent !== null && el.getClientRects().length > 0)
+    ;(visible ?? bidPanelRef.current ?? panels[0])?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    })
   }
 
   // --- Domain panel: price + stats + countdown + bid form. ----------------
@@ -275,7 +284,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div ref={bidPanelRef} className="scroll-mt-24">
+      <div ref={bidPanelRef} data-bid-panel className="scroll-mt-24">
         <BidPanel
           auctionId={a.id}
           minNextBid={a.minNextBid}

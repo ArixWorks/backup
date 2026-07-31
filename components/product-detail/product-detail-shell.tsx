@@ -83,22 +83,31 @@ export function ProductDetailShell({
 
       {banner}
 
-      <div className="grid gap-6 web:lg:grid-cols-[1.5fr_1fr] web:lg:items-start">
+      {/*
+        Single-instance layout: the domain panel (which may hold a live BidPanel
+        or stateful PlanSelector) is rendered exactly ONCE, then repositioned
+        with flex order across breakpoints — inline after highlights on mobile,
+        and into a sticky end column on the web desktop shell. Rendering it twice
+        would duplicate side-effecting children.
+      */}
+      <div className="flex flex-col gap-6 web:lg:flex-row web:lg:items-start">
         {/* Main column */}
-        <div className="min-w-0 space-y-6">
-          <ProductHighlights items={highlights} />
-
-          {/* On mobile the domain panel appears inline; on desktop it moves to
-              the sticky end column below. */}
-          <div className="web:lg:hidden">{primaryPanel}</div>
+        <div className="order-2 min-w-0 flex-1 space-y-6 web:lg:order-1">
+          <div className="hidden web:lg:block">
+            <ProductHighlights items={highlights} />
+          </div>
 
           {extraSections}
 
           <SegmentedTabs tabs={tabs} />
         </div>
 
-        {/* End column — sticky on the web desktop shell only. */}
-        <div className="hidden min-w-0 web:lg:block web:lg:sticky web:lg:top-20 web:lg:self-start">
+        {/* Domain panel — inline on mobile (after the mobile highlights below),
+            sticky end column on web desktop. */}
+        <div className="order-1 min-w-0 space-y-6 web:lg:order-2 web:lg:sticky web:lg:top-20 web:lg:w-[22rem] web:lg:shrink-0 web:lg:self-start">
+          <div className="web:lg:hidden">
+            <ProductHighlights items={highlights} />
+          </div>
           {primaryPanel}
         </div>
       </div>
