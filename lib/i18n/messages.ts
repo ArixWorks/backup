@@ -124,6 +124,7 @@ export type MessageKey =
   | "detail.similarSubtitle"
   | "detail.sales"
   | "detail.remaining"
+  | "detail.savePrefix"
   | "detail.favorite"
   | "detail.favoriteActive"
   | "detail.favoriteAdded"
@@ -1028,6 +1029,7 @@ type Catalog = Record<MessageKey, string>
     "detail.similarSubtitle": "بر اساس علاقه‌مندی‌های شما انتخاب شده",
   "detail.sales": "فروش",
   "detail.remaining": "باقی‌مانده",
+  "detail.savePrefix": "سود شما از این خرید",
   "detail.favorite": "افزودن به علاقه‌مندی‌ها",
   "detail.favoriteActive": "در علاقه‌مندی‌ها",
   "detail.favoriteAdded": "به علاقه‌مندی‌ها اضافه شد",
@@ -1894,6 +1896,7 @@ type Catalog = Record<MessageKey, string>
     "detail.similarSubtitle": "Picked based on your interests",
   "detail.sales": "sold",
   "detail.remaining": "left",
+  "detail.savePrefix": "You save on this purchase",
   "detail.favorite": "Add to favorites",
   "detail.favoriteActive": "In favorites",
   "detail.favoriteAdded": "Added to favorites",
@@ -2760,6 +2763,7 @@ type Catalog = Record<MessageKey, string>
     "detail.similarSubtitle": "Подобрано по вашим интересам",
   "detail.sales": "продаж",
   "detail.remaining": "осталось",
+  "detail.savePrefix": "Ваша выгода от покупки",
   "detail.favorite": "В избранное",
   "detail.favoriteActive": "В избранном",
   "detail.favoriteAdded": "Добавлено в избранное",
@@ -2893,7 +2897,7 @@ type Catalog = Record<MessageKey, string>
   "profile.allClear": "Всё в порядке",
   "profile.experienceSettings": "Настройки интерфейса",
   "cms.navigationTitle": "Справка и материалы",
-  "questions.title": "Вопросы и ответы о товаре",
+  "questions.title": "Вопросы и отв��ты о товаре",
   "questions.subtitle": "Задайте вопрос; ответ будет основан только на данных и изображениях этого товара.",
   "questions.answersCount": "Ответов: {count}",
   "questions.formLabel": "Задать вопрос о товаре",
@@ -3627,6 +3631,7 @@ type Catalog = Record<MessageKey, string>
     "detail.similarSubtitle": "Aapki pasand ke hisaab se chuna gaya",
   "detail.sales": "bikri",
   "detail.remaining": "bache",
+  "detail.savePrefix": "Is khareed par aapki bachat",
   "detail.favorite": "Pasand mein daalein",
   "detail.favoriteActive": "Pasand mein",
   "detail.favoriteAdded": "Pasand mein add ho gaya",

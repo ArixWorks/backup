@@ -58,6 +58,21 @@ export function currencyLabel(locale: Locale): string {
   return localeCurrency(locale) === "toman" ? "تومان" : "USD"
 }
 
+/**
+ * USDT (≈ USD) equivalent of a Toman amount, shown as a secondary crypto
+ * reference under the primary price. Uses the same editable exchange rate as
+ * the USD display (Toman per 1 USDT), so 1,300,000 Toman at rate 100,000
+ * renders as "13.00".
+ */
+export function formatUsdt(
+  tomanAmount: bigint | number | string,
+  usdRate: number = DEFAULT_USD_RATE,
+): string {
+  const toman = toNumber(tomanAmount)
+  const rate = usdRate > 0 ? usdRate : DEFAULT_USD_RATE
+  return usdFmt.format(toman / rate)
+}
+
 const compactFractionFmtFa = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 3 })
 const compactFractionFmtEn = new Intl.NumberFormat("en-US", { maximumFractionDigits: 3 })
 

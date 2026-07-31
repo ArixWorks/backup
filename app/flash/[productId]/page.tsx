@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { Package, PackageX, Tag, ExternalLink, Star } from "lucide-react"
+import { PackageX, Tag, ExternalLink, Star, TrendingDown } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { EmptyState } from "@/components/empty-state"
 import { FlashBuyButton } from "@/components/flash-buy-button"
@@ -37,7 +37,7 @@ type FlashDetail = FlashSale & {
 
 export default function FlashDetailPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params)
-  const { t, priceValue, currency, num, dir, locale } = useI18n()
+  const { t, priceValue, priceUsdt, currency, num, dir, locale } = useI18n()
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const borderRef = useReactiveGoldBorder<HTMLDivElement>()
   const { data, isLoading, error, mutate } = useSWR<{ data: FlashDetail }>(
@@ -124,14 +124,12 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
       className="gold-border-spin space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5"
     >
       {/* Top region: stock on the reading-start side (green), price on the end
-          side with the original price struck through just above it — matching
-          the approved price-box mockup. */}
+          side. The price stack reads top→bottom: struck-through original, the
+          big gold price with its currency word inline, then the USDT (≈ USD)
+          crypto reference — matching the approved price-box mockup. */}
       <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-0.5 text-start">
-          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Package className="h-3.5 w-3.5" />
-            {t("flash.stock")}
-          </span>
+        <div className="flex flex-col gap-1 text-start">
+          <span className="text-xs text-muted-foreground">{t("flash.stock")}</span>
           <span
             className={cn(
               "text-lg font-extrabold tabular-nums",
@@ -143,30 +141,35 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
         </div>
 
         <div className="flex flex-col items-end gap-0.5 text-end">
-          <span className="text-xs text-muted-foreground">
-            {selectedVariant && variants.length > 1 ? `${t("plan.from")} · ` : ""}
-            {currency}
-          </span>
           {hasDiscount && (
             <span className="text-xs text-muted-foreground line-through tabular-nums">
-              {priceValue(normalizedCompareAt!)}
+              {priceValue(normalizedCompareAt!)} {currency}
             </span>
           )}
-          <span className="text-3xl font-extrabold leading-none tabular-nums text-primary">
-            {priceValue(shownPrice)}
+          <span className="flex items-baseline gap-1 leading-none text-primary">
+            <span className="text-3xl font-extrabold tabular-nums">{priceValue(shownPrice)}</span>
+            <span className="text-sm font-bold">{currency}</span>
+          </span>
+          <span className="text-[11px] tabular-nums text-muted-foreground/70">
+            USDT {priceUsdt(shownPrice)} ≈
           </span>
         </div>
       </div>
 
+      {/* Savings banner — a soft green panel calling out the buyer's gain,
+          replacing the old inline discount pills to match the mockup. */}
       {hasDiscount && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
-            <Tag className="h-3 w-3" />
-            {discountPercent}% {t("flash.off")}
-          </span>
-          <span className="text-xs font-medium text-success">
-            {t("detail.youSave")} {priceValue(normalizedCompareAt! - normalizedPrice)} {currency}
-          </span>
+        <div className="flex items-center justify-end gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2.5 text-end">
+          <p className="text-xs leading-relaxed text-success">
+            {t("detail.savePrefix")}{" "}
+            <span className="font-extrabold tabular-nums">
+              {priceValue(normalizedCompareAt! - normalizedPrice)} {currency}
+            </span>{" "}
+            <span className="text-success/80">
+              ({discountPercent}% {t("flash.off")})
+            </span>
+          </p>
+          <TrendingDown className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
         </div>
       )}
 
