@@ -68,10 +68,20 @@ export function ProductHero({
           className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-background/60 to-transparent"
         />
 
-        {/* Floating controls */}
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3 pt-[max(0.75rem,var(--tg-safe-top,0px))]">
+        {/* Floating controls.
+            RTL + justify-between: the first child sits on the RIGHT, the second
+            on the LEFT. Back button goes right (start of the reading flow) and
+            the like/share group goes left, per the approved layout. Top offset
+            is at least 15px so the controls clear a phone status bar / notch. */}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3 pt-[max(15px,var(--tg-safe-top,0px))]">
+          <Link
+            href={backHref}
+            aria-label={t("detail.back")}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-background/60 text-foreground backdrop-blur-md transition-colors hover:bg-background/80"
+          >
+            <ArrowRight className="h-[18px] w-[18px]" />
+          </Link>
           <div className="flex items-center gap-2">
-            {watchSlot}
             {onShare && (
               <button
                 type="button"
@@ -82,14 +92,8 @@ export function ProductHero({
                 <Share2 className="h-[18px] w-[18px]" />
               </button>
             )}
+            {watchSlot}
           </div>
-          <Link
-            href={backHref}
-            aria-label={t("detail.back")}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-background/60 text-foreground backdrop-blur-md transition-colors hover:bg-background/80"
-          >
-            <ArrowRight className="h-[18px] w-[18px]" />
-          </Link>
         </div>
 
         {overlay && <div className="absolute bottom-4 left-3 flex items-center gap-2">{overlay}</div>}
