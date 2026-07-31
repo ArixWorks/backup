@@ -61,23 +61,55 @@ export interface Recommendation extends FlashSaleSummary {
   reason: string
 }
 
+export interface RecommendOptions {
+  /**
+   * When set, results are "similar products" for this product: the seed itself
+   * is excluded and candidates sharing its category/tags get a strong boost,
+   * blended on top of the user's personal affinity. Without it, results are the
+   * generic personalized "picked for you" rail.
+   */
+  seedProductId?: string | null
+}
+
+const SEED_CATEGORY_WEIGHT = 6 // seed-category match ranks a candidate highly
+const SEED_TAG_WEIGHT = 2 // each shared tag with the seed adds up
+
 /**
  * Return up to `limit` recommended flash-sale products for a user (or globally
- * popular ones when `userId` is null / has no history).
+ * popular ones when `userId` is null / has no history). When `seedProductId` is
+ * provided the rail becomes "similar products" for that seed, still
+ * personalized by the user's affinity.
  */
 export async function recommendForUser(
   userId: string | null,
   limit = 6,
   locale = "fa",
+  options: RecommendOptions = {},
 ): Promise<Recommendation[]> {
-  // Candidate pool: available, visible flash-sale products with stock.
-  const products = await prisma.product.findMany({
-    where: { saleMode: "FIXED_PRICE", active: true, hidden: false },
-    include: { fixedSale: true },
-    take: 200,
-  })
+  const seedProductId = options.seedProductId ?? null
+
+  // Candidate pool: available, visible flash-sale products with stock. Fetch the
+  // seed's own category/tags in parallel so we can compute similarity.
+  const [products, seed] = await Promise.all([
+    prisma.product.findMany({
+      where: { saleMode: "FIXED_PRICE", active: true, hidden: false },
+      include: { fixedSale: true },
+      take: 200,
+    }),
+    seedProductId
+      ? prisma.product.findUnique({
+          where: { id: seedProductId },
+          select: { category: true, tags: true },
+        })
+      : Promise.resolve(null),
+  ])
+  const seedTags = new Set(seed?.tags ?? [])
   const candidates = products.filter(
-    (p) => p.fixedSale && p.fixedSale.stock - p.fixedSale.reservedStock > 0,
+    (p) =>
+      p.fixedSale &&
+      p.fixedSale.stock - p.fixedSale.reservedStock > 0 &&
+      // Never recommend the product the user is currently viewing.
+      p.id !== seedProductId,
   )
   if (candidates.length === 0) return []
 
@@ -119,13 +151,33 @@ export async function recommendForUser(
       for (const tag of p.tags) {
         affinityScore += affinity.tagScore.get(tag) ?? 0
       }
-      return { p, score: affinityScore + popularity, affinityScore, topCategory, topCategoryScore }
+
+      // Similarity to the seed product (only when seeded). This makes the rail
+      // "products like this one", still nudged by personal affinity above.
+      let similarityScore = 0
+      if (seed) {
+        if (p.category && seed.category && p.category === seed.category) {
+          similarityScore += SEED_CATEGORY_WEIGHT
+        }
+        for (const tag of p.tags) {
+          if (seedTags.has(tag)) similarityScore += SEED_TAG_WEIGHT
+        }
+      }
+
+      return {
+        p,
+        score: affinityScore + similarityScore + popularity,
+        affinityScore,
+        similarityScore,
+        topCategory,
+        topCategoryScore,
+      }
     })
     .sort((a, b) => b.score - a.score)
 
   const top = scored.slice(0, limit)
 
-  return Promise.all(top.map(async ({ p, affinityScore, topCategory }) => {
+  return Promise.all(top.map(async ({ p, affinityScore, similarityScore, topCategory }) => {
     const localized = await getLocalizedData({
       entityType: "product",
       entityId: p.id,
@@ -144,6 +196,8 @@ export async function recommendForUser(
       reason = `چون به «${topCategory}» علاقه نشان داده‌اید`
     } else if (hasSignal && affinityScore > 0) {
       reason = "بر اساس فعالیت‌های شما"
+    } else if (seed && similarityScore > 0) {
+      reason = "مشابه این محصول"
     } else {
       reason = "محبوب میان کاربران"
     }

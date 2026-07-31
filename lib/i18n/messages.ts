@@ -116,6 +116,12 @@ export type MessageKey =
   | "detail.eachFrom"
   | "detail.youSave"
   | "detail.restockNotice"
+  | "detail.features"
+  | "detail.tabInfo"
+  | "detail.tabReviews"
+  | "detail.tabQuestions"
+  | "detail.similar"
+  | "detail.similarSubtitle"
   | "plan.choose"
   | "plan.compare"
   | "plan.selected"
@@ -1007,7 +1013,13 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "این محصول یافت نشد یا دیگر در دسترس نیست.",
   "detail.eachFrom": "هر واحد از",
   "detail.youSave": "سود شما",
-  "detail.restockNotice": "این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.",
+    "detail.restockNotice": "این محصول تمام شده است. برای اطلاع از موجودی مجدد، اطلاع‌رسانی را فعال کنید.",
+    "detail.features": "ویژگی‌ها",
+    "detail.tabInfo": "توضیحات",
+    "detail.tabReviews": "نظرات",
+    "detail.tabQuestions": "پرسش‌ها",
+    "detail.similar": "محصولات مشابه",
+    "detail.similarSubtitle": "بر اساس علاقه‌مندی‌های شما انتخاب شده",
   "plan.choose": "پلن مورد نظر را انتخاب کنید",
   "plan.compare": "مقایسه پلن‌ها",
   "plan.selected": "انتخاب‌شده",
@@ -1710,7 +1722,7 @@ type Catalog = Record<MessageKey, string>
   "refAct.hoursAgo": "{count} ساعت پیش",
   "refAct.minutesAgo": "{count} دقیقه پیش",
   "refAct.now": "همین حالا",
-  "refAct.empty": "هنوز کسی را دعوت نکرده‌اید.",
+  "refAct.empty": "��نوز کسی را دعوت نکرده‌اید.",
   "refAct.emptyDesc": "لینک خود را به اشتراک بگذارید تا ای��جا دوستانتان را ببینید.",
 }
 
@@ -1861,7 +1873,13 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "This product was not found or is no longer available.",
   "detail.eachFrom": "Each from",
   "detail.youSave": "You save",
-  "detail.restockNotice": "This product is out of stock. Turn on alerts to be notified when it is back.",
+    "detail.restockNotice": "This product is out of stock. Turn on alerts to be notified when it is back.",
+    "detail.features": "Features",
+    "detail.tabInfo": "Details",
+    "detail.tabReviews": "Reviews",
+    "detail.tabQuestions": "Questions",
+    "detail.similar": "Similar products",
+    "detail.similarSubtitle": "Picked based on your interests",
   "plan.choose": "Choose your plan",
   "plan.compare": "Compare plans",
   "plan.selected": "Selected",
@@ -2715,7 +2733,13 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "Товар не найден или больше недоступен.",
   "detail.eachFrom": "За единицу от",
   "detail.youSave": "Ваша выгода",
-  "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступлении.",
+    "detail.restockNotice": "Товара нет в наличии. Включите уведомления, чтобы узнать о поступлении.",
+    "detail.features": "Характеристики",
+    "detail.tabInfo": "Описание",
+    "detail.tabReviews": "Отзывы",
+    "detail.tabQuestions": "Вопросы",
+    "detail.similar": "Похожие товары",
+    "detail.similarSubtitle": "Подобрано по вашим интересам",
   "plan.choose": "Выберите тариф",
   "plan.compare": "Сравнить тарифы",
   "plan.selected": "Выбрано",
@@ -3131,7 +3155,7 @@ type Catalog = Record<MessageKey, string>
   "acctPwd.errMismatch": "Пароли не совпадают",
   "acctPwd.failed": "Не удалось изменить пароль",
   "acctPwd.currentPlaceholder": "Текущий пароль",
-  "acctPwd.newPlaceholder": "Новый пароль (не менее 8 символов)",
+  "acctPwd.newPlaceholder": "Но��ый пароль (не менее 8 символов)",
   "acctPwd.confirmPlaceholder": "Повторите новый пароль",
   "acctPwd.save": "Сохранить новый пароль",
   "acctTg.title": "Telegram",
@@ -3415,7 +3439,7 @@ type Catalog = Record<MessageKey, string>
   "refAct.joined": "Присоединился",
   "refAct.purchased": "Купил",
   "refAct.daysAgo": "{count} дн. назад",
-  "refAct.hoursAgo": "{count} ч. назад",
+  "refAct.hoursAgo": "{count} ч. ��азад",
   "refAct.minutesAgo": "{count} мин. назад",
   "refAct.now": "Только что",
   "refAct.empty": "Пока нет рефералов",
@@ -3570,7 +3594,13 @@ type Catalog = Record<MessageKey, string>
   "detail.notFound": "Yeh product nahi mila ya ab available nahi hai.",
   "detail.eachFrom": "Per unit se",
   "detail.youSave": "Aap bachate hain",
-  "detail.restockNotice": "Yeh product stock mein nahi hai. Wapas aane par notify hone ke liye alert on karein.",
+    "detail.restockNotice": "Yeh product stock mein nahi hai. Wapas aane par notify hone ke liye alert on karein.",
+    "detail.features": "Features",
+    "detail.tabInfo": "Vivaran",
+    "detail.tabReviews": "Reviews",
+    "detail.tabQuestions": "Sawaal",
+    "detail.similar": "Similar products",
+    "detail.similarSubtitle": "Aapki pasand ke hisaab se chuna gaya",
   "plan.choose": "Apna plan chunein",
   "plan.compare": "Plans ki tulna karein",
   "plan.selected": "Chuna gaya",

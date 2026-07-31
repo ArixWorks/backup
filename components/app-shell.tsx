@@ -30,6 +30,20 @@ const BARE_ROUTES = new Set([
 ])
 
 /**
+ * Immersive detail routes hide the bottom tab bar so the sticky purchase bar
+ * (StickyBuyBar) owns the bottom edge and the product/auction media can run
+ * edge-to-edge. Matched by prefix on the Telegram mobile shell only — the web
+ * desktop shell uses the persistent Sidebar and has no tab bar to hide.
+ */
+const IMMERSIVE_DETAIL_PREFIXES = ["/flash/", "/auctions/"]
+
+function isImmersiveDetail(pathname: string | null): boolean {
+  if (!pathname) return false
+  // Only the item pages (/flash/<id>, /auctions/<id>), not the listings.
+  return IMMERSIVE_DETAIL_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
+/**
  * Renders the storefront chrome (compact header + bottom tab bar) for the
  * Telegram Mini App experience. Auth/recovery routes render bare (no chrome,
  * no gate); admin routes bring their own AdminShell and handle their own auth.
@@ -40,6 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdmin = pathname?.startsWith("/admin")
   const isBare = pathname ? BARE_ROUTES.has(pathname) : false
+  const hideBottomNav = isImmersiveDetail(pathname)
 
   if (isBare) return <>{children}</>
   if (isAdmin) return <>{children}</>
@@ -67,7 +82,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   inset via max(env, --tg-safe-bottom) (env() is often 0 inside
                   Telegram while the real inset lives in --tg-safe-bottom). On
                   the web desktop shell the tab bar is gone, so we drop it. */}
-              <main className="flex-1 px-4 pt-4 pb-[calc(6.5rem+max(env(safe-area-inset-bottom),var(--tg-safe-bottom,0px)))] web:lg:px-8 web:lg:pt-5 web:lg:pb-8 web:xl:px-10">
+              <main
+                className={
+                  hideBottomNav
+                    ? // Immersive detail: no tab bar, so the page (its sticky buy
+                      // bar) manages the bottom inset itself. Keep top padding off
+                      // too so the hero can run flush to the header.
+                      "flex-1 px-4 pt-0 pb-4 web:lg:px-8 web:lg:pt-5 web:lg:pb-8 web:xl:px-10"
+                    : "flex-1 px-4 pt-4 pb-[calc(6.5rem+max(env(safe-area-inset-bottom),var(--tg-safe-bottom,0px)))] web:lg:px-8 web:lg:pt-5 web:lg:pb-8 web:xl:px-10"
+                }
+              >
                 <div className="mx-auto w-full max-w-[var(--shell-max)] web:lg:max-w-[var(--content-max)]">
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -85,7 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <SupportFab />
-          <BottomNav />
+          {!hideBottomNav && <BottomNav />}
         </SidebarProvider>
       </MaintenanceGate>
     </AuthGate>
