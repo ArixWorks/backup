@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
 import { summarizeFlash, type FlashProductRow, type FlashSaleSummary } from "./catalog"
+import { computeProductScore } from "./product-score"
 
 /**
  * Behaviour-based product recommendations.
@@ -59,6 +60,9 @@ async function buildAffinity(userId: string) {
 
 export interface Recommendation extends FlashSaleSummary {
   reason: string
+  /** Blended product score (0-5) for the compact rating chip. */
+  score: number
+  hasScore: boolean
 }
 
 export interface RecommendOptions {
@@ -178,19 +182,35 @@ export async function recommendForUser(
   const top = scored.slice(0, limit)
 
   return Promise.all(top.map(async ({ p, affinityScore, similarityScore, topCategory }) => {
-    const localized = await getLocalizedData({
-      entityType: "product",
-      entityId: p.id,
-      locale,
-      fallback: {
-        title: p.title,
-        description: p.description,
-        category: p.category,
-        tags: p.tags,
-        links: p.links,
-      },
-    })
+    // Only the handful of returned cards need a rating, so per-item review +
+    // favorites aggregates here stay cheap (bounded by `limit`).
+    const [localized, ratingAgg, favoritesCount] = await Promise.all([
+      getLocalizedData({
+        entityType: "product",
+        entityId: p.id,
+        locale,
+        fallback: {
+          title: p.title,
+          description: p.description,
+          category: p.category,
+          tags: p.tags,
+          links: p.links,
+        },
+      }),
+      prisma.review.aggregate({
+        where: { productId: p.id, hidden: false },
+        _avg: { rating: true },
+        _count: { _all: true },
+      }),
+      prisma.favorite.count({ where: { productId: p.id } }),
+    ])
     const summary = summarizeFlash({ ...p, ...localized } as unknown as FlashProductRow)
+    const { score, hasSignal: hasScore } = computeProductScore({
+      ratingAvg: ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
+      ratingCount: ratingAgg._count._all,
+      soldCount: summary.soldCount,
+      favoritesCount,
+    })
     let reason: string
     if (hasSignal && affinityScore > 0 && topCategory) {
       reason = `چون به «${topCategory}» علاقه نشان داده‌اید`
@@ -201,6 +221,6 @@ export async function recommendForUser(
     } else {
       reason = "محبوب میان کاربران"
     }
-    return { ...summary, reason }
+    return { ...summary, reason, score, hasScore }
   }))
 }

@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Package, Tag, ExternalLink } from "lucide-react"
+import { Package, Tag, ExternalLink, Star } from "lucide-react"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { FlashBuyButton } from "@/components/flash-buy-button"
 import { useI18n } from "@/components/i18n-provider"
@@ -42,9 +42,21 @@ export type FlashSale = {
   bulkMinQty?: number | null
   bulkDiscountPercent?: number | null
   variants?: PlanVariant[]
+  score?: number
+  hasScore?: boolean
 }
 
-export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?: () => void }) {
+export function FlashCard({
+  sale,
+  onPurchased,
+  compact = false,
+}: {
+  sale: FlashSale
+  onPurchased?: () => void
+  /** Denser card for tight rails (e.g. similar-products): no delivery badge,
+      smaller title, a rating + sales line, and no description / "was" price. */
+  compact?: boolean
+}) {
   const { t, priceValue, currency, num } = useI18n()
   const soldOut = sale.stock <= 0
   const low = !soldOut && sale.stock <= 5
@@ -71,9 +83,11 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
           />
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-3">
-          <DeliveryBadge type={sale.deliveryType} />
-        </div>
+        {!compact && (
+          <div className="absolute bottom-3 left-3">
+            <DeliveryBadge type={sale.deliveryType} />
+          </div>
+        )}
         {soldOut ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background/70">
             <span className="rounded-full bg-secondary px-4 py-1 text-sm font-bold">
@@ -108,23 +122,51 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
         )}
       </Link>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <Link href={`/flash/${sale.id}`} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
-            {sale.title}
-          </Link>
-          {!!sale.soldDisplay && sale.soldDisplay > 0 && (
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-              {t("flash.sold")}: {num(sale.soldDisplay)}
-            </span>
-          )}
-        </div>
-        {sale.description && richExcerpt(sale.description) && (
-          <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-            {richExcerpt(sale.description)}
-          </p>
+      <div className={compact ? "flex flex-1 flex-col gap-2 p-3" : "flex flex-1 flex-col gap-3 p-4"}>
+        {compact ? (
+          <div className="flex flex-col gap-1.5">
+            <Link
+              href={`/flash/${sale.id}`}
+              dir="auto"
+              className="line-clamp-1 text-[13px] font-bold leading-tight hover:text-primary"
+            >
+              {sale.title}
+            </Link>
+            {/* Rating (blended product score) + total sales, per the compact spec. */}
+            <div className="flex items-center gap-2 text-[10.5px]">
+              {sale.hasScore && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Star className="size-3 fill-primary text-primary" aria-hidden="true" />
+                  <span className="tabular-nums">{num(sale.score ?? 0)}</span>
+                </span>
+              )}
+              {!!sale.soldDisplay && sale.soldDisplay > 0 && (
+                <span className="tabular-nums text-muted-foreground/70">
+                  {num(sale.soldDisplay)} {t("detail.sales")}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <Link href={`/flash/${sale.id}`} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
+                {sale.title}
+              </Link>
+              {!!sale.soldDisplay && sale.soldDisplay > 0 && (
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                  {t("flash.sold")}: {num(sale.soldDisplay)}
+                </span>
+              )}
+            </div>
+            {sale.description && richExcerpt(sale.description) && (
+              <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                {richExcerpt(sale.description)}
+              </p>
+            )}
+          </>
         )}
-        {sale.links && sale.links.length > 0 && (
+        {!compact && sale.links && sale.links.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {sale.links.map((link, i) => (
               <a
@@ -147,7 +189,7 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
               <span className="text-lg font-extrabold tabular-nums text-primary">
                 {priceValue(sale.price)}
               </span>
-              {hasDiscount && (
+              {!compact && hasDiscount && (
                 <span className="text-xs text-muted-foreground line-through tabular-nums">
                   {priceValue(compareAtPrice!)}
                 </span>
