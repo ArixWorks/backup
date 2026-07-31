@@ -24,6 +24,7 @@ const linkSchema = z.object({ label: z.string(), url: z.string() })
 
 const schema = z.object({
   title: z.string().optional(),
+  subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
   categoryId: z.string().cuid().nullable().optional(),
@@ -85,6 +86,7 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
     id,
     {
       title: body.title,
+      subtitle: body.subtitle,
       description: body.description,
       category: body.category,
       categoryId: body.categoryId,

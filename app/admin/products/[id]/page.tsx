@@ -42,6 +42,7 @@ type FixedSale = {
 type Product = {
   id: string
   title: string
+  subtitle: string | null
   description: string | null
   category: string | null
   categoryId: string | null
@@ -131,6 +132,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             initial={product.description ?? ""}
             onSaved={mutate}
           />
+
+          <SubtitleEditor id={id} initial={product.subtitle ?? ""} onSaved={mutate} />
 
           <HighlightsEditor id={id} initial={product.highlights ?? []} onSaved={mutate} />
 
@@ -331,6 +334,59 @@ function ProductTutorialEditor({
         <Button onClick={save} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           ذخیره آموزش
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function SubtitleEditor({
+  id,
+  initial,
+  onSaved,
+}: {
+  id: string
+  initial: string
+  onSaved: () => void
+}) {
+  const [value, setValue] = useState(initial)
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    try {
+      await apiPatch(`/api/v1/admin/products/${id}`, { subtitle: value.trim() || null })
+      toast.success("زیرعنوان ذخیره شد")
+      onSaved()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در ذخیره زیرعنوان")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-card p-5">
+      <div>
+        <h2 className="font-bold">زیرعنوان محصول</h2>
+        <p className="text-sm text-muted-foreground">
+          یک خط کوتاه که زیر عنوان محصول نمایش داده می‌شود؛ مثلاً «اکانت اختصاصی، روی ایمیل خودت» یا «اکانت اشتراکی».
+        </p>
+      </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-1.5">
+          <Label htmlFor="product-subtitle">زیرعنوان</Label>
+          <Input
+            id="product-subtitle"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            maxLength={160}
+            placeholder="مثال: اکانت اختصاصی، روی ایمیل خودت"
+          />
+        </div>
+        <Button onClick={save} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          ذخیره زیرعنوان
         </Button>
       </div>
     </div>

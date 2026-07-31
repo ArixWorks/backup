@@ -42,7 +42,7 @@ export function ProductHero({
 
   return (
     <div className="relative -mx-4 -mt-4 web:lg:mx-0 web:lg:mt-0 web:lg:rounded-3xl web:lg:overflow-hidden">
-      <div className="relative aspect-[4/5] w-full overflow-hidden sm:aspect-[16/10] web:lg:aspect-[16/9]">
+      <div className="relative aspect-square w-full overflow-hidden sm:aspect-[16/10] web:lg:aspect-[16/9]">
         {image ? (
           <Image
             src={image || "/placeholder.svg"}
