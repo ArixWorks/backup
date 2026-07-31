@@ -73,7 +73,7 @@ export function ProductHero({
             on the LEFT. Back button goes right (start of the reading flow) and
             the like/share group goes left, per the approved layout. Top offset
             is at least 15px so the controls clear a phone status bar / notch. */}
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3 pt-[max(15px,var(--tg-safe-top,0px))]">
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3 pt-[max(30px,calc(var(--tg-safe-top,0px)+15px))]">
           <Link
             href={backHref}
             aria-label={t("detail.back")}
