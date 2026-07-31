@@ -159,7 +159,8 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
       {/* Savings banner — a soft green panel calling out the buyer's gain,
           replacing the old inline discount pills to match the mockup. */}
       {hasDiscount && (
-        <div className="flex items-center justify-end gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2.5 text-end">
+        <div className="flex items-center justify-start gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2.5 text-start">
+          <TrendingDown className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
           <p className="text-xs leading-relaxed text-success">
             {t("detail.savePrefix")}{" "}
             <span className="font-extrabold tabular-nums">
@@ -169,7 +170,6 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
               ({discountPercent}% {t("flash.off")})
             </span>
           </p>
-          <TrendingDown className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
         </div>
       )}
 
