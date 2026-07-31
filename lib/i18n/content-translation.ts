@@ -249,7 +249,7 @@ export async function enqueueTranslationBackfill(limit = 12) {
     where: { active: true, hidden: false },
     orderBy: { createdAt: "asc" },
     take: Math.max(0, limit - queued),
-    select: { id: true, title: true, description: true, category: true, tags: true, links: true },
+    select: { id: true, title: true, description: true, category: true, tags: true, highlights: true, links: true },
   })
   for (const product of products) {
     const hash = sourceHash({
@@ -257,6 +257,7 @@ export async function enqueueTranslationBackfill(limit = 12) {
       description: product.description,
       category: product.category,
       tags: product.tags,
+      highlights: product.highlights,
       links: product.links,
     })
     const existing = await prisma.contentTranslation.count({
@@ -271,6 +272,7 @@ export async function enqueueTranslationBackfill(limit = 12) {
           description: product.description,
           category: product.category,
           tags: product.tags,
+          highlights: product.highlights,
           links: product.links,
         },
       })

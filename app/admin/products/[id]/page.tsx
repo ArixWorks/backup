@@ -19,6 +19,7 @@ import { LinksEditor } from "@/components/admin/links-editor"
 import { ImageUpload } from "@/components/admin/image-upload"
 import { ImprovePanel, type I18nStore } from "@/components/admin/ai/copilot"
 import { VariantsEditor } from "@/components/admin/products/variants-editor"
+import { HighlightsEditor } from "@/components/admin/products/highlights-editor"
 import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
 import { DeliveryTemplateCard } from "@/components/admin/products/delivery-template-card"
 import { InventoryTotpDialog } from "@/components/admin/products/inventory-totp-dialog"
@@ -45,6 +46,7 @@ type Product = {
   category: string | null
   categoryId: string | null
   tags: string[]
+  highlights: string[]
   i18n: I18nStore | null
   saleMode: string
   deliveryType: string
@@ -129,6 +131,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             initial={product.description ?? ""}
             onSaved={mutate}
           />
+
+          <HighlightsEditor id={id} initial={product.highlights ?? []} onSaved={mutate} />
 
           <ImprovePanel
             entityId="product"

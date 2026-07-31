@@ -11,5 +11,8 @@ export const GET = route(async (req: Request) => {
   const limitRaw = Number(searchParams.get("limit") ?? "6")
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 12) : 6
   const locale = searchParams.get("locale") ?? "fa"
-  return recommendForUser(user?.id ?? null, limit, locale)
+  // Optional seed makes this a personalized "similar products" rail for the
+  // product being viewed; absent, it's the generic "picked for you" rail.
+  const seedProductId = searchParams.get("seed") ?? null
+  return recommendForUser(user?.id ?? null, limit, locale, { seedProductId })
 })
