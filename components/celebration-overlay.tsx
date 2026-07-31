@@ -8,6 +8,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 import { fireEntryConfetti, fireWinConfetti, resetConfetti } from "@/lib/celebration-fx"
 import { playCelebrationSound } from "@/lib/notification-sound"
+import { GiftboxLottie } from "@/components/giftbox-lottie"
 
 export type CelebrationKind = "purchase" | "auction-win" | "giveaway-entry" | "giveaway-win"
 
@@ -73,6 +74,9 @@ export function CelebrationOverlay({
   const isWin = kind === "giveaway-win" || kind === "auction-win"
   // Winners get the gold/primary treatment; entries + purchases get success.
   const isSuccess = kind === "giveaway-entry" || kind === "purchase"
+  // Lottery (giveaway) events swap the circular medallion for a gift-box Lottie:
+  // an opening gift for entries, a jackpot gift for wins.
+  const isGiveaway = kind === "giveaway-entry" || kind === "giveaway-win"
 
   const tone = isSuccess
     ? {
@@ -186,6 +190,24 @@ export function CelebrationOverlay({
               <X className="size-5" />
             </button>
 
+            {/* Lottery events: gift-box Lottie (medium, centered), no circular
+                image/medallion. It renders instantly from bundled JSON. */}
+            {isGiveaway ? (
+              <motion.div
+                className="relative mt-2 flex size-36 items-center justify-center"
+                animate={reduced ? undefined : { y: [0, -6, 0] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                {/* Soft glow halo behind the gift box */}
+                <div
+                  className="absolute inset-0 -z-10 rounded-full blur-2xl"
+                  aria-hidden="true"
+                  style={{ background: `radial-gradient(circle, ${tone.glow} 0%, transparent 72%)` }}
+                />
+                <GiftboxLottie kind={kind === "giveaway-win" ? "win" : "entry"} className="relative" />
+              </motion.div>
+            ) : (
+              <>
             {/* Medallion */}
             <motion.div
               className="relative mt-2 size-28"
@@ -255,6 +277,8 @@ export function CelebrationOverlay({
                   </motion.span>
                 ))}
             </motion.div>
+              </>
+            )}
 
             <div className="flex flex-col gap-2">
               <p className={cn("text-xs font-bold uppercase tracking-wide", tone.text)}>{eyebrow}</p>
