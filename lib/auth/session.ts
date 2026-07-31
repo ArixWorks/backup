@@ -77,10 +77,18 @@ export async function requireAdmin() {
 /** Issue a signed session cookie for the given user (call after login). */
 export async function createSession(userId: string, tokenVersion = 0) {
   const store = await cookies()
+  // sameSite "none" + secure keeps the session working inside embedded iframe
+  // contexts — the Telegram Mini App webview AND the v0 / Vercel preview iframe.
+  // With "lax", the browser treats the app as third-party inside those frames
+  // and drops the cookie on follow-up requests, which made a successful login
+  // bounce straight back to /login. This mirrors the dedicated Telegram auth
+  // route (app/api/telegram/auth) which already uses none+secure for the same
+  // reason. All real origins (preview, production, Telegram) are HTTPS, so the
+  // Secure attribute is always satisfiable.
   store.set(SESSION_COOKIE, signSession(userId, tokenVersion), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   })
