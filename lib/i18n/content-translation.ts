@@ -249,11 +249,12 @@ export async function enqueueTranslationBackfill(limit = 12) {
     where: { active: true, hidden: false },
     orderBy: { createdAt: "asc" },
     take: Math.max(0, limit - queued),
-    select: { id: true, title: true, description: true, category: true, tags: true, highlights: true, links: true },
+    select: { id: true, title: true, subtitle: true, description: true, category: true, tags: true, highlights: true, links: true },
   })
   for (const product of products) {
     const hash = sourceHash({
       title: product.title,
+      subtitle: product.subtitle,
       description: product.description,
       category: product.category,
       tags: product.tags,
@@ -269,6 +270,7 @@ export async function enqueueTranslationBackfill(limit = 12) {
         entityId: product.id,
         sourceData: {
           title: product.title,
+          subtitle: product.subtitle,
           description: product.description,
           category: product.category,
           tags: product.tags,

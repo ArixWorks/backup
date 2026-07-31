@@ -88,6 +88,7 @@ export interface ProductLinkInput {
 
 export interface FlashProductInput {
   title: string
+  subtitle?: string | null
   description?: string
   category?: string
   categoryId?: string | null
@@ -134,6 +135,7 @@ function cleanLinks(links?: ProductLinkInput[]): Prisma.InputJsonValue {
 function queueProductTranslation(product: {
   id: string
   title: string
+  subtitle: string | null
   description: string | null
   category: string | null
   tags: string[]
@@ -144,6 +146,7 @@ function queueProductTranslation(product: {
     entityId: product.id,
     sourceData: {
       title: product.title,
+      subtitle: product.subtitle,
       description: product.description,
       category: product.category,
       tags: product.tags,
@@ -159,6 +162,7 @@ export async function createFlashProduct(input: FlashProductInput, adminId: stri
     data: {
       slug: secureSlug("p"),
       title: input.title.trim(),
+      subtitle: input.subtitle?.trim() || null,
       description: input.description,
       category: input.category,
       categoryId: input.categoryId || null,
@@ -207,6 +211,7 @@ export async function createFlashProduct(input: FlashProductInput, adminId: stri
 
 export interface FlashUpdateInput {
   title?: string
+  subtitle?: string | null
   description?: string
   category?: string
   categoryId?: string | null
@@ -237,6 +242,7 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
     where: { id: productId },
     data: {
       title: input.title?.trim() ?? undefined,
+      subtitle: input.subtitle === undefined ? undefined : (input.subtitle?.trim() || null),
       description: input.description,
       category: input.category,
       categoryId: input.categoryId === undefined ? undefined : input.categoryId,
@@ -283,6 +289,7 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
 
 export interface AuctionProductInput {
   title: string
+  subtitle?: string | null
   description?: string
   category?: string
   categoryId?: string | null
@@ -316,6 +323,7 @@ export async function createAuctionProduct(input: AuctionProductInput, adminId: 
     data: {
       slug: secureSlug("p"),
       title: input.title.trim(),
+      subtitle: input.subtitle?.trim() || null,
       description: input.description,
       category: input.category,
       categoryId: input.categoryId || null,

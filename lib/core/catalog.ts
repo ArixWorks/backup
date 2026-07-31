@@ -20,13 +20,14 @@ export interface FlashFilters {
   locale?: string
 }
 
-async function localizedProduct<T extends { id: string; title: string; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
+async function localizedProduct<T extends { id: string; title: string; subtitle?: string | null; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
   const localized = await getLocalizedData({
     entityType: "product",
     entityId: product.id,
     locale,
     fallback: {
       title: product.title,
+      subtitle: product.subtitle ?? null,
       description: product.description,
       category: product.category,
       tags: product.tags,
@@ -107,6 +108,7 @@ export type FlashProductRow = {
   id: string
   slug: string
   title: string
+  subtitle: string | null
   description: string | null
   category: string | null
   coverImage: string | null
@@ -148,6 +150,7 @@ export function summarizeFlash(p: FlashProductRow) {
     id: p.id,
     slug: p.slug,
     title: p.title,
+    subtitle: p.subtitle ?? null,
     description: p.description,
     category: p.category,
     coverImage: p.coverImage,
@@ -267,7 +270,7 @@ type AuctionSummaryInput = {
   id: string
   productId: string
   policyJson: string | null
-  product: { slug: string; title: string; description: string | null; category: string | null; coverImage: string | null; deliveryType: string; tags?: string[]; highlights?: string[] }
+  product: { slug: string; title: string; subtitle?: string | null; description: string | null; category: string | null; coverImage: string | null; deliveryType: string; tags?: string[]; highlights?: string[] }
   startPrice: bigint
   currentPrice: bigint
   minimumIncrement: bigint
@@ -327,6 +330,7 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     productId: a.productId,
     slug: a.product.slug,
     title: a.product.title,
+    subtitle: a.product.subtitle ?? null,
     description: a.product.description,
     category: a.product.category,
     coverImage: a.product.coverImage,
