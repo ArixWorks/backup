@@ -14,7 +14,6 @@ import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { BidPanel } from "@/components/bid-panel"
 import { WatchButton } from "@/components/watch-button"
 import { SegmentedCountdown } from "@/components/segmented-countdown"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -404,15 +403,10 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           <>
             <DeliveryBadge type={a.deliveryType} />
             {a.bidCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
-                <Gavel className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1 text-[10.5px] tabular-nums text-muted-foreground">
+                <Gavel className="size-3" />
                 {t("adetail.bids", { n: formatNumber(a.bidCount) })}
               </span>
-            )}
-            {a.category && (
-              <Badge variant="secondary" className="border border-border/60">
-                {a.category}
-              </Badge>
             )}
           </>
         }

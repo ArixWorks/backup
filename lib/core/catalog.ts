@@ -10,6 +10,7 @@ import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
 import { resolveTemplate } from "./delivery-fields"
 import { listStoreCategories } from "./product-categories"
+import { computeProductScore } from "./product-score"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -230,10 +231,24 @@ export async function getFlashDetail(idOrSlug: string, locale = "fa") {
       ? (summary.price * BigInt(100 - summary.bulkDiscountPercent)) / 100n
       : null
 
-  const ratingAgg = await prisma.review.aggregate({
-    where: { productId: p.id, hidden: false },
-    _avg: { rating: true },
-    _count: { _all: true },
+  const [ratingAgg, favoritesCount] = await Promise.all([
+    prisma.review.aggregate({
+      where: { productId: p.id, hidden: false },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
+    prisma.favorite.count({ where: { productId: p.id } }),
+  ])
+
+  const ratingAvg = ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null
+  const ratingCount = ratingAgg._count._all
+  // Blended product score (satisfaction + purchases + favorites) shown as the
+  // single star rating on the product page.
+  const { score, hasSignal: hasScore } = computeProductScore({
+    ratingAvg,
+    ratingCount,
+    soldCount: summary.soldCount,
+    favoritesCount,
   })
 
   return {
@@ -244,8 +259,11 @@ export async function getFlashDetail(idOrSlug: string, locale = "fa") {
     createdAt: p.createdAt,
     bulkUnitPrice,
     variants,
-    ratingAvg: ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
-    ratingCount: ratingAgg._count._all,
+    ratingAvg,
+    ratingCount,
+    favoritesCount,
+    score,
+    hasScore,
   }
 }
 

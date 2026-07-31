@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { Package, PackageX, Tag, ExternalLink } from "lucide-react"
+import { Package, PackageX, Tag, ExternalLink, Star } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { EmptyState } from "@/components/empty-state"
 import { FlashBuyButton } from "@/components/flash-buy-button"
@@ -13,9 +13,7 @@ import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { ReviewsSection } from "@/components/reviews-section"
 import { ProductQuestions } from "@/components/product-questions"
-import { StarRating } from "@/components/star-rating"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
 import { ProductDetailShell } from "@/components/product-detail/product-detail-shell"
 import { FavoriteButton } from "@/components/product-detail/favorite-button"
 import { useI18n } from "@/components/i18n-provider"
@@ -32,6 +30,9 @@ type FlashDetail = FlashSale & {
   bulkUnitPrice: number | null
   ratingAvg: number | null
   ratingCount: number
+  favoritesCount: number
+  score: number
+  hasScore: boolean
 }
 
 export default function FlashDetailPage({ params }: { params: Promise<{ productId: string }> }) {
@@ -258,21 +259,16 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
       titleMeta={
         <>
           <DeliveryBadge type={shownDelivery} />
-          {p.ratingCount > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <StarRating value={p.ratingAvg ?? 0} size={14} />
-              <span className="text-sm font-medium tabular-nums">{num(p.ratingAvg ?? 0)}</span>
+          {p.hasScore && (
+            <span className="flex items-center gap-1 text-[10.5px] text-muted-foreground">
+              <Star className="size-3 fill-primary text-primary" aria-hidden="true" />
+              <span className="tabular-nums">{num(p.score)}</span>
             </span>
           )}
           {!!p.soldDisplay && p.soldDisplay > 0 && (
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {num(p.soldDisplay)} {t("detail.sales")}
+            <span className="text-[10.5px] tabular-nums text-muted-foreground/70">
+              {"\u00B7"} {num(p.soldDisplay)} {t("detail.sales")}
             </span>
-          )}
-          {p.category && (
-            <Badge variant="secondary" className="border border-border/60">
-              {p.category}
-            </Badge>
           )}
         </>
       }
