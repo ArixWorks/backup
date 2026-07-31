@@ -22,8 +22,33 @@ const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"])
 // Path prefixes that are exempt from the same-origin requirement.
 const CSRF_EXEMPT_PREFIXES = ["/api/telegram/", "/api/v1/cron/"]
 
+// In production we require a strict Origin===Host match. Outside production
+// (v0 preview, Vercel preview deployments, local dev) the app is rendered
+// inside an editor iframe whose Origin legitimately differs from the request
+// Host, so we additionally trust these platform preview origin suffixes.
+const PREVIEW_ORIGIN_SUFFIXES = [".vusercontent.net", ".v0.app", ".v0.dev", ".vercel.app"]
+const IS_PRODUCTION = process.env.VERCEL_ENV === "production"
+
 function isExempt(pathname: string): boolean {
   return CSRF_EXEMPT_PREFIXES.some((p) => pathname.startsWith(p))
+}
+
+function isSameOrigin(sourceHost: string, req: NextRequest): boolean {
+  // Behind a proxy the browser-facing host arrives as `x-forwarded-host` while
+  // `host` may be an internal address — accept a match against either.
+  const candidates = [req.headers.get("host"), req.headers.get("x-forwarded-host")]
+    .filter(Boolean)
+    .flatMap((h) => h!.split(",").map((s) => s.trim()))
+  if (candidates.includes(sourceHost)) return true
+
+  // Trust platform preview origins only outside production.
+  if (!IS_PRODUCTION && PREVIEW_ORIGIN_SUFFIXES.some((suffix) => sourceHost.endsWith(suffix))) {
+    return true
+  }
+  if (!IS_PRODUCTION && (sourceHost === "localhost" || sourceHost.startsWith("localhost:"))) {
+    return true
+  }
+  return false
 }
 
 export function proxy(req: NextRequest): NextResponse {
@@ -33,20 +58,17 @@ export function proxy(req: NextRequest): NextResponse {
     return NextResponse.next()
   }
 
-  const host = req.headers.get("host")
   const source = req.headers.get("origin") || req.headers.get("referer")
 
-  // A present Origin/Referer that disagrees with Host is a cross-site request.
-  if (host && source) {
+  // A present Origin/Referer that disagrees with our host(s) is cross-site.
+  if (source) {
+    let sourceHost: string | null = null
     try {
-      const url = new URL(source)
-      if (url.host !== host) {
-        return NextResponse.json(
-          { ok: false, error: { code: "FORBIDDEN", message: "درخواست از مبدأ نامعتبر" } },
-          { status: 403 },
-        )
-      }
+      sourceHost = new URL(source).host
     } catch {
+      sourceHost = null
+    }
+    if (!sourceHost || !isSameOrigin(sourceHost, req)) {
       return NextResponse.json(
         { ok: false, error: { code: "FORBIDDEN", message: "درخواست از مبدأ نامعتبر" } },
         { status: 403 },

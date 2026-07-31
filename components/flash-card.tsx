@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Package, Tag, ExternalLink } from "lucide-react"
+import { Package, Tag, ExternalLink, Star } from "lucide-react"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { FlashBuyButton } from "@/components/flash-buy-button"
 import { useI18n } from "@/components/i18n-provider"
@@ -42,9 +42,21 @@ export type FlashSale = {
   bulkMinQty?: number | null
   bulkDiscountPercent?: number | null
   variants?: PlanVariant[]
+  score?: number
+  hasScore?: boolean
 }
 
-export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?: () => void }) {
+export function FlashCard({
+  sale,
+  onPurchased,
+  compact = false,
+}: {
+  sale: FlashSale
+  onPurchased?: () => void
+  /** Denser card for tight rails (e.g. similar-products): no delivery badge,
+      smaller title, a rating + sales line, and no description / "was" price. */
+  compact?: boolean
+}) {
   const { t, priceValue, currency, num } = useI18n()
   const soldOut = sale.stock <= 0
   const low = !soldOut && sale.stock <= 5
@@ -54,13 +66,20 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
     sale.compareAtPrice,
   )
 
+  const cardClass =
+    "card-premium group flex flex-col overflow-hidden rounded-2xl border border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:elevate-lg"
+  // In compact mode the whole card is one link (no buy button), so the media
+  // and title must NOT be nested anchors — render them as plain elements.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const CardRoot: any = compact ? Link : "div"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const MediaTag: any = compact ? "div" : Link
+  const cardRootProps = compact ? { href: `/flash/${sale.id}`, "aria-label": sale.title } : {}
+  const mediaProps = compact ? {} : { href: `/flash/${sale.id}`, "aria-label": sale.title }
+
   return (
-    <div className="card-premium group flex flex-col overflow-hidden rounded-2xl border border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:elevate-lg">
-      <Link
-        href={`/flash/${sale.id}`}
-        className="relative block aspect-[16/10] overflow-hidden bg-muted"
-        aria-label={sale.title}
-      >
+    <CardRoot {...cardRootProps} className={cardClass}>
+      <MediaTag {...mediaProps} className="relative block aspect-[16/10] overflow-hidden bg-muted">
         {sale.coverImage && (
           <Image
             src={sale.coverImage || "/placeholder.svg"}
@@ -71,9 +90,11 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
           />
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-3">
-          <DeliveryBadge type={sale.deliveryType} />
-        </div>
+        {!compact && (
+          <div className="absolute bottom-3 left-3">
+            <DeliveryBadge type={sale.deliveryType} />
+          </div>
+        )}
         {soldOut ? (
           <div className="absolute inset-0 flex items-center justify-center bg-background/70">
             <span className="rounded-full bg-secondary px-4 py-1 text-sm font-bold">
@@ -81,14 +102,16 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
             </span>
           </div>
         ) : (
-          <span
-            className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-              low ? "bg-warning text-warning-foreground" : "bg-secondary text-foreground"
-            }`}
-          >
-            <Package className="h-3 w-3" />
-            {num(sale.stock)} {t("flash.stock")}
-          </span>
+          !compact && (
+            <span
+              className={`absolute right-3 top-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                low ? "bg-warning text-warning-foreground" : "bg-secondary text-foreground"
+              }`}
+            >
+              <Package className="h-3 w-3" />
+              {num(sale.stock)} {t("flash.stock")}
+            </span>
+          )
         )}
         {(hasDiscount || hasBulk) && (
           <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
@@ -106,25 +129,49 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
             )}
           </div>
         )}
-      </Link>
+      </MediaTag>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <Link href={`/flash/${sale.id}`} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
-            {sale.title}
-          </Link>
-          {!!sale.soldDisplay && sale.soldDisplay > 0 && (
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-              {t("flash.sold")}: {num(sale.soldDisplay)}
+      <div className={compact ? "flex flex-1 flex-col gap-2 p-3" : "flex flex-1 flex-col gap-3 p-4"}>
+        {compact ? (
+          <div className="flex flex-col gap-1.5">
+            <span dir="auto" className="line-clamp-1 text-[13px] font-bold leading-tight">
+              {sale.title}
             </span>
-          )}
-        </div>
-        {sale.description && richExcerpt(sale.description) && (
-          <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-            {richExcerpt(sale.description)}
-          </p>
+            {/* Rating (blended product score) + total sales, per the compact spec. */}
+            <div className="flex items-center gap-2 text-[10.5px]">
+              {sale.hasScore && (
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Star className="size-3 fill-primary text-primary" aria-hidden="true" />
+                  <span className="tabular-nums">{num(sale.score ?? 0)}</span>
+                </span>
+              )}
+              {!!sale.soldDisplay && sale.soldDisplay > 0 && (
+                <span className="tabular-nums text-muted-foreground/70">
+                  {num(sale.soldDisplay)} {t("detail.sales")}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <Link href={`/flash/${sale.id}`} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
+                {sale.title}
+              </Link>
+              {!!sale.soldDisplay && sale.soldDisplay > 0 && (
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                  {t("flash.sold")}: {num(sale.soldDisplay)}
+                </span>
+              )}
+            </div>
+            {sale.description && richExcerpt(sale.description) && (
+              <p dir="auto" className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                {richExcerpt(sale.description)}
+              </p>
+            )}
+          </>
         )}
-        {sale.links && sale.links.length > 0 && (
+        {!compact && sale.links && sale.links.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {sale.links.map((link, i) => (
               <a
@@ -147,7 +194,7 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
               <span className="text-lg font-extrabold tabular-nums text-primary">
                 {priceValue(sale.price)}
               </span>
-              {hasDiscount && (
+              {!compact && hasDiscount && (
                 <span className="text-xs text-muted-foreground line-through tabular-nums">
                   {priceValue(compareAtPrice!)}
                 </span>
@@ -159,9 +206,9 @@ export function FlashCard({ sale, onPurchased }: { sale: FlashSale; onPurchased?
               </span>
             )}
           </div>
-          <FlashBuyButton sale={sale} onPurchased={onPurchased} />
+          {!compact && <FlashBuyButton sale={sale} onPurchased={onPurchased} />}
         </div>
       </div>
-    </div>
+    </CardRoot>
   )
 }

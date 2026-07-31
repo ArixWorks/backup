@@ -55,7 +55,7 @@ export function SimilarProductsRail({ productId, limit = 8 }: { productId: strin
             key={rec.id}
             className="w-40 shrink-0 snap-start web:lg:w-auto"
           >
-            <FlashCard sale={rec} />
+            <FlashCard sale={rec} compact />
           </FadeItem>
         ))}
       </Stagger>

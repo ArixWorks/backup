@@ -17,6 +17,7 @@ import {
   formatPrice,
   formatPriceValue,
   formatPriceCompactParts,
+  formatUsdt,
   currencyLabel,
   DEFAULT_USD_RATE,
 } from "@/lib/i18n/currency"
@@ -32,6 +33,8 @@ type I18nContextValue = {
   priceValue: (toman: bigint | number | string) => string
   /** Compact price split into value + suffix for tight spaces (header pill). */
   priceCompact: (toman: bigint | number | string) => { value: string; suffix: string }
+  /** USDT (≈ USD) equivalent, numeric only — a secondary crypto reference. */
+  priceUsdt: (toman: bigint | number | string) => string
   /** Locale-aware plain integer formatting (Persian digits for fa, Latin otherwise). */
   num: (value: number) => string
   currency: string
@@ -115,6 +118,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       price: (toman) => formatPrice(toman, locale, usdRate),
       priceValue: (toman) => formatPriceValue(toman, locale, usdRate),
       priceCompact: (toman) => formatPriceCompactParts(toman, locale, usdRate),
+      priceUsdt: (toman) => formatUsdt(toman, usdRate),
       num: (value) => new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en-US").format(value),
       currency: currencyLabel(locale),
       dir: isRTL(locale) ? "rtl" : "ltr",

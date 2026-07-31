@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
-import { Package, PackageX, Tag, ExternalLink } from "lucide-react"
+import { PackageX, Tag, ExternalLink, Star, TrendingDown } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { EmptyState } from "@/components/empty-state"
 import { FlashBuyButton } from "@/components/flash-buy-button"
@@ -13,27 +13,31 @@ import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { DeliveryBadge } from "@/components/delivery-badge"
 import { ReviewsSection } from "@/components/reviews-section"
 import { ProductQuestions } from "@/components/product-questions"
-import { StarRating } from "@/components/star-rating"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Badge } from "@/components/ui/badge"
 import { ProductDetailShell } from "@/components/product-detail/product-detail-shell"
+import { FavoriteButton } from "@/components/product-detail/favorite-button"
 import { useI18n } from "@/components/i18n-provider"
 import { useReactiveGoldBorder } from "@/hooks/use-reactive-gold-border"
 import type { FlashSale } from "@/components/flash-card"
 import { getProductDiscount } from "@/lib/core/product-pricing"
+import { cn } from "@/lib/utils"
 
 type FlashDetail = FlashSale & {
+  subtitle: string | null
   images: string[]
   tags: string[]
   highlights: string[]
   bulkUnitPrice: number | null
   ratingAvg: number | null
   ratingCount: number
+  favoritesCount: number
+  score: number
+  hasScore: boolean
 }
 
 export default function FlashDetailPage({ params }: { params: Promise<{ productId: string }> }) {
   const { productId } = use(params)
-  const { t, priceValue, currency, num, dir, locale } = useI18n()
+  const { t, priceValue, priceUsdt, currency, num, dir, locale } = useI18n()
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const borderRef = useReactiveGoldBorder<HTMLDivElement>()
   const { data, isLoading, error, mutate } = useSWR<{ data: FlashDetail }>(
@@ -119,47 +123,61 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
       ref={borderRef}
       className="gold-border-spin space-y-4 rounded-2xl p-5 shadow-lg shadow-primary/5"
     >
-      {p.ratingCount > 0 && (
-        <div className="flex items-center gap-2">
-          <StarRating value={p.ratingAvg ?? 0} size={16} />
-          <span className="text-sm font-medium tabular-nums">{num(p.ratingAvg ?? 0)}</span>
-          <span className="text-xs text-muted-foreground">
-            ({num(p.ratingCount)} {t("reviews.ratingsCount")})
+      {/* Top region: stock on the reading-start side (green), price on the end
+          side. The price stack reads top→bottom: struck-through original, the
+          big gold price with its currency word inline, then the USDT (≈ USD)
+          crypto reference — matching the approved price-box mockup. */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1 text-start">
+          <span className="text-xs text-muted-foreground">{t("flash.stock")}</span>
+          <span
+            className={cn(
+              "text-lg font-extrabold tabular-nums",
+              soldOut ? "text-destructive" : "text-success",
+            )}
+          >
+            {soldOut ? t("flash.soldOut") : `${num(shownStock)} ${t("detail.remaining")}`}
           </span>
+        </div>
+
+        <div className="flex flex-col items-end gap-0.5 text-end">
+          {hasDiscount && (
+            <span className="text-xs text-muted-foreground line-through tabular-nums">
+              {priceValue(normalizedCompareAt!)} {currency}
+            </span>
+          )}
+          <span className="flex items-baseline gap-1 leading-none text-primary">
+            <span className="text-3xl font-extrabold tabular-nums">{priceValue(shownPrice)}</span>
+            <span className="text-sm font-bold">{currency}</span>
+          </span>
+          <span className="text-[11px] tabular-nums text-muted-foreground/70">
+            USDT {priceUsdt(shownPrice)} ≈
+          </span>
+        </div>
+      </div>
+
+      {/* Savings banner — a soft green panel calling out the buyer's gain,
+          replacing the old inline discount pills to match the mockup. */}
+      {hasDiscount && (
+        <div className="flex items-center justify-start gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2.5 text-start">
+          <TrendingDown className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+          <p className="text-xs leading-relaxed text-success">
+            {t("detail.savePrefix")}{" "}
+            <span className="font-extrabold tabular-nums">
+              {priceValue(normalizedCompareAt! - normalizedPrice)} {currency}
+            </span>{" "}
+            <span className="text-success/80">
+              ({discountPercent}% {t("flash.off")})
+            </span>
+          </p>
         </div>
       )}
 
-      <div>
-        <span className="text-xs text-muted-foreground">
-          {selectedVariant && variants.length > 1 ? t("plan.from") : ""} {currency}
-        </span>
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-3xl font-extrabold tabular-nums text-primary">
-            {priceValue(shownPrice)}
-          </span>
-          {hasDiscount && (
-            <>
-              <span className="text-base text-muted-foreground line-through tabular-nums">
-                {priceValue(normalizedCompareAt!)}
-              </span>
-              <span className="inline-flex items-center gap-1 self-center rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
-                <Tag className="h-3 w-3" />
-                {discountPercent}% {t("flash.off")}
-              </span>
-            </>
-          )}
-        </div>
-        {hasDiscount && (
-          <p className="mt-1 text-xs font-medium text-success">
-            {t("detail.youSave")} {priceValue(normalizedCompareAt! - normalizedPrice)} {currency}
-          </p>
-        )}
-        {hasBulk && p.bulkUnitPrice != null && !hasPlans && (
-          <p className="mt-1 text-xs text-success">
-            {p.bulkMinQty}+ : {t("detail.eachFrom")} {priceValue(p.bulkUnitPrice)} {currency}
-          </p>
-        )}
-      </div>
+      {hasBulk && p.bulkUnitPrice != null && !hasPlans && (
+        <p className="text-xs text-success">
+          {p.bulkMinQty}+ : {t("detail.eachFrom")} {priceValue(p.bulkUnitPrice)} {currency}
+        </p>
+      )}
 
       {/* Sale plan selector — collapsible plan picker + comparison. */}
       {hasPlans && (
@@ -169,16 +187,6 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
           onSelect={setSelectedPlanId}
         />
       )}
-
-      <div className="flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2.5 text-sm">
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <Package className="h-4 w-4" />
-          {t("flash.stock")}
-        </span>
-        <span className="font-bold tabular-nums">
-          {soldOut ? t("flash.soldOut") : num(shownStock)}
-        </span>
-      </div>
 
       {soldOut && (
         <div className="space-y-2 border-t border-border pt-3">
@@ -244,31 +252,28 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
   return (
     <ProductDetailShell
       title={p.title}
+      subtitle={p.subtitle}
       hero={{
         image: p.images[0] ?? p.coverImage ?? null,
         backHref: "/flash",
         onShare: share,
-        overlay: (
-          <>
-            <DeliveryBadge type={shownDelivery} />
-            {p.category && (
-              <Badge variant="secondary" className="border border-border/60 bg-background/80 backdrop-blur">
-                {p.category}
-              </Badge>
-            )}
-          </>
-        ),
+        watchSlot: <FavoriteButton productId={productId} />,
       }}
       titleMeta={
-        p.ratingCount > 0 ? (
-          <div className="flex items-center gap-2">
-            <StarRating value={p.ratingAvg ?? 0} size={15} />
-            <span className="text-sm font-medium tabular-nums">{num(p.ratingAvg ?? 0)}</span>
-            <span className="text-xs text-muted-foreground">
-              ({num(p.ratingCount)} {t("reviews.ratingsCount")})
+        <>
+          <DeliveryBadge type={shownDelivery} />
+          {p.hasScore && (
+            <span className="flex items-center gap-1 text-[10.5px] text-muted-foreground">
+              <Star className="size-3 fill-primary text-primary" aria-hidden="true" />
+              <span className="tabular-nums">{num(p.score)}</span>
             </span>
-          </div>
-        ) : null
+          )}
+          {!!p.soldDisplay && p.soldDisplay > 0 && (
+            <span className="text-[10.5px] tabular-nums text-muted-foreground/70">
+              {"\u00B7"} {num(p.soldDisplay)} {t("detail.sales")}
+            </span>
+          )}
+        </>
       }
       primaryPanel={primaryPanel}
       highlights={p.highlights ?? []}

@@ -14,7 +14,6 @@ import { RichContent, CollapsibleContent } from "@/components/rich-content"
 import { BidPanel } from "@/components/bid-panel"
 import { WatchButton } from "@/components/watch-button"
 import { SegmentedCountdown } from "@/components/segmented-countdown"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -40,6 +39,7 @@ type AuctionDetail = {
   id: string
   productId: string
   title: string
+  subtitle: string | null
   description: string | null
   category: string | null
   coverImage: string | null
@@ -390,6 +390,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
       <ProductDetailShell
         title={a.title}
+        subtitle={a.subtitle}
         hero={{
           image: a.coverImage,
           backHref: "/auctions",
@@ -397,17 +398,18 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           watchSlot: showCountdown ? (
             <WatchButton auctionId={a.id} className="h-9 rounded-full border border-border/50 bg-background/60 px-3 text-xs backdrop-blur-md" />
           ) : undefined,
-          overlay: (
-            <>
-              <DeliveryBadge type={a.deliveryType} />
-              {a.category && (
-                <Badge variant="secondary" className="border border-border/60 bg-background/80 backdrop-blur">
-                  {a.category}
-                </Badge>
-              )}
-            </>
-          ),
         }}
+        titleMeta={
+          <>
+            <DeliveryBadge type={a.deliveryType} />
+            {a.bidCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10.5px] tabular-nums text-muted-foreground">
+                <Gavel className="size-3" />
+                {t("adetail.bids", { n: formatNumber(a.bidCount) })}
+              </span>
+            )}
+          </>
+        }
         headerAside={
           <span
             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${TONE_PILL_CLASS[ds.tone]}`}

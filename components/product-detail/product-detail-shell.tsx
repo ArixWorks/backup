@@ -22,6 +22,7 @@ import { SimilarProductsRail } from "@/components/product-detail/similar-product
 export function ProductDetailShell({
   hero,
   title,
+  subtitle,
   titleMeta,
   headerAside,
   banner,
@@ -43,7 +44,9 @@ export function ProductDetailShell({
     treatmentClass?: string
   }
   title: string
-  /** Row under the title: badges, delivery, rating, category, etc. */
+  /** Admin-managed one-line tagline shown under the title (e.g. account type). */
+  subtitle?: string | null
+  /** Row ABOVE the title: delivery badge, rating, sales count, etc. */
   titleMeta?: ReactNode
   /** Optional control aligned to the title's end (e.g. web watch button). */
   headerAside?: ReactNode
@@ -69,16 +72,26 @@ export function ProductDetailShell({
     <div className="space-y-6 pb-28">
       <ProductHero title={title} {...hero} />
 
-      {/* Title + meta sit right under the hero, reading as a continuation of
-          the faded image. */}
-      <div className="space-y-3">
+      {/* Title block sits right under the hero, reading as a continuation of
+          the faded image. Order matches the approved mockups: a meta row
+          (delivery · rating · sales) ABOVE a compact title, then the
+          admin-managed subtitle. Alignment follows the reading direction
+          (right for Persian, left otherwise) via logical `start` utilities. */}
+      <div className="space-y-1.5 text-start">
+        {titleMeta && (
+          <div className="flex flex-wrap items-center justify-start gap-x-3 gap-y-1.5">{titleMeta}</div>
+        )}
         <div className="flex items-start justify-between gap-3">
-          <h1 dir="auto" className="text-balance text-2xl font-extrabold leading-tight sm:text-3xl">
+          <h1 dir="auto" className="text-pretty text-lg font-bold leading-snug sm:text-xl">
             {title}
           </h1>
           {headerAside && <div className="shrink-0">{headerAside}</div>}
         </div>
-        {titleMeta && <div className="flex flex-wrap items-center gap-2">{titleMeta}</div>}
+        {subtitle && (
+          <p dir="auto" className="text-sm leading-relaxed text-muted-foreground">
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {banner}

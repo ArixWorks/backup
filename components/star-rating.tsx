@@ -6,7 +6,12 @@ import { cn } from "@/lib/utils"
 /**
  * Star rating display or input. When `onChange` is provided it becomes an
  * interactive 1–5 picker; otherwise it renders a read-only (optionally
- * fractional) rating. Direction-agnostic so it works in both RTL and LTR.
+ * fractional) rating.
+ *
+ * The row is always laid out LTR (star 1 on the left → star 5 on the right),
+ * even inside an RTL page. This keeps the universal rating convention: the
+ * 5th star from the left always means 5. Without this, RTL would mirror the
+ * row so the leftmost star mapped to 1.
  */
 export function StarRating({
   value,
@@ -21,7 +26,11 @@ export function StarRating({
 }) {
   const interactive = !!onChange
   return (
-    <div className={cn("inline-flex items-center gap-0.5", className)} role={interactive ? "radiogroup" : "img"}>
+    <div
+      dir="ltr"
+      className={cn("inline-flex items-center gap-0.5", className)}
+      role={interactive ? "radiogroup" : "img"}
+    >
       {[1, 2, 3, 4, 5].map((star) => {
         const filled = value >= star
         const half = !filled && value >= star - 0.5

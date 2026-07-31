@@ -10,6 +10,7 @@ import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
 import { resolveTemplate } from "./delivery-fields"
 import { listStoreCategories } from "./product-categories"
+import { computeProductScore } from "./product-score"
 
 export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 
@@ -20,13 +21,14 @@ export interface FlashFilters {
   locale?: string
 }
 
-async function localizedProduct<T extends { id: string; title: string; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
+async function localizedProduct<T extends { id: string; title: string; subtitle?: string | null; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
   const localized = await getLocalizedData({
     entityType: "product",
     entityId: product.id,
     locale,
     fallback: {
       title: product.title,
+      subtitle: product.subtitle ?? null,
       description: product.description,
       category: product.category,
       tags: product.tags,
@@ -107,6 +109,7 @@ export type FlashProductRow = {
   id: string
   slug: string
   title: string
+  subtitle: string | null
   description: string | null
   category: string | null
   coverImage: string | null
@@ -148,6 +151,7 @@ export function summarizeFlash(p: FlashProductRow) {
     id: p.id,
     slug: p.slug,
     title: p.title,
+    subtitle: p.subtitle ?? null,
     description: p.description,
     category: p.category,
     coverImage: p.coverImage,
@@ -227,10 +231,24 @@ export async function getFlashDetail(idOrSlug: string, locale = "fa") {
       ? (summary.price * BigInt(100 - summary.bulkDiscountPercent)) / 100n
       : null
 
-  const ratingAgg = await prisma.review.aggregate({
-    where: { productId: p.id, hidden: false },
-    _avg: { rating: true },
-    _count: { _all: true },
+  const [ratingAgg, favoritesCount] = await Promise.all([
+    prisma.review.aggregate({
+      where: { productId: p.id, hidden: false },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
+    prisma.favorite.count({ where: { productId: p.id } }),
+  ])
+
+  const ratingAvg = ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null
+  const ratingCount = ratingAgg._count._all
+  // Blended product score (satisfaction + purchases + favorites) shown as the
+  // single star rating on the product page.
+  const { score, hasSignal: hasScore } = computeProductScore({
+    ratingAvg,
+    ratingCount,
+    soldCount: summary.soldCount,
+    favoritesCount,
   })
 
   return {
@@ -241,8 +259,11 @@ export async function getFlashDetail(idOrSlug: string, locale = "fa") {
     createdAt: p.createdAt,
     bulkUnitPrice,
     variants,
-    ratingAvg: ratingAgg._avg.rating ? Math.round(ratingAgg._avg.rating * 10) / 10 : null,
-    ratingCount: ratingAgg._count._all,
+    ratingAvg,
+    ratingCount,
+    favoritesCount,
+    score,
+    hasScore,
   }
 }
 
@@ -267,7 +288,7 @@ type AuctionSummaryInput = {
   id: string
   productId: string
   policyJson: string | null
-  product: { slug: string; title: string; description: string | null; category: string | null; coverImage: string | null; deliveryType: string; tags?: string[]; highlights?: string[] }
+  product: { slug: string; title: string; subtitle?: string | null; description: string | null; category: string | null; coverImage: string | null; deliveryType: string; tags?: string[]; highlights?: string[] }
   startPrice: bigint
   currentPrice: bigint
   minimumIncrement: bigint
@@ -327,6 +348,7 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     productId: a.productId,
     slug: a.product.slug,
     title: a.product.title,
+    subtitle: a.product.subtitle ?? null,
     description: a.product.description,
     category: a.product.category,
     coverImage: a.product.coverImage,

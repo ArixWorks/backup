@@ -37,6 +37,7 @@ const i18nSchema = z.record(z.string(), z.unknown()).nullable().optional()
 const flashSchema = z.object({
   mode: z.literal("FIXED_PRICE"),
   title: z.string().min(1),
+  subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
   categoryId: z.string().cuid().nullable().optional(),
@@ -59,6 +60,7 @@ const flashSchema = z.object({
 const auctionSchema = z.object({
   mode: z.literal("AUCTION"),
   title: z.string().min(1),
+  subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
   categoryId: z.string().cuid().nullable().optional(),
@@ -90,6 +92,7 @@ export const POST = route(async (req: Request) => {
     return createFlashProduct(
       {
         title: body.title,
+        subtitle: body.subtitle ?? null,
         description: body.description,
         category: body.category,
         categoryId: body.categoryId,
@@ -115,6 +118,7 @@ export const POST = route(async (req: Request) => {
   return createAuctionProduct(
     {
       title: body.title,
+      subtitle: body.subtitle ?? null,
       description: body.description,
       category: body.category,
       tags: body.tags,

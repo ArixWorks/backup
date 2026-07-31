@@ -77,7 +77,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-h-dvh w-full">
             <Sidebar />
             <div className="flex min-w-0 flex-1 flex-col">
-              <SiteHeader />
+              {/* Immersive detail routes hide the storefront header so the
+                  product/auction media runs flush to the top and the hero's own
+                  floating controls (back / like / share) take over. On the web
+                  desktop shell the Sidebar remains the primary nav. */}
+              {!hideBottomNav && <SiteHeader />}
               {/* Bottom padding clears the fixed tab bar *plus* the bottom safe
                   inset via max(env, --tg-safe-bottom) (env() is often 0 inside
                   Telegram while the real inset lives in --tg-safe-bottom). On

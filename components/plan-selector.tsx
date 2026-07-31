@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { Check, Package } from "lucide-react"
+import { Check } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import type { PlanVariant } from "@/components/flash-card"
@@ -78,7 +78,7 @@ export function PlanSelector({
           {variants.map((v) => {
             const selected = v.id === selectedId
             const soldOut = v.stock <= 0
-            const { hasDiscount, compareAtPrice } = getProductDiscount(v.price, v.compareAtPrice)
+            const { hasDiscount, percent, compareAtPrice } = getProductDiscount(v.price, v.compareAtPrice)
             return (
               <button
                 key={v.id}
@@ -87,46 +87,38 @@ export function PlanSelector({
                 aria-checked={selected}
                 disabled={soldOut}
                 onClick={() => onSelect(v.id)}
-                className={`group relative flex flex-col gap-2 rounded-xl border p-3 text-start transition-[background-color,border-color] duration-[var(--duration-fast)] ease-[var(--ease-out-quint)] disabled:cursor-not-allowed disabled:opacity-55 ${
+                className={`group relative flex flex-col gap-1.5 overflow-hidden rounded-xl border p-3 text-end transition-[background-color,border-color] duration-[var(--duration-fast)] ease-[var(--ease-out-quint)] disabled:cursor-not-allowed disabled:opacity-55 ${
                   selected
                     ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
                     : "border-border bg-secondary/30 hover:border-primary/40 hover:bg-secondary/50"
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span dir="auto" className="font-bold leading-5 text-pretty">
-                    {v.name}
+                {/* Discount badge pinned to the top-start corner. */}
+                {hasDiscount && (
+                  <span className="absolute start-0 top-0 rounded-ee-lg bg-destructive px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-destructive-foreground">
+                    {percent}%
                   </span>
-                  <span
-                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                      selected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
-                    }`}
-                  >
-                    {selected && <Check className="h-3 w-3" />}
-                  </span>
-                </div>
+                )}
 
-                <div className="mt-auto flex items-baseline gap-1.5">
+                <span dir="auto" className="font-bold leading-5 text-pretty">
+                  {v.name}
+                </span>
+
+                <div className="flex items-baseline justify-end gap-1.5">
                   <span className="text-lg font-extrabold tabular-nums text-primary">
                     {priceValue(v.price)}
                   </span>
                   <span className="text-[11px] text-muted-foreground">{currency}</span>
-                  {hasDiscount && (
-                    <span className="text-[11px] text-muted-foreground line-through tabular-nums">
-                      {priceValue(compareAtPrice!)}
-                    </span>
-                  )}
                 </div>
 
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Package className="h-3 w-3" />
-                  {soldOut ? t("flash.soldOut") : `${num(v.stock)} ${t("flash.stock")}`}
-                </div>
-
-                {selected && (
-                  <span className="absolute -top-2 end-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
-                    {t("plan.selected")}
+                {hasDiscount ? (
+                  <span className="text-[11px] text-muted-foreground line-through tabular-nums">
+                    {priceValue(compareAtPrice!)} {currency}
                   </span>
+                ) : null}
+
+                {soldOut && (
+                  <span className="text-[11px] font-medium text-destructive">{t("flash.soldOut")}</span>
                 )}
               </button>
             )
