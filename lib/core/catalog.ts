@@ -20,7 +20,7 @@ export interface FlashFilters {
   locale?: string
 }
 
-async function localizedProduct<T extends { id: string; title: string; description: string | null; category: string | null; tags: string[]; links: unknown }>(product: T, locale = "fa") {
+async function localizedProduct<T extends { id: string; title: string; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
   const localized = await getLocalizedData({
     entityType: "product",
     entityId: product.id,
@@ -30,6 +30,7 @@ async function localizedProduct<T extends { id: string; title: string; descripti
       description: product.description,
       category: product.category,
       tags: product.tags,
+      highlights: product.highlights ?? [],
       links: product.links,
     },
   })
@@ -235,7 +236,8 @@ export async function getFlashDetail(idOrSlug: string, locale = "fa") {
   return {
     ...summary,
     images,
-    tags: p.tags ?? [],
+    tags: (translatedProduct as unknown as { tags: string[] }).tags ?? p.tags ?? [],
+    highlights: (translatedProduct as unknown as { highlights?: string[] }).highlights ?? p.highlights ?? [],
     createdAt: p.createdAt,
     bulkUnitPrice,
     variants,
@@ -265,7 +267,7 @@ type AuctionSummaryInput = {
   id: string
   productId: string
   policyJson: string | null
-  product: { slug: string; title: string; description: string | null; category: string | null; coverImage: string | null; deliveryType: string }
+  product: { slug: string; title: string; description: string | null; category: string | null; coverImage: string | null; deliveryType: string; tags?: string[]; highlights?: string[] }
   startPrice: bigint
   currentPrice: bigint
   minimumIncrement: bigint
@@ -329,6 +331,8 @@ function summarizeAuction(a: AuctionSummaryInput, policy?: AuctionPolicy) {
     category: a.product.category,
     coverImage: a.product.coverImage,
     deliveryType: a.product.deliveryType,
+    tags: a.product.tags ?? [],
+    highlights: a.product.highlights ?? [],
     startPrice: a.startPrice,
     currentPrice,
     minimumIncrement: advertisedIncrement,

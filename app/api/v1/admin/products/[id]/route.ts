@@ -7,6 +7,7 @@ import {
   setProductVisibility,
   setProductDefaultTutorial,
   updateProductMedia,
+  updateProductHighlights,
   deleteProducts,
 } from "@/lib/core/admin-catalog"
 import { ValidationError } from "@/lib/core/errors"
@@ -27,6 +28,7 @@ const schema = z.object({
   category: z.string().optional(),
   categoryId: z.string().cuid().nullable().optional(),
   tags: z.array(z.string()).optional(),
+  highlights: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   i18n: z.record(z.string(), z.unknown()).nullable().optional(),
   coverImage: z.string().optional(),
   gallery: z.array(z.string()).optional(),
@@ -71,6 +73,12 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   const keys = Object.keys(body)
   if (keys.length > 0 && keys.every((k) => k === "coverImage" || k === "gallery")) {
     return updateProductMedia(id, { coverImage: body.coverImage, gallery: body.gallery }, admin.id)
+  }
+
+  // Highlights-only updates work for any product (fixed-price AND auctions),
+  // so they don't require a FixedSale the way updateFlashProduct does.
+  if (body.highlights !== undefined && keys.length === 1) {
+    return updateProductHighlights(id, body.highlights, admin.id)
   }
 
   return updateFlashProduct(

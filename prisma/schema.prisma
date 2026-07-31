@@ -678,6 +678,10 @@ model Product {
   categoryId   String?
   productCategory ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tags         String[]     @default([])
+  // Short, one-line selling points shown as a checklist on the product page
+  // ("ویژگی‌ها"). Admin-managed, ordered. Primary (fa) copy lives here; localized
+  // versions flow through the ContentTranslation pipeline like title/description.
+  highlights   String[]     @default([])
   coverImage   String?
   gallery      String[]     @default([])
   // Extra labeled links shown on the product card (e.g. Activation Link, Warranty).

@@ -58,6 +58,27 @@ export async function updateProductMedia(
   return updated
 }
 
+/**
+ * Update the product "highlights" (one-line selling points). Works for ANY
+ * product — fixed-price and auctions alike — since it touches only the Product
+ * row (unlike updateFlashProduct which needs a FixedSale). Entries are trimmed,
+ * de-duplicated, and capped at 12.
+ */
+export async function updateProductHighlights(productId: string, highlights: string[], adminId: string) {
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
+  if (!product) throw new NotFoundError("محصول یافت نشد")
+  const clean = Array.from(
+    new Set((highlights ?? []).map((h) => (h ?? "").trim()).filter(Boolean)),
+  ).slice(0, 12)
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: { highlights: clean },
+    select: { id: true, highlights: true },
+  })
+  await audit({ actorId: adminId, action: "product.highlights.update", entity: "product", entityId: productId })
+  return updated
+}
+
 // --- Flash-sale (fixed price) product ---------------------------------------
 
 export interface ProductLinkInput {
