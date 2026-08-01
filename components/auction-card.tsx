@@ -16,6 +16,8 @@ import {
 
 export type AuctionSummary = {
   id: string
+  /** Underlying product's SEO slug — used for the public /auctions/<slug> URL. */
+  slug: string
   title: string
   category: string | null
   coverImage: string | null
@@ -69,7 +71,7 @@ export function AuctionCard({ auction }: { auction: AuctionSummary }) {
 
   return (
     <Link
-      href={`/auctions/${auction.id}`}
+      href={`/auctions/${auction.slug || auction.id}`}
       className={`active:scale-press card-premium group flex flex-col overflow-hidden rounded-2xl border border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:elevate-lg ${
         endingSoon ? "auction-urgent" : ""
       } ${ds.isTerminal ? "opacity-95" : ""}`}

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
-import { secureSlug } from "@/lib/id"
+import { generateProductSlug } from "./slug"
 import { NotFoundError, ValidationError } from "./errors"
 import { audit } from "./audit"
 import { cancelAuctionAndRelease } from "./auction"
@@ -158,9 +158,12 @@ function queueProductTranslation(product: {
 export async function createFlashProduct(input: FlashProductInput, adminId: string) {
   if (!input.title.trim()) throw new ValidationError("عنوان الزامی است")
   if (input.price <= 0n) throw new ValidationError("قیمت باید بزرگ‌تر از صفر باشد")
+  // SEO-friendly slug from the AI core (English, brand + plan aware), generated
+  // once at creation time so the public URL is readable and stable.
+  const slug = await generateProductSlug({ title: input.title, category: input.category, tags: input.tags })
   const product = await prisma.product.create({
     data: {
-      slug: secureSlug("p"),
+      slug,
       title: input.title.trim(),
       subtitle: input.subtitle?.trim() || null,
       description: input.description,
@@ -319,9 +322,11 @@ export async function createAuctionProduct(input: AuctionProductInput, adminId: 
   const now = new Date()
   const status = input.startTime <= now ? "ACTIVE" : "SCHEDULED"
 
+  // SEO-friendly slug from the AI core; the auction page resolves by this slug.
+  const slug = await generateProductSlug({ title: input.title, category: input.category, tags: input.tags })
   const product = await prisma.product.create({
     data: {
-      slug: secureSlug("p"),
+      slug,
       title: input.title.trim(),
       subtitle: input.subtitle?.trim() || null,
       description: input.description,

@@ -398,10 +398,17 @@ export function summarizeForWatchlist(a: AuctionSummaryInput, policy?: AuctionPo
 
 /** Auction detail including (aliased) bid history. Lazily finalizes if ended. */
 export async function getAuctionDetail(auctionId: string, locale = "fa") {
-  let auction = await prisma.auction.findUnique({
-    where: { id: auctionId },
-    include: { product: true, _count: { select: { bids: true } } },
-  })
+  // Resolve by auction id OR the underlying product's SEO slug, so public
+  // auction URLs can be /auctions/<product-slug> while legacy /auctions/<id>
+  // links keep working. `loadAuction` re-reads the same way after each lazy
+  // lifecycle transition below.
+  const loadAuction = (key: string) =>
+    prisma.auction.findFirst({
+      where: { OR: [{ id: key }, { product: { slug: key } }] },
+      include: { product: true, _count: { select: { bids: true } } },
+    })
+
+  let auction = await loadAuction(auctionId)
   if (!auction) throw new NotFoundError("Auction not found")
 
   // Lazy settlement: if the auction is past its end and not yet in a terminal
@@ -413,10 +420,7 @@ export async function getAuctionDetail(auctionId: string, locale = "fa") {
     } catch {
       /* ignore; will retry on next view or cron */
     }
-    auction = await prisma.auction.findUnique({
-      where: { id: auctionId },
-      include: { product: true, _count: { select: { bids: true } } },
-    })
+    auction = await loadAuction(auction.id)
   }
   if (!auction) throw new NotFoundError("Auction not found")
 
@@ -434,10 +438,7 @@ export async function getAuctionDetail(auctionId: string, locale = "fa") {
     } catch {
       /* ignore; the cron will retry */
     }
-    auction = await prisma.auction.findUnique({
-      where: { id: auctionId },
-      include: { product: true, _count: { select: { bids: true } } },
-    })
+    auction = await loadAuction(auction.id)
     if (!auction) throw new NotFoundError("Auction not found")
   }
 

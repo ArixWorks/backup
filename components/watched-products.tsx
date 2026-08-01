@@ -45,7 +45,7 @@ export function WatchedProducts() {
         return (
           <li key={p.id}>
             <Link
-              href={`/flash/${p.id}`}
+              href={`/flash/${p.slug || p.id}`}
               className="active:scale-press flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:bg-secondary/40"
             >
               <Image
