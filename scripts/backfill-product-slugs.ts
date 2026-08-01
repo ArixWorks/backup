@@ -16,6 +16,9 @@ import { generateProductSlug } from "../lib/core/slug"
 
 /** Legacy secureSlug("p") output: "p-" + a base64url token. */
 const LEGACY_SLUG = /^p-[A-Za-z0-9_-]{12,}$/
+/** Weak deterministic fallback slug ("product-<token>") from a prior run where
+ *  the AI was unavailable — worth regenerating now that the AI is reachable. */
+const WEAK_FALLBACK = /^product(-[a-z0-9]{4,8})?$/
 
 async function main() {
   const products = await prisma.product.findMany({
@@ -23,8 +26,8 @@ async function main() {
     orderBy: { createdAt: "asc" },
   })
 
-  const stale = products.filter((p) => LEGACY_SLUG.test(p.slug))
-  console.log(`[backfill] ${products.length} products, ${stale.length} with legacy slugs`)
+  const stale = products.filter((p) => LEGACY_SLUG.test(p.slug) || WEAK_FALLBACK.test(p.slug))
+  console.log(`[backfill] ${products.length} products, ${stale.length} needing readable slugs`)
 
   let done = 0
   for (const p of stale) {

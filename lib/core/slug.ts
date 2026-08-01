@@ -26,18 +26,24 @@ export function slugify(input: string): string {
 /**
  * Ask the site's provider-agnostic AI core for a concise English SEO slug from
  * a (often Persian) product title + category + tags. Uses plain text generation
- * (more universally supported across gateway models than structured output) on
- * the low-latency "fast" tier, then normalizes the result. Returns a slug, or
- * null if AI is disabled/unavailable/empty so the caller can fall back
+ * (more universally supported across gateway models than structured output).
+ *
+ * NOTE on the token budget: the configured models are reasoning models, which
+ * spend output tokens on hidden reasoning before emitting text. A tight cap
+ * (e.g. 24) gets fully consumed by reasoning and yields an EMPTY completion, so
+ * we give a generous `maxTokens` — the visible slug is still tiny. Returns a
+ * slug, or null if AI is disabled/unavailable/empty so the caller can fall back
  * deterministically — product creation must never depend on AI uptime.
  */
 async function aiSlug(parts: SlugParts): Promise<string | null> {
   try {
     const { text } = await runText({
       feature: "catalog.slug",
-      tier: "fast",
+      // Default tier: noticeably better transliteration/plan wording than fast,
+      // and this runs once per product (not latency-critical).
+      tier: "default",
       temperature: 0.2,
-      maxTokens: 24,
+      maxTokens: 200,
       system:
         "You generate a single short, SEO-friendly URL slug for a digital-goods store. " +
         "Reply with ONLY the slug and nothing else — no quotes, no explanation, no code block. " +
@@ -46,9 +52,10 @@ async function aiSlug(parts: SlugParts): Promise<string | null> {
         "Examples: chatgpt-plus-1month, nordvpn-premium-1year, spotify-family-3months.",
       prompt: `Title: ${parts.title}\nCategory: ${parts.category ?? "-"}\nTags: ${(parts.tags ?? []).join(", ") || "-"}\n\nSlug:`,
     })
-    // Take the first token-ish line and normalize; guards against stray prose.
-    const firstLine = (text || "").trim().split(/\s+/)[0] ?? ""
-    return slugify(firstLine) || null
+    // Model may return the slug possibly wrapped in prose/quotes/backticks; take
+    // the first hyphen/word-ish chunk and normalize the whole thing.
+    const raw = (text || "").trim().replace(/^["'`]+|["'`]+$/g, "").split(/\s+/)[0] ?? ""
+    return slugify(raw) || null
   } catch {
     return null
   }
