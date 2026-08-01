@@ -115,13 +115,15 @@ export function ProductDetailShell({
           <SegmentedTabs tabs={tabs} />
         </div>
 
-        {/* Domain panel — inline on mobile (after the mobile highlights below),
-            sticky end column on web desktop. */}
+        {/* Domain panel — inline on mobile, sticky end column on web desktop.
+            On mobile the price/plan panel comes FIRST, then the features list
+            below it (matching the approved order); on desktop the features live
+            in the main column above, so the mobile copy here is hidden. */}
         <div className="order-1 min-w-0 space-y-6 web:lg:order-2 web:lg:sticky web:lg:top-20 web:lg:w-[22rem] web:lg:shrink-0 web:lg:self-start">
+          {primaryPanel}
           <div className="web:lg:hidden">
             <ProductHighlights items={highlights} />
           </div>
-          {primaryPanel}
         </div>
       </div>
 

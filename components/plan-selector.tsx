@@ -70,14 +70,17 @@ export function PlanSelector({
       {/* Plan cards */}
       <div>
         <h2 className="mb-2 text-sm font-bold">{t("plan.choose")}</h2>
+        {/* Two plans per row at every width to keep cards compact. When the
+            count is odd, the final card spans the full row (e.g. 3 → 2 + 1). */}
         <div
           role="radiogroup"
           aria-label={t("plan.choose")}
-          className="grid gap-2 sm:grid-cols-2"
+          className="grid grid-cols-2 gap-2"
         >
-          {variants.map((v) => {
+          {variants.map((v, i) => {
             const selected = v.id === selectedId
             const soldOut = v.stock <= 0
+            const isLoneLast = variants.length % 2 === 1 && i === variants.length - 1
             const { hasDiscount, percent, compareAtPrice } = getProductDiscount(v.price, v.compareAtPrice)
             return (
               <button
@@ -87,15 +90,17 @@ export function PlanSelector({
                 aria-checked={selected}
                 disabled={soldOut}
                 onClick={() => onSelect(v.id)}
-                className={`group relative flex flex-col gap-1.5 overflow-hidden rounded-xl border p-3 text-end transition-[background-color,border-color] duration-[var(--duration-fast)] ease-[var(--ease-out-quint)] disabled:cursor-not-allowed disabled:opacity-55 ${
+                className={`group relative flex flex-col gap-1.5 overflow-hidden rounded-xl border p-3 text-start transition-[background-color,border-color] duration-[var(--duration-fast)] ease-[var(--ease-out-quint)] disabled:cursor-not-allowed disabled:opacity-55 ${
+                  isLoneLast ? "col-span-2" : ""
+                } ${
                   selected
                     ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
                     : "border-border bg-secondary/30 hover:border-primary/40 hover:bg-secondary/50"
                 }`}
               >
-                {/* Discount badge pinned to the top-start corner. */}
+                {/* Discount badge pinned to the top-end corner (top-left in RTL). */}
                 {hasDiscount && (
-                  <span className="absolute start-0 top-0 rounded-ee-lg bg-destructive px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-destructive-foreground">
+                  <span className="absolute end-0 top-0 rounded-es-lg bg-destructive px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-destructive-foreground">
                     {percent}%
                   </span>
                 )}
@@ -104,7 +109,7 @@ export function PlanSelector({
                   {v.name}
                 </span>
 
-                <div className="flex items-baseline justify-end gap-1.5">
+                <div className="flex items-baseline justify-start gap-1.5">
                   <span className="text-lg font-extrabold tabular-nums text-primary">
                     {priceValue(v.price)}
                   </span>
