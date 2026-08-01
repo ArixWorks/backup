@@ -3,6 +3,11 @@
 # dependencies
 /node_modules
 
+# local QA / debug scratch files (may contain session tokens — never commit)
+.qa_*
+*_slugdbg.*
+_zt.*
+
 # next.js
 /.next/
 /out/

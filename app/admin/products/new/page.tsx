@@ -240,11 +240,18 @@ export default function NewProductPage() {
           </Field>
           <Field label="دسته‌بندی فروشگاه" hint="دسته‌ها را از بخش «دسته‌بندی فروشگاه» در پنل مدیریت کنید">
             <Select value={categoryId} onValueChange={(value) => setCategoryId(value ?? "")}>
-              <SelectTrigger><SelectValue placeholder="انتخاب دسته‌بندی" /></SelectTrigger>
+              {/* Render the resolved category NAME explicitly so the trigger never
+                  falls back to showing the raw category id (e.g. before SWR loads
+                  or if the selected category is inactive). */}
+              <SelectTrigger>
+                {category ? <span>{category}</span> : <SelectValue placeholder="انتخاب دسته‌بندی" />}
+              </SelectTrigger>
               <SelectContent>
-                {categories.filter((item) => item.active).map((item) => (
-                  <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                ))}
+                {categories
+                  .filter((item) => item.active || item.id === categoryId)
+                  .map((item) => (
+                    <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </Field>
@@ -338,7 +345,7 @@ export default function NewProductPage() {
               <Field label="محدودیت خرید هر کاربر" hint="خالی = بدون محدودیت">
                 <Input value={purchaseLimit} onChange={(e) => setPurchaseLimit(e.target.value)} inputMode="numeric" dir="ltr" placeholder="1" />
               </Field>
-              <Field label="تعداد فروش نمایشی (پایه)" hint="به فروش واقعی اضافه می‌شود؛ مثل Sold: 2218">
+              <Field label="تعداد فروش نمایشی (پایه)" hint="به فروش واقع�� اضافه می‌شود؛ مثل Sold: 2218">
                 <Input value={soldBaseline} onChange={(e) => setSoldBaseline(e.target.value)} inputMode="numeric" dir="ltr" placeholder="0" />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">

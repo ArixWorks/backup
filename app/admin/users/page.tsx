@@ -35,7 +35,7 @@ type AdminUser = {
   displayName: string
   alias: string
   username: string | null
-  role: "USER" | "SUPPORT" | "ADMIN"
+  role: "USER" | "ADMIN"
   status: "ACTIVE" | "BANNED"
   createdAt: string
   vipTier: string | null
@@ -47,7 +47,6 @@ type AdminUser = {
 
 const roleLabels: Record<string, string> = {
   USER: "کاربر",
-  SUPPORT: "پشتیبان",
   ADMIN: "مدیر",
 }
 

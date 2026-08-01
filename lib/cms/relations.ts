@@ -125,7 +125,7 @@ export async function resolveRelations(fromContentId: string): Promise<ResolvedR
         targetId: row.targetId,
         label: p?.title ?? "(حذف‌شده)",
         thumb: p?.coverImage ?? null,
-        href: p ? (p.saleMode === "AUCTION" ? `/auctions/${p.id}` : `/flash/${p.id}`) : null,
+        href: p ? (p.saleMode === "AUCTION" ? `/auctions/${p.slug || p.id}` : `/flash/${p.slug || p.id}`) : null,
         exists: !!p,
       }
     } else {

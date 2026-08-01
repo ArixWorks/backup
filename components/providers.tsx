@@ -9,6 +9,9 @@ import { MotionProvider } from "@/components/motion-provider"
 import { ReferralCapture } from "@/components/referral-capture"
 import { BannedGate } from "@/components/auth/banned-gate"
 import { fetcher } from "@/lib/api-client"
+// Side effect: configures the global Persian Zod locale for client-side
+// validation so form validation errors are in Persian too.
+import "@/lib/zod"
 
 // App-wide SWR defaults. In a Telegram WebView the app is constantly
 // backgrounded/refocused, so aggressive focus revalidation causes redundant

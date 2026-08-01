@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import { z } from "zod"
+import { z, dbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
@@ -33,7 +33,7 @@ export const GET = route(async (req: Request) => {
 })
 
 const updateSchema = z.object({
-  id: z.string().cuid(),
+  id: dbId,
   title: z.string().trim().min(1).max(80).optional(),
   active: z.boolean().optional(),
   supported: z.boolean().optional(),
@@ -52,9 +52,9 @@ export const PATCH = route(async (req: Request) => {
 
 const createSchema = z.object({ action: z.literal("createTld"), tld: tldSchema, title: z.string().trim().min(1).max(80), basePriceIrt: priceSchema, active: z.boolean().default(true), displayOrder: z.coerce.number().int().min(0).max(10000).default(0) })
 const importSchema = z.object({ action: z.literal("importTlds"), rows: z.array(z.object({ tld: tldSchema, title: z.string().trim().min(1).max(80), basePriceIrt: priceSchema, active: z.boolean().default(true) })).min(1).max(500) })
-const bulkSchema = z.object({ action: z.literal("bulkStatus"), ids: z.array(z.string().cuid()).min(1).max(500), active: z.boolean() })
-const archiveSchema = z.object({ action: z.literal("archiveTld"), id: z.string().cuid() })
-const deleteSchema = z.object({ action: z.literal("deleteTld"), id: z.string().cuid() })
+const bulkSchema = z.object({ action: z.literal("bulkStatus"), ids: z.array(dbId).min(1).max(500), active: z.boolean() })
+const archiveSchema = z.object({ action: z.literal("archiveTld"), id: dbId })
+const deleteSchema = z.object({ action: z.literal("deleteTld"), id: dbId })
 const orderActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("purchased"), orderId: z.string(), providerReference: z.string().trim().max(200).optional() }),
   z.object({ action: z.literal("complete"), orderId: z.string() }),

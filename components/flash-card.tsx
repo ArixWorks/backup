@@ -74,8 +74,9 @@ export function FlashCard({
   const CardRoot: any = compact ? Link : "div"
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const MediaTag: any = compact ? "div" : Link
-  const cardRootProps = compact ? { href: `/flash/${sale.id}`, "aria-label": sale.title } : {}
-  const mediaProps = compact ? {} : { href: `/flash/${sale.id}`, "aria-label": sale.title }
+  const productHref = `/flash/${sale.slug || sale.id}`
+  const cardRootProps = compact ? { href: productHref, "aria-label": sale.title } : {}
+  const mediaProps = compact ? {} : { href: productHref, "aria-label": sale.title }
 
   return (
     <CardRoot {...cardRootProps} className={cardClass}>
@@ -155,7 +156,7 @@ export function FlashCard({
         ) : (
           <>
             <div className="flex items-start justify-between gap-2">
-              <Link href={`/flash/${sale.id}`} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
+              <Link href={productHref} dir="auto" className="line-clamp-1 font-bold leading-6 hover:text-primary">
                 {sale.title}
               </Link>
               {!!sale.soldDisplay && sale.soldDisplay > 0 && (
