@@ -21,7 +21,7 @@ export type SessionUser = {
   id: string
   displayName: string
   alias: string
-  role: "USER" | "ADMIN" | "SUPPORT"
+  role: "USER" | "ADMIN"
   status: string
   languageCode: string | null
   email: string | null

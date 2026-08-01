@@ -24,6 +24,12 @@ const securityHeaders = [
 const nextConfig = {
   // Produces a self-contained server bundle for the Docker image (no effect on dev).
   output: 'standalone',
+  // Native (C/C++ addon) modules the bundler must not try to bundle — they are
+  // required from node_modules at runtime and their .node bindings can't be
+  // webpacked. Keeping them external also makes the standalone tracer copy them
+  // into `.next/standalone/node_modules` reliably. `argon2` powers password
+  // hashing; `systeminformation` powers the ops monitoring metrics.
+  serverExternalPackages: ['argon2', 'systeminformation'],
   images: {
     // Serve resized, modern-format (AVIF/WebP) images via the built-in
     // optimizer (sharp). Local /public assets and same-origin file routes are
