@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { useSession } from "@/hooks/use-session"
@@ -22,18 +22,32 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
 
+  // Safety timeout. Normally we wait indefinitely for the Telegram auto-login
+  // to settle, but if the session never populates (e.g. the WebView drops the
+  // session cookie, or /api/telegram/auth stalls on a flaky mobile network) we
+  // must not spin forever. After this window we stop waiting and fall through
+  // to the /login redirect so the user can recover manually.
+  const [timedOut, setTimedOut] = useState(false)
+  useEffect(() => {
+    if (user) return
+    const id = setTimeout(() => setTimedOut(true), 12000)
+    return () => clearTimeout(id)
+  }, [user])
+
   // Telegram auto-login still settling: detecting/verifying, or it just
   // succeeded and the session cache is about to populate the user. While this
-  // is true we never redirect — we wait for the user to appear.
+  // is true we never redirect — we wait for the user to appear (unless the
+  // safety timeout above has fired).
   const telegramSettling =
-    phase === "detecting" || phase === "authenticating" || phase === "authenticated"
+    !timedOut &&
+    (phase === "detecting" || phase === "authenticating" || phase === "authenticated")
 
   useEffect(() => {
-    if (!isLoading && !user && !telegramSettling) {
+    if ((!isLoading || timedOut) && !user && !telegramSettling) {
       const next = pathname && pathname !== "/" ? `?next=${encodeURIComponent(pathname)}` : ""
       router.replace(`/login${next}`)
     }
-  }, [isLoading, user, telegramSettling, pathname, router])
+  }, [isLoading, timedOut, user, telegramSettling, pathname, router])
 
   // Authenticated user → show the app. Otherwise show the loader: this covers
   // the initial session fetch, the in-flight Telegram login, and the brief

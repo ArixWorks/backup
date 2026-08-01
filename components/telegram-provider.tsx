@@ -97,6 +97,8 @@ type TelegramWebApp = {
 declare global {
   interface Window {
     Telegram?: { WebApp?: TelegramWebApp }
+    /** Set by <BootSignal> once React mounts, read by /public/boot-watchdog.js. */
+    __APP_MOUNTED__?: boolean
   }
 }
 

@@ -180,17 +180,17 @@ export default async function RootLayout({
         <Script id="env-detect" strategy="beforeInteractive">
           {`(function(){try{var u=location.hash+location.search;var tg=/tgWebApp/i.test(u)||!!(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData);document.documentElement.dataset.env=tg?'telegram':'web';}catch(e){}})();`}
         </Script>
-        {/* Old-engine guard: the whole UI is client-rendered and the theme uses
-            oklch()/dvh (Chromium 108-111+). On outdated Android System WebView
-            (e.g. Galaxy J4+) those are invalid, so tokens drop and the app
-            paints blank white while Telegram's loader spins forever. This runs
-            before hydration, and if the engine lacks oklch/dvh support it shows
-            a styled Persian notice (hex colors only) and clears the TG spinner.
-            All strings are pre-escaped to stay valid inside the JSX string. */}
-        <Script id="engine-compat" strategy="beforeInteractive">
-          {`(function(){try{var ok=(window.CSS&&CSS.supports&&CSS.supports('color','oklch(0.5 0.1 200)')&&CSS.supports('height','1dvh'));if(ok)return;var render=function(){try{if(window.Telegram&&window.Telegram.WebApp){try{window.Telegram.WebApp.ready();}catch(e){}try{window.Telegram.WebApp.expand();}catch(e){}}if(document.getElementById('engine-compat-screen'))return;var b=document.body;if(!b)return;var d=document.createElement('div');d.id='engine-compat-screen';d.setAttribute('dir','rtl');d.style.cssText='position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;background:#080d12;color:#e7edf3;font-family:Tahoma,Arial,sans-serif;line-height:1.9';d.innerHTML='<div style=\\'width:64px;height:64px;border-radius:16px;background:#12202b;display:flex;align-items:center;justify-content:center;font-size:32px\\'>\\u26A0\\uFE0F</div><h1 style=\\'margin:0;font-size:18px;font-weight:700;color:#f4c752\\'>\\u0645\\u0631\\u0648\\u0631\\u06AF\\u0631 \\u062F\\u0633\\u062A\\u06AF\\u0627\\u0647 \\u0634\\u0645\\u0627 \\u0642\\u062F\\u06CC\\u0645\\u06CC \\u0627\\u0633\\u062A</h1><p style=\\'margin:0;max-width:320px;font-size:14px;color:#aebccb\\'>\\u0628\\u0631\\u0627\\u06CC \\u0627\\u0633\\u062A\\u0641\\u0627\\u062F\\u0647 \\u0627\\u0632 \\u0641\\u0631\\u0648\\u0634\\u06AF\\u0627\\u0647\\u060C \\u0644\\u0637\\u0641\\u0627\\u064B \\u0627\\u06CC\\u0646 \\u062F\\u0648 \\u0628\\u0631\\u0646\\u0627\\u0645\\u0647 \\u0631\\u0627 \\u0627\\u0632 \\u06AF\\u0648\\u06AF\\u0644 \\u067E\\u0644\\u06CC \\u0628\\u0647\\u200C\\u0631\\u0648\\u0632\\u0631\\u0633\\u0627\\u0646\\u06CC \\u06A9\\u0646\\u06CC\\u062F \\u0648 \\u0633\\u067E\\u0633 \\u062F\\u0648\\u0628\\u0627\\u0631\\u0647 \\u0628\\u0627\\u0632 \\u06A9\\u0646\\u06CC\\u062F\\u003A</p><ul style=\\'margin:0;padding:0;list-style:none;font-size:14px;color:#e7edf3;font-weight:600\\'><li style=\\'margin:4px 0\\'>Android System WebView</li><li style=\\'margin:4px 0\\'>Google Chrome</li></ul>';b.appendChild(d);}catch(e){}};var boot=function(){render();var n=0;var iv=setInterval(function(){n++;render();if(n>20)clearInterval(iv);},400);};if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',boot);}else{boot();}}catch(e){}})();`}
-        </Script>
+        {/* Telegram SDK first so the watchdog can call ready()/expand() the
+            moment it resolves. */}
         <script src="https://telegram.org/js/telegram-web-app.js?57" async />
+        {/* Boot watchdog: the whole UI is client-rendered, so if the React
+            bundle is slow or fails to execute on an outdated WebView (e.g.
+            Galaxy J4+) the page stays blank white while Telegram's loader spins
+            forever. This tiny ES5 script clears Telegram's loader immediately
+            and, if the app never signals __APP_MOUNTED__ in time, replaces the
+            blank screen with an actionable Persian notice. Lives in /public so
+            it is plain UTF-8 (no JSX escaping) and runs before hydration. */}
+        <Script id="boot-watchdog" src="/boot-watchdog.js" strategy="beforeInteractive" />
       </head>
       <body className="font-sans antialiased">
         <Providers>
