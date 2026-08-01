@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { SWRConfig } from "swr"
 import { Toaster } from "@/components/ui/sonner"
 import { TelegramProvider } from "@/components/telegram-provider"
@@ -21,9 +22,24 @@ const swrConfig = {
   keepPreviousData: true,
 }
 
+/**
+ * Tells the /public boot watchdog that React actually executed and mounted, so
+ * it stands down instead of showing the "app failed to load" fallback. Also
+ * removes the fallback if it already appeared (e.g. React mounted just after
+ * the grace window on a very slow device).
+ */
+function BootSignal() {
+  useEffect(() => {
+    window.__APP_MOUNTED__ = true
+    document.getElementById("boot-fallback")?.remove()
+  }, [])
+  return null
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SWRConfig value={swrConfig}>
+    <BootSignal />
     <I18nProvider>
       <MotionProvider>
         <TelegramProvider>
