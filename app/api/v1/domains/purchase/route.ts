@@ -1,10 +1,10 @@
-import { z } from "zod"
+import { z, dbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { purchaseDomain } from "@/lib/core/domains/service"
 
 const schema = z.object({
-  quoteId: z.string().cuid(),
+  quoteId: dbId,
   idempotencyKey: z.string().min(16).max(100),
 })
 

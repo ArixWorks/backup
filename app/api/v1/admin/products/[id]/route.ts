@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z, dbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import {
@@ -27,7 +27,7 @@ const schema = z.object({
   subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
-  categoryId: z.string().cuid().nullable().optional(),
+  categoryId: dbId.nullable().optional(),
   tags: z.array(z.string()).optional(),
   highlights: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   i18n: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -45,7 +45,7 @@ const schema = z.object({
   active: z.boolean().optional(),
   featured: z.boolean().optional(),
   featuredOrder: z.number().int().min(0).max(9999).optional(),
-  defaultTutorialId: z.string().cuid().nullable().optional(),
+  defaultTutorialId: dbId.nullable().optional(),
   deliveryFields: deliveryTemplateSchema.nullable().optional(),
 })
 

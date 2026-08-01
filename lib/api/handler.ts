@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
 import { ZodError } from "zod"
+// Side effect: configures the global Persian Zod locale for all server-side
+// validation so admin-facing validation errors are in Persian.
+import "@/lib/zod"
 import { DomainError, TooManyRequestsError } from "@/lib/core/errors"
 import { serialize } from "@/lib/serialize"
 import { recordRequest } from "@/lib/monitoring/metrics"

@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z, dbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { completeManualDelivery } from "@/lib/core/admin"
@@ -8,7 +8,7 @@ const schema = z.object({
   password: z.string().optional(),
   licenseKey: z.string().optional(),
   note: z.string().optional(),
-  tutorialId: z.string().cuid().nullable().optional(),
+  tutorialId: dbId.nullable().optional(),
 })
 
 export const POST = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
