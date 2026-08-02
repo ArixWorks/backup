@@ -26,7 +26,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Light lavender is the default; admins can toggle a dark variant which we
   // persist in localStorage and re-apply before paint to avoid a flash.
   return (
-    <div id="admin-scope" data-admin-theme="light" className="admin-scope min-h-dvh">
+    <div
+      id="admin-scope"
+      data-admin-theme="light"
+      // The inline script below rewrites data-admin-theme before React
+      // hydrates (to avoid a flash), so the client attribute can differ from
+      // the server's "light" — suppress the expected hydration warning.
+      suppressHydrationWarning
+      className="admin-scope min-h-dvh"
+    >
       <script
         dangerouslySetInnerHTML={{
           __html: `try{var t=localStorage.getItem('admin-theme');if(t==='dark'||t==='light'){document.getElementById('admin-scope').setAttribute('data-admin-theme',t);}}catch(e){}`,

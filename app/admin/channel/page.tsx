@@ -1,10 +1,6 @@
-import type { Metadata } from "next"
-import { ChannelComposer } from "@/components/admin/channel-composer"
+import { redirect } from "next/navigation"
 
-export const metadata: Metadata = {
-  title: "پست کانال | پنل مدیریت",
-}
-
+// Consolidated into the unified settings hub (Telegram tab).
 export default function ChannelPage() {
-  return <ChannelComposer />
+  redirect("/admin/settings?tab=telegram")
 }

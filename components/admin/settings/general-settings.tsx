@@ -66,16 +66,10 @@ const TIER_ROWS = [
 
 type Settings = Record<string, string>
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 border-b border-border pb-2">
-      <span className="h-4 w-1 rounded-full bg-primary" />
-      <h2 className="text-lg font-bold">{children}</h2>
-    </div>
-  )
-}
-
-export function GeneralSettings() {
+// Shared settings-form state. Every section reads/writes the same `form`
+// object, and `save()` persists all managed keys at once, so it is safe for
+// any section to trigger a save regardless of which tab is active.
+function useSettingsForm() {
   const { data, isLoading, mutate } = useSWR<{ data: Settings }>("/api/v1/admin/settings", fetcher)
   const [form, setForm] = useState<Settings>({})
   const [saving, setSaving] = useState(false)
@@ -105,10 +99,31 @@ export function GeneralSettings() {
     }
   }
 
+  return { form, set, save, saving, isLoading }
+}
+
+function SaveButton({ save, saving }: { save: () => void; saving: boolean }) {
+  return (
+    <div className="flex justify-end">
+      <Button onClick={save} disabled={saving} className="gap-1.5">
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        ذخیره
+      </Button>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* General website settings: maintenance mode + danger zone           */
+/* ------------------------------------------------------------------ */
+export function GeneralSettingsPanel() {
+  const { form, set, save, saving, isLoading } = useSettingsForm()
+
   return (
     <div className="space-y-6">
-      {/* Maintenance mode */}
-      <SectionTitle>حالت تعمیر و نگهداری</SectionTitle>
+      <SectionTitle hint="با فعال شدن، همه کاربران عادی در ربات و وب‌اپ پیام «در حال بروزرسانی» می‌بینند.">
+        حالت تعمیر و نگهداری
+      </SectionTitle>
 
       {isLoading ? (
         <Skeleton className="h-56 w-full rounded-2xl" />
@@ -120,11 +135,10 @@ export function GeneralSettings() {
         >
           <Toggle
             label="فعال‌سازی حالت تعمیر"
-            hint="با فعال شدن، همه کاربران عادی در ربات و وب‌اپ پیام «در حال بروزرسانی» می‌بینند. ادمین اصلی همچنان دسترسی کامل دارد."
+            hint="ادمین اصلی همچنان دسترسی کامل دارد."
             checked={form[KEYS.maintenanceEnabled] === "true"}
             onChange={(v) => set(KEYS.maintenanceEnabled, v)}
           />
-
           <Field label="عنوان پیام" hint="سرتیتر کوتاه صفحه بروزرسانی">
             <Input
               value={form[KEYS.maintenanceTitle] ?? ""}
@@ -132,7 +146,6 @@ export function GeneralSettings() {
               placeholder="به‌زودی برمی‌گردیم"
             />
           </Field>
-
           <Field label="متن پیام" hint="توضیحی که به کاربران نمایش داده می‌شود">
             <EnhancedTextarea
               minRows={4}
@@ -142,7 +155,6 @@ export function GeneralSettings() {
               placeholder="در حال ارتقای سیستم برای تجربه‌ای بهتر هستیم. لطفاً کمی بعد دوباره سر بزنید."
             />
           </Field>
-
           <Field label="لینک پشتیبانی (اختیاری)" hint="مثلاً https://t.me/YourSupport — روی دکمه پشتیبانی نمایش داده می‌شود">
             <Input
               inputMode="url"
@@ -153,22 +165,25 @@ export function GeneralSettings() {
               dir="ltr"
             />
           </Field>
-
-          <div className="flex justify-end">
-            <Button onClick={save} disabled={saving} className="gap-1.5">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              ذخیره
-            </Button>
-          </div>
+          <SaveButton save={save} saving={saving} />
         </div>
       )}
 
-      {/* Appearance */}
-      <SectionTitle>ظاهر فروشگاه</SectionTitle>
-      <AppearancePicker />
+      <SectionTitle hint="عملیات حساس و غیرقابل‌بازگشت">منطقه خطر</SectionTitle>
+      <DangerZone />
+    </div>
+  )
+}
 
-      {/* Payment gateway */}
-      <SectionTitle>روش‌های شارژ کیف پول (درگاه پرداخت)</SectionTitle>
+/* ------------------------------------------------------------------ */
+/* Payment gateway / top-up methods                                   */
+/* ------------------------------------------------------------------ */
+export function PaymentSettingsPanel() {
+  const { form, set, save, saving, isLoading } = useSettingsForm()
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle hint="روش‌های شارژ کیف پول و درگاه‌های پرداخت">روش‌های شارژ کیف پول</SectionTitle>
 
       {isLoading ? (
         <Skeleton className="h-64 w-full rounded-2xl" />
@@ -265,17 +280,22 @@ export function GeneralSettings() {
             />
           </div>
 
-          <div className="flex justify-end">
-            <Button onClick={save} disabled={saving} className="gap-1.5">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              ذخیره
-            </Button>
-          </div>
+          <SaveButton save={save} saving={saving} />
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Rewards */}
-      <SectionTitle>تنظیمات پاداش‌ها</SectionTitle>
+/* ------------------------------------------------------------------ */
+/* Rewards: cashback, referral, membership tiers                      */
+/* ------------------------------------------------------------------ */
+export function RewardsSettingsPanel() {
+  const { form, set, save, saving, isLoading } = useSettingsForm()
+
+  return (
+    <div className="space-y-6">
+      <SectionTitle hint="کش‌بک، سیستم دعوت و سطوح باشگاه مشتریان">تنظیمات پاداش‌ها</SectionTitle>
 
       {isLoading ? (
         <Skeleton className="h-64 w-full rounded-2xl" />
@@ -316,10 +336,7 @@ export function GeneralSettings() {
             />
           </Field>
 
-          <Field
-            label="پاداش دعوت‌کننده (تومان)"
-            hint="مبلغی که به دعوت‌کننده پس از اولین خرید کاربر دعوت‌شده پرداخت می‌شود"
-          >
+          <Field label="پاداش دعوت‌کننده (تومان)" hint="مبلغی که به دعوت‌کننده پس از اولین خرید کاربر دعوت‌شده پرداخت می‌شود">
             <Input
               type="number"
               value={form[KEYS.referralReferrerBonus] ?? ""}
@@ -363,9 +380,7 @@ export function GeneralSettings() {
 
           <div className="space-y-1 border-t border-border pt-4">
             <div className="text-sm font-bold text-foreground">ضدتقلب دعوت</div>
-            <div className="text-xs text-muted-foreground">
-              محدودیت‌های امنیتی برای جلوگیری از سوءاستفاده از سیستم دعوت
-            </div>
+            <div className="text-xs text-muted-foreground">محدودیت‌های امنیتی برای جلوگیری از سوءاستفاده از سیستم دعوت</div>
           </div>
 
           <Field label="حداکثر دعوت موفق هر کاربر" hint="بیشترین تعداد دعوت‌شده که برای هر دعوت‌کننده شمارش می‌شود (۰ = نامحدود)">
@@ -440,17 +455,36 @@ export function GeneralSettings() {
             </Field>
           </div>
 
-          <div className="flex justify-end">
-            <Button onClick={save} disabled={saving} className="gap-1.5">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              ذخیره
-            </Button>
-          </div>
+          <SaveButton save={save} saving={saving} />
         </div>
       )}
+    </div>
+  )
+}
 
-      <SectionTitle>منطقه خطر</SectionTitle>
-      <DangerZone />
+/* ------------------------------------------------------------------ */
+/* Appearance (storefront theme picker)                               */
+/* ------------------------------------------------------------------ */
+export function AppearanceSettingsPanel() {
+  return (
+    <div className="space-y-6">
+      <SectionTitle hint="تم و ظاهر فروشگاه که کاربران می‌بینند">ظاهر فروشگاه</SectionTitle>
+      <AppearancePicker />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared field primitives                                            */
+/* ------------------------------------------------------------------ */
+function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: string }) {
+  return (
+    <div className="space-y-1 border-b border-border pb-2">
+      <div className="flex items-center gap-2">
+        <span className="h-4 w-1 rounded-full bg-primary" />
+        <h2 className="text-lg font-bold">{children}</h2>
+      </div>
+      {hint && <p className="pr-3 text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }

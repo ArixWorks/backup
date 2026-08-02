@@ -1,9 +1,6 @@
-import { BotEditor } from "@/components/admin/bot-editor"
+import { redirect } from "next/navigation"
 
-export const metadata = {
-  title: "تنظیمات ربات تلگرام",
-}
-
+// Consolidated into the unified settings hub (Telegram tab).
 export default function AdminBotPage() {
-  return <BotEditor />
+  redirect("/admin/settings?tab=telegram")
 }
