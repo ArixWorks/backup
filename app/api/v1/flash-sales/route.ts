@@ -1,3 +1,4 @@
+import { after } from "next/server"
 import { route } from "@/lib/api/handler"
 import { searchFlashSalesWithSuggestions, type FlashSort } from "@/lib/core/catalog"
 import { currentUserId } from "@/lib/auth/session"
@@ -31,18 +32,21 @@ export const GET = route(async (req: Request) => {
     instantOnly: searchParams.get("instant") === "1",
   })
 
-  // Log real user searches for the admin insights panel. Fire-and-forget so a
-  // slow/failed insert never affects search latency or the response.
+  // Log real user searches for the admin insights panel. We use after() so the
+  // insert runs once the response has been sent — it never adds latency, and
+  // unlike a bare void promise it isn't dropped when the handler returns.
   if (search) {
     const userId = (await currentUserId()) ?? null
-    void logSearch({
-      query: search,
-      resultCount: result.exactCount,
-      suggested: result.suggestions.length > 0,
-      source,
-      locale,
-      userId,
-    })
+    after(() =>
+      logSearch({
+        query: search,
+        resultCount: result.exactCount,
+        suggested: result.suggestions.length > 0,
+        source,
+        locale,
+        userId,
+      }),
+    )
   }
 
   return {
