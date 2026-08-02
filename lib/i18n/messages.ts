@@ -112,6 +112,14 @@ export type MessageKey =
   | "store.plans"
   | "store.gridView"
   | "store.listView"
+  | "store.filters"
+  | "store.priceRange"
+  | "store.inStockOnly"
+  | "store.instantOnly"
+  | "store.applyFilters"
+  | "store.clearFilters"
+  | "store.unavailable"
+  | "store.priceUnder"
   | "detail.back"
   | "detail.description"
   | "detail.tags"
@@ -945,7 +953,7 @@ type Catalog = Record<MessageKey, string>
   "tour.next": "بعدی",
   "tour.start": "بزن بریم",
   "tour.s1.title": "به فروشگاه خوش آمدید",
-  "tour.s1.body": "محصولات دیجیتال، حساب‌ها و کلیدها را مرور کنید. همه‌چیز مرتب و دسته‌بندی‌شده است.",
+  "tour.s1.body": "محصولات دیجیتال، حساب‌ها و ک��یدها را مرور کنید. همه‌چیز مرتب و دسته‌بندی‌شده است.",
   "tour.s2.title": "موجودی خود ��ا شارژ کنید",
   "tour.s2.body": "با کیف پول، ارز دیجیتال یا درگاه، موجودی اضافه کنید و سریع‌تر خرید کنید.",
   "tour.s3.title": "خرید محصول",
@@ -1023,6 +1031,14 @@ type Catalog = Record<MessageKey, string>
     "store.plans": "پلن",
     "store.gridView": "نمایش شبکه‌ای",
     "store.listView": "نمایش فهرستی",
+    "store.filters": "فیلترها",
+    "store.priceRange": "محدوده قیمت",
+    "store.inStockOnly": "فقط موجودها",
+    "store.instantOnly": "فقط تحویل آنی",
+    "store.applyFilters": "نمایش نتایج",
+    "store.clearFilters": "پاک کردن فیلترها",
+    "store.unavailable": "ناموجود",
+    "store.priceUnder": "تا {amount} تومان",
   "detail.back": "بازگشت به فروشگاه",
   "detail.description": "توضیحات",
   "detail.tags": "برچسب‌ها",
@@ -1267,7 +1283,7 @@ type Catalog = Record<MessageKey, string>
   "adetail.bidHistory": "تاریخچه پیشنهادها",
   "adetail.noBids": "هنوز پیشنهادی ثبت نشده است. اولین پیشنهاد را شما ثبت کنید.",
   "adetail.auto": "خودکار",
-  "adetail.topBidNow": "بالاترین پیشنهاد فعلی",
+  "adetail.topBidNow": "بالاترین پیشنه��د فعلی",
   "adetail.basePrice": "قیمت پایه",
   "adetail.startsIn": "شروع تا",
   "adetail.endsIn": "پایان تا",
@@ -1589,7 +1605,7 @@ type Catalog = Record<MessageKey, string>
   "wallet.cryptoWarning": "حتماً دقیقاً همین مبلغ را ارسال کنید تا تراکنش شما به‌درستی شناسایی شود.",
   "wallet.expiresIn": "زمان باقی‌مانده",
   "wallet.expired": "زمان این درخواست به پایان رسید",
-  "wallet.pendingReview": "در حال بررسی توسط مدیر",
+  "wallet.pendingReview": "در ��ال بررسی توسط مدیر",
   "wallet.payWithStars": "پرداخت با استارز",
   "wallet.starsOnlyTelegram": "پرداخت با استارز فقط در تلگرام فعال است",
   "wallet.starsPaid": "پرداخت انجام شد و موجودی شما شارژ شد",
@@ -1896,6 +1912,14 @@ type Catalog = Record<MessageKey, string>
     "store.plans": "plans",
     "store.gridView": "Grid view",
     "store.listView": "List view",
+    "store.filters": "Filters",
+    "store.priceRange": "Price range",
+    "store.inStockOnly": "In stock only",
+    "store.instantOnly": "Instant delivery only",
+    "store.applyFilters": "Show results",
+    "store.clearFilters": "Clear filters",
+    "store.unavailable": "Unavailable",
+    "store.priceUnder": "Under {amount} Toman",
   "detail.back": "Back to flash sales",
   "detail.description": "Description",
   "detail.tags": "Tags",
@@ -2659,7 +2683,7 @@ type Catalog = Record<MessageKey, string>
     "soon.heading": "Этот раздел скоро появится",
     "soon.body": "Мы разрабатываем эту функцию, и ско��о она появится на платформе.",
     "soon.back": "На панель",
-    "vps.title": "VPS-хостинг",
+    "vps.title": "VPS-х��стинг",
     "vps.subtitle": "Мощный и надёжный облачный хостинг",
     "domains.title": "Регистрация домена",
     "domains.subtitle": "Поиск, цена и регистрация вашего домена",
@@ -2769,6 +2793,14 @@ type Catalog = Record<MessageKey, string>
     "store.plans": "тарифов",
     "store.gridView": "Сетка",
     "store.listView": "Список",
+    "store.filters": "Фильтры",
+    "store.priceRange": "Диапазон цен",
+    "store.inStockOnly": "Только в наличии",
+    "store.instantOnly": "Только мгновенная доставка",
+    "store.applyFilters": "Показать результаты",
+    "store.clearFilters": "Сбросить фильтры",
+    "store.unavailable": "Нет в наличии",
+    "store.priceUnder": "До {amount} томанов",
   "detail.back": "Назад к распродажам",
   "detail.description": "Описание",
   "detail.tags": "Теги",
@@ -2904,7 +2936,7 @@ type Catalog = Record<MessageKey, string>
   "profile.telegram": "Telegram",
   "profile.email": "Эл. почта",
   "profile.role": "Роль",
-  "profile.notLinked": "Не привязан",
+  "profile.notLinked": "Не при��язан",
   "profile.language": "Язык",
   "profile.motion": "Качество анимаций",
   "profile.statusCenter": "Состояние аккаунта",
@@ -3066,7 +3098,7 @@ type Catalog = Record<MessageKey, string>
   "rewards.tabHistory": "История",
   "rewards.noMissions": "Сейчас нет активных заданий",
   "invite.title": "Пригласить друзей",
-  "invite.subtitle": "Приглашайте друзей и получайте награды на трёх этапах — от регистрации до каждой покупки.",
+  "invite.subtitle": "Приглашайте друзей и получайте награды на трёх этапах — от ��егистрации до каждой покупки.",
   "invite.signInRequired": "Войдите, чтобы получить ссылку-приглашение.",
   "invite.how": "Как я получаю награды?",
   "invite.recent": "Недавние приглашения",
@@ -3643,6 +3675,14 @@ type Catalog = Record<MessageKey, string>
     "store.plans": "plans",
     "store.gridView": "Grid view",
     "store.listView": "List view",
+    "store.filters": "Filters",
+    "store.priceRange": "Price range",
+    "store.inStockOnly": "Sirf stock mein",
+    "store.instantOnly": "Sirf instant delivery",
+    "store.applyFilters": "Results dikhayein",
+    "store.clearFilters": "Filters clear karein",
+    "store.unavailable": "Unavailable",
+    "store.priceUnder": "{amount} Toman tak",
   "detail.back": "Flash sale par wapas",
   "detail.description": "Vivaran",
   "detail.tags": "Tags",

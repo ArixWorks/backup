@@ -6,16 +6,15 @@ import { LayoutGrid, List, Search, SearchX, X, Zap } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useI18n } from "@/components/i18n-provider"
 import { StoreProductCard } from "@/components/store/store-product-card"
+import { StoreFilterSheet, DEFAULT_FILTERS, type StoreFilters } from "@/components/store/store-filter-sheet"
 import type { FlashSale } from "@/components/flash-card"
 import { EmptyState } from "@/components/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 type Category = { id: string; slug: string; name: string; description: string | null; count: number }
-type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
 type ViewMode = "grid" | "list"
 
 export function StoreCatalog() {
@@ -23,8 +22,8 @@ export function StoreCatalog() {
   const [activeCat, setActiveCat] = useState("all")
   const [rawSearch, setRawSearch] = useState("")
   const [search, setSearch] = useState("")
-  const [sort, setSort] = useState<FlashSort>("newest")
   const [view, setView] = useState<ViewMode>("grid")
+  const [filters, setFilters] = useState<StoreFilters>(DEFAULT_FILTERS)
 
   useEffect(() => {
     const id = setTimeout(() => setSearch(rawSearch.trim()), 350)
@@ -38,20 +37,17 @@ export function StoreCatalog() {
     const params = new URLSearchParams({ locale })
     if (search) params.set("search", search)
     if (activeCat !== "all") params.set("category", activeCat)
-    if (sort !== "newest") params.set("sort", sort)
+    if (filters.sort !== "newest") params.set("sort", filters.sort)
+    if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice))
+    if (filters.inStockOnly) params.set("inStock", "1")
+    if (filters.instantOnly) params.set("instant", "1")
     return `?${params.toString()}`
-  }, [search, activeCat, sort, locale])
+  }, [search, activeCat, filters, locale])
 
   const { data, isLoading } = useSWR<{ data: FlashSale[] }>(`/api/v1/flash-sales${query}`, fetcher, {
     refreshInterval: 15000,
   })
   const sales = data?.data ?? []
-  const sortLabels: Record<FlashSort, string> = {
-    newest: t("sort.newest"),
-    popular: t("sort.popular"),
-    price_asc: t("sort.priceAsc"),
-    price_desc: t("sort.priceDesc"),
-  }
 
   return (
     <section aria-labelledby="store-catalog-title" className="flex flex-col gap-4">
@@ -94,24 +90,16 @@ export function StoreCatalog() {
         ))}
       </div>
 
-      {/* Result count + controls */}
+      {/* Toolbar: controls on the left, result count on the right */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <div className="inline-flex rounded-xl border border-border bg-secondary/30 p-0.5">
-            <ViewToggle icon={LayoutGrid} label={t("store.gridView")} active={view === "grid"} onClick={() => setView("grid")} />
-            <ViewToggle icon={List} label={t("store.listView")} active={view === "list"} onClick={() => setView("list")} />
-          </div>
-          <Select value={sort} onValueChange={(value) => setSort(value as FlashSort)}>
-            <SelectTrigger className="h-9 w-auto gap-1.5 rounded-xl text-xs" aria-label={t("sort.label")}>
-              <SelectValue>{(value) => sortLabels[value as FlashSort]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">{t("sort.newest")}</SelectItem>
-              <SelectItem value="popular">{t("sort.popular")}</SelectItem>
-              <SelectItem value="price_asc">{t("sort.priceAsc")}</SelectItem>
-              <SelectItem value="price_desc">{t("sort.priceDesc")}</SelectItem>
-            </SelectContent>
-          </Select>
+          <StoreFilterSheet value={filters} onApply={setFilters} />
+          <ViewToggle
+            mode={view}
+            gridLabel={t("store.gridView")}
+            listLabel={t("store.listView")}
+            onToggle={() => setView((v) => (v === "grid" ? "list" : "grid"))}
+          />
         </div>
         {!isLoading && (
           <p className="text-xs font-semibold text-muted-foreground">
@@ -176,29 +164,28 @@ function CategoryPill({ label, active, onClick }: { label: string; active: boole
   )
 }
 
+// Single toggle button. Shows the icon of the view you'll switch TO and swaps
+// its glyph on each tap (grid icon while in list view, list icon while in grid).
 function ViewToggle({
-  icon: Icon,
-  label,
-  active,
-  onClick,
+  mode,
+  gridLabel,
+  listLabel,
+  onToggle,
 }: {
-  icon: typeof LayoutGrid
-  label: string
-  active: boolean
-  onClick: () => void
+  mode: ViewMode
+  gridLabel: string
+  listLabel: string
+  onToggle: () => void
 }) {
+  const nextIsGrid = mode === "list"
   return (
     <button
       type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={label}
-      className={cn(
-        "flex size-8 items-center justify-center rounded-lg transition-colors",
-        active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-      )}
+      onClick={onToggle}
+      aria-label={nextIsGrid ? gridLabel : listLabel}
+      className="active:scale-press flex size-9 items-center justify-center rounded-xl border border-border bg-secondary/30 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <Icon className="size-4" />
+      {nextIsGrid ? <LayoutGrid className="size-4" /> : <List className="size-4" />}
     </button>
   )
 }

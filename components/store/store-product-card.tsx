@@ -43,7 +43,10 @@ function DiscountBadge({ percent }: { percent: number }) {
  */
 export function StoreProductCard({ sale, layout }: { sale: FlashSale; layout: "grid" | "list" }) {
   const { t, priceValue, currency, num } = useI18n()
-  const soldOut = sale.stock <= 0
+  // A closed sale (available === false) is surfaced exactly like sold-out stock.
+  const unavailable = sale.available === false
+  const soldOut = unavailable || sale.stock <= 0
+  const overlayLabel = unavailable ? t("store.unavailable") : t("flash.soldOut")
   const planCount = sale.planCount ?? 0
   const { hasDiscount, percent, compareAtPrice } = getProductDiscount(sale.price, sale.compareAtPrice)
   const href = `/flash/${sale.slug || sale.id}`
@@ -108,7 +111,7 @@ export function StoreProductCard({ sale, layout }: { sale: FlashSale; layout: "g
           {hasDiscount && <DiscountBadge percent={percent} />}
           {soldOut && (
             <span className="absolute inset-0 flex items-center justify-center bg-background/70 text-[11px] font-bold">
-              {t("flash.soldOut")}
+              {overlayLabel}
             </span>
           )}
         </div>
@@ -157,7 +160,7 @@ export function StoreProductCard({ sale, layout }: { sale: FlashSale; layout: "g
         {hasDiscount && <DiscountBadge percent={percent} />}
         {soldOut && (
           <span className="absolute inset-0 flex items-center justify-center bg-background/70 text-sm font-bold">
-            {t("flash.soldOut")}
+            {overlayLabel}
           </span>
         )}
       </div>
