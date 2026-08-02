@@ -13,6 +13,9 @@ import type { DeliveryTemplate } from "@/lib/core/delivery-fields"
 /** Top-level buckets shown as tabs on the Orders page. */
 export type OrderCategory = "SHOP" | "AUCTION" | "DOMAIN" | "VPS"
 
+/** Display order of category tabs on the orders page. */
+export const ORDER_CATEGORIES: OrderCategory[] = ["SHOP", "AUCTION", "DOMAIN", "VPS"]
+
 /** Order of the tabs on the page. */
 export const CATEGORY_ORDER: OrderCategory[] = ["SHOP", "AUCTION", "DOMAIN", "VPS"]
 

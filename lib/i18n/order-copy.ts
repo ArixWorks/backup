@@ -22,6 +22,8 @@ const fa = {
   giveawayTag: "قرعه‌کشی",
   codeLabel: "کد سفارش",
   quantity: "تعداد",
+  free: "رایگان",
+  toman: "تومان",
   viewDetails: "جزئیات سفارش",
   back: "بازگشت به سفارش‌ها",
   // status labels
@@ -103,7 +105,7 @@ const fa = {
   saved: "با موفقیت ثبت شد",
   error: "خطایی رخ داد. دوباره تلاش کنید.",
   timeline: "تاریخچه سفارش",
-} as const
+}
 
 type Copy = typeof fa
 
@@ -119,6 +121,8 @@ const en: Copy = {
   giveawayTag: "Giveaway",
   codeLabel: "Order code",
   quantity: "Quantity",
+  free: "Free",
+  toman: "Toman",
   viewDetails: "Order details",
   back: "Back to orders",
   statuses: {
@@ -205,6 +209,8 @@ const ru: Copy = {
   giveawayTag: "Розыгрыш",
   codeLabel: "Код заказа",
   quantity: "Количество",
+  free: "Бесплатно",
+  toman: "Томан",
   viewDetails: "Детали заказа",
   back: "Назад к заказам",
   statuses: {
@@ -291,6 +297,8 @@ const hi: Copy = {
   giveawayTag: "गिववे",
   codeLabel: "ऑर्डर कोड",
   quantity: "मात्रा",
+  free: "निःशुल्क",
+  toman: "तोमान",
   viewDetails: "ऑर्डर विवरण",
   back: "ऑर्डर पर वापस",
   statuses: {

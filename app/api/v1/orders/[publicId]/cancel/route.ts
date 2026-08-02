@@ -2,9 +2,9 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { rejectExtensionAndCancel } from "@/lib/core/order-lifecycle"
-import { CANCEL_REASONS } from "@/lib/orders/shared"
+import { CANCEL_REASON_CODES } from "@/lib/orders/shared"
 
-const reasonCodes = CANCEL_REASONS.map((r) => r.code) as [string, ...string[]]
+const reasonCodes = CANCEL_REASON_CODES as unknown as [string, ...string[]]
 
 // The buyer declines the extension ("خیر") and cancels. A reason code is
 // required; free-text detail is required only for the OTHER option. The service
