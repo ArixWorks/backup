@@ -201,6 +201,17 @@ export interface OrderUserRef {
   email: string | null
 }
 
+/**
+ * How an order is fulfilled — drives the console badge + which action panel the
+ * detail page renders.
+ *  - MANUAL  : instant-delivery product; admin submits credentials once.
+ *  - ROADMAP : requiresCustomerInput product with the multi-step timer flow.
+ *  - DOMAIN  : domain registration/transfer (own lifecycle + NS).
+ *  - AUCTION : auction win (delivered like a shop order).
+ *  - NONE    : nothing left to do (already delivered/refunded/cancelled).
+ */
+export type FulfillmentKind = "MANUAL" | "ROADMAP" | "DOMAIN" | "AUCTION" | "NONE"
+
 /** Admin list row: an order needing (or having gone through) fulfilment. */
 export interface AdminOrderListItem extends OrderListItem {
   user: OrderUserRef
@@ -208,6 +219,47 @@ export interface AdminOrderListItem extends OrderListItem {
   overdue: boolean
   extensionCount: number
   pendingExtensionMinutes: number | null
+  /** Fulfillment discriminator for badge + action routing. */
+  fulfillmentKind: FulfillmentKind
+}
+
+/** Admin list row for a domain order in the unified console. */
+export interface AdminDomainOrderListItem {
+  id: string
+  publicId: string
+  domain: string
+  operation: string
+  status: string
+  amount: number
+  progress: number
+  createdAt: string
+  user: OrderUserRef
+  /** True while the buyer has submitted nameservers awaiting admin action. */
+  hasNameservers: boolean
+  fulfillmentKind: "DOMAIN"
+}
+
+/** Full admin detail for a domain order (NS + events + report). */
+export interface AdminDomainOrderDetail {
+  id: string
+  publicId: string
+  domain: string
+  asciiDomain: string
+  tld: string
+  operation: string
+  status: string
+  amount: number
+  createdAt: string
+  purchasedAt: string | null
+  holdExpiresAt: string | null
+  expiresAt: string | null
+  extensionCount: number
+  failureReason: string | null
+  user: OrderUserRef
+  /** Buyer-submitted nameservers (ns1..ns4; nulls omitted client-side). */
+  nameservers: string[]
+  nameserversSubmittedAt: string | null
+  events: OrderEventView[]
 }
 
 /**
@@ -218,6 +270,24 @@ export interface AdminOrderDetail extends OrderDetail {
   user: OrderUserRef
   overdue: boolean
   avgCompletionMinutes: number | null
+  /** Fulfillment discriminator (drives the action panel). */
+  fulfillmentKind: FulfillmentKind
+  /** Accurate payment breakdown (see lib/core/order-report). */
+  report: OrderPaymentReport | null
+}
+
+/** Serializable payment breakdown for a shop/auction order (see order-report). */
+export interface OrderPaymentReport {
+  net: number
+  originalAmount: number
+  discountAmount: number
+  discountPercent: number
+  discountKind: string | null
+  couponCode: string | null
+  cashback: number
+  commission: number
+  paymentMethod: "WALLET"
+  derived: boolean
 }
 
 export interface OrderDetail extends OrderListItem {

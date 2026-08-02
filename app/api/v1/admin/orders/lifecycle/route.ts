@@ -6,7 +6,11 @@ export const dynamic = "force-dynamic"
 
 export const GET = route(async (req: Request) => {
   await requireAdmin()
-  const scope = new URL(req.url).searchParams.get("scope") === "all" ? "all" : "active"
-  const orders = await listShopOrdersForAdmin(scope)
+  const params = new URL(req.url).searchParams
+  const scope = params.get("scope") === "all" ? "all" : "active"
+  const q = params.get("q") ?? undefined
+  const categoryParam = params.get("category")
+  const category = categoryParam === "SHOP" || categoryParam === "AUCTION" ? categoryParam : undefined
+  const orders = await listShopOrdersForAdmin({ scope, q, category })
   return { orders }
 })

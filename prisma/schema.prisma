@@ -1263,6 +1263,15 @@ model Order {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
+  // ---- Payment snapshot (accurate admin reporting) ------------------------
+  // Captured at purchase so later product/coupon edits never change the report.
+  // originalAmount = pre-discount total; discountAmount = amount subtracted;
+  // discountKind = "TIER" (quantity/plan tier) | "COUPON". Nullable for legacy
+  // orders — the report assembler falls back to deriving from redemptions.
+  originalAmount BigInt?
+  discountAmount BigInt?
+  discountKind   String?
+
   // ---- Multi-step fulfillment (roadmap) -----------------------------------
   // Snapshot at purchase time so later product edits never change an in-flight
   // order. requiresCustomerInput drives whether this order uses the roadmap.
@@ -1680,7 +1689,7 @@ model Giveaway {
   i18n                Json?
   coverImage          String?
   prizeImage          String?
-  // Display label for the prize (e.g. "اشتراک یک‌ماهه VPN", "۵۰۰ هزار تومان اعتبار").
+  // Display label for the prize (e.g. "اشتراک یک‌ماهه VPN", "۵۰۰ ه��ار تومان اعتبار").
   prizeLabel          String
   prizeKind           GiveawayPrizeKind  @default(CUSTOM)
   // WALLET: amount in minor units (Toman). Other kinds: null.

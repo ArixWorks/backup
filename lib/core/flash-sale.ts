@@ -299,13 +299,16 @@ export async function purchaseFixed(opts: {
       const tierDiscount = tierPct > 0 ? (totalPrice * BigInt(tierPct)) / 100n : 0n
 
       let discount: bigint
+      let discountKind: string | null = null
       if (tierDiscount >= couponDiscount) {
         // Tier wins (or ties): apply it and DON'T consume the coupon, so the
         // user keeps their coupon for later.
         discount = tierDiscount
         couponId = null
+        if (discount > 0n) discountKind = "TIER"
       } else {
         discount = couponDiscount
+        if (discount > 0n) discountKind = "COUPON"
       }
       const chargeTotal = totalPrice - discount
 
@@ -340,6 +343,10 @@ export async function purchaseFixed(opts: {
           // else keeps the existing PAID status.
           status: plan.requiresCustomerInput ? "AWAITING_CUSTOMER_INPUT" : "PAID",
           amount: chargeTotal, // exact net principal — the ONLY refundable sum
+          // Payment snapshot for accurate admin reporting (see schema).
+          originalAmount: totalPrice,
+          discountAmount: discount,
+          discountKind,
           quantity,
           requiresCustomerInput: plan.requiresCustomerInput,
           customerInputFields: plan.requiresCustomerInput
