@@ -13,7 +13,7 @@ import { resolveTemplate } from "./delivery-fields"
 import { listStoreCategories } from "./product-categories"
 import { computeProductScore } from "./product-score"
 
-export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
+export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular" | "rating"
 
 export interface FlashFilters {
   search?: string
@@ -54,8 +54,9 @@ function flashOrderBy(sort?: FlashSort): Prisma.ProductOrderByWithRelationInput 
       return { fixedSale: { price: "asc" } }
     case "price_desc":
       return { fixedSale: { price: "desc" } }
-    case "popular":
-      return { fixedSale: { soldCount: "desc" } }
+    // "popular" and "rating" depend on computed values (displayed sold count =
+    // soldCount + soldBaseline, and the blended product score) that Prisma
+    // cannot order by directly, so we fetch in a stable order and re-sort in JS.
     default:
       return { createdAt: "desc" }
   }
@@ -122,7 +123,7 @@ export async function listFlashSales(filters: FlashFilters = {}) {
   const favoriteBy = new Map(favoriteGroups.map((g) => [g.productId, g._count._all]))
   const variantBy = new Map(variantGroups.map((g) => [g.productId, g._count._all]))
 
-  return summaries.map((summary) => {
+  const enriched = summaries.map((summary) => {
     const review = reviewBy.get(summary.id)
     const { score, hasSignal } = computeProductScore({
       ratingAvg: review?.avg ? Math.round(review.avg * 10) / 10 : null,
@@ -132,6 +133,22 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     })
     return { ...summary, score, hasScore: hasSignal, planCount: variantBy.get(summary.id) ?? 0 }
   })
+
+  // JS re-sort for the computed sorts (DB kept a stable createdAt-desc order).
+  if (filters.sort === "popular") {
+    // Rank by the publicly displayed sold count (real sales + vanity baseline).
+    enriched.sort((a, b) => b.soldDisplay - a.soldDisplay)
+  } else if (filters.sort === "rating") {
+    // Rank by the blended product score; products with no signal sink to the
+    // bottom, and displayed sold count breaks ties.
+    enriched.sort((a, b) => {
+      if (a.hasScore !== b.hasScore) return a.hasScore ? -1 : 1
+      if (b.score !== a.score) return b.score - a.score
+      return b.soldDisplay - a.soldDisplay
+    })
+  }
+
+  return enriched
 }
 
 /**

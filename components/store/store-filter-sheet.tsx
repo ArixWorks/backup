@@ -7,7 +7,7 @@ import { useI18n } from "@/components/i18n-provider"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 
-export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
+export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular" | "rating"
 
 /** A committed set of store filters. Prices are in Toman (undefined = no bound). */
 export interface StoreFilters {
@@ -62,6 +62,7 @@ export function StoreFilterSheet({
   const sortOptions: { key: FlashSort; label: string }[] = [
     { key: "newest", label: t("sort.newest") },
     { key: "popular", label: t("sort.popular") },
+    { key: "rating", label: t("sort.rating") },
     { key: "price_asc", label: t("sort.priceAsc") },
     { key: "price_desc", label: t("sort.priceDesc") },
   ]
@@ -115,7 +116,7 @@ export function StoreFilterSheet({
 
           {/* Sort */}
           <h3 className="mb-2.5 text-sm font-extrabold text-foreground">{t("sort.label")}</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2">
             {sortOptions.map((option) => (
               <ChipButton
                 key={option.key}
