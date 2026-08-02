@@ -90,22 +90,29 @@ export function StoreCatalog() {
         ))}
       </div>
 
-      {/* Toolbar: controls on the left, result count on the right */}
+      {/*
+        Toolbar. Page is RTL, so the first DOM child renders on the visual RIGHT.
+        Desired layout (visual): [filter] [view-toggle] ............ [count]
+        - count first in DOM   -> visual right
+        - buttons group second -> visual left
+        - inside the group, toggle first then filter -> filter ends up leftmost,
+          toggle sits to its right.
+      */}
       <div className="flex items-center justify-between gap-2">
+        {!isLoading && (
+          <p className="text-xs font-semibold text-muted-foreground">
+            {num(sales.length)} {t("store.results")}
+          </p>
+        )}
         <div className="flex items-center gap-1.5">
-          <StoreFilterSheet value={filters} onApply={setFilters} />
           <ViewToggle
             mode={view}
             gridLabel={t("store.gridView")}
             listLabel={t("store.listView")}
             onToggle={() => setView((v) => (v === "grid" ? "list" : "grid"))}
           />
+          <StoreFilterSheet value={filters} onApply={setFilters} />
         </div>
-        {!isLoading && (
-          <p className="text-xs font-semibold text-muted-foreground">
-            {num(sales.length)} {t("store.results")}
-          </p>
-        )}
       </div>
 
       {/* Products */}
