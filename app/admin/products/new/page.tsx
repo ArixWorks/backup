@@ -345,7 +345,7 @@ export default function NewProductPage() {
               <Field label="محدودیت خرید هر کاربر" hint="خالی = بدون محدودیت">
                 <Input value={purchaseLimit} onChange={(e) => setPurchaseLimit(e.target.value)} inputMode="numeric" dir="ltr" placeholder="1" />
               </Field>
-              <Field label="تعداد فروش نمایشی (پایه)" hint="به فروش واقع�� اضافه می‌شود؛ مثل Sold: 2218">
+              <Field label="تعداد فروش نمایشی (پایه)" hint="به فروش واقعی اضافه می‌شود؛ مثل Sold: 2218">
                 <Input value={soldBaseline} onChange={(e) => setSoldBaseline(e.target.value)} inputMode="numeric" dir="ltr" placeholder="0" />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">

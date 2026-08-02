@@ -448,7 +448,7 @@ export async function notifyGiveawayWon(
     const cfg = await getBotConfig()
     if (!cfg.features.notifications) return
     const html =
-      `🎉🏆 <b>تبریک! شما برنده شدید</b> ����🎉\n\n` +
+      `🎉🏆 <b>تبریک! شما برنده شدید</b> 🏆🎉\n\n` +
       `در قرعه‌کشی «<b>${title}</b>» برنده‌ی زیر شدید:\n` +
       `🎁 <b>${prizeLabel}</b>\n\n` +
       `برای مشاهده‌ی جزئیات و دریافت جایزه روی دکمه‌ی زیر بزنید.`
@@ -492,7 +492,7 @@ export async function notifyAdminsPreDraw(giveawayId: string) {
       `🎬 «<b>${g.title}</b>»\n` +
       `🎁 جایزه: <b>${g.prizeLabel}</b>\n` +
       `👥 کل شرکت‌کنندگان: <b>${total}</b>\n` +
-      `✅ واجد ��رایط: <b>${eligible}</b>\n` +
+      `✅ واجد شرایط: <b>${eligible}</b>\n` +
       `🚫 غیرواجد: <b>${total - eligible}</b>\n` +
       `🏆 تعداد برندگان: <b>${winnersWanted}</b>\n\n` +
       `لطفاً یکی از گزینه‌ها را انتخاب کنید:`
