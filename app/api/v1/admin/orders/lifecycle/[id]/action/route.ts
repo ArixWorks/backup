@@ -1,4 +1,4 @@
-import { z, dbId } from "@/lib/zod"
+import { z, optionalDbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import { completeOrder, requestExtension, cancelOrder } from "@/lib/core/order-lifecycle"
@@ -10,7 +10,8 @@ const schema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("complete"),
     note: z.string().trim().max(2000).optional(),
-    tutorialId: dbId.nullable().optional(),
+    // Empty string from an unselected tutorial <select> is coerced to null.
+    tutorialId: optionalDbId,
   }),
   z.object({
     action: z.literal("extend"),

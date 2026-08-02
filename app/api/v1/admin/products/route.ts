@@ -1,4 +1,4 @@
-import { z, dbId } from "@/lib/zod"
+import { z, optionalDbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import {
@@ -40,7 +40,7 @@ const flashSchema = z.object({
   subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
-  categoryId: dbId.nullable().optional(),
+  categoryId: optionalDbId,
   tags: z.array(z.string()).optional(),
   gallery: z.array(z.string()).optional(),
   i18n: i18nSchema,
@@ -63,7 +63,7 @@ const auctionSchema = z.object({
   subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
-  categoryId: dbId.nullable().optional(),
+  categoryId: optionalDbId,
   tags: z.array(z.string()).optional(),
   gallery: z.array(z.string()).optional(),
   i18n: i18nSchema,
