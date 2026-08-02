@@ -1,7 +1,6 @@
-import { EmailManager } from "@/components/admin/email/email-manager"
+import { redirect } from "next/navigation"
 
-export const metadata = { title: "ایمیل | پنل مدیریت" }
-
+// Consolidated into the unified settings hub (Email tab).
 export default function AdminEmailPage() {
-  return <EmailManager />
+  redirect("/admin/settings?tab=email")
 }

@@ -1,11 +1,6 @@
-import type { Metadata } from "next"
-import { BroadcastCenter } from "@/components/admin/broadcast-center"
+import { redirect } from "next/navigation"
 
-export const metadata: Metadata = {
-  title: "مرکز پیام | پنل مدیریت",
-  description: "ارسال و مدیریت پیام‌های تلگرام و اعلان‌های وب‌اپ",
-}
-
+// Consolidated into the unified settings hub (Telegram tab).
 export default function BroadcastsPage() {
-  return <BroadcastCenter />
+  redirect("/admin/settings?tab=telegram")
 }

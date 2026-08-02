@@ -1,7 +1,6 @@
-import { BackupManager } from "@/components/admin/backup-manager"
+import { redirect } from "next/navigation"
 
-export const metadata = { title: "پشتیبان‌گیری | پنل مدیریت" }
-
+// Consolidated into the unified settings hub (System tab).
 export default function AdminBackupPage() {
-  return <BackupManager />
+  redirect("/admin/settings?tab=system")
 }
