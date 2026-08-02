@@ -28,6 +28,7 @@ import { RoadmapStepper } from "@/components/orders/roadmap-stepper"
 import { CountdownTimer } from "@/components/orders/countdown-timer"
 import { PaymentReportCard } from "@/components/admin/payment-report-card"
 import { FulfillmentBadge } from "@/components/admin/fulfillment-badge"
+import { CredentialFields } from "@/components/delivery/credential-fields"
 import { EnhancedTextarea } from "@/components/rich-content"
 import { Send } from "lucide-react"
 import { CANCEL_REASON_CODES, type AdminOrderDetail } from "@/lib/orders/shared"
@@ -140,6 +141,15 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                 <ManualDeliveryPanel order={order} onDone={mutate} />
               ) : (
                 <AdminActions order={order} onDone={mutate} />
+              )}
+              {order.delivery?.status === "DELIVERED" && order.delivery.payload && (
+                <Card className="p-5">
+                  <CredentialFields
+                    payload={order.delivery.payload}
+                    template={order.delivery.template}
+                    title="اطلاعات تحویل‌شده به کاربر"
+                  />
+                </Card>
               )}
             </div>
           </div>
@@ -397,7 +407,7 @@ function AdminActions({ order, onDone }: { order: AdminOrderDetail; onDone: () =
               onChange={(e) => setTutorialId(e.target.value)}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">بدون آموزش اختصاصی</option>
+              <option value="">بدون آموزش ��ختصاصی</option>
               {(tutorials?.data ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.title}
