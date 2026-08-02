@@ -50,9 +50,15 @@ function validateQuestion(body: string) {
 
 export async function listPublicQuestions(productId: string, visitor?: string, locale = "fa") {
   const hash = visitor ? visitorHash(visitor) : null
+  // Accept either the real product id or its slug (detail routes are slug-based).
+  const product = await prisma.product.findFirst({
+    where: { OR: [{ id: productId }, { slug: productId }] },
+    select: { id: true },
+  })
+  if (!product) return { items: [] }
   const items = await prisma.productQuestion.findMany({
     where: {
-      productId,
+      productId: product.id,
       OR: [
         { status: "ANSWERED", answers: { some: { published: true } } },
         ...(hash ? [{ visitorHash: hash, status: { in: ["PENDING_AI", "PENDING_ADMIN"] as ProductQuestionStatus[] } }] : []),
@@ -115,15 +121,17 @@ export async function createQuestion(input: {
   const body = validateQuestion(input.body)
   const normalizedBodyHash = questionHash(body)
   const hash = visitorHash(input.visitorToken)
+  // `input.productId` may be either the real product id or its public slug
+  // (product detail routes are slug-based). Resolve to the canonical id.
   const product = await prisma.product.findFirst({
-    where: { id: input.productId, active: true, hidden: false },
+    where: { OR: [{ id: input.productId }, { slug: input.productId }], active: true, hidden: false },
     select: { id: true },
   })
   if (!product) throw new NotFoundError("محصول یافت نشد.")
 
   const duplicate = await prisma.productQuestion.findFirst({
     where: {
-      productId: input.productId,
+      productId: product.id,
       normalizedBodyHash,
       createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       status: { notIn: ["REJECTED", "HIDDEN"] },
@@ -134,7 +142,7 @@ export async function createQuestion(input: {
 
   const question = await prisma.productQuestion.create({
     data: {
-      productId: input.productId,
+      productId: product.id,
       body,
       normalizedBodyHash,
       visitorHash: hash,
