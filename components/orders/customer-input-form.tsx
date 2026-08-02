@@ -26,7 +26,7 @@ export function CustomerInputForm({
   onSubmit: (values: Record<string, string>) => void
   submitting: boolean
 }) {
-  const { locale } = useI18n()
+  const { locale, t } = useI18n()
   const c = orderCopy(locale)
   const [values, setValues] = useState<Record<string, string>>({})
   const [reveal, setReveal] = useState<Record<string, boolean>>({})
@@ -94,7 +94,7 @@ export function CustomerInputForm({
                     type="button"
                     onClick={() => setReveal((p) => ({ ...p, [f.key]: !p[f.key] }))}
                     className="absolute inset-y-0 flex items-center px-3 text-muted-foreground hover:text-foreground ltr:right-0 rtl:left-0"
-                    aria-label={showReveal ? "hide" : "show"}
+                    aria-label={showReveal ? t("delivery.hide") : t("delivery.reveal")}
                   >
                     {showReveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>

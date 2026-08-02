@@ -17,6 +17,7 @@ import {
 import { apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
 import { useI18n } from "@/components/i18n-provider"
+import { orderCopy } from "@/lib/i18n/order-copy"
 import type { FlashSale, PlanVariant } from "@/components/flash-card"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { AddFundsSheet } from "@/components/wallet/add-funds-sheet"
@@ -44,7 +45,7 @@ export function FlashBuyButton({
   label?: string
 }) {
   const { user, refresh } = useSession()
-  const { t, priceValue, currency, errorMessage } = useI18n()
+  const { t, locale, priceValue, currency, errorMessage } = useI18n()
 
   // The chosen plan is the source of truth for price/stock/limit when present;
   // otherwise fall back to the product-level fixed sale (legacy single-plan).
@@ -75,7 +76,7 @@ export function FlashBuyButton({
   const [step, setStep] = useState<Step>("quantity")
   const [qty, setQty] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ payload: string | null; status: string } | null>(null)
+  const [result, setResult] = useState<{ payload: string | null; status: string; publicId: string | null } | null>(null)
   // Coupon state
   const [couponInput, setCouponInput] = useState("")
   const [couponLoading, setCouponLoading] = useState(false)
@@ -173,6 +174,7 @@ export function FlashBuyButton({
       setResult({
         payload: order?.delivery?.payload ?? null,
         status: order?.delivery?.status ?? order?.status,
+        publicId: order?.publicId ?? null,
       })
       setStep("done")
       setOpen(false)
@@ -357,7 +359,15 @@ export function FlashBuyButton({
                 <p className="text-sm text-muted-foreground">{t("buy.pendingManual")}</p>
               )}
               </DialogBody>
-              <DialogFooter>
+              <DialogFooter className="flex-col gap-2 sm:flex-col">
+                {result?.publicId ? (
+                  <a
+                    href={`/orders/${result.publicId}`}
+                    className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    {orderCopy(locale).viewDetails}
+                  </a>
+                ) : null}
                 <Button variant="gold" size="lg" className="w-full" onClick={() => setOpen(false)}>
                   {t("common.done")}
                 </Button>
@@ -378,7 +388,7 @@ export function FlashBuyButton({
         kind="purchase"
         subject={sale.title}
         image={sale.coverImage}
-        actionHref="/orders"
+        actionHref={result?.publicId ? `/orders/${result.publicId}` : "/orders"}
         onClose={() => setCelebrating(false)}
       />
     </>
