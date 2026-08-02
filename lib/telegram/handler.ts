@@ -247,7 +247,7 @@ function bannedCopy(locale: Locale): {
     default:
       return {
         title: "اکانت شما مسدود شده",
-        body: "لطفا جهت بررسی مشکل با ادم��ن در ارتباط باشید.",
+        body: "لطفا جهت بررسی مشکل با ادمین در ارتباط باشید.",
         button: "ارتباط با پشتیبانی",
         prompt: "پیام خود را برای پشتیبانی بنویسید تا برای ادمین ارسال شود:",
         sent: "پیام شما برای پشتیبانی ارسال شد. پاسخ را همین‌جا دریافت می‌کنید.",
@@ -776,7 +776,7 @@ function gwLabels(locale: Locale) {
       return {
         prize: "Приз", winners: "Победители", participants: "Участники",
         drawAt: "Розыгрыш", enter: "🎉 Участвовать", entered: "✅ Вы участвуете",
-        open: "Открыть в приложении", results: "🏆 Ре��ультаты", join: "Сначала подпишитесь",
+        open: "Открыть в приложении", results: "🏆 ��е��ультаты", join: "Сначала подпишитесь",
         ended: "Розыгрыш завершён", retry: "✅ Я подписался — повторить",
         entrySaved: "Готово! Вы участвуете. Удачи 🍀", joinNeeded: "Подпишитесь на каналы и нажмите повторить.",
       }
@@ -1246,7 +1246,7 @@ function secLabels(locale: Locale): SecLabelBag {
       couponApplied: "کد تخفیف", couponOk: "کد تخفیف اعمال شد.", couponInvalid: "کد تخفیف معتبر نیست.", couponNoProduct: "ابتدا یک محصول را باز کنید.",
       bidPrompt: "مبلغ پیشنهاد خود را وارد کنید. حداقل:", bidInvalid: "مبلغ معتبر وارد کنید.", bidPlaced: "پیشنهاد شما ثبت شد.", buyNowDone: "با خرید فوری خریداری شد!",
       watchOn: "به لیست علاقه‌مندی افزوده شد.", watchOff: "از لیست علاقه‌مندی حذف شد.",
-      depositChoose: "روش واریز را انتخاب کنید:", depInstrTitle: "راهنمای پرداخت", depAmount: "مبلغ", depAddress: "��قصد",
+      depositChoose: "روش واریز را انتخاب کنید:", depInstrTitle: "راهنمای پرداخت", depAmount: "مبلغ", depAddress: "مقصد",
       depNetwork: "شبکه", depTag: "کد پیگیری", depNote: "پس از پرداخت روی «پرداخت کردم» بزنید یا رسید را ارسال کنید.", toman: "تومان",
       receiptPrompt: "لطفاً تصویر رسید پرداخت را ارسال کنید.", receiptSaved: "رسید دریافت شد. به‌زودی بررسی می‌شود.", receiptPhotoOnly: "لطفاً یک تصویر (عکس) ارسال کنید.",
       paidClaimed: "سپاس! پرداخت شما بررسی و کیف پول شارژ می‌شود.", paidClaimedShort: "ثبت شد", methodUnavailable: "این روش پرداخت در دسترس نیست",
