@@ -150,6 +150,11 @@ enum OrderStatus {
   DELIVERED
   REFUNDED
   CANCELLED
+  // Multi-step fulfillment (products flagged requiresCustomerInput). Appended
+  // after the legacy values so existing enum ordinals never shift.
+  AWAITING_CUSTOMER_INPUT // paid; waiting for the buyer to submit account info
+  PROCESSING // customer input received; admin is fulfilling (countdown running)
+  AWAITING_EXTENSION_APPROVAL // admin asked for more time; waiting for user yes/no
 }
 
 enum InventoryStatus {
@@ -700,6 +705,16 @@ model Product {
   // system falls back to the default username+password template. Variants may
   // override this per sale plan (ProductVariant.deliveryFields).
   deliveryFields    Json?
+  // When true, purchases enter the multi-step roadmap: the buyer must submit
+  // account info (customerInputFields) before an admin fulfills the order.
+  // When false, delivery follows the existing instant/MANUAL path.
+  requiresCustomerInput Boolean @default(false)
+  // Template of fields the BUYER must submit (e.g. email + password of their
+  // own account). Same field-def shape as deliveryFields. Variants may override.
+  customerInputFields   Json?
+  // Default average fulfillment time in minutes, shown as the countdown budget.
+  // Admin-tunable per product; variants may override.
+  avgCompletionMinutes  Int?
   defaultTutorialId String?
   defaultTutorial   Content?     @relation("ProductDefaultTutorial", fields: [defaultTutorialId], references: [id], onDelete: SetNull)
   hidden            Boolean      @default(false)
@@ -1095,6 +1110,11 @@ model ProductVariant {
   // Optional per-plan credential field template override. Same shape as
   // Product.deliveryFields. When null, resolves to the product template.
   deliveryFields Json?
+  // Optional per-plan overrides for the customer-input roadmap. Null = inherit
+  // from the product. requiresCustomerInput is nullable so "unset" ≠ "false".
+  requiresCustomerInput Boolean?
+  customerInputFields   Json?
+  avgCompletionMinutes  Int?
   displayOrder   Int          @default(0)
   active         Boolean      @default(true)
   // Marks the auto-migrated single default plan (hidden selector when it is the
@@ -1243,10 +1263,75 @@ model Order {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
+  // ---- Multi-step fulfillment (roadmap) -----------------------------------
+  // Snapshot at purchase time so later product edits never change an in-flight
+  // order. requiresCustomerInput drives whether this order uses the roadmap.
+  requiresCustomerInput Boolean @default(false)
+  // Template the buyer must fill (delivery-fields shape). Snapshotted so an
+  // admin editing the product template can't retroactively invalidate input.
+  customerInputFields   Json?
+  // Values submitted by the buyer (may contain passwords/2FA). SENSITIVE:
+  // never returned by list endpoints; detail endpoint is ownership-guarded and
+  // admin reveal is access-controlled.
+  customerInput         Json?
+  customerInputAt       DateTime?
+  // Average completion estimate (minutes) snapshotted at purchase.
+  estimatedMinutes      Int?
+  // Countdown anchors. processingStartedAt = when the buyer submitted input;
+  // dueAt = processingStartedAt + estimatedMinutes + granted extensions.
+  processingStartedAt   DateTime?
+  dueAt                 DateTime?
+  extensionCount        Int      @default(0)
+  // Admin-requested extension awaiting the user's yes/no.
+  pendingExtensionMinutes Int?
+  extensionRequestedAt    DateTime?
+  // Dedupe guard for the "order past its promised time" admin reminder.
+  overdueNotifiedAt       DateTime?
+  // Optional completion payload shown to the buyer on DELIVERED.
+  completionNote        String?
+  completionTutorialId  String?
+  completionTutorial    Content? @relation("OrderCompletionTutorial", fields: [completionTutorialId], references: [id], onDelete: SetNull)
+  // Cancellation / refund audit. refundedAmount records EXACTLY what returned
+  // (always the net principal = order.amount, never discounts/commissions).
+  cancelReasonCode      String?
+  cancelReason          String?
+  cancelledBy           String? // "USER" | "ADMIN" | "SYSTEM"
+  refundedAmount        BigInt?
+  // Lottery/giveaway prize surfaced as a real order under the shop category.
+  isGiveawayPrize       Boolean @default(false)
+  giveawayId            String?
+  giveaway              Giveaway? @relation(fields: [giveawayId], references: [id], onDelete: SetNull)
+
   delivery Delivery?
+  events   OrderEvent[]
 
   @@index([userId, createdAt])
   @@index([variantId])
+  @@index([status, dueAt])
+  @@index([userId, type, createdAt])
+  @@index([completionTutorialId])
+  @@index([giveawayId])
+}
+
+// Immutable per-order lifecycle event log — mirror of DomainOrderEvent. Every
+// state transition writes one row with a unique idempotencyKey so replays and
+// concurrent callers can never double-apply (e.g. double refund).
+model OrderEvent {
+  id             String       @id @default(cuid())
+  orderId        String
+  order          Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type           String // ORDER_CREATED | CUSTOMER_INPUT_SUBMITTED | ...
+  fromStatus     OrderStatus?
+  toStatus       OrderStatus?
+  actorType      String // "USER" | "ADMIN" | "SYSTEM"
+  actorId        String?
+  reasonCode     String?
+  message        String?
+  meta           Json         @default("{}")
+  idempotencyKey String       @unique
+  createdAt      DateTime     @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 model Delivery {
@@ -1636,6 +1721,7 @@ model Giveaway {
 
   entries GiveawayEntry[]
   winners GiveawayWinner[]
+  orders  Order[]
 
   @@index([status, drawAt])
   @@index([visibility, status])
@@ -2797,6 +2883,7 @@ model Content {
   // Outgoing relationships (to other content or domain entities).
   relations                ContentRelation[] @relation("ContentRelationsFrom")
   defaultForProducts       Product[]         @relation("ProductDefaultTutorial")
+  completionForOrders      Order[]           @relation("OrderCompletionTutorial")
   attachedToDeliveries     Delivery[]        @relation("DeliveryTutorial")
 
   authorId    String?

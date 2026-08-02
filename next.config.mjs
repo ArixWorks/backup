@@ -71,7 +71,27 @@ const nextConfig = {
   // Never ship source maps to the browser in prod (smaller, faster transfers).
   productionBrowserSourceMaps: false,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }]
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // The 3D/Lottie payment icons and the self-hosted Draco decoder are
+      // large (~2.6 MB combined) and content-stable — they only change when
+      // their filename changes. Next.js only makes `/_next/static` immutable,
+      // so without this these /public assets get re-fetched on every cold or
+      // evicted cache, which is why the payment icons took ~10s to appear on
+      // first load "or after a while". Cache them for a year, immutable.
+      {
+        source: '/pay-icons/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/draco/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+    ]
   },
 }
 

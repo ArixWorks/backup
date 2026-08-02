@@ -240,6 +240,10 @@ export interface FlashUpdateInput {
   featuredOrder?: number
   // Credential field template (array of field defs) or null to clear.
   deliveryFields?: Prisma.InputJsonValue | null
+  // Roadmap / customer-input config (Phase 3).
+  requiresCustomerInput?: boolean
+  customerInputFields?: Prisma.InputJsonValue | null
+  avgCompletionMinutes?: number | null
 }
 
 export async function updateFlashProduct(productId: string, input: FlashUpdateInput, adminId: string) {
@@ -267,6 +271,15 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
         input.deliveryFields === undefined
           ? undefined
           : (input.deliveryFields ?? Prisma.DbNull),
+      requiresCustomerInput: input.requiresCustomerInput,
+      customerInputFields:
+        input.customerInputFields === undefined
+          ? undefined
+          : (input.customerInputFields ?? Prisma.DbNull),
+      avgCompletionMinutes:
+        input.avgCompletionMinutes === undefined
+          ? undefined
+          : (input.avgCompletionMinutes ?? null),
       fixedSale: {
         update: {
           price: input.price,

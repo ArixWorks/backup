@@ -119,6 +119,28 @@ export function AddFundsSheet({
     wasOpen.current = open
   }, [initialAmountToman, isToman, open, usdRate])
 
+  // Warm the heavy 3D pipeline (three.js chunk + Draco decoder + the exact
+  // gateway models this sheet shows) as soon as it opens. This runs while the
+  // user is still on the amount step, so by the time they reach the method
+  // carousel the WebGL icons render from cache instead of triggering a
+  // multi-megabyte cold load that made them take ~10s to appear. Fire-and-
+  // forget: only card + ton are GLBs here (USDT is a PNG, Stars is Lottie),
+  // and any failure is harmless.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    const id = setTimeout(() => {
+      if (cancelled) return
+      import("@/components/wallet/gateway-model-3d")
+        .then((m) => m.warmGatewayModels(["/pay-icons/3d/card.glb", "/pay-icons/3d/ton.glb"]))
+        .catch(() => {})
+    }, 150)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [open])
+
   // The wallet credit amount, always expressed in Toman (IRT base unit).
   const tomanAmount = useMemo(() => {
     const n = Number(input)
