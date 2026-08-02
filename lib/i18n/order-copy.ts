@@ -38,6 +38,10 @@ const fa = {
     REFUNDED: "لغو و بازگشت وجه",
     CANCELLED: "لغوشده",
     FAILED: "ناموفق",
+    PENDING_PURCHASE: "در انتظار پرداخت",
+    AWAITING_NAMESERVERS: "در انتظار ثبت NS",
+    AWAITING_NAMESERVER_SETUP: "در حال پیکربندی NS",
+    EXPIRED: "منقضی‌شده",
   } as Record<string, string>,
   // one-line summaries by status
   summaries: {
@@ -51,6 +55,10 @@ const fa = {
     REFUNDED: "سفارش لغو و اصل مبلغ بازگردانده شد",
     CANCELLED: "سفارش لغو شد",
     FAILED: "پرداخت ناموفق بود",
+    PENDING_PURCHASE: "در انتظار تکمیل پرداخت",
+    AWAITING_NAMESERVERS: "برای فعال‌سازی دامنه، NSها را ثبت کنید",
+    AWAITING_NAMESERVER_SETUP: "در حال پیکربندی نیم‌سرورها",
+    EXPIRED: "مهلت این سفارش منقضی شد",
   } as Record<string, string>,
   // roadmap step titles/descriptions
   steps: {
@@ -136,6 +144,10 @@ const en: Copy = {
     REFUNDED: "Cancelled & refunded",
     CANCELLED: "Cancelled",
     FAILED: "Failed",
+    PENDING_PURCHASE: "Awaiting payment",
+    AWAITING_NAMESERVERS: "Awaiting nameservers",
+    AWAITING_NAMESERVER_SETUP: "Configuring nameservers",
+    EXPIRED: "Expired",
   },
   summaries: {
     PENDING: "Getting ready",
@@ -224,6 +236,10 @@ const ru: Copy = {
     REFUNDED: "Отменено и возвращено",
     CANCELLED: "Отменено",
     FAILED: "Неуспешно",
+    PENDING_PURCHASE: "Ожидает оплаты",
+    AWAITING_NAMESERVERS: "Ожидает NS-серверов",
+    AWAITING_NAMESERVER_SETUP: "Настройка NS-серверов",
+    EXPIRED: "Истёк срок",
   },
   summaries: {
     PENDING: "Подготовка",
@@ -306,12 +322,16 @@ const hi: Copy = {
     PAID: "भुगतान हुआ",
     AWAITING_CUSTOMER_INPUT: "आपकी जानकारी की प्रतीक्षा",
     PROCESSING: "प्रगति में",
-    AWAITING_EXTENSION_APPROVAL: "विस्तार स्वीकृति की प्रतीक्षा",
+    AWAITING_EXTENSION_APPROVAL: "विस्तार स्वीकृति की प्��तीक्षा",
     DELIVERED: "पूरा हुआ",
     COMPLETED: "पूरा हुआ",
     REFUNDED: "रद्द व रिफंड",
     CANCELLED: "रद्द",
     FAILED: "विफल",
+    PENDING_PURCHASE: "भुगतान प्रतीक्षित",
+    AWAITING_NAMESERVERS: "नेमसर्वर प्रतीक्षित",
+    AWAITING_NAMESERVER_SETUP: "नेमसर्वर कॉन्फ़िगर हो रहे हैं",
+    EXPIRED: "समाप्त",
   },
   summaries: {
     PENDING: "तैयारी हो रही है",

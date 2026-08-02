@@ -127,6 +127,28 @@ export function computeShopRoadmap(input: {
   return { roadmap: steps, progress }
 }
 
+/**
+ * Progress (0..100) for a DOMAIN order. Domains have their own lifecycle:
+ * pending payment → processing → awaiting/configuring nameservers → completed.
+ * Terminal failure/expiry/cancel report 0. Pure + deterministic.
+ */
+export function computeDomainProgress(status: string): number {
+  if (isCompleteStatus(status)) return 100
+  if (isCancelledStatus(status)) return 0
+  switch (status) {
+    case "PENDING_PURCHASE":
+      return 15
+    case "PROCESSING":
+      return 45
+    case "AWAITING_NAMESERVERS":
+      return 65
+    case "AWAITING_NAMESERVER_SETUP":
+      return 85
+    default:
+      return 30
+  }
+}
+
 /** Standard cancellation reason codes. `OTHER` reveals a free-text field. */
 export const CANCEL_REASON_CODES = [
   "BUYING_ELSEWHERE",

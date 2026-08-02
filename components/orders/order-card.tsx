@@ -17,7 +17,17 @@ const CATEGORY_ICON: Record<OrderCategory, typeof Zap> = {
   VPS: Server,
 }
 
-const IN_FLIGHT = new Set(["PENDING", "PAID", "AWAITING_CUSTOMER_INPUT", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"])
+const IN_FLIGHT = new Set([
+  "PENDING",
+  "PAID",
+  "AWAITING_CUSTOMER_INPUT",
+  "PROCESSING",
+  "AWAITING_EXTENSION_APPROVAL",
+  // domain lifecycle
+  "PENDING_PURCHASE",
+  "AWAITING_NAMESERVERS",
+  "AWAITING_NAMESERVER_SETUP",
+])
 
 /**
  * A single order summary card. Colourful status chip, a live progress bar for
@@ -35,7 +45,7 @@ export function OrderCard({ order }: { order: OrderListItem }) {
   return (
     <li>
       <Link
-        href={`/orders/${order.publicId}`}
+        href={order.href}
         className="group block rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">

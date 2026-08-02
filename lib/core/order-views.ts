@@ -13,6 +13,7 @@ import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { resolveTemplate, type DeliveryTemplate } from "./delivery-fields"
 import {
+  computeDomainProgress,
   computeShopRoadmap,
   deriveOrderCategory,
   type AdminOrderDetail,
@@ -263,4 +264,44 @@ export async function getShopOrderDetailForAdmin(orderId: string): Promise<Admin
     include: ADMIN_DETAIL_INCLUDE,
   })
   return order ? toAdminDetail(order) : null
+}
+
+// --- Domain orders (Phase 4) -------------------------------------------------
+
+type DomainOrderRow = Prisma.DomainOrderGetPayload<Record<string, never>>
+
+/**
+ * Map a DomainOrder into the unified OrderListItem shape so it can sit in the
+ * Orders page DOMAIN tab. Domains keep their own detail flow, so `href` points
+ * at the existing /domains page rather than the shop detail route.
+ */
+function domainToListItem(d: DomainOrderRow): OrderListItem {
+  return {
+    id: d.id,
+    publicId: d.publicId,
+    title: d.unicodeDomain,
+    coverImage: null,
+    category: "DOMAIN",
+    type: d.operation,
+    status: d.status,
+    amount: Number(d.amountIrt),
+    quantity: 1,
+    createdAt: d.createdAt.toISOString(),
+    isGiveawayPrize: false,
+    requiresCustomerInput: d.status === "AWAITING_NAMESERVERS",
+    progress: computeDomainProgress(d.status),
+    dueAt: null,
+    pendingExtensionMinutes: null,
+    href: "/domains",
+  }
+}
+
+/** A user's domain orders as unified list items for the DOMAIN tab. */
+export async function listDomainOrdersForUser(userId: string): Promise<OrderListItem[]> {
+  const orders = await prisma.domainOrder.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  })
+  return orders.map(domainToListItem)
 }
