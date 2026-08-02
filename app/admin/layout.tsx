@@ -21,10 +21,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     !!user && (user.role === "ADMIN" || isBootstrapAdminTelegramId(user.telegramId))
   if (!isAdmin) redirect("/login?next=/admin")
 
-  // `admin-scope` pins a permanent Premium Dark + Gold identity for the whole
-  // admin subtree, independent of the app theme or the admin's membership tier.
+  // `admin-scope` pins a dedicated violet control-center identity for the whole
+  // admin subtree, independent of the storefront theme or the admin's tier.
+  // Light lavender is the default; admins can toggle a dark variant which we
+  // persist in localStorage and re-apply before paint to avoid a flash.
   return (
-    <div className="admin-scope min-h-dvh">
+    <div id="admin-scope" data-admin-theme="light" className="admin-scope min-h-dvh">
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `try{var t=localStorage.getItem('admin-theme');if(t==='dark'||t==='light'){document.getElementById('admin-scope').setAttribute('data-admin-theme',t);}}catch(e){}`,
+        }}
+      />
       <AdminShell>{children}</AdminShell>
     </div>
   )
