@@ -48,6 +48,9 @@ const schema = z.object({
   featuredOrder: z.number().int().min(0).max(9999).optional(),
   defaultTutorialId: dbId.nullable().optional(),
   deliveryFields: deliveryTemplateSchema.nullable().optional(),
+  requiresCustomerInput: z.boolean().optional(),
+  customerInputFields: deliveryTemplateSchema.nullable().optional(),
+  avgCompletionMinutes: z.number().int().min(1).max(20160).nullable().optional(),
 })
 
 export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -110,6 +113,9 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
       featured: body.featured,
       featuredOrder: body.featuredOrder,
       deliveryFields: body.deliveryFields,
+      requiresCustomerInput: body.requiresCustomerInput,
+      customerInputFields: body.customerInputFields,
+      avgCompletionMinutes: body.avgCompletionMinutes,
     },
     admin.id,
   )

@@ -171,6 +171,33 @@ export interface OrderEventView {
   createdAt: string
 }
 
+/** Minimal buyer identity shown to admins alongside an order. */
+export interface OrderUserRef {
+  id: string
+  displayName: string | null
+  alias: string | null
+  email: string | null
+}
+
+/** Admin list row: an order needing (or having gone through) fulfilment. */
+export interface AdminOrderListItem extends OrderListItem {
+  user: OrderUserRef
+  /** PROCESSING order whose dueAt has already passed. */
+  overdue: boolean
+  extensionCount: number
+  pendingExtensionMinutes: number | null
+}
+
+/**
+ * Admin detail: the buyer's submitted account info is ALWAYS revealed here
+ * (access-controlled by requireAdmin), unlike the owner-only user detail.
+ */
+export interface AdminOrderDetail extends OrderDetail {
+  user: OrderUserRef
+  overdue: boolean
+  avgCompletionMinutes: number | null
+}
+
 export interface OrderDetail extends OrderListItem {
   variantName: string | null
   roadmap: RoadmapStep[]

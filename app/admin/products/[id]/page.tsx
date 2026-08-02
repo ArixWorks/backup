@@ -22,6 +22,7 @@ import { VariantsEditor } from "@/components/admin/products/variants-editor"
 import { HighlightsEditor } from "@/components/admin/products/highlights-editor"
 import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
 import { DeliveryTemplateCard } from "@/components/admin/products/delivery-template-card"
+import { CustomerInputCard } from "@/components/admin/products/customer-input-card"
 import { InventoryTotpDialog } from "@/components/admin/products/inventory-totp-dialog"
 import { resolveTemplate, type DeliveryField } from "@/lib/core/delivery-fields"
 import { cn } from "@/lib/utils"
@@ -63,6 +64,9 @@ type Product = {
   defaultTutorial: TutorialOption | null
   fixedSale: FixedSale | null
   deliveryFields?: DeliveryField[] | null
+  requiresCustomerInput?: boolean
+  customerInputFields?: DeliveryField[] | null
+  avgCompletionMinutes?: number | null
 }
 
 type Inv = {
@@ -187,6 +191,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
           {product.saleMode === "FIXED_PRICE" && product.fixedSale && (
             <>
+              <CustomerInputCard
+                productId={id}
+                initialEnabled={product.requiresCustomerInput ?? false}
+                initialFields={product.customerInputFields ?? null}
+                initialMinutes={product.avgCompletionMinutes ?? null}
+                onSaved={mutate}
+              />
               <div className="relative">
                 <VariantsEditor productId={id} productTitle={product.title} />
               </div>

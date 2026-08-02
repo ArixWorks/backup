@@ -15,6 +15,8 @@ import { resolveTemplate, type DeliveryTemplate } from "./delivery-fields"
 import {
   computeShopRoadmap,
   deriveOrderCategory,
+  type AdminOrderDetail,
+  type AdminOrderListItem,
   type OrderDetail,
   type OrderListItem,
 } from "@/lib/orders/shared"
@@ -38,8 +40,30 @@ const DETAIL_INCLUDE = {
   events: { orderBy: { createdAt: "asc" as const } },
 } satisfies Prisma.OrderInclude
 
+const ADMIN_USER_SELECT = {
+  user: { select: { id: true, displayName: true, alias: true, email: true } },
+} satisfies Prisma.OrderInclude
+
+const ADMIN_LIST_INCLUDE = { ...LIST_INCLUDE, ...ADMIN_USER_SELECT } satisfies Prisma.OrderInclude
+const ADMIN_DETAIL_INCLUDE = {
+  ...DETAIL_INCLUDE,
+  ...ADMIN_USER_SELECT,
+  product: {
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      coverImage: true,
+      deliveryFields: true,
+      avgCompletionMinutes: true,
+    },
+  },
+} satisfies Prisma.OrderInclude
+
 type ListOrder = Prisma.OrderGetPayload<{ include: typeof LIST_INCLUDE }>
 type DetailOrder = Prisma.OrderGetPayload<{ include: typeof DETAIL_INCLUDE }>
+type AdminListOrder = Prisma.OrderGetPayload<{ include: typeof ADMIN_LIST_INCLUDE }>
+type AdminDetailOrder = Prisma.OrderGetPayload<{ include: typeof ADMIN_DETAIL_INCLUDE }>
 
 // --- helpers -----------------------------------------------------------------
 
@@ -154,4 +178,89 @@ export async function getShopOrderDetailForUser(publicId: string, userId: string
     include: DETAIL_INCLUDE,
   })
   return order ? toDetail(order) : null
+}
+
+// --- Admin serializers -------------------------------------------------------
+
+function isOverdue(o: { status: string; dueAt: Date | null }): boolean {
+  return o.status === "PROCESSING" && o.dueAt != null && o.dueAt.getTime() < Date.now()
+}
+
+function toAdminListItem(o: AdminListOrder): AdminOrderListItem {
+  return {
+    ...toListItem(o as unknown as ListOrder),
+    user: {
+      id: o.user.id,
+      displayName: o.user.displayName,
+      alias: o.user.alias,
+      email: o.user.email,
+    },
+    overdue: isOverdue(o),
+    extensionCount: o.extensionCount,
+    pendingExtensionMinutes: o.pendingExtensionMinutes,
+  }
+}
+
+function toAdminDetail(o: AdminDetailOrder): AdminOrderDetail {
+  const base = toDetail(o as unknown as DetailOrder)
+  // Admins always see the submitted account info (guarded by requireAdmin at
+  // the route). If the buyer submitted values, echo them regardless of owner.
+  const values =
+    o.customerInput && typeof o.customerInput === "object" && !Array.isArray(o.customerInput)
+      ? (o.customerInput as Record<string, string>)
+      : null
+  return {
+    ...base,
+    customerInputValues: values,
+    user: {
+      id: o.user.id,
+      displayName: o.user.displayName,
+      alias: o.user.alias,
+      email: o.user.email,
+    },
+    overdue: isOverdue(o),
+    avgCompletionMinutes: o.product.avgCompletionMinutes ?? null,
+  }
+}
+
+/**
+ * Orders relevant to admin fulfilment. `scope`:
+ *  - "active" (default): orders awaiting input, processing, or awaiting the
+ *    buyer's extension decision — i.e. the fulfilment work queue.
+ *  - "all": every shop/auction order (most recent first).
+ * Overdue PROCESSING orders float to the top of the active queue.
+ */
+export async function listShopOrdersForAdmin(
+  scope: "active" | "all" = "active",
+): Promise<AdminOrderListItem[]> {
+  const where: Prisma.OrderWhereInput =
+    scope === "active"
+      ? { status: { in: ["AWAITING_CUSTOMER_INPUT", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"] } }
+      : {}
+  const orders = await prisma.order.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: ADMIN_LIST_INCLUDE,
+    take: 200,
+  })
+  const items = orders.map(toAdminListItem)
+  if (scope === "active") {
+    // Overdue first, then by soonest due, then newest.
+    items.sort((a, b) => {
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1
+      const ad = a.dueAt ? Date.parse(a.dueAt) : Infinity
+      const bd = b.dueAt ? Date.parse(b.dueAt) : Infinity
+      return ad - bd
+    })
+  }
+  return items
+}
+
+/** Full admin detail (always reveals submitted account info). Null if absent. */
+export async function getShopOrderDetailForAdmin(orderId: string): Promise<AdminOrderDetail | null> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: ADMIN_DETAIL_INCLUDE,
+  })
+  return order ? toAdminDetail(order) : null
 }
