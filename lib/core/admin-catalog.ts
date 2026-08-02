@@ -232,6 +232,7 @@ export interface FlashUpdateInput {
   bulkDiscountPercent?: number | null
   hidden?: boolean
   active?: boolean
+  available?: boolean
   featured?: boolean
   featuredOrder?: number
   // Credential field template (array of field defs) or null to clear.
@@ -256,6 +257,7 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
       links: input.links !== undefined ? cleanLinks(input.links) : undefined,
       hidden: input.hidden,
       active: input.active,
+      available: input.available,
       featured: input.featured,
       featuredOrder: input.featuredOrder === undefined ? undefined : Math.max(0, input.featuredOrder),
       deliveryFields:

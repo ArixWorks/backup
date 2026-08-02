@@ -704,6 +704,10 @@ model Product {
   defaultTutorial   Content?     @relation("ProductDefaultTutorial", fields: [defaultTutorialId], references: [id], onDelete: SetNull)
   hidden            Boolean      @default(false)
   active            Boolean      @default(true)
+  // When false, the product stays listed in the store but is shown as "ناموجود"
+  // (sale closed) and cannot be purchased — independent of on-hand stock. Lets
+  // an admin publish a product yet keep its sale closed.
+  available         Boolean      @default(true)
   featured          Boolean      @default(false)
   featuredOrder     Int          @default(0)
   createdAt         DateTime     @default(now())

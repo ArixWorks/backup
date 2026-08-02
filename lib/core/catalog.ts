@@ -19,6 +19,14 @@ export interface FlashFilters {
   category?: string
   sort?: FlashSort
   locale?: string
+  /** Minimum selling price (Toman) inclusive. */
+  minPrice?: bigint
+  /** Maximum selling price (Toman) inclusive. */
+  maxPrice?: bigint
+  /** Only products whose sale is open AND that still have on-hand stock. */
+  inStockOnly?: boolean
+  /** Only products delivered automatically (instant). */
+  instantOnly?: boolean
 }
 
 async function localizedProduct<T extends { id: string; title: string; subtitle?: string | null; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
@@ -58,10 +66,31 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     active: true,
     hidden: false,
   }
+  const and: Prisma.ProductWhereInput[] = []
 
   if (filters.category) {
-    where.AND = [{ productCategory: { slug: filters.category, active: true } }]
+    and.push({ productCategory: { slug: filters.category, active: true } })
   }
+
+  // Price range filters against the fixed-sale selling price.
+  if (filters.minPrice != null || filters.maxPrice != null) {
+    const price: Prisma.BigIntFilter = {}
+    if (filters.minPrice != null) price.gte = filters.minPrice
+    if (filters.maxPrice != null) price.lte = filters.maxPrice
+    and.push({ fixedSale: { is: { price } } })
+  }
+
+  // Instant delivery only (product-level delivery type).
+  if (filters.instantOnly) {
+    and.push({ deliveryType: "AUTOMATIC" })
+  }
+
+  // "In stock" means the sale is open (available) AND on-hand stock remains.
+  if (filters.inStockOnly) {
+    and.push({ available: true, fixedSale: { is: { stock: { gt: 0 } } } })
+  }
+
+  if (and.length > 0) where.AND = and
 
   const search = filters.search?.trim()
   if (search) {
@@ -140,6 +169,7 @@ export type FlashProductRow = {
   tags: string[]
   createdAt: Date
   deliveryType: string
+  available: boolean
   links: unknown
   fixedSale: {
     price: bigint
@@ -179,6 +209,8 @@ export function summarizeFlash(p: FlashProductRow) {
     category: p.category,
     coverImage: p.coverImage,
     deliveryType: p.deliveryType,
+    // Sale-open flag. When false the store card shows "ناموجود" and buying is blocked.
+    available: p.available,
     links: parseLinks(p.links),
     price: fs?.price ?? 0n,
     // Original "was" price for the strike-through discount display. Only shown
