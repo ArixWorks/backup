@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db"
 import type { OrderStatus, Prisma } from "@prisma/client"
 import { NotFoundError, ValidationError, ConflictError } from "./errors"
 import { refund } from "./wallet"
+import { reversePurchaseRewards } from "./rewards"
 import { resolveTemplate, sanitizeValues, type DeliveryTemplate } from "./delivery-fields"
 import { createNotification } from "./notifications"
 
@@ -453,8 +454,27 @@ export async function cancelOrder(
         skipDuplicates: true,
       })
       if (inserted.count === 1) {
+        // Reverse the purchase-time rewards tied to THIS order BEFORE refunding
+        // the principal. The cashback credited at purchase inflated the buyer's
+        // wallet, so refunding order.amount alone would over-pay by exactly the
+        // cashback; we also void the inviter's order-scoped commission. This is
+        // what guarantees the net effect returns exactly the user's principal —
+        // never discounts, cashback, or commissions. Gated by the same refund
+        // idempotency key, so it runs at most once per order.
+        const reversed = await reversePurchaseRewards(tx, order.userId, order.id)
         await refund(order.userId, principal, tx, { type: "order", id: order.id })
         refundedAmount = principal
+        if (reversed.cashback > 0n || reversed.commission > 0n) {
+          await logEvent(tx, {
+            orderId: order.id,
+            type: "REWARDS_REVERSED",
+            actorType: opts.actor,
+            actorId: opts.actorId ?? null,
+            message: `بازگردانی پاداش‌های سفارش لغوشده (کش‌بک: ${reversed.cashback.toString()}، کمیسیون: ${reversed.commission.toString()})`,
+            meta: { cashback: reversed.cashback.toString(), commission: reversed.commission.toString() },
+            idempotencyKey: `${order.id}:rewards-reversed`,
+          })
+        }
       }
     }
 

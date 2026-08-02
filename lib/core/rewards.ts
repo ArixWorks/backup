@@ -1,8 +1,8 @@
 import { randomBytes } from "crypto"
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
-import { creditCashback, creditReferralBonus, ensureWallet } from "./wallet"
-import { serializableTx } from "./ledger"
+import { creditCashback, creditReferralBonus, ensureWallet, mutateWallet } from "./wallet"
+import { serializableTx, BASE_CURRENCY } from "./ledger"
 import { earnPoints, addSpend, progressMission, awardBadge } from "./gamification"
 import { audit } from "./audit"
 import {
@@ -358,6 +358,124 @@ export interface PurchaseRewardSummary {
   firstPurchase?: { referrerId: string; bonus: bigint; friendName: string }
   /** Stage C — recurring commission paid to the inviter on this purchase. */
   commission?: { referrerId: string; amount: bigint; friendName: string }
+}
+
+/** What a reward reversal clawed back, for audit/event logging. */
+export interface ReversedRewards {
+  /** Cashback debited back from the buyer. */
+  cashback: bigint
+  /** Order-scoped referral commission debited back from the inviter. */
+  commission: bigint
+}
+
+/**
+ * Reverse the purchase-time rewards that were credited FOR A SPECIFIC ORDER
+ * when that order is cancelled/refunded. This is what keeps a refund equal to
+ * the buyer's true out-of-pocket principal: the cashback credited at purchase
+ * inflated the wallet, so refunding order.amount alone would over-pay by the
+ * cashback. We also void the inviter's order-scoped commission, which should
+ * not stand on a cancelled order.
+ *
+ * Correctness by construction: instead of recomputing percentages (which could
+ * drift if settings changed), we read the EXACT reward WalletTransactions
+ * tagged with this order id and debit precisely those amounts back. Sums are
+ * clamped to the wallet's current available balance so a reversal can never
+ * push a balance negative (mutateWallet also enforces total >= 0). Fully
+ * idempotent: a REWARD_REVERSAL ledger note keyed by order id blocks a second
+ * pass, and after the first pass there are no more matching credits to reverse.
+ *
+ * MUST run inside the same transaction as the refund so the whole cancel is
+ * atomic. Skips silently when there is nothing to reverse.
+ */
+export async function reversePurchaseRewards(
+  tx: Tx,
+  buyerId: string,
+  orderId: string,
+): Promise<ReversedRewards> {
+  const result: ReversedRewards = { cashback: 0n, commission: 0n }
+
+  // Idempotency guard: if we already reversed this order, do nothing.
+  const already = await tx.walletTransaction.findFirst({
+    where: { refType: "reward_reversal", refId: orderId },
+    select: { id: true },
+  })
+  if (already) return result
+
+  // 1) Buyer cashback for this order (WalletTxType.CASHBACK, refType "order").
+  const cashbackTxns = await tx.walletTransaction.findMany({
+    where: {
+      wallet: { userId: buyerId },
+      type: "CASHBACK",
+      refType: "order",
+      refId: orderId,
+      amount: { gt: 0n },
+    },
+    select: { amount: true },
+  })
+  const cashbackTotal = cashbackTxns.reduce((s, t) => s + t.amount, 0n)
+  if (cashbackTotal > 0n) {
+    // Clamp to available so we never drive the wallet negative if the buyer
+    // already spent the cashback; we recover as much as is present.
+    const bal = await tx.wallet.findUnique({
+      where: { userId_currency: { userId: buyerId, currency: BASE_CURRENCY } },
+      select: { totalBalance: true, frozenBalance: true },
+    })
+    const available = bal ? bal.totalBalance - bal.frozenBalance : 0n
+    const debit = cashbackTotal > available ? available : cashbackTotal
+    if (debit > 0n) {
+      await mutateWallet(
+        {
+          userId: buyerId,
+          type: "ADMIN_ADJUSTMENT",
+          deltaTotal: -debit,
+          amount: -debit,
+          refType: "reward_reversal",
+          refId: orderId,
+          note: "بازگردانی کش‌بک سفارش لغوشده",
+        },
+        tx,
+      )
+      result.cashback = debit
+    }
+  }
+
+  // 2) Inviter order-scoped commission (REFERRAL_BONUS, refType
+  //    "referral_commission"). Reversed against the inviter's wallet.
+  const commissionTxns = await tx.walletTransaction.findMany({
+    where: {
+      type: "REFERRAL_BONUS",
+      refType: "referral_commission",
+      refId: orderId,
+      amount: { gt: 0n },
+    },
+    select: { amount: true, wallet: { select: { userId: true } } },
+  })
+  for (const c of commissionTxns) {
+    const inviterId = c.wallet.userId
+    const bal = await tx.wallet.findUnique({
+      where: { userId_currency: { userId: inviterId, currency: BASE_CURRENCY } },
+      select: { totalBalance: true, frozenBalance: true },
+    })
+    const available = bal ? bal.totalBalance - bal.frozenBalance : 0n
+    const debit = c.amount > available ? available : c.amount
+    if (debit > 0n) {
+      await mutateWallet(
+        {
+          userId: inviterId,
+          type: "ADMIN_ADJUSTMENT",
+          deltaTotal: -debit,
+          amount: -debit,
+          refType: "reward_reversal",
+          refId: orderId,
+          note: "بازگردانی کمیسیون معرف برای سفارش لغوشده",
+        },
+        tx,
+      )
+      result.commission += debit
+    }
+  }
+
+  return result
 }
 
 /**
