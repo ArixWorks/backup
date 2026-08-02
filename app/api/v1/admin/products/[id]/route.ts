@@ -8,6 +8,7 @@ import {
   setProductDefaultTutorial,
   updateProductMedia,
   updateProductHighlights,
+  updateProductDeliveryFields,
   deleteProducts,
 } from "@/lib/core/admin-catalog"
 import { ValidationError } from "@/lib/core/errors"
@@ -84,6 +85,14 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   // so they don't require a FixedSale the way updateFlashProduct does.
   if (body.highlights !== undefined && keys.length === 1) {
     return updateProductHighlights(id, body.highlights, admin.id)
+  }
+
+  // Delivery-field template updates work for any product (auctions are
+  // delivered too). deliveryFields is a Product-level column, so this must NOT
+  // go through updateFlashProduct, which requires a FixedSale and would throw
+  // "محصول فروشگاه یافت نشد" for auction products.
+  if (body.deliveryFields !== undefined && keys.length === 1) {
+    return updateProductDeliveryFields(id, body.deliveryFields ?? null, admin.id)
   }
 
   return updateFlashProduct(
