@@ -5,6 +5,7 @@ import useSWR from "swr"
 import { LayoutGrid, List, Search, SearchX, X, Zap } from "lucide-react"
 import { fetcher } from "@/lib/api-client"
 import { useI18n } from "@/components/i18n-provider"
+import { useEnvironment } from "@/lib/responsive/use-environment"
 import { StoreProductCard } from "@/components/store/store-product-card"
 import { StoreFilterSheet, DEFAULT_FILTERS, type StoreFilters } from "@/components/store/store-filter-sheet"
 import type { FlashSale } from "@/components/flash-card"
@@ -19,6 +20,7 @@ type ViewMode = "grid" | "list"
 
 export function StoreCatalog() {
   const { t, locale, num } = useI18n()
+  const { isTelegram } = useEnvironment()
   const [activeCat, setActiveCat] = useState("all")
   const [rawSearch, setRawSearch] = useState("")
   const [search, setSearch] = useState("")
@@ -41,13 +43,19 @@ export function StoreCatalog() {
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice))
     if (filters.inStockOnly) params.set("inStock", "1")
     if (filters.instantOnly) params.set("instant", "1")
+    // Tag the surface so admin search insights can split web vs Mini App demand.
+    if (isTelegram) params.set("source", "telegram")
     return `?${params.toString()}`
-  }, [search, activeCat, filters, locale])
+  }, [search, activeCat, filters, locale, isTelegram])
 
-  const { data, isLoading } = useSWR<{ data: FlashSale[] }>(`/api/v1/flash-sales${query}`, fetcher, {
+  const { data, isLoading } = useSWR<{
+    data: { items: FlashSale[]; suggestions: FlashSale[]; exactCount: number }
+  }>(`/api/v1/flash-sales${query}`, fetcher, {
     refreshInterval: 15000,
   })
-  const sales = data?.data ?? []
+  const sales = data?.data?.items ?? []
+  // AI-derived similar products, returned only when a search has few/no exact hits.
+  const suggestions = data?.data?.suggestions ?? []
 
   return (
     <section aria-labelledby="store-catalog-title" className="flex flex-col gap-4">
@@ -123,7 +131,14 @@ export function StoreCatalog() {
           ))}
         </div>
       ) : sales.length === 0 ? (
-        search ? (
+        // No exact matches. If the AI found similar products, lead with a short
+        // note and show them; otherwise fall back to the plain empty state.
+        search && suggestions.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-pretty text-muted-foreground">{t("search.noResultsSimilar")}</p>
+            <ProductsGrid sales={suggestions} view={view} />
+          </div>
+        ) : search ? (
           <EmptyState
             icon={SearchX}
             title={t("search.noResults")}
@@ -136,20 +151,43 @@ export function StoreCatalog() {
         ) : (
           <EmptyState icon={Zap} title={activeCat !== "all" ? t("store.categoryEmpty") : t("flash.empty")} />
         )
-      ) : view === "grid" ? (
-        <div className="grid grid-cols-2 gap-3 web:lg:grid-cols-3 web:xl:grid-cols-4">
-          {sales.map((sale) => (
-            <StoreProductCard key={sale.id} sale={sale} layout="grid" />
-          ))}
-        </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {sales.map((sale) => (
-            <StoreProductCard key={sale.id} sale={sale} layout="list" />
-          ))}
-        </div>
+        <>
+          <ProductsGrid sales={sales} view={view} />
+          {/* A few exact hits AND AI extras — show them under a labeled divider. */}
+          {suggestions.length > 0 && (
+            <section aria-label={t("search.similarTitle")} className="mt-2 flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <h3 className="text-sm font-extrabold text-foreground">{t("search.similarTitle")}</h3>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <ProductsGrid sales={suggestions} view={view} />
+            </section>
+          )}
+        </>
       )}
     </section>
+  )
+}
+
+/** Renders a set of product cards in the current grid/list layout. */
+function ProductsGrid({ sales, view }: { sales: FlashSale[]; view: ViewMode }) {
+  if (view === "grid") {
+    return (
+      <div className="grid grid-cols-2 gap-3 web:lg:grid-cols-3 web:xl:grid-cols-4">
+        {sales.map((sale) => (
+          <StoreProductCard key={sale.id} sale={sale} layout="grid" />
+        ))}
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-2.5">
+      {sales.map((sale) => (
+        <StoreProductCard key={sale.id} sale={sale} layout="list" />
+      ))}
+    </div>
   )
 }
 

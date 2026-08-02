@@ -108,31 +108,7 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     include: { fixedSale: true },
     orderBy: flashOrderBy(filters.sort),
   })
-  const localized = await Promise.all(products.map((product) => localizedProduct(product, filters.locale)))
-  const summaries = localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
-
-  // Enrich each card with a blended rating + a "plans" count for the store grid.
-  // All aggregates are batched (3 grouped queries total) to avoid an N+1.
-  const ids = products.map((p) => p.id)
-  const [reviewGroups, favoriteGroups, variantGroups] = await Promise.all([
-    prisma.review.groupBy({ by: ["productId"], where: { productId: { in: ids }, hidden: false }, _avg: { rating: true }, _count: { _all: true } }),
-    prisma.favorite.groupBy({ by: ["productId"], where: { productId: { in: ids } }, _count: { _all: true } }),
-    prisma.productVariant.groupBy({ by: ["productId"], where: { productId: { in: ids }, active: true }, _count: { _all: true } }),
-  ])
-  const reviewBy = new Map(reviewGroups.map((g) => [g.productId, { avg: g._avg.rating, count: g._count._all }]))
-  const favoriteBy = new Map(favoriteGroups.map((g) => [g.productId, g._count._all]))
-  const variantBy = new Map(variantGroups.map((g) => [g.productId, g._count._all]))
-
-  const enriched = summaries.map((summary) => {
-    const review = reviewBy.get(summary.id)
-    const { score, hasSignal } = computeProductScore({
-      ratingAvg: review?.avg ? Math.round(review.avg * 10) / 10 : null,
-      ratingCount: review?.count ?? 0,
-      soldCount: summary.soldCount,
-      favoritesCount: favoriteBy.get(summary.id) ?? 0,
-    })
-    return { ...summary, score, hasScore: hasSignal, planCount: variantBy.get(summary.id) ?? 0 }
-  })
+  const enriched = await enrichFlashProducts(products, filters.locale)
 
   // JS re-sort for the computed sorts (DB kept a stable createdAt-desc order).
   if (filters.sort === "popular") {
@@ -149,6 +125,99 @@ export async function listFlashSales(filters: FlashFilters = {}) {
   }
 
   return enriched
+}
+
+type FlashProductWithSale = Prisma.ProductGetPayload<{ include: { fixedSale: true } }>
+export type EnrichedFlashSale = Awaited<ReturnType<typeof enrichFlashProducts>>[number]
+
+/**
+ * Localize + summarize + enrich a set of fixed-price product rows into store
+ * cards (blended score, plan count). Aggregates are batched to avoid N+1.
+ * Order of the input array is preserved in the output.
+ */
+async function enrichFlashProducts(products: FlashProductWithSale[], locale = "fa") {
+  if (products.length === 0) return []
+  const localized = await Promise.all(products.map((product) => localizedProduct(product, locale)))
+  const summaries = localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
+
+  const ids = products.map((p) => p.id)
+  const [reviewGroups, favoriteGroups, variantGroups] = await Promise.all([
+    prisma.review.groupBy({ by: ["productId"], where: { productId: { in: ids }, hidden: false }, _avg: { rating: true }, _count: { _all: true } }),
+    prisma.favorite.groupBy({ by: ["productId"], where: { productId: { in: ids } }, _count: { _all: true } }),
+    prisma.productVariant.groupBy({ by: ["productId"], where: { productId: { in: ids }, active: true }, _count: { _all: true } }),
+  ])
+  const reviewBy = new Map(reviewGroups.map((g) => [g.productId, { avg: g._avg.rating, count: g._count._all }]))
+  const favoriteBy = new Map(favoriteGroups.map((g) => [g.productId, g._count._all]))
+  const variantBy = new Map(variantGroups.map((g) => [g.productId, g._count._all]))
+
+  return summaries.map((summary) => {
+    const review = reviewBy.get(summary.id)
+    const { score, hasSignal } = computeProductScore({
+      ratingAvg: review?.avg ? Math.round(review.avg * 10) / 10 : null,
+      ratingCount: review?.count ?? 0,
+      soldCount: summary.soldCount,
+      favoritesCount: favoriteBy.get(summary.id) ?? 0,
+    })
+    return { ...summary, score, hasScore: hasSignal, planCount: variantBy.get(summary.id) ?? 0 }
+  })
+}
+
+export interface FlashSearchResult {
+  /** Exact keyword matches (respecting filters), already sorted. */
+  items: EnrichedFlashSale[]
+  /**
+   * AI-derived semantically-similar products, shown only when a search returns
+   * few/no exact hits (e.g. "chatgpt" while we stock Grok + other AI accounts).
+   * Empty unless a fallback was triggered. Never overlaps `items`.
+   */
+  suggestions: EnrichedFlashSale[]
+  /** Count of exact matches, used for search-demand analytics. */
+  exactCount: number
+}
+
+/**
+ * Store search with an AI "similar products" fallback. Runs the normal filtered
+ * query first; when the user typed a search term and we found fewer than
+ * `suggestWhenBelow` exact matches, we ask the embedding index for the closest
+ * catalog products and return them separately as `suggestions`. The fallback is
+ * best-effort: if AI is disabled/over budget, `suggestions` is simply empty.
+ */
+export async function searchFlashSalesWithSuggestions(
+  filters: FlashFilters = {},
+  opts: { suggestWhenBelow?: number; maxSuggestions?: number } = {},
+): Promise<FlashSearchResult> {
+  const items = await listFlashSales(filters)
+  const search = filters.search?.trim()
+  const threshold = opts.suggestWhenBelow ?? 3
+
+  // Only fall back to AI when there IS a query and exact matches are sparse.
+  if (!search || items.length >= threshold) {
+    return { items, suggestions: [], exactCount: items.length }
+  }
+
+  const { searchSimilarProducts } = await import("./product-embeddings")
+  const hits = await searchSimilarProducts(search, {
+    limit: (opts.maxSuggestions ?? 6) + items.length,
+    excludeIds: items.map((p) => p.id),
+  })
+  if (hits.length === 0) return { items, suggestions: [], exactCount: items.length }
+
+  // Load the suggested products (must still be visible fixed-price sales) and
+  // preserve the similarity order returned by the vector search.
+  const rank = new Map(hits.map((h, i) => [h.id, i]))
+  const rows = await prisma.product.findMany({
+    where: {
+      id: { in: hits.map((h) => h.id) },
+      saleMode: "FIXED_PRICE",
+      active: true,
+      hidden: false,
+    },
+    include: { fixedSale: true },
+  })
+  rows.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+  const suggestions = (await enrichFlashProducts(rows, filters.locale)).slice(0, opts.maxSuggestions ?? 6)
+
+  return { items, suggestions, exactCount: items.length }
 }
 
 /**
