@@ -45,19 +45,22 @@ export default function AdminManageOrdersPage() {
     { refreshInterval: 30_000 },
   )
 
-  // Domain orders (loaded for ALL + DOMAIN tabs).
+  // Domain orders (loaded for ALL + DOMAIN tabs). The domains endpoint returns
+  // `data.items` (not `data.orders` like the shop lifecycle endpoint).
   const domainKey =
     category === "SHOP" || category === "AUCTION"
       ? null
       : `/api/v1/admin/orders/domains?scope=${scope}` + (q ? `&q=${encodeURIComponent(q)}` : "")
-  const { data: domainData, isLoading: domainLoading } = useSWR<{ data: { orders: AdminDomainOrderListItem[] } }>(
+  const { data: domainData, isLoading: domainLoading } = useSWR<{ data: { items: AdminDomainOrderListItem[] } }>(
     domainKey,
     fetcher,
     { refreshInterval: 30_000 },
   )
 
-  const shopOrders = shopData?.data.orders ?? []
-  const domainOrders = domainData?.data.orders ?? []
+  // Gate each source by its own key so SWR's cached data for an inactive tab
+  // can never leak into the current view (e.g. shop rows under the DOMAIN tab).
+  const shopOrders = shopKey ? (shopData?.data.orders ?? []) : []
+  const domainOrders = domainKey ? (domainData?.data.items ?? []) : []
   const isLoading = (shopKey && shopLoading) || (domainKey && domainLoading)
   const overdueCount = shopOrders.filter((o) => o.overdue).length
   const total = shopOrders.length + domainOrders.length
@@ -236,7 +239,7 @@ function DomainRow({ order }: { order: AdminDomainOrderListItem }) {
             <StatusChip status={order.status} />
             <FulfillmentBadge kind="DOMAIN" />
             {order.hasNameservers && (
-              <span className="rounded-full bg-info/10 px-2 py-0.5 text-[11px] font-semibold text-info">
+              <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
                 NS ثبت شد
               </span>
             )}
