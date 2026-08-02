@@ -10,5 +10,7 @@ export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: stri
   const { id } = await ctx.params
   const order = await getDomainOrderForAdmin(id)
   if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
-  return { order }
+  // Return the detail directly (handler wraps in { data }) to match the shop
+  // detail route, so the client reads data.data as the order object.
+  return order
 })

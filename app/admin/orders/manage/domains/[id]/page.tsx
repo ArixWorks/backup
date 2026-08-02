@@ -70,7 +70,13 @@ export default function AdminDomainOrderDetailPage({ params }: { params: Promise
               <Row label="نوع عملیات" value={OPERATION_LABELS[order.operation] ?? order.operation} />
               <Row
                 label="خریدار"
-                value={order.user.displayName || order.user.alias || order.user.email || order.user.id}
+                value={
+                  order.user.displayName ||
+                  order.user.alias ||
+                  order.user.email ||
+                  order.user.id ||
+                  "کاربر حذف‌شده"
+                }
               />
               <Row label="پسوند" value={`.${order.tld}`} />
               {order.extensionCount > 0 && <Row label="دفعات تمدید" value={formatNumber(order.extensionCount)} />}
