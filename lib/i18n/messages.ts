@@ -1038,7 +1038,7 @@ type Catalog = Record<MessageKey, string>
     "detail.tabQuestions": "پرسش‌ها",
     "detail.similar": "محصولات مشابه",
     "detail.similarSubtitle": "بر اساس علاقه‌مندی‌های شما انتخاب شده",
-  "detail.sales": "��روش",
+  "detail.sales": "فروش",
   "detail.remaining": "باقی‌مانده",
   "detail.savePrefix": "سود شما از این خرید",
   "detail.favorite": "افزودن به علاقه‌مندی‌ها",
