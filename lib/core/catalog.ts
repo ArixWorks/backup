@@ -5,6 +5,7 @@ import { finalizeAuction, handleWinnerDefault } from "./auction"
 import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
 import { smartBuyNowPrice, incrementForPrice, nextMinimumBid } from "./auction/pricing"
 import { isTerminalStatus } from "./auction/lifecycle"
+import { deriveAuctionDisplayState } from "./auction/display-state"
 import { computeReserveDisplay } from "./auction/reserve"
 import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
@@ -328,7 +329,27 @@ export async function listAuctions(locale = "fa") {
   const auctions = await prisma.auction.findMany({
     where: { product: { active: true, hidden: false } },
     include: { product: true, _count: { select: { bids: true } } },
-    orderBy: { endTime: "asc" },
+  })
+
+  // Ordering: still-running auctions rank above finished ones, and newer
+  // auctions come before older ones within the same group. We derive a phase
+  // rank per auction (live → scheduled → terminal/ended) then tie-break by the
+  // most recent start time so the freshest auctions surface first.
+  const phaseRank = (auction: (typeof auctions)[number]): number => {
+    const state = deriveAuctionDisplayState({
+      status: auction.status,
+      endReason: auction.endReason,
+      finalPrice: auction.finalPrice != null ? Number(auction.finalPrice) : null,
+      bidCount: auction._count.bids,
+    })
+    if (state.isLive) return 0
+    if (state.isScheduled) return 1
+    return 2 // terminal / ended
+  }
+  auctions.sort((a, b) => {
+    const rankDiff = phaseRank(a) - phaseRank(b)
+    if (rankDiff !== 0) return rankDiff
+    return b.startTime.getTime() - a.startTime.getTime() // newest first within a group
   })
   // Load the global policy once and resolve per-auction overrides, so smart
   // Buy Now pricing is consistent with what the engine enforces on purchase.
