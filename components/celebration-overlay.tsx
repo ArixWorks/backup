@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { Check, Crown, Gavel, ShoppingBag, Sparkles, Trophy, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -71,6 +72,13 @@ export function CelebrationOverlay({
   const eyebrow = eyebrows[language][kind]
   const Icon = icons[kind]
 
+  // The overlay must portal to <body>: rendered inline it inherits the product
+  // page's transformed/animated ancestors (motion-effects LivingSurface), which
+  // contain `position: fixed` and push the card off-screen. `mounted` guards the
+  // portal for SSR.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const isWin = kind === "giveaway-win" || kind === "auction-win"
   // Winners get the gold/primary treatment; entries + purchases get success.
   const isSuccess = kind === "giveaway-entry" || kind === "purchase"
@@ -136,18 +144,23 @@ export function CelebrationOverlay({
     return () => resetConfetti()
   }, [open, isWin])
 
-  return (
+  if (!mounted) return null
+
+  // Two body-level layers so the confetti canvas (zIndex 200, appended to
+  // <body>) rains *between* them: the dimmed backdrop sits at z-190 (behind the
+  // confetti) while the card sits at z-210 (in front of it). This keeps the
+  // popup clearly on top while the confetti stays visible around it.
+  return createPortal(
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-overlay/45 px-4 py-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md"
+          key="celebration-backdrop"
+          className="fixed inset-0 z-[190] flex items-center justify-center overflow-hidden bg-overlay/45 backdrop-blur-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduced ? 0.12 : 0.35 }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="celebration-title"
+          aria-hidden="true"
         >
           {/* Rotating sunburst behind the card. */}
           <motion.div
@@ -163,10 +176,23 @@ export function CelebrationOverlay({
                   : { duration: 0.9, ease: [0.22, 1, 0.36, 1] }
             }
           />
-
+        </motion.div>
+      ) : null}
+      {open ? (
+        <motion.div
+          key="celebration-card"
+          className="pointer-events-none fixed inset-0 z-[210] flex items-center justify-center overflow-y-auto px-4 py-[max(1rem,env(safe-area-inset-top))]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduced ? 0.12 : 0.35 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="celebration-title"
+        >
           <motion.section
             className={cn(
-              "relative flex w-full max-w-sm flex-col items-center gap-5 rounded-[1.75rem] border border-border bg-card p-7 text-center shadow-2xl",
+              "pointer-events-auto relative flex w-full max-w-sm flex-col items-center gap-5 rounded-[1.75rem] border border-border bg-card p-7 text-center shadow-2xl",
             )}
             initial={{ opacity: 0, y: reduced ? 0 : 34, scale: reduced ? 1 : 0.86 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -317,6 +343,7 @@ export function CelebrationOverlay({
           </motion.section>
         </motion.div>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }
