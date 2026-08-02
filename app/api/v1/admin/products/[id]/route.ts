@@ -1,4 +1,4 @@
-import { z, dbId } from "@/lib/zod"
+import { z, optionalDbId } from "@/lib/zod"
 import { route } from "@/lib/api/handler"
 import { requireAdmin } from "@/lib/auth/session"
 import {
@@ -8,6 +8,7 @@ import {
   setProductDefaultTutorial,
   updateProductMedia,
   updateProductHighlights,
+  updateProductDeliveryFields,
   deleteProducts,
 } from "@/lib/core/admin-catalog"
 import { ValidationError } from "@/lib/core/errors"
@@ -27,7 +28,7 @@ const schema = z.object({
   subtitle: z.string().max(160).nullable().optional(),
   description: richTextField().optional(),
   category: z.string().optional(),
-  categoryId: dbId.nullable().optional(),
+  categoryId: optionalDbId,
   tags: z.array(z.string()).optional(),
   highlights: z.array(z.string().trim().min(1).max(120)).max(12).optional(),
   i18n: z.record(z.string(), z.unknown()).nullable().optional(),
@@ -46,7 +47,7 @@ const schema = z.object({
   available: z.boolean().optional(),
   featured: z.boolean().optional(),
   featuredOrder: z.number().int().min(0).max(9999).optional(),
-  defaultTutorialId: dbId.nullable().optional(),
+  defaultTutorialId: optionalDbId,
   deliveryFields: deliveryTemplateSchema.nullable().optional(),
   requiresCustomerInput: z.boolean().optional(),
   customerInputFields: deliveryTemplateSchema.nullable().optional(),
@@ -84,6 +85,14 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   // so they don't require a FixedSale the way updateFlashProduct does.
   if (body.highlights !== undefined && keys.length === 1) {
     return updateProductHighlights(id, body.highlights, admin.id)
+  }
+
+  // Delivery-field template updates work for any product (auctions are
+  // delivered too). deliveryFields is a Product-level column, so this must NOT
+  // go through updateFlashProduct, which requires a FixedSale and would throw
+  // "محصول فروشگاه یافت نشد" for auction products.
+  if (body.deliveryFields !== undefined && keys.length === 1) {
+    return updateProductDeliveryFields(id, body.deliveryFields ?? null, admin.id)
   }
 
   return updateFlashProduct(

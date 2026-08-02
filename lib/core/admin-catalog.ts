@@ -80,6 +80,29 @@ export async function updateProductHighlights(productId: string, highlights: str
   return updated
 }
 
+/**
+ * Update a product's credential delivery-field template. Works for ANY product
+ * — fixed-price AND auctions — because deliveryFields is a Product-level column
+ * (auctions are delivered too). Unlike updateFlashProduct, this does not require
+ * a FixedSale. Pass `null` to clear the template (falls back to the default
+ * username+password fields at delivery time).
+ */
+export async function updateProductDeliveryFields(
+  productId: string,
+  deliveryFields: Prisma.InputJsonValue | null,
+  adminId: string,
+) {
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
+  if (!product) throw new NotFoundError("محصول یافت نشد")
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: { deliveryFields: deliveryFields ?? Prisma.DbNull },
+    select: { id: true, deliveryFields: true },
+  })
+  await audit({ actorId: adminId, action: "product.deliveryFields.update", entity: "product", entityId: productId })
+  return updated
+}
+
 // --- Flash-sale (fixed price) product ---------------------------------------
 
 export interface ProductLinkInput {
