@@ -12,14 +12,18 @@
 import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { resolveTemplate, type DeliveryTemplate } from "./delivery-fields"
+import { getOrderPaymentReport } from "./order-report"
 import {
   computeDomainProgress,
   computeShopRoadmap,
   deriveOrderCategory,
+  type AdminDomainOrderDetail,
+  type AdminDomainOrderListItem,
   type AdminOrderDetail,
   type AdminOrderListItem,
   type OrderDetail,
   type OrderListItem,
+  type OrderUserRef,
 } from "@/lib/orders/shared"
 
 // --- Prisma include shapes ---------------------------------------------------
@@ -45,7 +49,12 @@ const ADMIN_USER_SELECT = {
   user: { select: { id: true, displayName: true, alias: true, email: true } },
 } satisfies Prisma.OrderInclude
 
-const ADMIN_LIST_INCLUDE = { ...LIST_INCLUDE, ...ADMIN_USER_SELECT } satisfies Prisma.OrderInclude
+const ADMIN_LIST_INCLUDE = {
+  product: { select: { title: true, coverImage: true } },
+  ...ADMIN_USER_SELECT,
+  // Delivery status drives the manual-fulfilment queue + fulfillmentKind badge.
+  delivery: { select: { status: true } },
+} satisfies Prisma.OrderInclude
 const ADMIN_DETAIL_INCLUDE = {
   ...DETAIL_INCLUDE,
   ...ADMIN_USER_SELECT,
@@ -187,6 +196,28 @@ function isOverdue(o: { status: string; dueAt: Date | null }): boolean {
   return o.status === "PROCESSING" && o.dueAt != null && o.dueAt.getTime() < Date.now()
 }
 
+/** Terminal statuses have no fulfilment work left. */
+function isTerminalStatus(status: string): boolean {
+  return status === "DELIVERED" || status === "REFUNDED" || status === "CANCELLED"
+}
+
+/**
+ * Classify how a shop/auction order is fulfilled. ROADMAP wins when the order
+ * carries the multi-step customer-input flow; otherwise a non-terminal order
+ * with a delivery row is MANUAL; auctions map to AUCTION; delivered/refunded
+ * orders report NONE.
+ */
+function deriveFulfillmentKind(o: {
+  status: string
+  type: string
+  requiresCustomerInput: boolean
+}): AdminOrderListItem["fulfillmentKind"] {
+  if (o.requiresCustomerInput) return "ROADMAP"
+  if (isTerminalStatus(o.status)) return "NONE"
+  if (o.type === "AUCTION_WIN" || o.type === "AUCTION") return "AUCTION"
+  return "MANUAL"
+}
+
 function toAdminListItem(o: AdminListOrder): AdminOrderListItem {
   return {
     ...toListItem(o as unknown as ListOrder),
@@ -199,6 +230,11 @@ function toAdminListItem(o: AdminListOrder): AdminOrderListItem {
     overdue: isOverdue(o),
     extensionCount: o.extensionCount,
     pendingExtensionMinutes: o.pendingExtensionMinutes,
+    fulfillmentKind: deriveFulfillmentKind({
+      status: o.status,
+      type: o.type,
+      requiresCustomerInput: o.requiresCustomerInput,
+    }),
   }
 }
 
@@ -221,23 +257,67 @@ function toAdminDetail(o: AdminDetailOrder): AdminOrderDetail {
     },
     overdue: isOverdue(o),
     avgCompletionMinutes: o.product.avgCompletionMinutes ?? null,
+    fulfillmentKind: deriveFulfillmentKind({
+      status: o.status,
+      type: o.type,
+      requiresCustomerInput: o.requiresCustomerInput,
+    }),
+    // Filled in by getShopOrderDetailForAdmin (async assembler).
+    report: null,
   }
 }
 
+export interface AdminOrderQuery {
+  /** "active" = fulfilment work queue; "all" = every shop/auction order. */
+  scope?: "active" | "all"
+  /** Free-text search: order publicId OR buyer alias/email/displayName. */
+  q?: string
+  /** Category filter. DOMAIN is served separately (see listDomainOrdersForAdmin). */
+  category?: "SHOP" | "AUCTION"
+}
+
 /**
- * Orders relevant to admin fulfilment. `scope`:
- *  - "active" (default): orders awaiting input, processing, or awaiting the
- *    buyer's extension decision — i.e. the fulfilment work queue.
- *  - "all": every shop/auction order (most recent first).
+ * Orders relevant to admin fulfilment, filterable for the unified console.
+ *
+ * The ACTIVE queue is the fulfilment work list: roadmap states
+ * (AWAITING_CUSTOMER_INPUT / PROCESSING / AWAITING_EXTENSION_APPROVAL) PLUS
+ * manual-delivery work — PAID orders whose delivery row is still PENDING/FAILED.
  * Overdue PROCESSING orders float to the top of the active queue.
  */
 export async function listShopOrdersForAdmin(
-  scope: "active" | "all" = "active",
+  query: AdminOrderQuery = {},
 ): Promise<AdminOrderListItem[]> {
-  const where: Prisma.OrderWhereInput =
-    scope === "active"
-      ? { status: { in: ["AWAITING_CUSTOMER_INPUT", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"] } }
-      : {}
+  const { scope = "active", q, category } = query
+
+  const and: Prisma.OrderWhereInput[] = []
+
+  if (scope === "active") {
+    // Roadmap work OR pending/failed manual delivery.
+    and.push({
+      OR: [
+        { status: { in: ["AWAITING_CUSTOMER_INPUT", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"] } },
+        { status: "PAID", delivery: { status: { in: ["PENDING", "FAILED"] } } },
+      ],
+    })
+  }
+
+  if (category === "AUCTION") and.push({ type: "AUCTION_WIN" })
+  else if (category === "SHOP") and.push({ type: { in: ["FIXED_PURCHASE", "BUY_NOW"] } })
+
+  const term = q?.trim()
+  if (term) {
+    and.push({
+      OR: [
+        { publicId: { contains: term, mode: "insensitive" } },
+        { user: { alias: { contains: term, mode: "insensitive" } } },
+        { user: { email: { contains: term, mode: "insensitive" } } },
+        { user: { displayName: { contains: term, mode: "insensitive" } } },
+      ],
+    })
+  }
+
+  const where: Prisma.OrderWhereInput = and.length ? { AND: and } : {}
+
   const orders = await prisma.order.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -263,7 +343,10 @@ export async function getShopOrderDetailForAdmin(orderId: string): Promise<Admin
     where: { id: orderId },
     include: ADMIN_DETAIL_INCLUDE,
   })
-  return order ? toAdminDetail(order) : null
+  if (!order) return null
+  const detail = toAdminDetail(order)
+  detail.report = await getOrderPaymentReport(order.id)
+  return detail
 }
 
 // --- Domain orders (Phase 4) -------------------------------------------------
@@ -304,4 +387,121 @@ export async function listDomainOrdersForUser(userId: string): Promise<OrderList
     take: 50,
   })
   return orders.map(domainToListItem)
+}
+
+// --- Admin domain serializers (unified console) ------------------------------
+// DomainOrder.userId is a scalar (no Prisma relation, backup-safe), so buyer
+// identities are resolved with a separate batched User query and joined in JS.
+
+const EMPTY_USER: OrderUserRef = { id: "", displayName: null, alias: null, email: null }
+
+function nameserversOf(d: { ns1: string | null; ns2: string | null; ns3: string | null; ns4: string | null }): string[] {
+  return [d.ns1, d.ns2, d.ns3, d.ns4].filter((n): n is string => Boolean(n && n.trim()))
+}
+
+/** Batch-load buyer identities for a set of userIds, keyed by id. */
+async function loadUserRefs(userIds: string[]): Promise<Map<string, OrderUserRef>> {
+  const unique = [...new Set(userIds)]
+  if (unique.length === 0) return new Map()
+  const users = await prisma.user.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, displayName: true, alias: true, email: true },
+  })
+  return new Map(users.map((u) => [u.id, u]))
+}
+
+/**
+ * Domain orders for the unified admin console, with the same "active" work-queue
+ * semantics and free-text search (domain / order code / buyer) as shop orders.
+ */
+export async function listDomainOrdersForAdmin(
+  query: { scope?: "active" | "all"; q?: string } = {},
+): Promise<AdminDomainOrderListItem[]> {
+  const { scope = "active", q } = query
+  const and: Prisma.DomainOrderWhereInput[] = []
+
+  if (scope === "active") {
+    and.push({
+      status: { in: ["PENDING_PURCHASE", "PROCESSING", "AWAITING_NAMESERVERS", "AWAITING_NAMESERVER_SETUP"] },
+    })
+  }
+
+  const term = q?.trim()
+  if (term) {
+    // Buyer match: userId has no relation, so resolve matching user ids first.
+    const matchedUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { alias: { contains: term, mode: "insensitive" } },
+          { email: { contains: term, mode: "insensitive" } },
+          { displayName: { contains: term, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true },
+    })
+    and.push({
+      OR: [
+        { unicodeDomain: { contains: term, mode: "insensitive" } },
+        { asciiDomain: { contains: term, mode: "insensitive" } },
+        { publicId: { contains: term, mode: "insensitive" } },
+        { userId: { in: matchedUsers.map((u) => u.id) } },
+      ],
+    })
+  }
+
+  const orders = await prisma.domainOrder.findMany({
+    where: and.length ? { AND: and } : {},
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  })
+  const userMap = await loadUserRefs(orders.map((o) => o.userId))
+
+  return orders.map((d) => ({
+    id: d.id,
+    publicId: d.publicId,
+    domain: d.unicodeDomain,
+    operation: d.operation,
+    status: d.status,
+    amount: Number(d.amountIrt),
+    progress: computeDomainProgress(d.status),
+    createdAt: d.createdAt.toISOString(),
+    user: userMap.get(d.userId) ?? EMPTY_USER,
+    hasNameservers: nameserversOf(d).length > 0,
+    fulfillmentKind: "DOMAIN" as const,
+  }))
+}
+
+/** Full admin detail for a single domain order (NS + events). Null if absent. */
+export async function getDomainOrderForAdmin(orderId: string): Promise<AdminDomainOrderDetail | null> {
+  const d = await prisma.domainOrder.findUnique({
+    where: { id: orderId },
+    include: { events: { orderBy: { createdAt: "asc" } } },
+  })
+  if (!d) return null
+  const userMap = await loadUserRefs([d.userId])
+  return {
+    id: d.id,
+    publicId: d.publicId,
+    domain: d.unicodeDomain,
+    asciiDomain: d.asciiDomain,
+    tld: d.tld,
+    operation: d.operation,
+    status: d.status,
+    amount: Number(d.amountIrt),
+    createdAt: d.createdAt.toISOString(),
+    purchasedAt: d.purchasedAt?.toISOString() ?? null,
+    holdExpiresAt: d.holdExpiresAt?.toISOString() ?? null,
+    expiresAt: d.expiresAt?.toISOString() ?? null,
+    extensionCount: d.extensionCount,
+    failureReason: d.failureReason,
+    user: userMap.get(d.userId) ?? EMPTY_USER,
+    nameservers: nameserversOf(d),
+    nameserversSubmittedAt: d.nameserversSubmittedAt?.toISOString() ?? null,
+    events: d.events.map((e) => ({
+      type: e.type,
+      message: e.message,
+      actorType: e.actorType,
+      createdAt: e.createdAt.toISOString(),
+    })),
+  }
 }

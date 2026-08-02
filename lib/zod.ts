@@ -34,4 +34,15 @@ export const dbId = z
   .max(64, "شناسه نامعتبر است.")
   .regex(/^[A-Za-z0-9_-]+$/, "شناسه نامعتبر است.")
 
+/**
+ * An optional dbId that treats empty string / whitespace as "not provided".
+ * HTML <select> defaults submit "" for an unselected option, which a bare
+ * `dbId.optional()` would reject as "شناسه نامعتبر است." Use this for any
+ * optional id sourced from a form control (e.g. tutorial pickers).
+ */
+export const optionalDbId = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  dbId.nullable().optional(),
+)
+
 export { z }

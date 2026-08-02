@@ -104,14 +104,14 @@ export default function AdminDashboard() {
           loading={isLoading}
         />
         <ActionCard
-          href="/admin/deliveries"
+          href="/admin/orders/manage"
           label="تحویل در انتظار"
           count={s?.pendingDeliveries}
           icon={<Package className="h-5 w-5" />}
           loading={isLoading}
         />
         <ActionCard
-          href="/admin/deliveries"
+          href="/admin/orders/manage"
           label="تحویل ناموفق"
           count={s?.failedDeliveries}
           icon={<AlertTriangle className="h-5 w-5" />}

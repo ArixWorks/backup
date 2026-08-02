@@ -26,6 +26,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatusChip } from "@/components/orders/status-chip"
 import { RoadmapStepper } from "@/components/orders/roadmap-stepper"
 import { CountdownTimer } from "@/components/orders/countdown-timer"
+import { PaymentReportCard } from "@/components/admin/payment-report-card"
+import { FulfillmentBadge } from "@/components/admin/fulfillment-badge"
+import { EnhancedTextarea } from "@/components/rich-content"
+import { Send } from "lucide-react"
 import { CANCEL_REASON_CODES, type AdminOrderDetail } from "@/lib/orders/shared"
 import { cn } from "@/lib/utils"
 
@@ -64,6 +68,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-extrabold">{order.title}</h1>
                 <StatusChip status={order.status} />
+                <FulfillmentBadge kind={order.fulfillmentKind} />
                 {order.overdue && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                     <Clock className="h-3 w-3" />
@@ -89,10 +94,12 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
 
           <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
             <div className="flex flex-col gap-5">
-              <Card className="p-5">
-                <h2 className="mb-4 font-bold">نقشه راه سفارش</h2>
-                <RoadmapStepper steps={order.roadmap} />
-              </Card>
+              {order.fulfillmentKind === "ROADMAP" && (
+                <Card className="p-5">
+                  <h2 className="mb-4 font-bold">نقشه راه سفارش</h2>
+                  <RoadmapStepper steps={order.roadmap} />
+                </Card>
+              )}
 
               {order.customerInputValues && Object.keys(order.customerInputValues).length > 0 && (
                 <CustomerInputReveal order={order} />
@@ -119,6 +126,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
             </div>
 
             <div className="flex flex-col gap-5">
+              {order.report && <PaymentReportCard report={order.report} />}
               {order.status === "PROCESSING" && order.dueAt && (
                 <Card className="flex flex-col items-center p-5">
                   <CountdownTimer
@@ -128,7 +136,11 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                   />
                 </Card>
               )}
-              <AdminActions order={order} onDone={mutate} />
+              {order.fulfillmentKind === "MANUAL" && order.delivery && order.delivery.status !== "DELIVERED" ? (
+                <ManualDeliveryPanel order={order} onDone={mutate} />
+              ) : (
+                <AdminActions order={order} onDone={mutate} />
+              )}
             </div>
           </div>
         </>
@@ -205,6 +217,121 @@ function CustomerInputReveal({ order }: { order: AdminOrderDetail }) {
           )
         })}
       </ul>
+    </Card>
+  )
+}
+
+/**
+ * Manual-delivery form for instant-delivery (non-roadmap) products. Renders the
+ * product's delivery-field template dynamically, an optional post-purchase
+ * tutorial, and a note; posts to the (bug-fixed) delivery-complete endpoint,
+ * which marks both the Delivery and the Order as DELIVERED.
+ */
+function ManualDeliveryPanel({ order, onDone }: { order: AdminOrderDetail; onDone: () => void }) {
+  const delivery = order.delivery!
+  const template = delivery.template ?? []
+  const { data: tutorials } = useSWR<{ data: TutorialOption[] }>("/api/v1/admin/tutorials/options", fetcher)
+
+  const [fields, setFields] = useState<Record<string, string>>({})
+  const [note, setNote] = useState("")
+  const [tutorialId, setTutorialId] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  // Map dynamic template keys onto the delivery payload contract. Known keys
+  // (username/password/licenseKey) map to their columns; everything else is
+  // sent under the same key (the delivery endpoint stores arbitrary payload).
+  async function submit() {
+    const payload: Record<string, string> = {}
+    for (const [k, v] of Object.entries(fields)) {
+      if (v.trim()) payload[k] = v.trim()
+    }
+    if (note.trim()) payload.note = note.trim()
+    if (Object.keys(payload).length === 0 && !tutorialId) {
+      toast.error("حداقل یک فیلد تحویل را پر کنید")
+      return
+    }
+    setSaving(true)
+    try {
+      await apiPost(`/api/v1/admin/deliveries/${delivery.id}/complete`, {
+        ...payload,
+        tutorialId: tutorialId || null,
+      })
+      toast.success("سفارش با موفقیت تحویل شد")
+      onDone()
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "خطا در ثبت تحویل")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Fallback fields when the product has no explicit template.
+  const effectiveFields =
+    template.length > 0
+      ? template
+      : [
+          { key: "username", label: { fa: "نام کاربری" }, sensitive: false },
+          { key: "password", label: { fa: "رمز عبور" }, sensitive: false },
+          { key: "licenseKey", label: { fa: "کلید لایسنس" }, sensitive: false },
+        ]
+
+  return (
+    <Card className="flex flex-col gap-4 p-5">
+      <div className="flex items-center gap-2">
+        <Send className="h-4 w-4 text-primary" />
+        <h2 className="font-bold">ثبت اطلاعات تحویل</h2>
+      </div>
+      <p className="-mt-2 text-xs text-muted-foreground">
+        این اطلاعات پس از ثبت به خریدار نمایش داده می‌شود.
+      </p>
+
+      {delivery.error && (
+        <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <XCircle className="h-3.5 w-3.5 shrink-0" />
+          {delivery.error}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {effectiveFields.map((f) => (
+          <div key={f.key} className="space-y-1.5">
+            <Label htmlFor={`f-${f.key}`}>{f.label?.fa || f.key}</Label>
+            <Input
+              id={`f-${f.key}`}
+              value={fields[f.key] ?? ""}
+              onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+              dir="ltr"
+            />
+          </div>
+        ))}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="mdp-tutorial">آموزش پس از خرید</Label>
+          <select
+            id="mdp-tutorial"
+            value={tutorialId}
+            onChange={(e) => setTutorialId(e.target.value)}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">بدون آموزش</option>
+            {(tutorials?.data ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="mdp-note">یادداشت / توضیحات</Label>
+          <EnhancedTextarea id="mdp-note" value={note} onChange={setNote} minRows={2} maxRows={8} showCount={false} />
+        </div>
+      </div>
+
+      <Button onClick={submit} disabled={saving} className="gap-2">
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        تحویل و تکمیل سفارش
+      </Button>
     </Card>
   )
 }
