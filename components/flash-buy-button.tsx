@@ -114,6 +114,19 @@ export function FlashBuyButton({
     setPayIndex(0)
     setTopUpAllowed(["CARD", "TON", "STARS"])
     setOpen(true)
+    // Warm the 3D icon pipeline (three.js chunk + Draco + all three gateway
+    // models this sheet shows) the instant the buy dialog opens on the quantity
+    // step, so the payment carousel's WebGL icons are cached before the user
+    // advances to it. Fire-and-forget; failures are harmless.
+    void import("@/components/wallet/gateway-model-3d")
+      .then((m) =>
+        m.warmGatewayModels([
+          "/pay-icons/3d/balance.glb",
+          "/pay-icons/3d/card.glb",
+          "/pay-icons/3d/ton.glb",
+        ]),
+      )
+      .catch(() => {})
   }
 
   async function applyCoupon() {

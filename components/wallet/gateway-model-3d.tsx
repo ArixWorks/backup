@@ -95,6 +95,18 @@ function SpinningModel({ src, spinning }: { src: string; spinning: boolean }) {
   )
 }
 
-useGLTF.preload("/pay-icons/3d/balance.glb", "/draco/")
-useGLTF.preload("/pay-icons/3d/card.glb", "/draco/")
-useGLTF.preload("/pay-icons/3d/ton.glb", "/draco/")
+/**
+ * Preheat the shared Draco decoder + the specific gateway models a surface is
+ * about to show, so they land in cache before the WebGL canvas mounts. Callers
+ * MUST pass only the GLBs they actually render — e.g. the add-funds sheet warms
+ * just card + ton and never the 1.2 MB balance model it doesn't display.
+ *
+ * Prefer calling this the moment intent is shown (sheet opens) rather than
+ * relying on a blanket module-level preload: the heavy three.js chunk only
+ * loads when this module is imported, which is the same tick the carousel
+ * renders — so a module-level preload gave almost no head start while still
+ * forcing every context to fetch every model.
+ */
+export function warmGatewayModels(srcs: string[]) {
+  for (const src of srcs) useGLTF.preload(src, "/draco/")
+}
