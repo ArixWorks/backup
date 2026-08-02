@@ -5,6 +5,7 @@ import { finalizeAuction, handleWinnerDefault } from "./auction"
 import { getGlobalAuctionPolicy, resolveAuctionPolicy } from "./auction/policy"
 import { smartBuyNowPrice, incrementForPrice, nextMinimumBid } from "./auction/pricing"
 import { isTerminalStatus } from "./auction/lifecycle"
+import { deriveAuctionDisplayState } from "./auction/display-state"
 import { computeReserveDisplay } from "./auction/reserve"
 import type { AuctionPolicy, AuctionEndReason } from "./auction/types"
 import { getLocalizedData } from "@/lib/i18n/content-translation"
@@ -12,13 +13,21 @@ import { resolveTemplate } from "./delivery-fields"
 import { listStoreCategories } from "./product-categories"
 import { computeProductScore } from "./product-score"
 
-export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular"
+export type FlashSort = "newest" | "price_asc" | "price_desc" | "popular" | "rating"
 
 export interface FlashFilters {
   search?: string
   category?: string
   sort?: FlashSort
   locale?: string
+  /** Minimum selling price (Toman) inclusive. */
+  minPrice?: bigint
+  /** Maximum selling price (Toman) inclusive. */
+  maxPrice?: bigint
+  /** Only products whose sale is open AND that still have on-hand stock. */
+  inStockOnly?: boolean
+  /** Only products delivered automatically (instant). */
+  instantOnly?: boolean
 }
 
 async function localizedProduct<T extends { id: string; title: string; subtitle?: string | null; description: string | null; category: string | null; tags: string[]; highlights?: string[]; links: unknown }>(product: T, locale = "fa") {
@@ -45,8 +54,9 @@ function flashOrderBy(sort?: FlashSort): Prisma.ProductOrderByWithRelationInput 
       return { fixedSale: { price: "asc" } }
     case "price_desc":
       return { fixedSale: { price: "desc" } }
-    case "popular":
-      return { fixedSale: { soldCount: "desc" } }
+    // "popular" and "rating" depend on computed values (displayed sold count =
+    // soldCount + soldBaseline, and the blended product score) that Prisma
+    // cannot order by directly, so we fetch in a stable order and re-sort in JS.
     default:
       return { createdAt: "desc" }
   }
@@ -58,10 +68,31 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     active: true,
     hidden: false,
   }
+  const and: Prisma.ProductWhereInput[] = []
 
   if (filters.category) {
-    where.AND = [{ productCategory: { slug: filters.category, active: true } }]
+    and.push({ productCategory: { slug: filters.category, active: true } })
   }
+
+  // Price range filters against the fixed-sale selling price.
+  if (filters.minPrice != null || filters.maxPrice != null) {
+    const price: Prisma.BigIntFilter = {}
+    if (filters.minPrice != null) price.gte = filters.minPrice
+    if (filters.maxPrice != null) price.lte = filters.maxPrice
+    and.push({ fixedSale: { is: { price } } })
+  }
+
+  // Instant delivery only (product-level delivery type).
+  if (filters.instantOnly) {
+    and.push({ deliveryType: "AUTOMATIC" })
+  }
+
+  // "In stock" means the sale is open (available) AND on-hand stock remains.
+  if (filters.inStockOnly) {
+    and.push({ available: true, fixedSale: { is: { stock: { gt: 0 } } } })
+  }
+
+  if (and.length > 0) where.AND = and
 
   const search = filters.search?.trim()
   if (search) {
@@ -77,8 +108,116 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     include: { fixedSale: true },
     orderBy: flashOrderBy(filters.sort),
   })
-  const localized = await Promise.all(products.map((product) => localizedProduct(product, filters.locale)))
-  return localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
+  const enriched = await enrichFlashProducts(products, filters.locale)
+
+  // JS re-sort for the computed sorts (DB kept a stable createdAt-desc order).
+  if (filters.sort === "popular") {
+    // Rank by the publicly displayed sold count (real sales + vanity baseline).
+    enriched.sort((a, b) => b.soldDisplay - a.soldDisplay)
+  } else if (filters.sort === "rating") {
+    // Rank by the blended product score; products with no signal sink to the
+    // bottom, and displayed sold count breaks ties.
+    enriched.sort((a, b) => {
+      if (a.hasScore !== b.hasScore) return a.hasScore ? -1 : 1
+      if (b.score !== a.score) return b.score - a.score
+      return b.soldDisplay - a.soldDisplay
+    })
+  }
+
+  return enriched
+}
+
+type FlashProductWithSale = Prisma.ProductGetPayload<{ include: { fixedSale: true } }>
+export type EnrichedFlashSale = Awaited<ReturnType<typeof enrichFlashProducts>>[number]
+
+/**
+ * Localize + summarize + enrich a set of fixed-price product rows into store
+ * cards (blended score, plan count). Aggregates are batched to avoid N+1.
+ * Order of the input array is preserved in the output.
+ */
+async function enrichFlashProducts(products: FlashProductWithSale[], locale = "fa") {
+  if (products.length === 0) return []
+  const localized = await Promise.all(products.map((product) => localizedProduct(product, locale)))
+  const summaries = localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
+
+  const ids = products.map((p) => p.id)
+  const [reviewGroups, favoriteGroups, variantGroups] = await Promise.all([
+    prisma.review.groupBy({ by: ["productId"], where: { productId: { in: ids }, hidden: false }, _avg: { rating: true }, _count: { _all: true } }),
+    prisma.favorite.groupBy({ by: ["productId"], where: { productId: { in: ids } }, _count: { _all: true } }),
+    prisma.productVariant.groupBy({ by: ["productId"], where: { productId: { in: ids }, active: true }, _count: { _all: true } }),
+  ])
+  const reviewBy = new Map(reviewGroups.map((g) => [g.productId, { avg: g._avg.rating, count: g._count._all }]))
+  const favoriteBy = new Map(favoriteGroups.map((g) => [g.productId, g._count._all]))
+  const variantBy = new Map(variantGroups.map((g) => [g.productId, g._count._all]))
+
+  return summaries.map((summary) => {
+    const review = reviewBy.get(summary.id)
+    const { score, hasSignal } = computeProductScore({
+      ratingAvg: review?.avg ? Math.round(review.avg * 10) / 10 : null,
+      ratingCount: review?.count ?? 0,
+      soldCount: summary.soldCount,
+      favoritesCount: favoriteBy.get(summary.id) ?? 0,
+    })
+    return { ...summary, score, hasScore: hasSignal, planCount: variantBy.get(summary.id) ?? 0 }
+  })
+}
+
+export interface FlashSearchResult {
+  /** Exact keyword matches (respecting filters), already sorted. */
+  items: EnrichedFlashSale[]
+  /**
+   * AI-derived semantically-similar products, shown only when a search returns
+   * few/no exact hits (e.g. "chatgpt" while we stock Grok + other AI accounts).
+   * Empty unless a fallback was triggered. Never overlaps `items`.
+   */
+  suggestions: EnrichedFlashSale[]
+  /** Count of exact matches, used for search-demand analytics. */
+  exactCount: number
+}
+
+/**
+ * Store search with an AI "similar products" fallback. Runs the normal filtered
+ * query first; when the user typed a search term and we found fewer than
+ * `suggestWhenBelow` exact matches, we ask the embedding index for the closest
+ * catalog products and return them separately as `suggestions`. The fallback is
+ * best-effort: if AI is disabled/over budget, `suggestions` is simply empty.
+ */
+export async function searchFlashSalesWithSuggestions(
+  filters: FlashFilters = {},
+  opts: { suggestWhenBelow?: number; maxSuggestions?: number } = {},
+): Promise<FlashSearchResult> {
+  const items = await listFlashSales(filters)
+  const search = filters.search?.trim()
+  const threshold = opts.suggestWhenBelow ?? 3
+
+  // Only fall back to AI when there IS a query and exact matches are sparse.
+  if (!search || items.length >= threshold) {
+    return { items, suggestions: [], exactCount: items.length }
+  }
+
+  const { searchSimilarProducts } = await import("./product-embeddings")
+  const hits = await searchSimilarProducts(search, {
+    limit: (opts.maxSuggestions ?? 6) + items.length,
+    excludeIds: items.map((p) => p.id),
+  })
+  if (hits.length === 0) return { items, suggestions: [], exactCount: items.length }
+
+  // Load the suggested products (must still be visible fixed-price sales) and
+  // preserve the similarity order returned by the vector search.
+  const rank = new Map(hits.map((h, i) => [h.id, i]))
+  const rows = await prisma.product.findMany({
+    where: {
+      id: { in: hits.map((h) => h.id) },
+      saleMode: "FIXED_PRICE",
+      active: true,
+      hidden: false,
+    },
+    include: { fixedSale: true },
+  })
+  rows.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+  const suggestions = (await enrichFlashProducts(rows, filters.locale)).slice(0, opts.maxSuggestions ?? 6)
+
+  return { items, suggestions, exactCount: items.length }
 }
 
 /**
@@ -117,6 +256,7 @@ export type FlashProductRow = {
   tags: string[]
   createdAt: Date
   deliveryType: string
+  available: boolean
   links: unknown
   fixedSale: {
     price: bigint
@@ -156,6 +296,8 @@ export function summarizeFlash(p: FlashProductRow) {
     category: p.category,
     coverImage: p.coverImage,
     deliveryType: p.deliveryType,
+    // Sale-open flag. When false the store card shows "ناموجود" and buying is blocked.
+    available: p.available,
     links: parseLinks(p.links),
     price: fs?.price ?? 0n,
     // Original "was" price for the strike-through discount display. Only shown
@@ -273,7 +415,27 @@ export async function listAuctions(locale = "fa") {
   const auctions = await prisma.auction.findMany({
     where: { product: { active: true, hidden: false } },
     include: { product: true, _count: { select: { bids: true } } },
-    orderBy: { endTime: "asc" },
+  })
+
+  // Ordering: still-running auctions rank above finished ones, and newer
+  // auctions come before older ones within the same group. We derive a phase
+  // rank per auction (live → scheduled → terminal/ended) then tie-break by the
+  // most recent start time so the freshest auctions surface first.
+  const phaseRank = (auction: (typeof auctions)[number]): number => {
+    const state = deriveAuctionDisplayState({
+      status: auction.status,
+      endReason: auction.endReason,
+      finalPrice: auction.finalPrice != null ? Number(auction.finalPrice) : null,
+      bidCount: auction._count.bids,
+    })
+    if (state.isLive) return 0
+    if (state.isScheduled) return 1
+    return 2 // terminal / ended
+  }
+  auctions.sort((a, b) => {
+    const rankDiff = phaseRank(a) - phaseRank(b)
+    if (rankDiff !== 0) return rankDiff
+    return b.startTime.getTime() - a.startTime.getTime() // newest first within a group
   })
   // Load the global policy once and resolve per-auction overrides, so smart
   // Buy Now pricing is consistent with what the engine enforces on purchase.

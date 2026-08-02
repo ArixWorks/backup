@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useEffect, useState } from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
 import { ArrowRight, Boxes, Plus, Trash2, Loader2, Save, Tag, Package, Layers, Sparkles } from "lucide-react"
@@ -24,6 +24,7 @@ import { PriceResearchDialog } from "@/components/admin/price-research-dialog"
 import { DeliveryTemplateCard } from "@/components/admin/products/delivery-template-card"
 import { InventoryTotpDialog } from "@/components/admin/products/inventory-totp-dialog"
 import { resolveTemplate, type DeliveryField } from "@/lib/core/delivery-fields"
+import { cn } from "@/lib/utils"
 
 type ProductLink = { label: string; url: string }
 type TutorialOption = { id: string; title: string; slug: string }
@@ -53,6 +54,7 @@ type Product = {
   deliveryType: string
   hidden: boolean
   active: boolean
+  available: boolean
   featured: boolean
   featuredOrder: number
   coverImage: string | null
@@ -113,12 +115,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           />
 
           {product.saleMode === "FIXED_PRICE" && (
-            <FeaturedProductEditor
-              id={id}
-              initialFeatured={product.featured}
-              initialOrder={product.featuredOrder}
-              onSaved={mutate}
-            />
+            <>
+              <AvailabilityEditor id={id} initialAvailable={product.available} onSaved={mutate} />
+              <FeaturedProductEditor
+                id={id}
+                initialFeatured={product.featured}
+                initialOrder={product.featuredOrder}
+                onSaved={mutate}
+              />
+            </>
           )}
 
           <ProductTutorialEditor
@@ -211,6 +216,70 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             ))}
         </>
       )}
+    </div>
+  )
+}
+
+// Sale-open switch. Independent of stock and visibility: the product stays
+// listed in the store but, when off, shows "ناموجود" and cannot be purchased.
+function AvailabilityEditor({
+  id,
+  initialAvailable,
+  onSaved,
+}: {
+  id: string
+  initialAvailable: boolean
+  onSaved: () => void
+}) {
+  const [available, setAvailable] = useState(initialAvailable)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setAvailable(initialAvailable)
+  }, [initialAvailable])
+
+  async function toggle(next: boolean) {
+    setAvailable(next)
+    setSaving(true)
+    try {
+      await apiPatch(`/api/v1/admin/products/${id}`, { available: next })
+      toast.success(next ? "محصول موجود شد" : "فروش محصول بسته شد (ناموجود)")
+      onSaved()
+    } catch (error) {
+      setAvailable(!next) // revert on failure
+      toast.error(error instanceof Error ? error.message : "خطا در بروزرسانی وضعیت موجودی")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg",
+            available ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+          )}
+        >
+          <Package className="size-5" aria-hidden="true" />
+        </span>
+        <div className="flex flex-1 flex-col gap-1">
+          <Label htmlFor="product-available" className="font-bold">
+            موجود بودن محصول
+          </Label>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            وقتی خاموش باشد، محصول در فروشگاه دیده می‌شود اما با برچسب «ناموجود» نمایش داده شده و قابل خرید نیست.
+          </p>
+        </div>
+        <Switch
+          id="product-available"
+          checked={available}
+          onCheckedChange={toggle}
+          disabled={saving}
+          aria-label="موجود بودن محصول"
+        />
+      </div>
     </div>
   )
 }

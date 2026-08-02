@@ -1,5 +1,27 @@
 const faNumber = new Intl.NumberFormat('fa-IR')
 
+const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+
+/** Map ASCII digits in a string to Persian digits (display only). */
+export function toPersianDigits(value: string): string {
+  return value.replace(/[0-9]/g, (d) => PERSIAN_DIGITS[Number(d)])
+}
+
+/**
+ * Normalize any Persian/Arabic-Indic digits in a string back to ASCII so the
+ * value can be parsed and stored as plain English digits.
+ */
+export function toEnglishDigits(value: string): string {
+  return value
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0)) // Persian
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660)) // Arabic
+}
+
+/** Group an ASCII integer-digit string into 3-digit blocks (e.g. 5000000 -> 5,000,000). */
+export function groupDigits(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
 export function toToman(amount: number | string | bigint): number {
   // amounts are stored in Toman already (BigInt-safe via string)
   return typeof amount === 'number' ? amount : Number(amount)

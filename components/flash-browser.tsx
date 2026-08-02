@@ -34,8 +34,10 @@ export function FlashBrowser({ categorySlug, categoryName }: { categorySlug?: st
     return `?${params.toString()}`
   }, [search, categorySlug, sort, locale])
 
-  const { data, isLoading, mutate } = useSWR<{ data: FlashSale[] }>(`/api/v1/flash-sales${query}`, fetcher, { refreshInterval: 15000 })
-  const sales = data?.data ?? []
+  const { data, isLoading, mutate } = useSWR<{
+    data: { items: FlashSale[]; suggestions: FlashSale[]; exactCount: number }
+  }>(`/api/v1/flash-sales${query}`, fetcher, { refreshInterval: 15000 })
+  const sales = data?.data?.items ?? []
   const sortLabels: Record<FlashSort, string> = { newest: t("sort.newest"), popular: t("sort.popular"), price_asc: t("sort.priceAsc"), price_desc: t("sort.priceDesc") }
 
   return (

@@ -76,6 +76,10 @@ async function loadActiveFixedSale(productId: string, variantId?: string | null)
   if (!product.active || product.hidden) {
     throw new ValidationError("Product is not available")
   }
+  // Admin-controlled sale switch: product is listed but its sale is closed.
+  if (!product.available) {
+    throw new ValidationError("این محصول در حال حاضر ناموجود است.")
+  }
   const now = new Date()
   const { startTime, endTime } = product.fixedSale
   if (startTime && now < startTime) throw new ValidationError("Sale has not started")

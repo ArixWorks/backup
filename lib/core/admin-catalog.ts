@@ -5,6 +5,7 @@ import { NotFoundError, ValidationError } from "./errors"
 import { audit } from "./audit"
 import { cancelAuctionAndRelease } from "./auction"
 import { enqueueTranslations } from "@/lib/i18n/content-translation"
+import { embedProductInBackground } from "./product-embeddings"
 
 // --- Listing -----------------------------------------------------------------
 
@@ -195,6 +196,8 @@ export async function createFlashProduct(input: FlashProductInput, adminId: stri
   })
   await audit({ actorId: adminId, action: "product.create", entity: "product", entityId: product.id, meta: { mode: "FIXED_PRICE" } })
   await queueProductTranslation(product)
+  // Build the semantic-search embedding in the background (fire-and-forget).
+  embedProductInBackground(product.id)
   // Notify followers of this category about the new product (visible only).
   if (!product.hidden && product.category) {
     try {
@@ -232,6 +235,7 @@ export interface FlashUpdateInput {
   bulkDiscountPercent?: number | null
   hidden?: boolean
   active?: boolean
+  available?: boolean
   featured?: boolean
   featuredOrder?: number
   // Credential field template (array of field defs) or null to clear.
@@ -256,6 +260,7 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
       links: input.links !== undefined ? cleanLinks(input.links) : undefined,
       hidden: input.hidden,
       active: input.active,
+      available: input.available,
       featured: input.featured,
       featuredOrder: input.featuredOrder === undefined ? undefined : Math.max(0, input.featuredOrder),
       deliveryFields:
@@ -278,6 +283,8 @@ export async function updateFlashProduct(productId: string, input: FlashUpdateIn
   })
   await audit({ actorId: adminId, action: "product.update", entity: "product", entityId: productId })
   await queueProductTranslation(updated)
+  // Refresh the semantic-search embedding since title/description/tags may have changed.
+  embedProductInBackground(productId)
   // Fire back-in-stock alerts if this update made the product available again.
   try {
     const { reconcileStockAlerts } = await import("./stock-alerts")
@@ -358,6 +365,8 @@ export async function createAuctionProduct(input: AuctionProductInput, adminId: 
   })
   await audit({ actorId: adminId, action: "product.create", entity: "product", entityId: product.id, meta: { mode: "AUCTION" } })
   await queueProductTranslation(product)
+  // Build the semantic-search embedding in the background (fire-and-forget).
+  embedProductInBackground(product.id)
   // Notify category followers about the new auction (visible only).
   if (!product.hidden && product.category) {
     try {

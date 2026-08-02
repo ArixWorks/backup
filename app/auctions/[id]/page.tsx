@@ -140,6 +140,15 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
       ? t("adetail.topBidNow")
       : t("adetail.basePrice")
   const priceValue = ds.hasWinner && a.finalPrice != null ? a.finalPrice : a.currentPrice
+  // How far below the product's real value the current price sits — a selling
+  // point shown as a badge next to the struck-through true value. Values are
+  // coerced with Number() because serialized bigints can arrive as strings.
+  const estimatedValueNum = a.estimatedValue != null ? Number(a.estimatedValue) : null
+  const priceValueNum = Number(priceValue)
+  const savingsPct =
+    !isTerminal && estimatedValueNum != null && estimatedValueNum > priceValueNum && estimatedValueNum > 0
+      ? Math.round((1 - priceValueNum / estimatedValueNum) * 100)
+      : null
 
   function scrollToBid() {
     // The primary panel (and its BidPanel) is rendered twice by the shell — an
@@ -158,26 +167,43 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const primaryPanel = (
     <div className="space-y-4">
       <div className="card-premium space-y-4 rounded-2xl border border-border p-5">
-        <div>
-          <span className="text-xs text-muted-foreground">{priceLabel}</span>
-          <div className="flex items-baseline gap-1.5">
-            <span
-              className={`text-3xl font-extrabold tabular-nums ${
-                isTerminal && !ds.hasWinner ? "text-muted-foreground" : "text-primary"
-              }`}
-            >
-              {formatToman(priceValue)}
-            </span>
-            <span className="text-sm text-muted-foreground">{t("common.toman")}</span>
-          </div>
-          {!isTerminal && a.estimatedValue != null && (
-            <p className="mt-1 flex items-baseline gap-1.5 text-xs text-muted-foreground">
-              {t("adetail.trueValue")}:
-              <span className="font-semibold tabular-nums line-through">
-                {formatToman(a.estimatedValue)} {t("common.toman")}
+        {/* Price hero: label pill + prominent amount, with a soft radial accent
+            behind the number and a savings badge vs. the product's real value. */}
+        <div className="relative overflow-hidden rounded-xl border border-border/70 bg-secondary/25 p-4">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 left-1/2 h-32 w-56 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+          />
+          <div className="relative flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                {priceLabel}
               </span>
-            </p>
-          )}
+              {savingsPct != null && savingsPct > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-[11px] font-bold text-success">
+                  {formatNumber(savingsPct)}% {t("flash.off")}
+                </span>
+              )}
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className={`text-4xl font-extrabold tabular-nums tracking-tight ${
+                  isTerminal && !ds.hasWinner ? "text-muted-foreground" : "text-primary"
+                }`}
+              >
+                {formatToman(priceValue)}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground">{t("common.toman")}</span>
+            </div>
+            {!isTerminal && a.estimatedValue != null && (
+              <p className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
+                {t("adetail.trueValue")}:
+                <span className="font-semibold tabular-nums line-through decoration-muted-foreground/50">
+                  {formatToman(a.estimatedValue)} {t("common.toman")}
+                </span>
+              </p>
+            )}
+          </div>
         </div>
 
         {isTerminal && a.winner && (
@@ -202,33 +228,33 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
-        <dl className="grid grid-cols-2 divide-x divide-border overflow-hidden rounded-xl border border-border rtl:divide-x-reverse">
+        <dl className="grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-span-2">
           {!isTerminal && (
             <Stat
-              icon={<Gavel className="h-3.5 w-3.5" />}
+              icon={<Gavel className="h-4 w-4" />}
               label={t("adetail.nextMinBid")}
               value={`${formatToman(a.minNextBid)}`}
             />
           )}
           <Stat
-            icon={<TrendingUp className="h-3.5 w-3.5" />}
+            icon={<TrendingUp className="h-4 w-4" />}
             label={t("adetail.minIncrement")}
             value={`${formatToman(a.minimumIncrement)}`}
           />
           <Stat
-            icon={<Users className="h-3.5 w-3.5" />}
+            icon={<Users className="h-4 w-4" />}
             label={t("adetail.winnersCount")}
             value={formatNumber(a.quantity)}
           />
           {!isTerminal && a.buyNowAvailable && a.buyNowPrice != null && (
             <Stat
-              icon={<Zap className="h-3.5 w-3.5" />}
+              icon={<Zap className="h-4 w-4" />}
               label={t("adetail.buyNowStat")}
               value={`${formatToman(a.buyNowPrice)}`}
             />
           )}
           <Stat
-            icon={<Calendar className="h-3.5 w-3.5" />}
+            icon={<Calendar className="h-4 w-4" />}
             label={t("adetail.endTime")}
             value={formatDateTime(a.endTime)}
             small
@@ -463,29 +489,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           { id: "info", label: t("detail.tabInfo"), content: overviewTab },
           { id: "questions", label: t("detail.tabQuestions"), content: <ProductQuestions productId={a.productId} /> },
         ]}
-        stickyInfo={
-          <div className="flex flex-col">
-            <span className="text-[11px] text-muted-foreground">{priceLabel}</span>
-            <div className="flex items-baseline gap-1.5">
-              <span
-                className={`text-xl font-extrabold tabular-nums ${
-                  isTerminal && !ds.hasWinner ? "text-muted-foreground" : "text-primary"
-                }`}
-              >
-                {formatToman(priceValue)}
-              </span>
-              <span className="text-[11px] text-muted-foreground">{t("common.toman")}</span>
-            </div>
-          </div>
-        }
         stickyAction={
           isLive ? (
-            <Button onClick={scrollToBid} className="gap-1.5">
+            <Button onClick={scrollToBid} className="w-full justify-center gap-1.5">
               <Gavel className="h-4 w-4" />
               {t("bid.submit")}
             </Button>
           ) : (
-            <Button disabled variant="secondary">
+            <Button disabled variant="secondary" className="w-full justify-center">
               {t(ds.statusKey as Parameters<typeof t>[0])}
             </Button>
           )
@@ -507,12 +518,14 @@ function Stat({
   small?: boolean
 }) {
   return (
-    <div className="bg-secondary/40 px-3 py-2.5">
-      <dt className="flex items-center gap-1 text-[11px] text-muted-foreground">
+    <div className="flex items-center gap-2.5 rounded-xl border border-border/70 bg-secondary/25 px-3 py-2.5 transition-colors hover:border-border">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         {icon}
-        {label}
-      </dt>
-      <dd className={`mt-1 font-bold tabular-nums ${small ? "text-xs font-medium" : "text-sm"}`}>{value}</dd>
+      </span>
+      <div className="flex min-w-0 flex-col">
+        <dt className="text-[11px] text-muted-foreground">{label}</dt>
+        <dd className={`mt-0.5 font-bold tabular-nums ${small ? "text-xs font-semibold" : "text-sm"}`}>{value}</dd>
+      </div>
     </div>
   )
 }

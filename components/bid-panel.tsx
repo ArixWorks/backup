@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiPost, ApiError } from "@/lib/api-client"
 import { useSession } from "@/hooks/use-session"
-import { formatToman } from "@/lib/format"
+import { formatToman, toPersianDigits, toEnglishDigits, groupDigits } from "@/lib/format"
 import { useI18n } from "@/components/i18n-provider"
 
 type Props = {
@@ -31,8 +31,21 @@ export function BidPanel({
   onChanged,
 }: Props) {
   const { user, refresh } = useSession()
-  const { t, errorMessage } = useI18n()
+  const { t, errorMessage, locale } = useI18n()
   const router = useRouter()
+
+  // Turn a raw ASCII-digit amount into the display string: grouped in 3s and,
+  // for Persian, localized to Persian digits. Storage/parsing always uses ASCII.
+  function displayAmount(raw: string): string {
+    if (!raw) return ""
+    const grouped = groupDigits(raw)
+    return locale === "fa" ? toPersianDigits(grouped) : grouped
+  }
+  // Normalize whatever the user types (Persian/Arabic digits, separators) back
+  // to a bare ASCII-digit string for state + submission.
+  function normalizeAmount(value: string): string {
+    return toEnglishDigits(value).replace(/[^0-9]/g, "")
+  }
 
   // Shared helper: show a top-up-focused error with a shortcut to the wallet,
   // so the user immediately understands they need to charge their account.
@@ -158,13 +171,18 @@ export function BidPanel({
         <label htmlFor="bid" className="text-sm font-medium">
           {t("bid.amountLabel")}
         </label>
-        <Input
-          id="bid"
-          inputMode="numeric"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
-          className="tabular-nums text-lg font-bold"
-        />
+        <div className="relative">
+          <Input
+            id="bid"
+            inputMode="numeric"
+            value={displayAmount(amount)}
+            onChange={(e) => setAmount(normalizeAmount(e.target.value))}
+            className="h-14 pe-16 text-center text-2xl font-bold tabular-nums"
+          />
+          <span className="pointer-events-none absolute inset-y-0 end-4 flex items-center text-sm font-medium text-muted-foreground">
+            {t("common.toman")}
+          </span>
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
@@ -199,14 +217,19 @@ export function BidPanel({
           </label>
           {useMax && (
             <>
-              <Input
-                inputMode="numeric"
-                value={maxAmount}
-                onChange={(e) => setMaxAmount(e.target.value.replace(/[^0-9]/g, ""))}
-                placeholder={t("bid.maxPlaceholder")}
-                className="tabular-nums font-semibold"
-                aria-label={t("bid.maxLabel")}
-              />
+              <div className="relative">
+                <Input
+                  inputMode="numeric"
+                  value={displayAmount(maxAmount)}
+                  onChange={(e) => setMaxAmount(normalizeAmount(e.target.value))}
+                  placeholder={t("bid.maxPlaceholder")}
+                  className="pe-16 text-center font-semibold tabular-nums"
+                  aria-label={t("bid.maxLabel")}
+                />
+                <span className="pointer-events-none absolute inset-y-0 end-4 flex items-center text-sm font-medium text-muted-foreground">
+                  {t("common.toman")}
+                </span>
+              </div>
               <p className="text-xs leading-5 text-muted-foreground">{t("bid.maxHint")}</p>
             </>
           )}

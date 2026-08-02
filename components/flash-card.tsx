@@ -44,6 +44,10 @@ export type FlashSale = {
   variants?: PlanVariant[]
   score?: number
   hasScore?: boolean
+  /** Number of active sale plans; the store card shows "N پلن" when > 1. */
+  planCount?: number
+  /** Admin sale switch; false means the card shows "ناموجود" and buying is blocked. */
+  available?: boolean
 }
 
 export function FlashCard({
