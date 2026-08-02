@@ -176,6 +176,17 @@ export const POST = route(async (req: Request) => {
     console.log("[v0] domain lifecycle processing error:", (e as Error).message)
   }
 
+  // Notify admins about shop orders whose promised completion time has elapsed
+  // (multi-step / customer-input orders). No auto-cancel — the admin decides to
+  // complete or request an extension. Best-effort.
+  let shopOrders: { notified: number } = { notified: 0 }
+  try {
+    const { processDueShopOrders } = await import("@/lib/core/order-lifecycle")
+    shopOrders = await processDueShopOrders()
+  } catch (e) {
+    console.log("[v0] shop order lifecycle processing error:", (e as Error).message)
+  }
+
   // Re-evaluate second-level referral rewards that were parked purely for a
   // maturity/cooldown gate (not a hard abuse signal) and whose gate has since
   // cleared → auto-approve + credit the now-clean ones. Best-effort.
@@ -201,6 +212,7 @@ export const POST = route(async (req: Request) => {
     automations,
     translations,
     domains,
+    shopOrders,
     referralRewards,
   }
     })

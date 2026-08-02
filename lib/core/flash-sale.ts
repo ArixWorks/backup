@@ -5,6 +5,7 @@ import { emit, Channels } from "./events"
 import { ConflictError, NotFoundError, ValidationError } from "./errors"
 import { spendAvailable } from "./wallet"
 import { createManualDelivery, reserveAndDeliverAuto } from "./delivery"
+import { resolveOrderPlan } from "./order-lifecycle"
 import { evaluateCoupon, redeemCoupon } from "./coupons"
 import { applyPurchaseRewards } from "./rewards"
 import { getEffectiveTier, tierDiscountPercent } from "./gamification"
@@ -54,6 +55,10 @@ type LoadedVariant = {
   purchaseLimit: number | null
   deliveryType: "MANUAL" | "AUTOMATIC"
   version: number
+  // Roadmap (customer-input) overrides — null means "inherit from product".
+  requiresCustomerInput: boolean | null
+  customerInputFields: unknown
+  avgCompletionMinutes: number | null
 }
 
 /**
@@ -99,6 +104,9 @@ async function loadActiveFixedSale(productId: string, variantId?: string | null)
       purchaseLimit: chosen.purchaseLimit,
       deliveryType: chosen.deliveryType,
       version: chosen.version,
+      requiresCustomerInput: chosen.requiresCustomerInput,
+      customerInputFields: chosen.customerInputFields,
+      avgCompletionMinutes: chosen.avgCompletionMinutes,
     }
   } else if (variantId) {
     // A plan was requested but the product has none — treat as unavailable.
@@ -301,6 +309,26 @@ export async function purchaseFixed(opts: {
       }
       const chargeTotal = totalPrice - discount
 
+      // Resolve the fulfillment plan. When the product/plan requires the buyer
+      // to submit account info, the order enters the multi-step roadmap
+      // (AWAITING_CUSTOMER_INPUT) instead of the instant delivery path. The
+      // customerInputFields + estimatedMinutes are SNAPSHOTTED here so later
+      // admin edits to the product template never mutate an in-flight order.
+      const plan = resolveOrderPlan(
+        {
+          requiresCustomerInput: product.requiresCustomerInput,
+          customerInputFields: product.customerInputFields,
+          avgCompletionMinutes: product.avgCompletionMinutes,
+        },
+        variant
+          ? {
+              requiresCustomerInput: variant.requiresCustomerInput,
+              customerInputFields: variant.customerInputFields,
+              avgCompletionMinutes: variant.avgCompletionMinutes,
+            }
+          : null,
+      )
+
       const created = await tx.order.create({
         data: {
           publicId: secureSlug("ord"),
@@ -308,9 +336,16 @@ export async function purchaseFixed(opts: {
           productId: opts.productId,
           variantId: variant?.id ?? null,
           type: "FIXED_PURCHASE",
-          status: "PAID",
-          amount: chargeTotal,
+          // Roadmap orders start awaiting the buyer's account info; everything
+          // else keeps the existing PAID status.
+          status: plan.requiresCustomerInput ? "AWAITING_CUSTOMER_INPUT" : "PAID",
+          amount: chargeTotal, // exact net principal — the ONLY refundable sum
           quantity,
+          requiresCustomerInput: plan.requiresCustomerInput,
+          customerInputFields: plan.requiresCustomerInput
+            ? (plan.customerInputFields as unknown as object)
+            : undefined,
+          estimatedMinutes: plan.requiresCustomerInput ? plan.estimatedMinutes : null,
         },
       })
 
@@ -322,9 +357,22 @@ export async function purchaseFixed(opts: {
       // Charge from available balance (throws if insufficient -> rollback).
       await spendAvailable(opts.userId, chargeTotal, tx, { type: "order", id: created.id })
 
-      // Deliver. For AUTOMATIC, a missing inventory item throws and rolls back
-      // the entire transaction (charge + stock) -> automatic rollback.
-      if (deliveryType === "AUTOMATIC") {
+      if (plan.requiresCustomerInput) {
+        // Multi-step roadmap: no delivery yet. Log the creation event; the
+        // buyer submits account info next, which starts the countdown.
+        await tx.orderEvent.create({
+          data: {
+            orderId: created.id,
+            type: "ORDER_CREATED",
+            toStatus: "AWAITING_CUSTOMER_INPUT",
+            actorType: "SYSTEM",
+            message: "خرید ثبت شد؛ در انتظار ثبت اطلاعات حساب توسط کاربر.",
+            idempotencyKey: `${created.id}:created`,
+          },
+        })
+      } else if (deliveryType === "AUTOMATIC") {
+        // Deliver. For AUTOMATIC, a missing inventory item throws and rolls back
+        // the entire transaction (charge + stock) -> automatic rollback.
         await reserveAndDeliverAuto(created.id, product.id, tx, variant?.id)
       } else {
         await createManualDelivery(created.id, tx)
@@ -410,15 +458,18 @@ export async function purchaseFixed(opts: {
   // from the admin fulfilment path (completeManualDelivery).
   try {
     const { createNotification } = await import("./notifications")
-    const delivered = deliveryType === "AUTOMATIC"
+    const needsInput = order.status === "AWAITING_CUSTOMER_INPUT"
+    const delivered = !needsInput && deliveryType === "AUTOMATIC"
     await createNotification({
       userId: order.userId,
       type: delivered ? "ORDER_DELIVERED" : "GENERAL",
-      title: delivered ? "سفارش تحویل شد" : "خرید ثبت شد",
-      body: delivered
-        ? `سفارش «${product.title}» با موفقیت خریداری و تحویل داده شد. برای مشاهده کلیک کنید.`
-        : `خرید «${product.title}» ثبت شد و در حال آماده‌سازی است. به‌زودی تحویل داده می‌شود.`,
-      href: "/orders",
+      title: needsInput ? "خرید ثبت شد — تکمیل اطلاعات" : delivered ? "سفارش تحویل شد" : "خرید ثبت شد",
+      body: needsInput
+        ? `خرید «${product.title}» ثبت شد. برای شروع تکمیل سفارش، اطلاعات حساب خود را وارد کنید.`
+        : delivered
+          ? `سفارش «${product.title}» با موفقیت خریداری و تحویل داده شد. برای مشاهده کلیک کنید.`
+          : `خرید «${product.title}» ثبت شد و در حال آماده‌سازی است. به‌زودی تحویل داده می‌شود.`,
+      href: `/orders/${order.publicId}`,
       image: product.coverImage,
     })
   } catch (e) {
