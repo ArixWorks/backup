@@ -78,7 +78,30 @@ export async function listFlashSales(filters: FlashFilters = {}) {
     orderBy: flashOrderBy(filters.sort),
   })
   const localized = await Promise.all(products.map((product) => localizedProduct(product, filters.locale)))
-  return localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
+  const summaries = localized.map((product) => summarizeFlash(product as unknown as FlashProductRow))
+
+  // Enrich each card with a blended rating + a "plans" count for the store grid.
+  // All aggregates are batched (3 grouped queries total) to avoid an N+1.
+  const ids = products.map((p) => p.id)
+  const [reviewGroups, favoriteGroups, variantGroups] = await Promise.all([
+    prisma.review.groupBy({ by: ["productId"], where: { productId: { in: ids }, hidden: false }, _avg: { rating: true }, _count: { _all: true } }),
+    prisma.favorite.groupBy({ by: ["productId"], where: { productId: { in: ids } }, _count: { _all: true } }),
+    prisma.productVariant.groupBy({ by: ["productId"], where: { productId: { in: ids }, active: true }, _count: { _all: true } }),
+  ])
+  const reviewBy = new Map(reviewGroups.map((g) => [g.productId, { avg: g._avg.rating, count: g._count._all }]))
+  const favoriteBy = new Map(favoriteGroups.map((g) => [g.productId, g._count._all]))
+  const variantBy = new Map(variantGroups.map((g) => [g.productId, g._count._all]))
+
+  return summaries.map((summary) => {
+    const review = reviewBy.get(summary.id)
+    const { score, hasSignal } = computeProductScore({
+      ratingAvg: review?.avg ? Math.round(review.avg * 10) / 10 : null,
+      ratingCount: review?.count ?? 0,
+      soldCount: summary.soldCount,
+      favoritesCount: favoriteBy.get(summary.id) ?? 0,
+    })
+    return { ...summary, score, hasScore: hasSignal, planCount: variantBy.get(summary.id) ?? 0 }
+  })
 }
 
 /**

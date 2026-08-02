@@ -32,6 +32,7 @@ export function FlashBuyButton({
   onPurchased,
   fullWidth,
   disabled,
+  label,
 }: {
   sale: FlashSale
   /** When set, purchase targets this specific sale plan (price/stock/limit). */
@@ -39,6 +40,8 @@ export function FlashBuyButton({
   onPurchased?: () => void
   fullWidth?: boolean
   disabled?: boolean
+  /** Overrides the default "خرید" label (e.g. "خرید محصول" on the buy bar). */
+  label?: string
 }) {
   const { user, refresh } = useSession()
   const { t, priceValue, currency, errorMessage } = useI18n()
@@ -177,10 +180,10 @@ export function FlashBuyButton({
         size={fullWidth ? "default" : "sm"}
         onClick={start}
         disabled={soldOut || disabled}
-        className={fullWidth ? "w-full gap-1.5" : "gap-1.5"}
+        className={fullWidth ? "w-full justify-center gap-1.5" : "gap-1.5"}
       >
         <ShoppingCart className="h-4 w-4" />
-        {t("flash.buy")}
+        {label ?? t("flash.buy")}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

@@ -463,29 +463,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           { id: "info", label: t("detail.tabInfo"), content: overviewTab },
           { id: "questions", label: t("detail.tabQuestions"), content: <ProductQuestions productId={a.productId} /> },
         ]}
-        stickyInfo={
-          <div className="flex flex-col">
-            <span className="text-[11px] text-muted-foreground">{priceLabel}</span>
-            <div className="flex items-baseline gap-1.5">
-              <span
-                className={`text-xl font-extrabold tabular-nums ${
-                  isTerminal && !ds.hasWinner ? "text-muted-foreground" : "text-primary"
-                }`}
-              >
-                {formatToman(priceValue)}
-              </span>
-              <span className="text-[11px] text-muted-foreground">{t("common.toman")}</span>
-            </div>
-          </div>
-        }
         stickyAction={
           isLive ? (
-            <Button onClick={scrollToBid} className="gap-1.5">
+            <Button onClick={scrollToBid} className="w-full justify-center gap-1.5">
               <Gavel className="h-4 w-4" />
               {t("bid.submit")}
             </Button>
           ) : (
-            <Button disabled variant="secondary">
+            <Button disabled variant="secondary" className="w-full justify-center">
               {t(ds.statusKey as Parameters<typeof t>[0])}
             </Button>
           )

@@ -283,26 +283,15 @@ export default function FlashDetailPage({ params }: { params: Promise<{ productI
         { id: "reviews", label: t("detail.tabReviews"), content: <ReviewsSection productId={productId} /> },
         { id: "questions", label: t("detail.tabQuestions"), content: <ProductQuestions productId={productId} /> },
       ]}
-      stickyInfo={
-        <div className="flex flex-col">
-          <span className="text-[11px] text-muted-foreground">
-            {selectedVariant && variants.length > 1 ? `${t("plan.from")} · ` : ""}
-            {soldOut ? t("flash.soldOut") : t("buy.total")}
-          </span>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-extrabold tabular-nums text-primary">{priceValue(shownPrice)}</span>
-            <span className="text-[11px] text-muted-foreground">{currency}</span>
-          </div>
-        </div>
-      }
       stickyAction={
-        <div dir={dir}>
+        <div dir={dir} className="w-full">
           <FlashBuyButton
             sale={p}
             variant={selectedVariant}
             disabled={hasPlans && !selectedVariant}
             onPurchased={() => mutate()}
             fullWidth
+            label={t("flash.buyProduct")}
           />
         </div>
       }

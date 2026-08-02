@@ -44,6 +44,8 @@ export type FlashSale = {
   variants?: PlanVariant[]
   score?: number
   hasScore?: boolean
+  /** Number of active sale plans; the store card shows "N پلن" when > 1. */
+  planCount?: number
 }
 
 export function FlashCard({

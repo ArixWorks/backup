@@ -61,8 +61,9 @@ export function ProductDetailShell({
   tabs: SegmentedTab[]
   /** Seeds the personalized "similar products" rail; omit to hide the rail. */
   similarSeedProductId?: string | null
-  /** Sticky bottom bar contents. */
-  stickyInfo: ReactNode
+  /** Sticky bottom bar contents. `stickyInfo` is optional — when omitted, the
+      action button fills the whole bar width. */
+  stickyInfo?: ReactNode
   stickyAction: ReactNode
   /** Any extra domain sections placed before the tabs (e.g. bid history). */
   extraSections?: ReactNode
