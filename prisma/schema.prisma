@@ -144,6 +144,15 @@ enum OrderType {
   AUCTION_WIN
 }
 
+// Where a purchase originated. Captured best-effort at checkout for fraud
+// review and channel attribution; legacy/unknown orders leave Order.source null.
+enum OrderSource {
+  WEB // storefront website
+  MINI_APP // Telegram Mini App (WebApp)
+  BOT // in-chat Telegram bot flow
+  AUCTION // system-created order for a won auction
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -1311,6 +1320,16 @@ model Order {
   giveawayId            String?
   giveaway              Giveaway? @relation(fields: [giveawayId], references: [id], onDelete: SetNull)
 
+  // ---- Purchase context (fraud review & attribution) ----------------------
+  // Captured best-effort at checkout; null on legacy orders and whenever the
+  // channel can't supply it (shown as "unknown" in the admin detail view).
+  // source = where the purchase originated: WEB | MINI_APP | BOT | AUCTION.
+  source    OrderSource?
+  // Raw client IP (first hop of x-forwarded-for) and user-agent. Only ever
+  // returned by the ownership/admin-guarded detail endpoint, never by lists.
+  ipAddress String?
+  userAgent String?
+
   delivery Delivery?
   events   OrderEvent[]
 
@@ -1320,6 +1339,8 @@ model Order {
   @@index([userId, type, createdAt])
   @@index([completionTutorialId])
   @@index([giveawayId])
+  // Powers the "this IP is shared by N accounts" fraud signal.
+  @@index([ipAddress])
 }
 
 // Immutable per-order lifecycle event log — mirror of DomainOrderEvent. Every

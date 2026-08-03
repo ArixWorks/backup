@@ -41,6 +41,20 @@ async function parse(res: Response) {
   return json
 }
 
+/**
+ * Client channel hint for the server. Read from <html data-env>, which
+ * TelegramProvider sets to "telegram" inside the Mini App (and "web"
+ * otherwise). The purchase endpoint stores this as the order's source for
+ * admin fraud review; every other endpoint ignores it. SSR-safe (returns
+ * "web" when there's no document).
+ */
+function clientSourceHeader(): Record<string, string> {
+  if (typeof document === 'undefined') return {}
+  return {
+    'x-client-source': document.documentElement.dataset.env === 'telegram' ? 'mini-app' : 'web',
+  }
+}
+
 export async function apiGet<T = any>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: 'include' })
   return parse(res)
@@ -50,7 +64,7 @@ export async function apiPost<T = any>(url: string, body?: unknown): Promise<T> 
   const res = await fetch(url, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...clientSourceHeader() },
     body: body ? JSON.stringify(body) : undefined,
   })
   return parse(res)

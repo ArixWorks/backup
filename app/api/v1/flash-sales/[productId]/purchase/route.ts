@@ -2,6 +2,7 @@ import { z } from "zod"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { purchaseFixed } from "@/lib/core/flash-sale"
+import { orderContextFromRequest } from "@/lib/core/order-context"
 import { rateLimitBy } from "@/lib/api/rate-limit"
 import { withIdempotency, idempotencyKey, readIdempotencyHeader } from "@/lib/api/idempotency"
 
@@ -17,6 +18,8 @@ export const POST = route(
     const user = await requireUser()
     const { productId } = await ctx.params
     const header = readIdempotencyHeader(req)
+    // Best-effort purchase context (source/IP/UA) for admin fraud review.
+    const context = orderContextFromRequest(req)
     const body = schema.parse(await req.json().catch(() => ({})))
     // Throttle checkout, and make it idempotent so a double-tap on "buy" can't
     // place two paid orders / double-charge the wallet.
@@ -38,6 +41,7 @@ export const POST = route(
           variantId: body.variantId,
           reservationToken: body.reservationToken,
           couponCode: body.couponCode,
+          context,
         }),
     )
   },

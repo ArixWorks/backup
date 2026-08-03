@@ -2190,7 +2190,14 @@ async function completeWalletPurchase(
     return
   }
   try {
-    const order = await purchaseFixed({ userId: user.id, productId, quantity: qty, couponCode })
+    const order = await purchaseFixed({
+      userId: user.id,
+      productId,
+      quantity: qty,
+      couponCode,
+      // In-chat bot purchase — no HTTP request, so IP/UA stay null.
+      context: { source: "BOT" },
+    })
     await clearOrderDraft(chatId)
     const { html } = t(c, locale, "purchaseSuccess", {
       title: `${product.title} ×${qty}`,

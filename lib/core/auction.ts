@@ -587,6 +587,7 @@ export async function buyNow(opts: { userId: string; auctionId: string }) {
             status: "PAID",
             amount: buyNowCharge,
             quantity: 1,
+            source: "AUCTION",
           },
         })
 
@@ -742,6 +743,7 @@ export async function finalizeAuction(auctionId: string) {
                 status: "PAID",
                 amount: w.amount,
                 quantity: 1,
+                source: "AUCTION",
               },
             })
             await captureFrozenPurchase(w.userId, w.amount, tx, { type: "auction", id: auction.id })
@@ -768,6 +770,7 @@ export async function finalizeAuction(auctionId: string) {
                 status: "PENDING",
                 amount: w.amount,
                 quantity: 1,
+                source: "AUCTION",
               },
             })
             pendingWinner = { userId: w.userId, amount: w.amount, deposit: obligation.heldDeposit }
@@ -1018,6 +1021,7 @@ export async function payAuctionBalance(opts: { auctionId: string; userId: strin
                 status: "PAID",
                 amount: finalPrice,
                 quantity: 1,
+                source: "AUCTION",
               },
             })
         await deliverForOrder(
