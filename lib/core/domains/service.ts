@@ -292,7 +292,7 @@ export async function processDomainOrder(orderId: string) {
       data: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: result.providerReference } },
     })
     await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: "PROCESSING", toStatus: "AWAITING_NAMESERVERS", actorType: "SYSTEM", message: "دامنه خریداری شد و منتظر ثبت NS توسط کاربر است.", idempotencyKey: `${order.id}:purchased` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} خریداری شد؛ برای ادامه حداقل NS1 و NS2 را ثبت کنید.`, href: "/domains" } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} خریداری شد؛ برای ادامه حداقل NS1 و NS2 را ثبت کنید.`, href: `/orders/domain/${order.publicId}` } })
     return updated
   })
 }
@@ -320,7 +320,7 @@ export async function expireDomainOrder(orderId: string, reason = "HOLD_EXPIRED"
         idempotencyKey: `${order.id}:expired`,
       },
     })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "مهلت سفارش دامنه پایان یافت", body: `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: "/domains" } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "مهلت سفارش دامنه پایان یافت", body: `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: `/orders/domain/${order.publicId}` } })
     const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
     if (admins.length) await tx.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "سفارش دامنه خودکار منقضی شد", body: `${order.asciiDomain} بدون اقدام مدیر منقضی و مبلغ آن آزاد شد.`, href: "/admin/domains" })) })
     return updated
@@ -352,7 +352,7 @@ export async function markDomainPurchased(orderId: string, adminId: string, prov
       update: { status: "ACTIVE", registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: providerReference ?? null } },
     })
     await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: order.status, toStatus: "AWAITING_NAMESERVERS", actorType: "ADMIN", actorId: adminId, message: "دامنه خریداری شد و منتظر ثبت NS توسط کاربر است.", idempotencyKey: `${order.id}:purchased` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} با موفقیت خریداری شد. برای ادامه، حداقل NS1 و NS2 را در سفارش ثبت کنید.`, href: "/domains" } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} با موفقیت خریداری شد. برای ادامه، حداقل NS1 و NS2 را در سفارش ثبت کنید.`, href: `/orders/domain/${order.publicId}` } })
     return updated
   })
 }
@@ -389,7 +389,7 @@ export async function completeDomainOrder(orderId: string, adminId: string) {
     })
     const purchaseDate = order.purchasedAt.toLocaleDateString("fa-IR")
     const expiryDate = order.expiresAt.toLocaleDateString("fa-IR")
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "سفارش دامنه تکمیل شد", body: `NSهای ${order.asciiDomain} ثبت شد. تاریخ خرید: ${purchaseDate}، تاریخ انقضا: ${expiryDate}.`, href: "/domains" } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "سفارش دامنه تکمیل شد", body: `NSهای ${order.asciiDomain} ثبت شد. تاریخ خرید: ${purchaseDate}، تاریخ انقضا: ${expiryDate}.`, href: `/orders/domain/${order.publicId}` } })
     return updated
   })
 }
@@ -404,7 +404,7 @@ export async function failDomainOrder(orderId: string, adminId: string, reason: 
     await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "RELEASED" } })
     const unavailable = reason === "DOMAIN_ALREADY_REGISTERED"
     await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: unavailable ? "DOMAIN_UNAVAILABLE_REFUNDED" : "REGISTRATION_FAILED", fromStatus: order.status, toStatus: "FAILED", actorType: "ADMIN", actorId: adminId, reasonCode: reason, message: unavailable ? "دامنه در بررسی نهایی آزاد نبود؛ سفارش بسته و مبلغ آزاد شد." : "ثبت دامنه انجام نشد و مبلغ آزاد شد.", idempotencyKey: `${order.id}:failed` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: unavailable ? "دامنه در بررسی نهایی آزاد نبود" : "ثبت دامنه انجام نشد", body: unavailable ? `دامنه ${order.asciiDomain} پیش از ثبت توسط شخص دیگری خریداری شده بود؛ سفارش لغو و کل مبلغ در کیف پول شما آزاد شد.` : `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: "/domains" } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: unavailable ? "دامنه در بررسی نهایی آزاد نبود" : "ثبت دامنه انجام نشد", body: unavailable ? `دامنه ${order.asciiDomain} پیش از ثبت توسط شخص دیگری خریداری شده بود؛ سفارش لغو و کل مبلغ در کیف پول شما آزاد شد.` : `مبلغ سفارش ${order.asciiDomain} در کیف پول شما آزاد شد.`, href: `/orders/domain/${order.publicId}` } })
     return updated
   })
 }

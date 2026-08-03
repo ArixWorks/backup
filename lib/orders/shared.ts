@@ -262,6 +262,32 @@ export interface AdminDomainOrderDetail {
   events: OrderEventView[]
 }
 
+/**
+ * Buyer-facing detail for a single domain order, shown on the dedicated
+ * /orders/domain/[publicId] page inside the unified "My Orders" section.
+ * Text-free: the client localizes status/labels; events carry stored messages.
+ */
+export interface UserDomainOrderDetail {
+  id: string
+  publicId: string
+  domain: string
+  asciiDomain: string
+  tld: string
+  operation: string
+  status: string
+  amount: number
+  createdAt: string
+  purchasedAt: string | null
+  holdExpiresAt: string | null
+  expiresAt: string | null
+  ns1: string | null
+  ns2: string | null
+  ns3: string | null
+  ns4: string | null
+  nameserversSubmittedAt: string | null
+  events: OrderEventView[]
+}
+
 /** Where a purchase originated. Mirror of the Prisma OrderSource enum. */
 export type OrderSourceView = "WEB" | "MINI_APP" | "BOT" | "AUCTION"
 
