@@ -10,6 +10,7 @@ import { evaluateCoupon, redeemCoupon } from "./coupons"
 import { applyPurchaseRewards } from "./rewards"
 import { getEffectiveTier, tierDiscountPercent } from "./gamification"
 import { serializableTx } from "./ledger"
+import type { OrderContext } from "./order-context"
 
 const RESERVATION_TTL_SECONDS = 600 // 10 minutes
 
@@ -213,6 +214,9 @@ export async function purchaseFixed(opts: {
   variantId?: string | null
   reservationToken?: string
   couponCode?: string
+  // Best-effort purchase context (source/IP/UA) for fraud review. Captured by
+  // the caller and persisted on the order; never affects purchase success.
+  context?: OrderContext
 }) {
   const quantity = opts.quantity ?? 1
   if (quantity < 1) throw new ValidationError("Quantity must be at least 1")
@@ -353,6 +357,10 @@ export async function purchaseFixed(opts: {
             ? (plan.customerInputFields as unknown as object)
             : undefined,
           estimatedMinutes: plan.requiresCustomerInput ? plan.estimatedMinutes : null,
+          // Purchase context for fraud review (best-effort; may be null).
+          source: opts.context?.source ?? "WEB",
+          ipAddress: opts.context?.ipAddress ?? null,
+          userAgent: opts.context?.userAgent ?? null,
         },
       })
 

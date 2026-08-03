@@ -262,6 +262,68 @@ export interface AdminDomainOrderDetail {
   events: OrderEventView[]
 }
 
+/** Where a purchase originated. Mirror of the Prisma OrderSource enum. */
+export type OrderSourceView = "WEB" | "MINI_APP" | "BOT" | "AUCTION"
+
+/**
+ * Rich buyer profile shown on the admin order-detail page. Everything an admin
+ * needs to identify the account and its Telegram identity at a glance. Fields
+ * are nullable because a web-only account may have no Telegram link (and vice
+ * versa).
+ */
+export interface OrderAccountInfo {
+  id: string
+  displayName: string | null
+  alias: string | null
+  username: string | null
+  email: string | null
+  emailVerified: boolean
+  role: string
+  status: string
+  isTestAccount: boolean
+  // Telegram identity (numeric id + @username + chat id for support/DM).
+  telegramId: string | null
+  telegramUsername: string | null
+  telegramChatId: string | null
+  isPremiumTelegram: boolean
+  languageCode: string | null
+  // Loyalty / value signals.
+  vipTier: string
+  vipManual: boolean
+  totalSpent: number
+  loyaltyPoints: number
+  // Account age + who invited them (referral fraud rings).
+  createdAt: string
+  referredByAlias: string | null
+}
+
+/** IP geolocation surfaced for fraud review (all fields best-effort). */
+export interface OrderGeoView {
+  country: string | null
+  countryCode: string | null
+  region: string | null
+  city: string | null
+  isp: string | null
+  proxy: boolean
+  hosting: boolean
+}
+
+/**
+ * Technical + security context captured at checkout. Any field may be null on
+ * legacy orders or channels that can't supply it (rendered as "unknown").
+ */
+export interface OrderPurchaseContext {
+  source: OrderSourceView | null
+  ipAddress: string | null
+  userAgent: string | null
+  geo: OrderGeoView | null
+  /**
+   * How many DISTINCT accounts have ever purchased from this same IP (incl.
+   * this buyer). > 1 is a multi-account / fraud signal. 0 when no IP stored.
+   */
+  ipAccountCount: number
+}
+
 /**
  * Admin detail: the buyer's submitted account info is ALWAYS revealed here
  * (access-controlled by requireAdmin), unlike the owner-only user detail.
@@ -274,6 +336,10 @@ export interface AdminOrderDetail extends OrderDetail {
   fulfillmentKind: FulfillmentKind
   /** Accurate payment breakdown (see lib/core/order-report). */
   report: OrderPaymentReport | null
+  /** Rich buyer + Telegram profile (fraud review + support). */
+  account: OrderAccountInfo | null
+  /** Source/IP/UA/geo + IP-sharing signal captured at checkout. */
+  purchaseContext: OrderPurchaseContext
 }
 
 /** Serializable payment breakdown for a shop/auction order (see order-report). */

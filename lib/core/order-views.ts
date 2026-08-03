@@ -13,6 +13,7 @@ import type { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { resolveTemplate, type DeliveryTemplate } from "./delivery-fields"
 import { getOrderPaymentReport } from "./order-report"
+import { lookupIp } from "./geo"
 import {
   computeDomainProgress,
   computeShopRoadmap,
@@ -55,9 +56,39 @@ const ADMIN_LIST_INCLUDE = {
   // Delivery status drives the manual-fulfilment queue + fulfillmentKind badge.
   delivery: { select: { status: true } },
 } satisfies Prisma.OrderInclude
+// Detail view pulls the full buyer profile (identity, Telegram, loyalty,
+// account age, inviter) for the admin fraud-review panels. Kept separate from
+// the lean ADMIN_USER_SELECT used by list endpoints.
+const ADMIN_DETAIL_USER_SELECT = {
+  user: {
+    select: {
+      id: true,
+      displayName: true,
+      alias: true,
+      username: true,
+      email: true,
+      emailVerified: true,
+      role: true,
+      status: true,
+      isTestAccount: true,
+      telegramId: true,
+      telegramUsername: true,
+      telegramChatId: true,
+      isPremium: true,
+      languageCode: true,
+      vipTier: true,
+      vipManual: true,
+      totalSpent: true,
+      loyaltyPoints: true,
+      createdAt: true,
+      referredBy: { select: { alias: true } },
+    },
+  },
+} satisfies Prisma.OrderInclude
+
 const ADMIN_DETAIL_INCLUDE = {
   ...DETAIL_INCLUDE,
-  ...ADMIN_USER_SELECT,
+  ...ADMIN_DETAIL_USER_SELECT,
   product: {
     select: {
       id: true,
@@ -262,6 +293,38 @@ function toAdminDetail(o: AdminDetailOrder): AdminOrderDetail {
       type: o.type,
       requiresCustomerInput: o.requiresCustomerInput,
     }),
+    // Rich buyer + Telegram profile for fraud review / support.
+    account: {
+      id: o.user.id,
+      displayName: o.user.displayName,
+      alias: o.user.alias,
+      username: o.user.username,
+      email: o.user.email,
+      emailVerified: o.user.emailVerified,
+      role: o.user.role,
+      status: o.user.status,
+      isTestAccount: o.user.isTestAccount,
+      telegramId: o.user.telegramId,
+      telegramUsername: o.user.telegramUsername,
+      telegramChatId: o.user.telegramChatId,
+      isPremiumTelegram: o.user.isPremium,
+      languageCode: o.user.languageCode,
+      vipTier: o.user.vipTier,
+      vipManual: o.user.vipManual,
+      totalSpent: Number(o.user.totalSpent),
+      loyaltyPoints: o.user.loyaltyPoints,
+      createdAt: o.user.createdAt.toISOString(),
+      referredByAlias: o.user.referredBy?.alias ?? null,
+    },
+    // Source is known synchronously; geo + IP-sharing count are filled in by
+    // getShopOrderDetailForAdmin (async assembler).
+    purchaseContext: {
+      source: o.source ?? null,
+      ipAddress: o.ipAddress ?? null,
+      userAgent: o.userAgent ?? null,
+      geo: null,
+      ipAccountCount: 0,
+    },
     // Filled in by getShopOrderDetailForAdmin (async assembler).
     report: null,
   }
@@ -346,6 +409,27 @@ export async function getShopOrderDetailForAdmin(orderId: string): Promise<Admin
   if (!order) return null
   const detail = toAdminDetail(order)
   detail.report = await getOrderPaymentReport(order.id)
+
+  // Enrich the purchase context with fraud signals. Both lookups are best-effort
+  // and independent, so a failure in one never blocks the page or the other.
+  const ip = detail.purchaseContext.ipAddress
+  if (ip) {
+    const [geo, ipAccountCount] = await Promise.all([
+      lookupIp(ip).catch(() => null),
+      // Count DISTINCT accounts that ever purchased from this IP (incl. buyer).
+      prisma.order
+        .findMany({
+          where: { ipAddress: ip },
+          select: { userId: true },
+          distinct: ["userId"],
+          take: 100,
+        })
+        .then((rows) => rows.length)
+        .catch(() => 0),
+    ])
+    detail.purchaseContext.geo = geo
+    detail.purchaseContext.ipAccountCount = ipAccountCount
+  }
   return detail
 }
 
