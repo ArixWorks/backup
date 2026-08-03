@@ -71,6 +71,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                 <h1 className="text-xl font-extrabold">{order.title}</h1>
                 <StatusChip status={order.status} />
                 <FulfillmentBadge kind={order.fulfillmentKind} />
+                <OrderSourceBadge source={order.purchaseContext.source} />
                 {order.overdue && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                     <Clock className="h-3 w-3" />
@@ -89,6 +90,7 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
                 label="خریدار"
                 value={order.user.displayName || order.user.alias || order.user.email || order.user.id}
               />
+              <Row label="تاریخ ثبت سفارش" value={new Date(order.createdAt).toLocaleString("fa-IR")} />
               {order.variantName && <Row label="پلن" value={order.variantName} />}
               {order.extensionCount > 0 && <Row label="دفعات تمدید" value={formatNumber(order.extensionCount)} />}
             </dl>
@@ -96,6 +98,11 @@ export default function AdminOrderDetailPage({ params }: { params: Promise<{ id:
 
           <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
             <div className="flex flex-col gap-5">
+              <div className="grid gap-5 md:grid-cols-2">
+                <OrderAccountCard account={order.account} />
+                <OrderContextCard context={order.purchaseContext} />
+              </div>
+
               {order.fulfillmentKind === "ROADMAP" && (
                 <Card className="p-5">
                   <h2 className="mb-4 font-bold">نقشه راه سفارش</h2>
