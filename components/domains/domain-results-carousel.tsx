@@ -14,7 +14,28 @@ import {
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock3, Globe, Loader2, WalletCards, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { DotLoader } from "@/components/ui/dot-loader"
 import type { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
+
+/** Animated dot-matrix frames used for the search loading indicator. */
+const LOADER_FRAMES = [
+  [14, 7, 0, 8, 6, 13, 20],
+  [14, 7, 13, 20, 16, 27, 21],
+  [14, 20, 27, 21, 34, 24, 28],
+  [27, 21, 34, 28, 41, 32, 35],
+  [34, 28, 41, 35, 48, 40, 42],
+  [34, 28, 41, 35, 48, 42, 46],
+  [34, 28, 41, 35, 48, 42, 38],
+  [34, 28, 41, 35, 48, 30, 21],
+  [34, 28, 41, 48, 21, 22, 14],
+  [34, 28, 41, 21, 14, 16, 27],
+  [34, 28, 21, 14, 10, 20, 27],
+  [28, 21, 14, 4, 13, 20, 27],
+  [28, 21, 14, 12, 6, 13, 20],
+  [28, 21, 14, 6, 13, 20, 11],
+  [28, 21, 14, 6, 13, 20, 10],
+  [14, 6, 13, 20, 9, 7, 21],
+]
 
 /** Availability buckets used to theme each card (green / red / neutral). */
 export type DomainAvailability = "available" | "taken" | "review"
@@ -398,14 +419,14 @@ function LoadingFan({ count, reduced, label }: { count: number; reduced: boolean
     <div ref={trackRef} className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]" role="status" aria-label={label} aria-live="polite">
       <div aria-hidden className="pointer-events-none absolute h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_70%)] opacity-70 blur-3xl sm:h-96 sm:w-96" />
       {Array.from({ length: count }).map((_, index) => (
-        <LoadingCard key={index} index={index} total={count} progress={progress} config={config} />
+        <LoadingCard key={index} index={index} total={count} progress={progress} config={config} isCenter={index === Math.floor(count / 2)} />
       ))}
       <span className="sr-only">{label}</span>
     </div>
   )
 }
 
-function LoadingCard({ index, total, progress, config }: { index: number; total: number; progress: MotionValue<number>; config: CarouselConfig }) {
+function LoadingCard({ index, total, progress, config, isCenter }: { index: number; total: number; progress: MotionValue<number>; config: CarouselConfig; isCenter: boolean }) {
   const { x, y, rotate, scale, opacity, zIndex } = useFanTransforms(progress, index, total, config)
   return (
     <motion.div style={{ x, y, rotate, scale, opacity, zIndex }} className={cn(CARD_SHELL, "border-border/70")}>
@@ -413,7 +434,14 @@ function LoadingCard({ index, total, progress, config }: { index: number; total:
       <div aria-hidden className="absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-primary/15 opacity-70 blur-3xl" />
       <div aria-hidden className="absolute inset-0 rounded-[1.75rem] ring-1 ring-inset ring-white/10" />
       <div className="relative flex h-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-primary/70" />
+        {isCenter ? (
+          <DotLoader
+            frames={LOADER_FRAMES}
+            duration={120}
+            className="gap-1"
+            dotClassName="size-2 rounded-full bg-primary/15 [&.active]:bg-primary"
+          />
+        ) : null}
       </div>
     </motion.div>
   )
