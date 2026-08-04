@@ -316,6 +316,13 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
   const StatusIcon = available ? CheckCircle2 : taken ? XCircle : Clock3
   const statusLabel = available ? copy.available : taken ? copy.taken : copy.needsReview
 
+  // Split the formatted price into the numeric value and its currency word so
+  // "تومان"/"USD" can render smaller beneath large amounts without wrapping.
+  const priceStr = available && item.price ? money(item.price) : ""
+  const currencyMatch = priceStr.match(/\s+([\u0600-\u06FFA-Za-z]+)$/)
+  const priceValue = currencyMatch ? priceStr.slice(0, currencyMatch.index).trim() : priceStr
+  const priceSuffix = currencyMatch ? currencyMatch[1] : ""
+
   return (
     <motion.div style={{ x, y, rotate, scale, opacity, zIndex }} className={cn(CARD_SHELL, theme.ring)}>
       {/* Liquid-glass themed surface */}
@@ -338,19 +345,22 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
           <span className={cn("flex size-16 items-center justify-center rounded-2xl border bg-background/40 backdrop-blur-md", theme.ring, theme.icon)}>
             <Globe className="size-8" />
           </span>
-          <div className="flex flex-col gap-1.5">
-            <p dir="ltr" className="text-balance text-2xl font-black leading-tight tracking-tight text-foreground">
-              {item.display}
-            </p>
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-1">
+              <p dir="ltr" className="text-balance text-2xl font-black leading-tight tracking-tight text-foreground">
+                {item.display}
+              </p>
+              {available ? <span className="text-xs font-medium text-muted-foreground">{copy.oneYear}</span> : null}
+            </div>
             <p className="line-clamp-3 text-pretty text-sm leading-relaxed text-muted-foreground">{item.description}</p>
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
           {available && item.price ? (
-            <div className="flex items-baseline justify-center gap-2">
-              <strong className="text-2xl font-black text-foreground">{money(item.price)}</strong>
-              <span className="text-xs text-muted-foreground">{copy.oneYear}</span>
+            <div className="flex items-baseline justify-center gap-1.5">
+              <strong dir="ltr" className="text-2xl font-black text-foreground">{priceValue}</strong>
+              {priceSuffix ? <span className="text-xs font-medium text-muted-foreground">{priceSuffix}</span> : null}
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground">{taken ? copy.alreadyRegistered : copy.retry}</p>
