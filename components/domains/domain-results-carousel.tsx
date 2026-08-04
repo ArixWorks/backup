@@ -204,7 +204,7 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
     <div className="isolate flex w-full flex-col items-center gap-5 select-none">
       <div
         ref={trackRef}
-        className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]"
+        className="relative flex h-[29rem] w-full items-center justify-center overflow-hidden sm:h-[33rem]"
         role="group"
         aria-roledescription="carousel"
         tabIndex={0}
@@ -285,7 +285,7 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
 }
 
 /** Shared fan card shell — geometry/animation identical for real and loading cards. */
-const CARD_SHELL = "pointer-events-none absolute h-[24rem] w-[15rem] overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-xl sm:h-[27rem] sm:w-[18rem]"
+const CARD_SHELL = "pointer-events-none absolute h-[27rem] w-[15rem] overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-xl sm:h-[30rem] sm:w-[18rem]"
 
 interface CardProps {
   item: DomainResult
@@ -377,7 +377,7 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex shrink-0 flex-col gap-3">
           {available && item.price ? (
             <div className="flex items-baseline justify-center gap-1.5">
               <strong dir="ltr" className="text-2xl font-black text-foreground">{priceValue}</strong>
@@ -416,7 +416,7 @@ function LoadingFan({ count, reduced, label }: { count: number; reduced: boolean
   const [trackRef, trackWidth] = useMeasuredWidth()
   const config = React.useMemo(() => getConfig(trackWidth, reduced), [trackWidth, reduced])
   return (
-    <div ref={trackRef} className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]" role="status" aria-label={label} aria-live="polite">
+    <div ref={trackRef} className="relative flex h-[29rem] w-full items-center justify-center overflow-hidden sm:h-[33rem]" role="status" aria-label={label} aria-live="polite">
       <div aria-hidden className="pointer-events-none absolute h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_70%)] opacity-70 blur-3xl sm:h-96 sm:w-96" />
       {Array.from({ length: count }).map((_, index) => (
         <LoadingCard key={index} index={index} total={count} progress={progress} config={config} isCenter={index === Math.floor(count / 2)} />
