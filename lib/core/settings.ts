@@ -260,9 +260,9 @@ const DEFAULTS: Record<string, string> = {
 
   [SETTING_KEYS.domainEnabled]: "true",
   [SETTING_KEYS.domainLookupTtlSec]: "300",
-  [SETTING_KEYS.domainHoldMinutes]: "30",
-  [SETTING_KEYS.domainFirstReminderMinutes]: "10",
-  [SETTING_KEYS.domainFinalReminderMinutes]: "25",
+  [SETTING_KEYS.domainHoldMinutes]: "60",
+  [SETTING_KEYS.domainFirstReminderMinutes]: "40",
+  [SETTING_KEYS.domainFinalReminderMinutes]: "55",
   [SETTING_KEYS.domainOrderLimitPerHour]: "5",
   [SETTING_KEYS.domainLookupLimitPerMinute]: "30",
   [SETTING_KEYS.domainQuoteSecret]: "",
