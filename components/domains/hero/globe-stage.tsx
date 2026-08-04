@@ -22,21 +22,27 @@ import type { PointerRef } from "@/components/domains/hero/globe-canvas"
 
 const GlobeCanvas = lazy(() => import("@/components/domains/hero/globe-canvas"))
 
-/** Anchors tuned to the reference composition; none of them overlap. */
-const BADGES: BadgeSpec[] = [
-  { label: ".com", accent: "violet", top: 8, left: 50, depth: 0.85 },
-  { label: ".io", accent: "cyan", top: 29, left: 86, depth: 1 },
-  { label: ".org", accent: "indigo", top: 48, left: 12, depth: 0.7 },
-  { label: ".net", accent: "violet", top: 68, left: 83, depth: 0.55 },
-  { label: ".shop", accent: "cyan", top: 82, left: 23, depth: 0.9 },
+/**
+ * Anchor slots tuned to the reference composition; none of them overlap.
+ * Extensions are filled in from the live catalog so a badge can never offer a
+ * TLD we do not actually sell.
+ */
+const ANCHORS: Omit<BadgeSpec, "label">[] = [
+  { accent: "violet", top: 8, left: 50, depth: 0.85 },
+  { accent: "cyan", top: 29, left: 86, depth: 1 },
+  { accent: "indigo", top: 48, left: 12, depth: 0.7 },
+  { accent: "violet", top: 68, left: 83, depth: 0.55 },
+  { accent: "cyan", top: 82, left: 23, depth: 0.9 },
 ]
 
 export function GlobeStage({
+  tlds,
   onSelectTld,
   selectLabel,
   caption,
   captionHint,
 }: {
+  tlds: string[]
   onSelectTld: (tld: string) => void
   selectLabel: string
   caption: string
@@ -106,6 +112,12 @@ export function GlobeStage({
 
   const quality = useMemo(() => (tier === "cinematic" ? "high" : "low"), [tier])
 
+  // Pair each anchor slot with a real sellable extension, dropping any spare slot.
+  const badges = useMemo<BadgeSpec[]>(
+    () => ANCHORS.slice(0, tlds.length).map((anchor, index) => ({ ...anchor, label: tlds[index] })),
+    [tlds],
+  )
+
   return (
     <div
       ref={containerRef}
@@ -134,7 +146,7 @@ export function GlobeStage({
         )}
 
         {/* Layer 4: the real, clickable extension badges. */}
-        {BADGES.map((spec) => (
+        {badges.map((spec) => (
           <DomainBadge
             key={spec.label}
             spec={spec}
