@@ -263,10 +263,9 @@ export function DomainMarketplace() {
 
       <CelebrationOverlay
         open={celebration !== null}
-        kind="purchase"
+        kind="domain-purchase"
         subject={celebration?.subject}
         actionHref={celebration?.href}
-        actionLabel={copy.viewOrderStatus}
         onClose={() => setCelebration(null)}
       />
 
