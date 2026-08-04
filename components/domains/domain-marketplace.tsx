@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { motion } from "motion/react"
 import useSWR from "swr"
-import { Globe2, Loader2, Search, Sparkles, XCircle } from "lucide-react"
+import { CheckCircle2, Globe2, ListChecks, Loader2, Search, Sparkles, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { LivingSurface } from "@/components/living-surface"
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
 
-interface Tld { id: string; tld: string; title: string; basePriceIrt: string }
+interface Tld { id: string; tld: string; title: string; basePriceIrt: string; supported: boolean }
 interface Lookup {
   asciiDomain: string
   unicodeDomain: string
@@ -60,6 +61,35 @@ export function DomainMarketplace() {
   const tlds = tldResponse?.data.tlds ?? []
 
   const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
+
+  // Only extensions that are both active and marked as sellable count as supported.
+  const sellableTlds = useMemo(() => tlds.filter((item) => item.supported), [tlds])
+
+  // Live, pre-search validation of the extension the user typed. We only judge
+  // once the query looks like a full "label.ext" domain; bare keywords stay neutral.
+  const isFullDomain = useMemo(() => /^[^\s.]+(?:\.[^\s.]+)+$/u.test(normalizedQuery), [normalizedQuery])
+  const typedExtension = useMemo(() => {
+    const match = normalizedQuery.match(/\.([a-z0-9-]+)$/)
+    return match ? `.${match[1]}` : null
+  }, [normalizedQuery])
+  const matchedTld = useMemo(
+    () => (typedExtension ? sellableTlds.find((item) => item.tld === typedExtension) ?? null : null),
+    [typedExtension, sellableTlds],
+  )
+  const extState: "none" | "supported" | "unsupported" =
+    !isFullDomain || !typedExtension || sellableTlds.length === 0 ? "none" : matchedTld ? "supported" : "unsupported"
+
+  // Prefill the box when the user picked an extension on the /domains/tlds page.
+  useEffect(() => {
+    const ext = new URLSearchParams(window.location.search).get("ext")
+    if (ext && /^\.[a-z0-9-]{2,}$/i.test(ext)) {
+      setQuery(ext.toLowerCase())
+      requestAnimationFrame(() => {
+        const el = document.getElementById("domain-search-input") as HTMLInputElement | null
+        if (el) { el.focus(); el.setSelectionRange(0, 0) }
+      })
+    }
+  }, [])
 
   // Normalized, presentation-ready results for the swipeable carousels.
   // Order is preserved from the API so available/taken domains stay interleaved.
@@ -186,8 +216,12 @@ export function DomainMarketplace() {
       setSearchError(copy.ideaRequired)
       return
     }
+    if (extState === "unsupported") {
+      setSearchError(copy.extUnsupported)
+      return
+    }
     setSuggestions([])
-    if (/^[^\s.]+(?:\.[^\s.]+)+$/u.test(normalizedQuery)) await searchDomain(normalizedQuery)
+    if (isFullDomain) await searchDomain(normalizedQuery)
     else await generateSuggestions(normalizedQuery)
   }
 
@@ -203,15 +237,32 @@ export function DomainMarketplace() {
                 </div>
                 <DomainOrbitScene compact title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder={copy.placeholder} aria-label={copy.inputLabel} aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
-                  <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void discoverDomain()} disabled={busy !== null}>
+                  <div className="relative flex-1">
+                    <Input id="domain-search-input" dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder={copy.placeholder} aria-label={copy.inputLabel} aria-invalid={extState === "unsupported" || Boolean(searchError)} aria-describedby={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"} className={`h-14 w-full rounded-2xl bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md ${extState === "supported" ? "pe-36 border-chart-2/60 focus-visible:ring-chart-2/40" : extState === "unsupported" ? "pe-11 border-destructive/60 focus-visible:ring-destructive/40" : "border-primary/20 focus-visible:ring-primary/40"}`} />
+                    {extState === "supported" && matchedTld ? (
+                      <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center gap-1.5 text-sm font-bold text-chart-2"><CheckCircle2 className="size-4" /><span>{money(matchedTld.basePriceIrt)}</span></span>
+                    ) : extState === "unsupported" ? (
+                      <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-destructive"><XCircle className="size-5" /></span>
+                    ) : null}
+                  </div>
+                  <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void discoverDomain()} disabled={busy !== null || extState === "unsupported"}>
                     {busy === "lookup" || busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
                     {busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.discover}
                   </Button>
                 </div>
-                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">{copy.hint}</p>
-                {searchError && <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>}
-                <div className="flex flex-wrap gap-2">{tlds.filter((item) => [".com", ".net", ".org", ".shop"].includes(item.tld)).map((item) => <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}><span dir="ltr">{item.tld}</span><span className="text-muted-foreground">{money(item.basePriceIrt)}</span></Button>)}</div>
+                {extState === "unsupported" ? (
+                  <p id="domain-search-error" role="alert" className="flex items-center gap-1.5 text-sm font-medium text-destructive"><XCircle className="size-4 shrink-0" />{copy.extUnsupported}</p>
+                ) : searchError ? (
+                  <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>
+                ) : (
+                  <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">{copy.hint}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-primary/15 bg-primary/5 p-3">
+                  <Button render={<Link href="/domains/tlds" />} variant="secondary" size="sm" className="rounded-xl">
+                    <ListChecks data-icon="inline-start" className="size-4" />{copy.viewAllTlds}
+                  </Button>
+                  <span className="flex-1 text-xs leading-relaxed text-muted-foreground">{copy.tldPickHint}</span>
+                </div>
               </div>
               <DomainOrbitScene title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
             </div>
