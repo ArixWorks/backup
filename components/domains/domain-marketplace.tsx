@@ -3,29 +3,18 @@
 import { useMemo, useState } from "react"
 import { motion } from "motion/react"
 import useSWR from "swr"
-import {
-  CheckCircle2,
-  Clock3,
-  Globe2,
-  Loader2,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  WalletCards,
-  XCircle,
-} from "lucide-react"
+import { Globe2, Loader2, Search, ShieldCheck, Sparkles, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { LivingSurface } from "@/components/living-surface"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
+import { DomainResultsCarousel, type DomainResult, type DomainAvailability } from "@/components/domains/domain-results-carousel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
-import { DOMAIN_ORDER_COPY } from "@/lib/i18n/domain-order-copy"
 
 interface Tld { id: string; tld: string; title: string; basePriceIrt: string }
 interface Lookup {
@@ -39,28 +28,17 @@ interface Lookup {
 interface SmartSuggestion extends Lookup { domain: string; reason: string }
 
 const unwrap = <T,>(response: { data: T }) => response.data
-const statusIcons: Record<string, typeof CheckCircle2> = {
-  AVAILABLE: CheckCircle2,
-  REGISTERED: XCircle,
-  UNSUPPORTED: XCircle,
-  UNKNOWN: Clock3,
-  LOOKUP_ERROR: Clock3,
-  ERROR: Clock3,
-  PREMIUM: XCircle,
-  RESERVED: XCircle,
-  PENDING_PURCHASE: Clock3,
-  PROCESSING: Loader2,
-  AWAITING_NAMESERVERS: Clock3,
-  AWAITING_NAMESERVER_SETUP: Loader2,
-  COMPLETED: CheckCircle2,
-  FAILED: XCircle,
-  EXPIRED: XCircle,
+
+/** Collapse the granular lookup status into the carousel's 3 visual buckets. */
+function toAvailability(status: Lookup["status"]): DomainAvailability {
+  if (status === "AVAILABLE") return "available"
+  if (status === "REGISTERED" || status === "RESERVED" || status === "PREMIUM") return "taken"
+  return "review"
 }
 
 export function DomainMarketplace() {
   const { locale, price, dir } = useI18n()
   const copy = DOMAIN_COPY[locale]
-  const orderCopy = DOMAIN_ORDER_COPY[locale]
   const money = (value: string | number) => price(Number(value))
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
@@ -74,6 +52,37 @@ export function DomainMarketplace() {
   const tlds = tldResponse?.data.tlds ?? []
 
   const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
+
+  // Normalized, presentation-ready results for the swipeable carousels.
+  // Order is preserved from the API so available/taken domains stay interleaved.
+  const describe = (availability: DomainAvailability) =>
+    availability === "available" ? copy.descAvailable : availability === "taken" ? copy.descTaken : copy.descReview
+  const lookupResults = useMemo<DomainResult[]>(
+    () =>
+      lookups.map((lookup) => {
+        const availability = toAvailability(lookup.status)
+        return { key: lookup.asciiDomain, ascii: lookup.asciiDomain, display: lookup.unicodeDomain, tld: lookup.tld, availability, price: lookup.priceIrt, description: describe(availability) }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lookups, locale],
+  )
+  const suggestionResults = useMemo<DomainResult[]>(
+    () =>
+      suggestions.map((item) => {
+        const availability = toAvailability(item.status)
+        return { key: item.asciiDomain, ascii: item.asciiDomain, display: item.domain, tld: item.tld, availability, price: item.priceIrt, description: item.reason || describe(availability) }
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [suggestions, locale],
+  )
+  const handleLookupPurchase = (item: DomainResult) => {
+    const original = lookups.find((entry) => entry.asciiDomain === item.ascii)
+    if (original) void purchase(original, "search")
+  }
+  const handleSuggestionPurchase = (item: DomainResult) => {
+    const original = suggestions.find((entry) => entry.asciiDomain === item.ascii)
+    if (original) void purchase(original, "smart")
+  }
 
   async function searchDomain(domain = normalizedQuery) {
     if (!domain) {
@@ -200,10 +209,30 @@ export function DomainMarketplace() {
             </div>
           </PremiumHeroCard>
 
-          {busy === "ai" && suggestions.length === 0 ? <div className="grid gap-3 sm:grid-cols-2">{Array.from({ length: 6 }).map((_, index) => <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }} className="h-40 animate-pulse rounded-2xl border border-primary/10 bg-muted/30" />)}</div> : null}
-          {lookups.length > 0 && <div className="grid gap-4 md:grid-cols-2">{lookups.map((lookup) => <AvailabilityCard key={lookup.asciiDomain} lookup={lookup} busy={busy === "quote"} onPurchase={() => void purchase(lookup)} copy={copy} orderCopy={orderCopy} money={money} locale={locale} />)}</div>}
+          {busy === "ai" && suggestions.length === 0 ? <div className="mx-auto flex h-[26rem] w-64 items-center justify-center rounded-[1.75rem] border border-primary/10 bg-muted/30 sm:h-[30rem]"><Loader2 className="size-8 animate-spin text-primary/60" /></div> : null}
+          {lookupResults.length > 0 && (
+            <section aria-label={copy.resultsTitle} className="flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-1 text-center">
+                <h2 className="text-balance text-xl font-bold">{copy.resultsTitle}</h2>
+                <p className="text-pretty text-sm text-muted-foreground">{copy.resultsHint}</p>
+              </div>
+              <DomainResultsCarousel items={lookupResults} copy={copy} money={money} onPurchase={handleLookupPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
+            </section>
+          )}
           {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
-          {suggestions.length > 0 && <div className="flex flex-col gap-4"><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold">{copy.suggestionsTitle}</h2><p className="text-sm text-muted-foreground">{copy.suggestionsDescription}</p></div><div className="flex flex-wrap gap-2"><Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString(locale)} {copy.available}</Badge><Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge></div></div><div className="grid gap-3 sm:grid-cols-2">{suggestions.map((item) => <SmartSuggestionCard key={item.domain} item={item} busy={purchasingDomain === item.asciiDomain} onPurchase={() => void purchase(item, "smart")} copy={copy} money={money} />)}</div></div>}
+          {suggestionResults.length > 0 && (
+            <section className="flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <h2 className="text-balance text-xl font-bold">{copy.suggestionsTitle}</h2>
+                <p className="text-pretty text-sm text-muted-foreground">{copy.suggestionsDescription}</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString(locale)} {copy.available}</Badge>
+                  <Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge>
+                </div>
+              </div>
+              <DomainResultsCarousel items={suggestionResults} copy={copy} money={money} onPurchase={handleSuggestionPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
+            </section>
+          )}
       </div>
 
       <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
@@ -245,43 +274,3 @@ function DomainOrbitScene({ compact = false, title, subtitle }: { compact?: bool
   )
 }
 
-function SmartSuggestionCard({ item, busy, onPurchase, copy, money }: { item: SmartSuggestion; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; money: (value: string | number) => string }) {
-  const available = item.status === "AVAILABLE"
-  const taken = item.status === "REGISTERED" || item.status === "RESERVED" || item.status === "PREMIUM"
-  const failed = item.status === "ERROR" || item.status === "LOOKUP_ERROR" || item.status === "UNKNOWN"
-  return (
-    <motion.div initial={{ opacity: 0, y: 18, rotateX: -4 }} animate={{ opacity: 1, y: 0, rotateX: 0 }} whileHover={{ y: -4, scale: 1.01 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="[perspective:800px]">
-    <Card className={`h-full overflow-hidden rounded-2xl shadow-lg transition-shadow ${available ? "border-chart-2/60 bg-chart-2/5 shadow-chart-2/5" : taken ? "border-destructive/40 bg-destructive/5 shadow-destructive/5" : "border-border bg-muted/20"}`}>
-      <CardHeader className="flex-row items-start justify-between gap-3">
-        <div className="min-w-0 flex flex-col gap-1"><CardTitle dir="ltr" className="truncate text-left text-xl">{item.domain}</CardTitle><CardDescription className="line-clamp-2 leading-relaxed">{item.reason}</CardDescription></div>
-        <Badge className={available ? "shrink-0 bg-chart-2 text-background" : taken ? "shrink-0 bg-destructive text-destructive-foreground" : "shrink-0"} variant={failed ? "secondary" : "default"}>
-          {available ? <CheckCircle2 data-icon="inline-start" /> : failed ? <Clock3 data-icon="inline-start" /> : <XCircle data-icon="inline-start" />}
-          {available ? copy.available : failed ? copy.needsReview : copy.registered}
-        </Badge>
-      </CardHeader>
-      <CardContent className="flex min-h-12 items-end">
-        {available && item.priceIrt ? <div className="flex items-baseline gap-2"><strong className="text-2xl">{money(item.priceIrt)}</strong><span className="text-xs text-muted-foreground">{copy.oneYear}</span></div> : <p className="text-sm text-muted-foreground">{failed ? copy.retry : copy.alreadyRegistered}</p>}
-      </CardContent>
-      <CardFooter>
-        {available ? <Button className="w-full" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />}{busy ? copy.ordering : copy.buyThis}</Button> : <Button className="w-full" variant="outline" disabled>{taken ? copy.cannotBuy : copy.unknown}</Button>}
-      </CardFooter>
-    </Card>
-    </motion.div>
-  )
-}
-
-function AvailabilityCard({ lookup, busy, onPurchase, copy, orderCopy, money, locale }: { lookup: Lookup; busy: boolean; onPurchase: () => void; copy: typeof DOMAIN_COPY.fa; orderCopy: typeof DOMAIN_ORDER_COPY.fa; money: (value: string | number) => string; locale: string }) {
-  const Icon = statusIcons[lookup.status] ?? Clock3
-  const statusLabel = orderCopy.statuses[lookup.status] ?? orderCopy.statuses.UNKNOWN
-  const available = lookup.status === "AVAILABLE"
-  return (
-    <Card className={available ? "border-primary/40" : undefined}>
-      <CardHeader className="flex-row items-start justify-between gap-4">
-        <div className="flex flex-col gap-2"><CardTitle dir="ltr" className="text-left text-2xl">{lookup.unicodeDomain}</CardTitle><CardDescription>{copy.lastCheck}: {new Date(lookup.checkedAt).toLocaleTimeString(locale)}</CardDescription></div>
-        <Badge variant={available ? "default" : "secondary"}><Icon data-icon="inline-start" /> {statusLabel}</Badge>
-      </CardHeader>
-      <CardContent>{available && lookup.priceIrt ? <p className="text-2xl font-bold">{money(lookup.priceIrt)}</p> : <p className="text-muted-foreground">{copy.chooseAnother}</p>}</CardContent>
-      {available && <CardFooter><Button className="w-full md:w-auto" size="lg" onClick={onPurchase} disabled={busy}>{busy ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <WalletCards data-icon="inline-start" />} {copy.buy}</Button></CardFooter>}
-    </Card>
-  )
-}
