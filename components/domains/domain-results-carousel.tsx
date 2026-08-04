@@ -38,21 +38,22 @@ interface CarouselConfig {
   yMultiplier: number
   rotationMultiplier: number
   scaleReduction: number
+  maxBlur: number
 }
 
 /** Responsive drag/fan physics — gentler fan on phones, wider spread on desktop. */
 function getConfig(width: number, reduced: boolean): CarouselConfig {
   if (reduced) {
     // Flatten the fan and disable tilt for reduced-motion users.
-    return { distanceDivisor: 200, velocityDivisor: 900, sensitivity: 240, xMultiplier: 150, yMultiplier: 0, rotationMultiplier: 0, scaleReduction: 0.05 }
+    return { distanceDivisor: 200, velocityDivisor: 900, sensitivity: 240, xMultiplier: 150, yMultiplier: 0, rotationMultiplier: 0, scaleReduction: 0.05, maxBlur: 4 }
   }
   if (width < 640) {
-    return { distanceDivisor: 110, velocityDivisor: 480, sensitivity: 170, xMultiplier: 84, yMultiplier: 22, rotationMultiplier: 7, scaleReduction: 0.08 }
+    return { distanceDivisor: 110, velocityDivisor: 480, sensitivity: 170, xMultiplier: 84, yMultiplier: 22, rotationMultiplier: 7, scaleReduction: 0.08, maxBlur: 4 }
   }
   if (width < 1024) {
-    return { distanceDivisor: 150, velocityDivisor: 620, sensitivity: 210, xMultiplier: 124, yMultiplier: 30, rotationMultiplier: 9, scaleReduction: 0.1 }
+    return { distanceDivisor: 150, velocityDivisor: 620, sensitivity: 210, xMultiplier: 124, yMultiplier: 30, rotationMultiplier: 9, scaleReduction: 0.1, maxBlur: 5 }
   }
-  return { distanceDivisor: 190, velocityDivisor: 780, sensitivity: 240, xMultiplier: 168, yMultiplier: 38, rotationMultiplier: 11, scaleReduction: 0.12 }
+  return { distanceDivisor: 190, velocityDivisor: 780, sensitivity: 240, xMultiplier: 168, yMultiplier: 38, rotationMultiplier: 11, scaleReduction: 0.12, maxBlur: 5 }
 }
 
 type DomainCopy = (typeof DOMAIN_COPY)["fa"]
@@ -64,9 +65,13 @@ interface CarouselProps {
   onPurchase: (item: DomainResult) => void
   purchasingKey: string | null
   disabled: boolean
+  /** When true, render a neutral fanned skeleton with a spinner in each card. */
+  loading?: boolean
+  /** How many placeholder cards to fan while loading. */
+  loadingCount?: number
 }
 
-export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasingKey, disabled }: CarouselProps) {
+export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasingKey, disabled, loading = false, loadingCount = 7 }: CarouselProps) {
   const reduced = useReducedMotion() ?? false
   const scrollProgress = useMotionValue(0)
   const startProgress = React.useRef(0)
@@ -90,6 +95,7 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
   const config = React.useMemo(() => getConfig(windowWidth, reduced), [windowWidth, reduced])
 
   useMotionValueEvent(scrollProgress, "change", (value) => {
+    if (total === 0) return
     const next = ((Math.round(value) % total) + total) % total
     setActiveIndex((current) => (current === next ? current : next))
   })
@@ -121,6 +127,15 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
     totalShift = Math.max(-3, Math.min(3, totalShift))
     const target = Math.round(startProgress.current) + totalShift
     animate(scrollProgress, target, { type: "spring", stiffness: 200, damping: 30, mass: 1 })
+  }
+
+  // ---- Loading skeleton: same fan, neutral theme, a spinner in every card ----
+  if (loading) {
+    return (
+      <div className="flex w-full flex-col items-center gap-5 select-none">
+        <LoadingFan count={loadingCount} config={config} label={copy.searching} />
+      </div>
+    )
   }
 
   const activeItem = items[activeIndex]
@@ -177,7 +192,9 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
       </div>
 
       {total > 1 && (
-        <div className="z-30 flex items-center gap-4">
+        // Force LTR so the physical-left button is the "previous" chevron and the
+        // physical-right button is the "next" chevron in every locale.
+        <div dir="ltr" className="z-30 flex items-center gap-4">
           <Button type="button" size="icon" variant="outline" className="size-11 rounded-full" onClick={() => step(-1)} aria-label={copy.prevAria}>
             <ChevronLeft className="size-5" />
           </Button>
@@ -212,6 +229,9 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
   )
 }
 
+/** Shared fan card shell — geometry/animation identical for real and loading cards. */
+const CARD_SHELL = "pointer-events-none absolute h-[24rem] w-[16rem] overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-xl sm:h-[27rem] sm:w-[18rem]"
+
 interface CardProps {
   item: DomainResult
   index: number
@@ -226,21 +246,29 @@ interface CardProps {
   disabled: boolean
 }
 
-function DomainCard({ item, index, total, progress, config, isActive, copy, money, onPurchase, purchasing, disabled }: CardProps) {
+/** Fan transforms shared by real and placeholder cards. */
+function useFanTransforms(progress: MotionValue<number>, index: number, total: number, config: CarouselConfig) {
   const offset = useTransform(progress, (p) => {
     let diff = (index - p) % total
     if (diff > total / 2) diff -= total
     if (diff < -total / 2) diff += total
     return diff
   })
-
   const x = useTransform(offset, (o) => o * config.xMultiplier)
   const rotate = useTransform(offset, (o) => (Math.abs(o) < 0.05 ? 0 : o * config.rotationMultiplier))
   const y = useTransform(offset, (o) => (Math.abs(o) < 0.05 ? 0 : Math.abs(o) * config.yMultiplier))
   const scale = useTransform(offset, (o) => 1 - Math.abs(o) * config.scaleReduction)
   const opacity = useTransform(offset, [-total / 2, -total / 2 + 0.6, 0, total / 2 - 0.6, total / 2], [0, 1, 1, 1, 0])
   const zIndex = useTransform(offset, (o) => Math.round(100 - Math.abs(o) * 10))
-  const contentOpacity = useTransform(offset, [-0.6, 0, 0.6], [0, 1, 0])
+  // Side cards stay visible but softly blurred (~50%) and dimmed so their text
+  // does not compete with the focused card in the center.
+  const contentBlur = useTransform(offset, (o) => `blur(${Math.min(Math.abs(o) * config.maxBlur, config.maxBlur).toFixed(2)}px)`)
+  const contentOpacity = useTransform(offset, (o) => (Math.abs(o) < 0.05 ? 1 : 0.6))
+  return { offset, x, y, rotate, scale, opacity, zIndex, contentBlur, contentOpacity }
+}
+
+function DomainCard({ item, index, total, progress, config, isActive, copy, money, onPurchase, purchasing, disabled }: CardProps) {
+  const { x, y, rotate, scale, opacity, zIndex, contentBlur, contentOpacity } = useFanTransforms(progress, index, total, config)
 
   const available = item.availability === "available"
   const taken = item.availability === "taken"
@@ -255,19 +283,13 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
   const statusLabel = available ? copy.available : taken ? copy.taken : copy.needsReview
 
   return (
-    <motion.div
-      style={{ x, y, rotate, scale, opacity, zIndex }}
-      className={cn(
-        "pointer-events-none absolute h-[24rem] w-[16rem] overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-xl sm:h-[27rem] sm:w-[18rem]",
-        theme.ring,
-      )}
-    >
+    <motion.div style={{ x, y, rotate, scale, opacity, zIndex }} className={cn(CARD_SHELL, theme.ring)}>
       {/* Liquid-glass themed surface */}
       <div className={cn("absolute inset-0 bg-gradient-to-b", theme.surface)} />
       <div aria-hidden className={cn("absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full opacity-70 blur-3xl", theme.glow)} />
       <div aria-hidden className="absolute inset-0 rounded-[1.75rem] ring-1 ring-inset ring-white/10" />
 
-      <motion.div style={{ opacity: contentOpacity }} className="relative flex h-full flex-col p-5">
+      <motion.div style={{ opacity: contentOpacity, filter: contentBlur }} className="relative flex h-full flex-col p-5">
         <div className="flex items-center justify-between">
           <span className={cn("rounded-full border px-3 py-1 font-mono text-sm font-bold", theme.chip)} dir="ltr">
             {item.tld}
@@ -318,6 +340,35 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
           )}
         </div>
       </motion.div>
+    </motion.div>
+  )
+}
+
+/** Neutral fanned skeleton shown while suggestions are being generated. */
+function LoadingFan({ count, config, label }: { count: number; config: CarouselConfig; label: string }) {
+  // Center the fan on the middle card so it mirrors the real result layout.
+  const progress = useMotionValue(Math.floor(count / 2))
+  return (
+    <div className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]" role="status" aria-label={label} aria-live="polite">
+      <div aria-hidden className="pointer-events-none absolute h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_70%)] opacity-70 blur-3xl sm:h-96 sm:w-96" />
+      {Array.from({ length: count }).map((_, index) => (
+        <LoadingCard key={index} index={index} total={count} progress={progress} config={config} />
+      ))}
+      <span className="sr-only">{label}</span>
+    </div>
+  )
+}
+
+function LoadingCard({ index, total, progress, config }: { index: number; total: number; progress: MotionValue<number>; config: CarouselConfig }) {
+  const { x, y, rotate, scale, opacity, zIndex } = useFanTransforms(progress, index, total, config)
+  return (
+    <motion.div style={{ x, y, rotate, scale, opacity, zIndex }} className={cn(CARD_SHELL, "border-border/70")}>
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-card/85 to-card" />
+      <div aria-hidden className="absolute -top-16 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-primary/15 opacity-70 blur-3xl" />
+      <div aria-hidden className="absolute inset-0 rounded-[1.75rem] ring-1 ring-inset ring-white/10" />
+      <div className="relative flex h-full items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-primary/70" />
+      </div>
     </motion.div>
   )
 }

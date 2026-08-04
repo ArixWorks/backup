@@ -210,7 +210,15 @@ export function DomainMarketplace() {
             </div>
           </PremiumHeroCard>
 
-          {busy === "ai" && suggestions.length === 0 ? <div className="mx-auto flex h-[26rem] w-64 items-center justify-center rounded-[1.75rem] border border-primary/10 bg-muted/30 sm:h-[30rem]"><Loader2 className="size-8 animate-spin text-primary/60" /></div> : null}
+          {busy === "ai" && suggestions.length === 0 ? (
+            <section className="flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-1 text-center">
+                <h2 className="text-balance text-xl font-bold">{copy.suggestionsTitle}</h2>
+                <p className="text-pretty text-sm text-muted-foreground">{copy.generating}</p>
+              </div>
+              <DomainResultsCarousel loading loadingCount={7} items={[]} copy={copy} money={money} onPurchase={() => {}} purchasingKey={null} disabled />
+            </section>
+          ) : null}
           {lookupResults.length > 0 && (
             <section aria-label={copy.resultsTitle} className="flex flex-col gap-4">
               <div className="flex flex-col items-center gap-1 text-center">
