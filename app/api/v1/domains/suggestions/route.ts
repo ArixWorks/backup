@@ -65,6 +65,10 @@ export const POST = route(async (req: Request) => {
   }))
 
   return {
-    suggestions: verified.sort((a, b) => Number(b.status === "AVAILABLE") - Number(a.status === "AVAILABLE")),
+    // Only surface the 10 best matches (available first) so a large TLD catalog
+    // never floods the UI with every free extension.
+    suggestions: verified
+      .sort((a, b) => Number(b.status === "AVAILABLE") - Number(a.status === "AVAILABLE"))
+      .slice(0, 10),
   }
 })

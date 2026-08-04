@@ -1,15 +1,15 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { motion } from "motion/react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { Globe2, Loader2, Search, Sparkles, XCircle } from "lucide-react"
+import { CheckCircle2, Globe2, Headphones, Loader2, Search, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
-import { LivingSurface } from "@/components/living-surface"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
 import { DomainResultsCarousel, type DomainResult, type DomainAvailability } from "@/components/domains/domain-results-carousel"
 import { DomainPurchaseDialog } from "@/components/domains/domain-purchase-dialog"
+import { GlobeStage } from "@/components/domains/hero/globe-stage"
+import { TldPicker } from "@/components/domains/hero/tld-picker"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
 
-interface Tld { id: string; tld: string; title: string; basePriceIrt: string }
+interface Tld { id: string; tld: string; title: string; basePriceIrt: string; supported: boolean }
 interface Lookup {
   asciiDomain: string
   unicodeDomain: string
@@ -40,7 +40,7 @@ function toAvailability(status: Lookup["status"]): DomainAvailability {
 }
 
 export function DomainMarketplace() {
-  const { locale, price, dir } = useI18n()
+  const { locale, price, num, dir } = useI18n()
   const copy = DOMAIN_COPY[locale]
   const money = (value: string | number) => price(Number(value))
   const [query, setQuery] = useState("")
@@ -60,6 +60,53 @@ export function DomainMarketplace() {
   const tlds = tldResponse?.data.tlds ?? []
 
   const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
+
+  // Only extensions that are both active and marked as sellable count as supported.
+  const sellableTlds = useMemo(() => tlds.filter((item) => item.supported), [tlds])
+
+  // Live, pre-search validation of the extension the user typed. We only judge
+  // once the query looks like a full "label.ext" domain; bare keywords stay neutral.
+  const isFullDomain = useMemo(() => /^[^\s.]+(?:\.[^\s.]+)+$/u.test(normalizedQuery), [normalizedQuery])
+  const typedExtension = useMemo(() => {
+    const match = normalizedQuery.match(/\.([a-z0-9-]+)$/)
+    return match ? `.${match[1]}` : null
+  }, [normalizedQuery])
+  const matchedTld = useMemo(
+    () => (typedExtension ? sellableTlds.find((item) => item.tld === typedExtension) ?? null : null),
+    [typedExtension, sellableTlds],
+  )
+  const extState: "none" | "supported" | "unsupported" =
+    !isFullDomain || !typedExtension || sellableTlds.length === 0 ? "none" : matchedTld ? "supported" : "unsupported"
+
+  // Prefill the box when the user picked an extension on the /domains/tlds page.
+  useEffect(() => {
+    const ext = new URLSearchParams(window.location.search).get("ext")
+    if (ext && /^\.[a-z0-9-]{2,}$/i.test(ext)) {
+      setQuery(ext.toLowerCase())
+      requestAnimationFrame(() => {
+        const el = document.getElementById("domain-search-input") as HTMLInputElement | null
+        if (el) { el.focus(); el.setSelectionRange(0, 0) }
+      })
+    }
+  }, [])
+
+  /**
+   * Swap the extension on whatever the user has typed. Picking a badge or chip
+   * keeps their label and only replaces the suffix; with an empty box we just
+   * seed the extension and park the caret in front of it so they can type.
+   */
+  function applyExtension(tld: string) {
+    const label = query.trim().toLowerCase().split(".")[0]
+    setQuery(`${label}${tld}`)
+    setSearchError(null)
+    requestAnimationFrame(() => {
+      const el = document.getElementById("domain-search-input") as HTMLInputElement | null
+      if (!el) return
+      el.focus()
+      const caret = label.length
+      el.setSelectionRange(caret, caret)
+    })
+  }
 
   // Normalized, presentation-ready results for the swipeable carousels.
   // Order is preserved from the API so available/taken domains stay interleaved.
@@ -186,8 +233,12 @@ export function DomainMarketplace() {
       setSearchError(copy.ideaRequired)
       return
     }
+    if (extState === "unsupported") {
+      setSearchError(copy.extUnsupported)
+      return
+    }
     setSuggestions([])
-    if (/^[^\s.]+(?:\.[^\s.]+)+$/u.test(normalizedQuery)) await searchDomain(normalizedQuery)
+    if (isFullDomain) await searchDomain(normalizedQuery)
     else await generateSuggestions(normalizedQuery)
   }
 
@@ -195,25 +246,99 @@ export function DomainMarketplace() {
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir={dir}>
       <div className="flex flex-col gap-6">
           <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label={copy.discoverTab}>
-            <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10">
-                <div className="flex items-start gap-4">
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-primary shadow-lg shadow-primary/10"><Sparkles className="size-6" /></span>
-                  <div className="flex flex-col gap-2"><h2 className="text-balance text-2xl font-bold md:text-3xl">{copy.smartTitle}</h2><p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">{copy.smartDescription}</p></div>
+            <div className="grid items-center gap-8 p-5 sm:p-8 lg:grid-cols-2 lg:gap-10 lg:p-12">
+              {/* In RTL this column renders on the right, mirroring the design. */}
+              <div className="order-2 flex flex-col gap-6 lg:order-1">
+                <div className="flex flex-col gap-3">
+                  <h2 className="flex flex-wrap items-center gap-x-2 text-balance text-3xl font-black leading-tight md:text-4xl">
+                    <Sparkles className="size-6 shrink-0 text-primary md:size-7" aria-hidden />
+                    <span>{copy.heroTitleBefore}</span>
+                    <span className="text-primary">{copy.heroTitleAccent}</span>
+                    <span>{copy.heroTitleAfter}</span>
+                  </h2>
+                  <p className="max-w-xl text-pretty leading-relaxed text-muted-foreground">{copy.heroSubtitle}</p>
                 </div>
-                <DomainOrbitScene compact title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Input dir="ltr" value={query} onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }} placeholder={copy.placeholder} aria-label={copy.inputLabel} aria-invalid={Boolean(searchError)} aria-describedby={searchError ? "domain-search-error" : "domain-search-hint"} className="h-14 rounded-2xl border-primary/20 bg-background/70 px-5 text-left text-base shadow-inner backdrop-blur-md focus-visible:ring-primary/40" />
-                  <Button size="lg" className="h-14 shrink-0 rounded-2xl px-6 shadow-lg shadow-primary/15 transition-transform active:scale-95" onClick={() => void discoverDomain()} disabled={busy !== null}>
-                    {busy === "lookup" || busy === "ai" ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Search data-icon="inline-start" />}
-                    {busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.discover}
+
+                <div className={`flex h-16 items-center gap-1 rounded-full border bg-card/50 px-2 shadow-inner backdrop-blur-md transition-colors ${extState === "supported" ? "border-chart-2/60" : extState === "unsupported" ? "border-destructive/60" : "border-primary/25"}`}>
+                  <Globe2 className="mx-2 size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  <Input
+                    id="domain-search-input"
+                    dir="auto"
+                    value={query}
+                    onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }}
+                    onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }}
+                    placeholder={copy.heroPlaceholder}
+                    aria-label={copy.inputLabel}
+                    aria-invalid={extState === "unsupported" || Boolean(searchError)}
+                    aria-describedby={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"}
+                    className="h-12 min-w-0 flex-1 border-0 bg-transparent px-1 text-base shadow-none focus-visible:ring-0"
+                  />
+                  {extState === "supported" && matchedTld ? (
+                    <span dir="ltr" className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-sm font-bold text-chart-2 sm:flex">
+                      <CheckCircle2 className="size-4 shrink-0" aria-hidden />{money(matchedTld.basePriceIrt)}
+                    </span>
+                  ) : extState === "unsupported" ? (
+                    <XCircle className="mx-2 size-5 shrink-0 text-destructive" aria-hidden />
+                  ) : null}
+                  <Button
+                    className="size-12 shrink-0 rounded-full p-0 shadow-lg shadow-primary/20 transition-transform active:scale-95 sm:h-12 sm:w-auto sm:px-6"
+                    onClick={() => void discoverDomain()}
+                    disabled={busy !== null || extState === "unsupported"}
+                    aria-label={copy.heroSearch}
+                  >
+                    {busy === "lookup" || busy === "ai" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Search className="size-5" aria-hidden />}
+                    <span className="hidden sm:inline">{busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.heroSearch}</span>
                   </Button>
                 </div>
-                <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">{copy.hint}</p>
-                {searchError && <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>}
-                <div className="flex flex-wrap gap-2">{tlds.filter((item) => [".com", ".net", ".org", ".shop"].includes(item.tld)).map((item) => <Button key={item.id} variant="outline" size="sm" onClick={() => setQuery(`${query.split(".")[0]}${item.tld}`)}><span dir="ltr">{item.tld}</span><span className="text-muted-foreground">{money(item.basePriceIrt)}</span></Button>)}</div>
+
+                {extState === "unsupported" ? (
+                  <p id="domain-search-error" role="alert" className="flex items-center gap-1.5 text-sm font-medium text-destructive"><XCircle className="size-4 shrink-0" aria-hidden />{copy.extUnsupported}</p>
+                ) : searchError ? (
+                  <p id="domain-search-error" role="alert" className="text-sm text-destructive">{searchError}</p>
+                ) : (
+                  <p id="domain-search-hint" className="text-xs leading-relaxed text-muted-foreground">{copy.hint}</p>
+                )}
+
+                <TldPicker
+                  tlds={sellableTlds}
+                  selected={matchedTld?.tld ?? null}
+                  onSelect={applyExtension}
+                  money={money}
+                  labels={{
+                    popular: copy.popularTlds,
+                    all: copy.allTlds,
+                    searchPlaceholder: copy.tldSearchPlaceholder,
+                    empty: copy.tldsEmpty,
+                    viewAll: copy.viewAllTlds,
+                    more: (count) => copy.tldMatchCount.replace("{count}", num(count)),
+                  }}
+                />
+
+                <div className="grid grid-cols-3 gap-2 rounded-3xl border border-primary/15 bg-primary/5 p-3 sm:gap-4 sm:p-4">
+                  {[
+                    { icon: Zap, title: copy.trustFastTitle, desc: copy.trustFastDesc },
+                    { icon: ShieldCheck, title: copy.trustSecureTitle, desc: copy.trustSecureDesc },
+                    { icon: Headphones, title: copy.trustSupportTitle, desc: copy.trustSupportDesc },
+                  ].map((item) => (
+                    <div key={item.title} className="flex flex-col items-center gap-1.5 text-center">
+                      <item.icon className="size-6 text-primary" aria-hidden />
+                      <strong className="text-xs font-bold sm:text-sm">{item.title}</strong>
+                      <span className="text-pretty text-[0.65rem] leading-relaxed text-muted-foreground sm:text-xs">{item.desc}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <DomainOrbitScene title={copy.orbitTitle} subtitle={copy.orbitSubtitle} />
+
+              {/* Real-time WebGL globe: renders on the left in RTL, above on mobile. */}
+              <div className="order-1 lg:order-2">
+                <GlobeStage
+                  tlds={sellableTlds.slice(0, 5).map((item) => item.tld)}
+                  onSelectTld={applyExtension}
+                  selectLabel={copy.badgeSelect}
+                  caption={copy.heroTldCount.replace("{count}", num(Math.max(sellableTlds.length, 200)))}
+                  captionHint={copy.heroTldCountHint}
+                />
+              </div>
             </div>
           </PremiumHeroCard>
 
@@ -283,28 +408,6 @@ export function DomainMarketplace() {
         </DialogContent>
       </Dialog>
     </main>
-  )
-}
-
-function DomainOrbitScene({ compact = false, title, subtitle }: { compact?: boolean; title: string; subtitle: string }) {
-  const labels = [".com", ".net", ".org"]
-  return (
-    <div aria-hidden className={compact ? "relative flex min-h-56 items-center justify-center overflow-hidden rounded-3xl border border-primary/15 bg-primary/5 lg:hidden" : "relative hidden min-h-80 overflow-hidden border-r border-primary/10 bg-primary/5 lg:flex lg:items-center lg:justify-center"}>
-      <div className="absolute inset-0 opacity-60"><LivingSurface intensity="normal" lines={false} particles blooms /></div>
-      <div className={compact ? "relative mb-8 flex size-44 items-center justify-center" : "relative flex size-60 items-center justify-center"}>
-        <motion.div className="absolute inset-3 rounded-full border border-dashed border-primary/20 motion-reduce:transform-none" animate={{ rotate: 360 }} transition={{ duration: 32, repeat: Number.POSITIVE_INFINITY, ease: "linear" }} />
-        <motion.div className={compact ? "relative z-10 flex size-20 items-center justify-center rounded-full border border-primary/30 bg-background/90 shadow-2xl shadow-primary/20 backdrop-blur-xl" : "relative z-10 flex size-28 items-center justify-center rounded-full border border-primary/30 bg-background/90 shadow-2xl shadow-primary/20 backdrop-blur-xl"} animate={{ y: [0, -5, 0] }} transition={{ duration: 4.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>
-          <Globe2 className={compact ? "size-9 text-primary" : "size-12 text-primary"} />
-          <span className="absolute inset-2 rounded-full border border-dashed border-primary/20" />
-        </motion.div>
-        {labels.map((label, index) => {
-          const angle = (index * 120 - 90) * (Math.PI / 180)
-          const radius = compact ? 72 : 102
-          return <motion.span key={label} className={compact ? "absolute z-20 flex h-8 min-w-14 items-center justify-center rounded-xl border border-primary/25 bg-card px-2 font-mono text-xs font-bold text-primary shadow-xl" : "absolute z-20 flex h-10 min-w-16 items-center justify-center rounded-xl border border-primary/25 bg-card px-3 font-mono text-sm font-bold text-primary shadow-xl"} style={{ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }} animate={{ y: [Math.sin(angle) * radius, Math.sin(angle) * radius - 4, Math.sin(angle) * radius] }} transition={{ duration: 3.8 + index * 0.5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}>{label}</motion.span>
-        })}
-      </div>
-      <div className={compact ? "absolute bottom-4 z-20 flex flex-col items-center gap-1 text-center" : "absolute bottom-7 z-20 flex flex-col items-center gap-1 text-center"}><strong className="text-sm">{title}</strong><span className="text-xs text-muted-foreground">{subtitle}</span></div>
-    </div>
   )
 }
 
