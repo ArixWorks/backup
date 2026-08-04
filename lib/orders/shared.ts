@@ -22,8 +22,19 @@ export const CATEGORY_ORDER: OrderCategory[] = ["SHOP", "AUCTION", "DOMAIN", "VP
 /** State of a single node in a roadmap/stepper. */
 export type StepState = "done" | "active" | "upcoming" | "cancelled"
 
-/** Stable, localizable roadmap step identifiers. */
-export type StepKey = "payment" | "input" | "processing" | "complete"
+/**
+ * Stable, localizable roadmap step identifiers.
+ * `payment|input|processing|complete` drive the shop-product roadmap.
+ * `domain_*` drive the domain-order roadmap (purchase → admin registers → done).
+ */
+export type StepKey =
+  | "payment"
+  | "input"
+  | "processing"
+  | "complete"
+  | "domain_paid"
+  | "domain_register"
+  | "domain_done"
 
 export interface RoadmapStep {
   key: StepKey
@@ -149,6 +160,38 @@ export function computeDomainProgress(status: string): number {
   }
 }
 
+/**
+ * Ordered roadmap for a DOMAIN order (product-parity stepper). Three nodes:
+ *   1) پرداخت انجام شد (funds frozen — always done once an order exists)
+ *   2) خرید توسط مدیر (admin registers the domain)
+ *   3) دامنه فعال شد (COMPLETED)
+ * Terminal failure/expiry/cancel marks the registration node as `cancelled`.
+ * Pure + deterministic (same result on server + client).
+ */
+export function computeDomainRoadmap(status: string): RoadmapStep[] {
+  const complete = isCompleteStatus(status)
+  const cancelled = isCancelledStatus(status)
+  return [
+    { key: "domain_paid", state: "done" },
+    {
+      key: "domain_register",
+      state: complete ? "done" : cancelled ? "cancelled" : "active",
+    },
+    {
+      key: "domain_done",
+      state: complete ? "done" : cancelled ? "cancelled" : "upcoming",
+    },
+  ]
+}
+
+/** Tone per NS-request status, for uniform chip coloring. */
+export const NS_REQUEST_TONE: Record<string, StatusTone> = {
+  PENDING: "warning",
+  COMPLETED: "success",
+  REJECTED: "danger",
+  CANCELLED: "neutral",
+}
+
 /** Standard cancellation reason codes. `OTHER` reveals a free-text field. */
 export const CANCEL_REASON_CODES = [
   "BUYING_ELSEWHERE",
@@ -267,6 +310,17 @@ export interface AdminDomainOrderDetail {
  * /orders/domain/[publicId] page inside the unified "My Orders" section.
  * Text-free: the client localizes status/labels; events carry stored messages.
  */
+/** A single nameserver change request, shown on the order page + admin console. */
+export interface NsRequestView {
+  id: string
+  publicId: string
+  status: string
+  nameservers: string[]
+  note: string | null
+  requestedAt: string
+  resolvedAt: string | null
+}
+
 export interface UserDomainOrderDetail {
   id: string
   publicId: string
@@ -280,12 +334,33 @@ export interface UserDomainOrderDetail {
   purchasedAt: string | null
   holdExpiresAt: string | null
   expiresAt: string | null
-  ns1: string | null
-  ns2: string | null
-  ns3: string | null
-  ns4: string | null
-  nameserversSubmittedAt: string | null
+  /** Product-parity roadmap steps for the domain lifecycle. */
+  roadmap: RoadmapStep[]
+  /** Admin-requested hold extension awaiting the buyer's yes/no (minutes). */
+  pendingExtensionMinutes: number | null
+  extensionCount: number
+  /** True once the domain is registered (COMPLETED) — unlocks NS management. */
+  isOwned: boolean
+  /** Currently-live nameservers on the owned domain (empty until admin applies). */
+  liveNameservers: string[]
+  nsUpdatedAt: string | null
+  /** Full NS change-request history (newest first). */
+  nsRequests: NsRequestView[]
   events: OrderEventView[]
+}
+
+/** Admin console row for a nameserver change request. */
+export interface AdminNsRequestListItem {
+  id: string
+  publicId: string
+  orderPublicId: string
+  domain: string
+  status: string
+  nameservers: string[]
+  note: string | null
+  requestedAt: string
+  resolvedAt: string | null
+  user: OrderUserRef
 }
 
 /** Where a purchase originated. Mirror of the Prisma OrderSource enum. */

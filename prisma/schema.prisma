@@ -2682,6 +2682,10 @@ enum DomainOperationType {
 enum DomainOrderStatus {
   PENDING_PURCHASE
   PROCESSING
+  // Admin asked the buyer for more time on the purchase hold; awaiting yes/no.
+  AWAITING_EXTENSION_APPROVAL
+  // Legacy NS-gate states — no longer used by the new flow (NS is now a
+  // separate repeatable DomainNsRequest). Kept so historical rows stay valid.
   AWAITING_NAMESERVERS
   AWAITING_NAMESERVER_SETUP
   COMPLETED
@@ -2798,6 +2802,10 @@ model DomainOrder {
   finalReminderSentAt     DateTime?
   processingLeaseUntil    DateTime?
   extensionCount          Int                 @default(0)
+  // Product-parity hold extension: admin REQUESTS more time (sets these), the
+  // buyer then approves (extend + resume) or rejects (cancel + refund).
+  pendingExtensionMinutes Int?
+  extensionRequestedAt    DateTime?
   version                 Int                 @default(0)
   failureReason           String?
   expiryReason            String?
@@ -2816,6 +2824,7 @@ model DomainOrder {
   updatedAt               DateTime            @updatedAt
   events                  DomainOrderEvent[]
   ownedDomain             OwnedDomain?
+  nsRequests              DomainNsRequest[]
 
   @@index([userId, createdAt])
   @@index([status, holdExpiresAt])
@@ -2859,11 +2868,49 @@ model OwnedDomain {
   ns2               String?
   ns3               String?
   ns4               String?
+  // When the live nameservers above were last applied by an admin.
+  nsUpdatedAt       DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
   @@index([userId, status])
   @@index([expiresAt])
+}
+
+// Repeatable, admin-approved nameserver change requests. Decoupled from the
+// order lifecycle: the buyer may submit/replace NS any time after the domain is
+// registered. Each submission supersedes the previous PENDING request for the
+// same order and creates a fresh PENDING one for the admin to action.
+enum DomainNsRequestStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model DomainNsRequest {
+  id          String                @id @default(cuid())
+  publicId    String                @unique
+  orderId     String
+  order       DomainOrder           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId      String
+  asciiDomain String
+  ns1         String
+  ns2         String
+  ns3         String?
+  ns4         String?
+  status      DomainNsRequestStatus @default(PENDING)
+  // Admin note attached on completion/rejection (e.g. rejection reason).
+  note        String?
+  resolvedBy  String?
+  requestedAt DateTime              @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
 }
 
 /// A single piece of managed content. `type` is the registry content-type key.

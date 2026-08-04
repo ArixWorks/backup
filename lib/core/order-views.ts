@@ -16,12 +16,15 @@ import { getOrderPaymentReport } from "./order-report"
 import { lookupIp } from "./geo"
 import {
   computeDomainProgress,
+  computeDomainRoadmap,
   computeShopRoadmap,
   deriveOrderCategory,
   type AdminDomainOrderDetail,
   type AdminDomainOrderListItem,
+  type AdminNsRequestListItem,
   type AdminOrderDetail,
   type AdminOrderListItem,
+  type NsRequestView,
   type OrderDetail,
   type OrderListItem,
   type OrderUserRef,
@@ -486,9 +489,16 @@ export async function getDomainOrderForUser(
 ): Promise<UserDomainOrderDetail | null> {
   const d = await prisma.domainOrder.findFirst({
     where: { publicId, userId },
-    include: { events: { orderBy: { createdAt: "asc" } } },
+    include: {
+      events: { orderBy: { createdAt: "asc" } },
+      ownedDomain: true,
+      nsRequests: { orderBy: { createdAt: "desc" } },
+    },
   })
   if (!d) return null
+  // The domain is "owned" (NS-manageable) once registration succeeded. We treat
+  // a COMPLETED order or an existing OwnedDomain row as ownership.
+  const isOwned = d.status === "COMPLETED" || Boolean(d.ownedDomain)
   return {
     id: d.id,
     publicId: d.publicId,
@@ -502,11 +512,13 @@ export async function getDomainOrderForUser(
     purchasedAt: d.purchasedAt?.toISOString() ?? null,
     holdExpiresAt: d.holdExpiresAt?.toISOString() ?? null,
     expiresAt: d.expiresAt?.toISOString() ?? null,
-    ns1: d.ns1,
-    ns2: d.ns2,
-    ns3: d.ns3,
-    ns4: d.ns4,
-    nameserversSubmittedAt: d.nameserversSubmittedAt?.toISOString() ?? null,
+    roadmap: computeDomainRoadmap(d.status),
+    pendingExtensionMinutes: d.pendingExtensionMinutes ?? null,
+    extensionCount: d.extensionCount,
+    isOwned,
+    liveNameservers: d.ownedDomain ? nameserversOf(d.ownedDomain) : [],
+    nsUpdatedAt: d.ownedDomain?.nsUpdatedAt?.toISOString() ?? null,
+    nsRequests: d.nsRequests.map(nsRequestToView),
     events: d.events.map((e) => ({
       type: e.type,
       message: e.message,
@@ -514,6 +526,85 @@ export async function getDomainOrderForUser(
       createdAt: e.createdAt.toISOString(),
     })),
   }
+}
+
+/** Serialize a DomainNsRequest row into the shared client view. */
+function nsRequestToView(r: {
+  id: string
+  publicId: string
+  status: string
+  ns1: string
+  ns2: string
+  ns3: string | null
+  ns4: string | null
+  note: string | null
+  requestedAt: Date
+  resolvedAt: Date | null
+}): NsRequestView {
+  return {
+    id: r.id,
+    publicId: r.publicId,
+    status: r.status,
+    nameservers: [r.ns1, r.ns2, r.ns3, r.ns4].filter((n): n is string => Boolean(n && n.trim())),
+    note: r.note,
+    requestedAt: r.requestedAt.toISOString(),
+    resolvedAt: r.resolvedAt?.toISOString() ?? null,
+  }
+}
+
+/**
+ * Admin console list of nameserver change requests, filterable by status scope.
+ * `pending` is the default work queue; buyer identities are batch-joined.
+ */
+export async function listNsRequestsForAdmin(
+  query: { scope?: "pending" | "completed" | "rejected" | "all"; q?: string } = {},
+): Promise<AdminNsRequestListItem[]> {
+  const { scope = "pending", q } = query
+  const and: Prisma.DomainNsRequestWhereInput[] = []
+  if (scope === "pending") and.push({ status: "PENDING" })
+  else if (scope === "completed") and.push({ status: "COMPLETED" })
+  else if (scope === "rejected") and.push({ status: { in: ["REJECTED", "CANCELLED"] } })
+
+  const term = q?.trim()
+  if (term) {
+    const matchedUsers = await prisma.user.findMany({
+      where: {
+        OR: [
+          { email: { contains: term, mode: "insensitive" } },
+          { displayName: { contains: term, mode: "insensitive" } },
+          { alias: { contains: term, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true },
+    })
+    and.push({
+      OR: [
+        { asciiDomain: { contains: term, mode: "insensitive" } },
+        { publicId: { contains: term, mode: "insensitive" } },
+        { userId: { in: matchedUsers.map((u) => u.id) } },
+      ],
+    })
+  }
+
+  const rows = await prisma.domainNsRequest.findMany({
+    where: and.length ? { AND: and } : undefined,
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: { order: { select: { publicId: true } } },
+  })
+  const userRefs = await loadUserRefs(rows.map((r) => r.userId))
+  return rows.map((r) => ({
+    id: r.id,
+    publicId: r.publicId,
+    orderPublicId: r.order.publicId,
+    domain: r.asciiDomain,
+    status: r.status,
+    nameservers: [r.ns1, r.ns2, r.ns3, r.ns4].filter((n): n is string => Boolean(n && n.trim())),
+    note: r.note,
+    requestedAt: r.requestedAt.toISOString(),
+    resolvedAt: r.resolvedAt?.toISOString() ?? null,
+    user: userRefs.get(r.userId) ?? EMPTY_USER,
+  }))
 }
 
 // --- Admin domain serializers (unified console) ------------------------------

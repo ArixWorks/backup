@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react"
 import { motion } from "motion/react"
 import useSWR from "swr"
-import { Globe2, Loader2, Search, ShieldCheck, Sparkles, XCircle } from "lucide-react"
+import { Globe2, Loader2, Search, Sparkles, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { LivingSurface } from "@/components/living-surface"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
 import { DomainResultsCarousel, type DomainResult, type DomainAvailability } from "@/components/domains/domain-results-carousel"
+import { DomainPurchaseDialog } from "@/components/domains/domain-purchase-dialog"
+import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,6 +51,11 @@ export function DomainMarketplace() {
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null)
   const [unavailableDomain, setUnavailableDomain] = useState<string | null>(null)
+  // The domain awaiting checkout confirmation, opening the purchase popup.
+  const [purchaseTarget, setPurchaseTarget] = useState<{ item: DomainResult; source: "search" | "smart" } | null>(null)
+  // Successful-purchase celebration overlay (same as the store flow), with a
+  // deep link to the newly created domain order detail page.
+  const [celebration, setCelebration] = useState<{ subject: string; href: string } | null>(null)
   const { data: tldResponse } = useSWR<{ data: { tlds: Tld[] } }>("/api/v1/domains/tlds", apiGet)
   const tlds = tldResponse?.data.tlds ?? []
 
@@ -76,13 +83,20 @@ export function DomainMarketplace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestions, locale],
   )
-  const handleLookupPurchase = (item: DomainResult) => {
-    const original = lookups.find((entry) => entry.asciiDomain === item.ascii)
-    if (original) void purchase(original, "search")
-  }
-  const handleSuggestionPurchase = (item: DomainResult) => {
-    const original = suggestions.find((entry) => entry.asciiDomain === item.ascii)
-    if (original) void purchase(original, "smart")
+  // Clicking "buy" no longer registers immediately: it opens the confirmation
+  // popup (domain summary + payment-method picker), matching the store flow.
+  const handleLookupPurchase = (item: DomainResult) => setPurchaseTarget({ item, source: "search" })
+  const handleSuggestionPurchase = (item: DomainResult) => setPurchaseTarget({ item, source: "smart" })
+
+  // Invoked when the user confirms wallet payment inside the popup.
+  const handleConfirmWallet = () => {
+    const target = purchaseTarget
+    if (!target) return
+    const original =
+      target.source === "search"
+        ? lookups.find((entry) => entry.asciiDomain === target.item.ascii)
+        : suggestions.find((entry) => entry.asciiDomain === target.item.ascii)
+    if (original) void purchase(original, target.source)
   }
 
   async function searchDomain(domain = normalizedQuery) {
@@ -113,8 +127,9 @@ export function DomainMarketplace() {
     try {
       const quote = unwrap<{ id: string }>(await apiPost("/api/v1/domains/quote", { domain: lookup.asciiDomain }))
       const idempotencyKey = crypto.randomUUID()
-      await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
-      toast.success(copy.orderCreated)
+      const order = unwrap<{ publicId: string }>(await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey }))
+      setPurchaseTarget(null)
+      setCelebration({ subject: lookup.unicodeDomain, href: `/orders/domain/${order.publicId}` })
       if (source === "search") {
         setLookups([])
         setHasSearched(false)
@@ -125,6 +140,7 @@ export function DomainMarketplace() {
       if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
         toast.error(copy.insufficient, { action: { label: copy.addFunds, onClick: () => { window.location.href = "/wallet" } } })
       } else if (error instanceof ApiError && error.code === "DOMAIN_UNAVAILABLE") {
+        setPurchaseTarget(null)
         setUnavailableDomain(lookup.asciiDomain)
         if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
         else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
@@ -177,15 +193,6 @@ export function DomainMarketplace() {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir={dir}>
-      <motion.header initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }} className="relative flex flex-col gap-5 pb-2">
-        <div aria-hidden className="pointer-events-none absolute -inset-x-20 -top-24 -z-10 h-64 opacity-50"><LivingSurface intensity="soft" lines={false} particles={false} blooms /></div>
-        <Badge variant="secondary" className="w-fit border border-primary/20 bg-primary/5 px-3 py-1.5"><ShieldCheck data-icon="inline-start" /> {copy.secure}</Badge>
-        <div className="flex max-w-4xl flex-col gap-4">
-          <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">{copy.titleBefore} <span className="text-primary">{copy.titleBrand}</span> {copy.titleAfter}</h1>
-          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground md:text-lg">{copy.subtitle}</p>
-        </div>
-      </motion.header>
-
       <div className="flex flex-col gap-6">
           <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label={copy.discoverTab}>
             <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
@@ -210,7 +217,15 @@ export function DomainMarketplace() {
             </div>
           </PremiumHeroCard>
 
-          {busy === "ai" && suggestions.length === 0 ? <div className="mx-auto flex h-[26rem] w-64 items-center justify-center rounded-[1.75rem] border border-primary/10 bg-muted/30 sm:h-[30rem]"><Loader2 className="size-8 animate-spin text-primary/60" /></div> : null}
+          {busy === "ai" && suggestions.length === 0 ? (
+            <section className="flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-1 text-center">
+                <h2 className="text-balance text-xl font-bold">{copy.suggestionsTitle}</h2>
+                <p className="text-pretty text-sm text-muted-foreground">{copy.generating}</p>
+              </div>
+              <DomainResultsCarousel loading loadingCount={7} items={[]} copy={copy} money={money} onPurchase={() => {}} purchasingKey={null} disabled />
+            </section>
+          ) : null}
           {lookupResults.length > 0 && (
             <section aria-label={copy.resultsTitle} className="flex flex-col gap-4">
               <div className="flex flex-col items-center gap-1 text-center">
@@ -235,6 +250,24 @@ export function DomainMarketplace() {
             </section>
           )}
       </div>
+
+      <DomainPurchaseDialog
+        domain={purchaseTarget?.item ?? null}
+        open={purchaseTarget !== null}
+        onOpenChange={(open) => { if (!open && busy !== "quote") setPurchaseTarget(null) }}
+        copy={copy}
+        money={money}
+        purchasing={busy === "quote"}
+        onPayWallet={handleConfirmWallet}
+      />
+
+      <CelebrationOverlay
+        open={celebration !== null}
+        kind="domain-purchase"
+        subject={celebration?.subject}
+        actionHref={celebration?.href}
+        onClose={() => setCelebration(null)}
+      />
 
       <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
         <DialogContent size="sm" showCloseButton={false}>

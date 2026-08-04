@@ -282,17 +282,19 @@ export async function processDomainOrder(orderId: string) {
   return prisma.$transaction(async (tx) => {
     const purchasedAt = new Date()
     const expiresAt = result.expiresAt ?? oneYearAfter(purchasedAt)
+    // New flow: registration completes the order immediately. Nameservers are a
+    // separate, repeatable request the buyer can submit any time afterwards.
     const updated = await tx.domainOrder.update({
       where: { id: order.id },
-      data: { status: "AWAITING_NAMESERVERS", purchasedAt, expiresAt, processingLeaseUntil: null, providerSnapshot: { providerReference: result.providerReference } },
+      data: { status: "COMPLETED", purchasedAt, expiresAt, completedAt: purchasedAt, processingLeaseUntil: null, providerSnapshot: { providerReference: result.providerReference } },
     })
     await captureFrozenPurchase(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_CAPTURE", id: order.id })
     await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: purchasedAt } })
     await tx.ownedDomain.create({
       data: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: result.providerReference } },
     })
-    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: "PROCESSING", toStatus: "AWAITING_NAMESERVERS", actorType: "SYSTEM", message: "دامنه خریداری شد و منتظر ثبت NS توسط کاربر است.", idempotencyKey: `${order.id}:purchased` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} خریداری شد؛ برای ادامه حداقل NS1 و NS2 را ثبت کنید.`, href: `/orders/domain/${order.publicId}` } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: "PROCESSING", toStatus: "COMPLETED", actorType: "SYSTEM", message: "دامنه با موفقیت ثبت شد و در اختیار شماست.", idempotencyKey: `${order.id}:purchased` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما ثبت شد", body: `${order.asciiDomain} با موفقیت ثبت شد. در صورت تمایل می‌توانید از صفحه سفارش، نیم‌سرورها (NS) را ثبت کنید.`, href: `/orders/domain/${order.publicId}` } })
     return updated
   })
 }
@@ -340,9 +342,10 @@ export async function markDomainPurchased(orderId: string, adminId: string, prov
     if (!["PENDING_PURCHASE", "PROCESSING"].includes(order.status)) throw new ConflictError("خرید این سفارش قبلاً تعیین تکلیف شده است.")
     const purchasedAt = new Date()
     const expiresAt = oneYearAfter(purchasedAt)
+    // New flow: admin marking the domain purchased completes the order directly.
     const updated = await tx.domainOrder.update({
       where: { id: order.id },
-      data: { status: "AWAITING_NAMESERVERS", purchasedAt, expiresAt, processingLeaseUntil: null, providerSnapshot: { providerReference: providerReference ?? null } },
+      data: { status: "COMPLETED", purchasedAt, expiresAt, completedAt: purchasedAt, processingLeaseUntil: null, providerSnapshot: { providerReference: providerReference ?? null } },
     })
     await captureFrozenPurchase(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_CAPTURE", id: order.id })
     await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "CONSUMED", consumedAt: purchasedAt } })
@@ -351,8 +354,8 @@ export async function markDomainPurchased(orderId: string, adminId: string, prov
       create: { userId: order.userId, orderId: order.id, asciiDomain: order.asciiDomain, unicodeDomain: order.unicodeDomain, provider: order.provider, registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: providerReference ?? null } },
       update: { status: "ACTIVE", registeredAt: purchasedAt, expiresAt, registrarSnapshot: { providerReference: providerReference ?? null } },
     })
-    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: order.status, toStatus: "AWAITING_NAMESERVERS", actorType: "ADMIN", actorId: adminId, message: "دامنه خریداری شد و منتظر ثبت NS توسط کاربر است.", idempotencyKey: `${order.id}:purchased` } })
-    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما خریداری شد", body: `${order.asciiDomain} با موفقیت خریداری شد. برای ادامه، حداقل NS1 و NS2 را در سفارش ثبت کنید.`, href: `/orders/domain/${order.publicId}` } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "DOMAIN_PURCHASED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "دامنه با موفقیت ثبت شد و در اختیار کاربر قرار گرفت.", idempotencyKey: `${order.id}:purchased` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "دامنه شما ثبت شد", body: `${order.asciiDomain} با موفقیت ثبت شد. در صورت تمایل می‌توانید از صفحه سفارش، نیم‌سرورها (NS) را ثبت کنید.`, href: `/orders/domain/${order.publicId}` } })
     return updated
   })
 }
@@ -409,26 +412,83 @@ export async function failDomainOrder(orderId: string, adminId: string, reason: 
   })
 }
 
-export async function extendDomainOrderHold(orderId: string, adminId: string, minutes: number) {
+/**
+ * ADMIN requests a hold extension (product-parity). Instead of extending
+ * silently, this moves the order to AWAITING_EXTENSION_APPROVAL and records the
+ * pending minutes; the buyer must then approve (extend + resume) or reject
+ * (cancel + refund). Allowed from PENDING_PURCHASE/PROCESSING, or to re-amend an
+ * already-pending request.
+ */
+export async function requestDomainExtension(orderId: string, adminId: string, minutes: number) {
   if (minutes < 15 || minutes > 4320) throw new ValidationError("مدت تمدید نگهداری معتبر نیست.")
   return prisma.$transaction(async (tx) => {
     const order = await tx.domainOrder.findUnique({ where: { id: orderId } })
     if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
-    if (!['PENDING_PURCHASE', 'PROCESSING'].includes(order.status) || order.holdExpiresAt <= new Date()) throw new ConflictError("مهلت این سفارش قابل تمدید نیست.")
-    const holdExpiresAt = new Date(order.holdExpiresAt.getTime() + minutes * 60_000)
-    const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { holdExpiresAt, finalReminderAt: new Date(holdExpiresAt.getTime() - 5 * 60_000), finalReminderSentAt: null, extensionCount: { increment: 1 } } })
-    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { expiresAt: holdExpiresAt } })
-    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "HOLD_EXTENDED", fromStatus: order.status, toStatus: order.status, actorType: "ADMIN", actorId: adminId, message: `مهلت بررسی سفارش ${minutes} دقیقه تمدید شد.`, meta: { minutes }, idempotencyKey: `${order.id}:extend:${order.extensionCount + 1}` } })
+    if (!["PENDING_PURCHASE", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"].includes(order.status)) {
+      throw new ConflictError("مهلت این سفارش قابل تمدید نیست.")
+    }
+    const updated = await tx.domainOrder.update({
+      where: { id: order.id },
+      data: { status: "AWAITING_EXTENSION_APPROVAL", pendingExtensionMinutes: minutes, extensionRequestedAt: new Date() },
+    })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "HOLD_EXTENDED", fromStatus: order.status, toStatus: "AWAITING_EXTENSION_APPROVAL", actorType: "ADMIN", actorId: adminId, message: `مدیر ${minutes} دقیقه تمدید مهلت را درخواست کرد؛ در انتظار تایید کاربر.`, meta: { minutes }, idempotencyKey: `${order.id}:extend-req:${order.extensionCount}` } })
+    await tx.notification.create({ data: { userId: order.userId, type: "GENERAL", title: "درخواست تمدید مهلت سفارش دامنه", body: `برای ${order.asciiDomain} تمدید ${minutes} دقیقه‌ای درخواست شده است. لطفاً تمدید یا لغو را انتخاب کنید.`, href: `/orders/domain/${order.publicId}` } })
+    return updated
+  })
+}
+
+/**
+ * BUYER approves the pending extension: adds the pending minutes to the hold and
+ * resumes PENDING_PURCHASE so the admin can register the domain in the new window.
+ */
+export async function approveDomainExtension(publicId: string, userId: string) {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findFirst({ where: { publicId, userId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (order.status !== "AWAITING_EXTENSION_APPROVAL" || !order.pendingExtensionMinutes) throw new ConflictError("درخواست تمدیدی برای این سفارش وجود ندارد.")
+    const minutes = order.pendingExtensionMinutes
+    const base = order.holdExpiresAt > new Date() ? order.holdExpiresAt : new Date()
+    const holdExpiresAt = new Date(base.getTime() + minutes * 60_000)
+    const updated = await tx.domainOrder.update({
+      where: { id: order.id },
+      data: { status: "PENDING_PURCHASE", holdExpiresAt, finalReminderAt: new Date(holdExpiresAt.getTime() - 5 * 60_000), finalReminderSentAt: null, firstReminderSentAt: null, extensionCount: { increment: 1 }, pendingExtensionMinutes: null, extensionRequestedAt: null },
+    })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "ACTIVE", expiresAt: holdExpiresAt } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "HOLD_EXTENDED", fromStatus: "AWAITING_EXTENSION_APPROVAL", toStatus: "PENDING_PURCHASE", actorType: "USER", actorId: userId, message: `کاربر تمدید ${minutes} دقیقه‌ای را تایید کرد.`, meta: { minutes }, idempotencyKey: `${order.id}:extend:${order.extensionCount + 1}` } })
+    const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
+    if (admins.length) await tx.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "تمدید مهلت سفارش دامنه تایید شد", body: `کاربر مهلت ${order.asciiDomain} را تمدید کرد؛ لطفاً دامنه را ثبت کنید.`, href: "/admin/domains" })) })
+    return updated
+  })
+}
+
+/**
+ * BUYER rejects the pending extension → cancel the order and refund the frozen
+ * principal. Also used as the generic buyer cancel path while awaiting purchase.
+ */
+export async function cancelDomainOrderByUser(publicId: string, userId: string, reasonCode = "USER_CANCELLED") {
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.domainOrder.findFirst({ where: { publicId, userId } })
+    if (!order) throw new NotFoundError("سفارش دامنه یافت نشد.")
+    if (!["PENDING_PURCHASE", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"].includes(order.status)) throw new ConflictError("این سفارش قابل لغو نیست.")
+    // DomainOrder has no dedicated CANCELLED columns; buyer-cancel reuses the
+    // CANCELLED status with the shared refund/release path.
+    const updated = await tx.domainOrder.update({ where: { id: order.id }, data: { status: "CANCELLED", pendingExtensionMinutes: null, extensionRequestedAt: null } })
+    await unfreeze(order.userId, order.amountIrt, tx, { type: "DOMAIN_ORDER_RELEASE", id: order.id })
+    await tx.domainReservation.updateMany({ where: { quoteId: order.quoteId }, data: { status: "RELEASED" } })
+    await tx.domainOrderEvent.create({ data: { orderId: order.id, operation: order.operation, type: "ORDER_EXPIRED_REFUNDED", fromStatus: order.status, toStatus: "CANCELLED", actorType: "USER", actorId: userId, reasonCode, message: "سفارش توسط کاربر لغو شد و مبلغ به کیف پول بازگشت.", idempotencyKey: `${order.id}:user-cancelled` } })
+    const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })
+    if (admins.length) await tx.notification.createMany({ data: admins.map((admin) => ({ userId: admin.id, type: "GENERAL" as const, title: "سفارش دامنه توسط کاربر لغو شد", body: `${order.asciiDomain} توسط کاربر لغو و مبلغ آزاد شد.`, href: "/admin/domains" })) })
     return updated
   })
 }
 
 export async function processDueDomainOrders() {
   const now = new Date()
+  const activeHold = ["PENDING_PURCHASE", "PROCESSING", "AWAITING_EXTENSION_APPROVAL"] as const
   const [expired, firstReminders, finalReminders] = await Promise.all([
-    prisma.domainOrder.findMany({ where: { status: { in: ["PENDING_PURCHASE", "PROCESSING"] }, holdExpiresAt: { lte: now } }, select: { id: true }, take: 50 }),
-    prisma.domainOrder.findMany({ where: { status: { in: ["PENDING_PURCHASE", "PROCESSING"] }, firstReminderAt: { lte: now }, firstReminderSentAt: null }, take: 50 }),
-    prisma.domainOrder.findMany({ where: { status: { in: ["PENDING_PURCHASE", "PROCESSING"] }, finalReminderAt: { lte: now }, finalReminderSentAt: null }, take: 50 }),
+    prisma.domainOrder.findMany({ where: { status: { in: [...activeHold] }, holdExpiresAt: { lte: now } }, select: { id: true }, take: 50 }),
+    prisma.domainOrder.findMany({ where: { status: { in: [...activeHold] }, firstReminderAt: { lte: now }, firstReminderSentAt: null }, take: 50 }),
+    prisma.domainOrder.findMany({ where: { status: { in: [...activeHold] }, finalReminderAt: { lte: now }, finalReminderSentAt: null }, take: 50 }),
   ])
 
   const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } })

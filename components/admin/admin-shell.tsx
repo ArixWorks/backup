@@ -31,6 +31,7 @@ import {
   ScanText,
   CircleHelp,
   Globe2,
+  Server,
   SearchCheck,
   ShieldAlert,
   ShieldCheck,
@@ -60,7 +61,7 @@ type NavItem = {
   label: string
   icon: typeof LayoutDashboard
   exact?: boolean
-  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions" | "settings"
+  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions" | "settings" | "nsRequests"
 }
 
 type NavGroup = { title: string; items: NavItem[] }
@@ -85,7 +86,8 @@ const navGroups: NavGroup[] = [
       { href: "/admin/product-categories", label: "دسته‌بندی فروشگاه", icon: Package },
       { href: "/admin/auctions", label: "مزایده‌ها", icon: Gavel },
       { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
-      { href: "/admin/domains", label: "دامنه‌ها", icon: Globe2 },
+      { href: "/admin/domains", label: "دامنه‌ها", icon: Globe2, exact: true },
+      { href: "/admin/domains/nameservers", label: "درخواست‌های NS", icon: Server, badge: "nsRequests" },
     ],
   },
   {
@@ -197,6 +199,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   )
   const pendingTwoFa = Array.isArray(twofaData?.data) ? twofaData.data.length : 0
 
+  const { data: nsData } = useSWR<{ data: unknown[] }>(
+    isAdmin ? "/api/v1/admin/domains/nameservers?scope=pending" : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  )
+  const pendingNsRequests = Array.isArray(nsData?.data) ? nsData.data.length : 0
+
   const activeItem =
     [...items].sort((a, b) => b.href.length - a.href.length).find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href))) ?? items[0]
 
@@ -205,6 +214,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (key === "ops") return firingAlerts
     if (key === "questions") return pendingQuestions
     if (key === "settings") return pendingTwoFa
+    if (key === "nsRequests") return pendingNsRequests
     if (!stats) return 0
     if (key === "deposits") return stats.pendingDeposits
     if (key === "withdrawals") return stats.pendingWithdrawals
@@ -217,7 +227,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const totalAlerts = useMemo(
     () => items.reduce((n, it) => n + badgeCount(it.badge), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stats, firingAlerts, pendingQuestions, pendingTwoFa],
+    [stats, firingAlerts, pendingQuestions, pendingTwoFa, pendingNsRequests],
   )
 
   const searchResults = useMemo(() => {

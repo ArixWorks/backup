@@ -5,7 +5,7 @@ import {
   markDomainPurchased,
   completeDomainOrder,
   failDomainOrder,
-  extendDomainOrderHold,
+  requestDomainExtension,
 } from "@/lib/core/domains/service"
 
 export const dynamic = "force-dynamic"
@@ -39,6 +39,6 @@ export const POST = route(async (req: Request, ctx: { params: Promise<{ id: stri
     case "fail":
       return failDomainOrder(id, admin.id, body.reason)
     case "extend":
-      return extendDomainOrderHold(id, admin.id, body.minutes)
+      return requestDomainExtension(id, admin.id, body.minutes)
   }
 })

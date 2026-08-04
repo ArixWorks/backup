@@ -3,25 +3,28 @@
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
-import { Check, Crown, Gavel, ShoppingBag, Sparkles, Trophy, X } from "lucide-react"
+import { Check, Crown, Gavel, Globe, ShoppingBag, Sparkles, Trophy, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 import { fireEntryConfetti, fireWinConfetti, resetConfetti } from "@/lib/celebration-fx"
 import { playCelebrationSound } from "@/lib/notification-sound"
 import { GiftboxLottie } from "@/components/giftbox-lottie"
+import { DomainLottie } from "@/components/domain-lottie"
 
-export type CelebrationKind = "purchase" | "auction-win" | "giveaway-entry" | "giveaway-win"
+export type CelebrationKind = "purchase" | "domain-purchase" | "auction-win" | "giveaway-entry" | "giveaway-win"
 
 const copy = {
   fa: {
     purchase: ["خرید با موفقیت انجام شد", "محصول برای شما ثبت شد. از خریدتان لذت ببرید.", "مشاهده سفارش‌ها"],
+    "domain-purchase": ["خرید با موفقیت انجام شد", "دامنه برای شما ثبت شد. وضعیت آن را دنبال کنید.", "مشاهده وضعیت سفارش"],
     "auction-win": ["این مزایده برای شماست", "تبریک، شما برنده نهایی این مزایده شدید.", "مشاهده جزئیات"],
     "giveaway-entry": ["ورود شما ثبت شد", "حالا شما یکی از شرکت‌کنندگان این قرعه‌کشی هستید.", "ادامه"],
     "giveaway-win": ["نام شما برنده شد", "تبریک، جایزه این قرعه‌کشی متعلق به شماست.", "مشاهده جایزه"],
   },
   en: {
     purchase: ["Purchase complete", "Your product has been secured. Enjoy your purchase.", "View orders"],
+    "domain-purchase": ["Purchase complete", "Your domain has been registered. Track its status.", "View order status"],
     "auction-win": ["The auction is yours", "Congratulations, you are the confirmed winner.", "View details"],
     "giveaway-entry": ["Entry confirmed", "You are now officially in the giveaway draw.", "Continue"],
     "giveaway-win": ["Your name was drawn", "Congratulations, this giveaway prize is yours.", "View prize"],
@@ -31,12 +34,14 @@ const copy = {
 const eyebrows = {
   fa: {
     purchase: "سفارش تایید شد",
+    "domain-purchase": "ثبت دامنه تایید شد",
     "auction-win": "برنده مزایده",
     "giveaway-entry": "لحظه ویژه شما",
     "giveaway-win": "شما برنده شدید",
   },
   en: {
     purchase: "ORDER CONFIRMED",
+    "domain-purchase": "DOMAIN REGISTERED",
     "auction-win": "AUCTION WON",
     "giveaway-entry": "YOUR MOMENT",
     "giveaway-win": "YOU WON",
@@ -45,6 +50,7 @@ const eyebrows = {
 
 const icons = {
   purchase: ShoppingBag,
+  "domain-purchase": Globe,
   "auction-win": Gavel,
   "giveaway-entry": Check,
   "giveaway-win": Trophy,
@@ -57,6 +63,7 @@ export function CelebrationOverlay({
   image,
   onClose,
   actionHref,
+  actionLabel,
 }: {
   open: boolean
   kind: CelebrationKind
@@ -64,11 +71,13 @@ export function CelebrationOverlay({
   image?: string | null
   onClose: () => void
   actionHref?: string
+  actionLabel?: string
 }) {
   const { locale } = useI18n()
   const reduced = useReducedMotion()
   const language = locale === "fa" ? "fa" : "en"
-  const [title, description, action] = copy[language][kind]
+  const [title, description, defaultAction] = copy[language][kind]
+  const action = actionLabel ?? defaultAction
   const eyebrow = eyebrows[language][kind]
   const Icon = icons[kind]
 
@@ -81,10 +90,12 @@ export function CelebrationOverlay({
 
   const isWin = kind === "giveaway-win" || kind === "auction-win"
   // Winners get the gold/primary treatment; entries + purchases get success.
-  const isSuccess = kind === "giveaway-entry" || kind === "purchase"
+  const isSuccess = kind === "giveaway-entry" || kind === "purchase" || kind === "domain-purchase"
   // Lottery (giveaway) events swap the circular medallion for a gift-box Lottie:
   // an opening gift for entries, a jackpot gift for wins.
   const isGiveaway = kind === "giveaway-entry" || kind === "giveaway-win"
+  // Domain registrations swap the medallion for the domain Lottie animation.
+  const isDomain = kind === "domain-purchase"
 
   const tone = isSuccess
     ? {
@@ -216,21 +227,26 @@ export function CelebrationOverlay({
               <X className="size-5" />
             </button>
 
-            {/* Lottery events: gift-box Lottie (medium, centered), no circular
-                image/medallion. It renders instantly from bundled JSON. */}
-            {isGiveaway ? (
+            {/* Lottery + domain events: a bundled Lottie (medium, centered),
+                no circular image/medallion. Renders instantly from in-memory
+                JSON. */}
+            {isGiveaway || isDomain ? (
               <motion.div
                 className="relative mt-2 flex size-36 items-center justify-center"
                 animate={reduced ? undefined : { y: [0, -6, 0] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
               >
-                {/* Soft glow halo behind the gift box */}
+                {/* Soft glow halo behind the animation */}
                 <div
                   className="absolute inset-0 -z-10 rounded-full blur-2xl"
                   aria-hidden="true"
                   style={{ background: `radial-gradient(circle, ${tone.glow} 0%, transparent 72%)` }}
                 />
-                <GiftboxLottie kind={kind === "giveaway-win" ? "win" : "entry"} className="relative" />
+                {isDomain ? (
+                  <DomainLottie className="relative" />
+                ) : (
+                  <GiftboxLottie kind={kind === "giveaway-win" ? "win" : "entry"} className="relative" />
+                )}
               </motion.div>
             ) : (
               <>
