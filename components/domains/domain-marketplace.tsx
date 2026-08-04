@@ -9,6 +9,7 @@ import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { LivingSurface } from "@/components/living-surface"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
 import { DomainResultsCarousel, type DomainResult, type DomainAvailability } from "@/components/domains/domain-results-carousel"
+import { DomainPurchaseDialog } from "@/components/domains/domain-purchase-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,6 +50,8 @@ export function DomainMarketplace() {
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null)
   const [unavailableDomain, setUnavailableDomain] = useState<string | null>(null)
+  // The domain awaiting checkout confirmation, opening the purchase popup.
+  const [purchaseTarget, setPurchaseTarget] = useState<{ item: DomainResult; source: "search" | "smart" } | null>(null)
   const { data: tldResponse } = useSWR<{ data: { tlds: Tld[] } }>("/api/v1/domains/tlds", apiGet)
   const tlds = tldResponse?.data.tlds ?? []
 
@@ -76,13 +79,20 @@ export function DomainMarketplace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestions, locale],
   )
-  const handleLookupPurchase = (item: DomainResult) => {
-    const original = lookups.find((entry) => entry.asciiDomain === item.ascii)
-    if (original) void purchase(original, "search")
-  }
-  const handleSuggestionPurchase = (item: DomainResult) => {
-    const original = suggestions.find((entry) => entry.asciiDomain === item.ascii)
-    if (original) void purchase(original, "smart")
+  // Clicking "buy" no longer registers immediately: it opens the confirmation
+  // popup (domain summary + payment-method picker), matching the store flow.
+  const handleLookupPurchase = (item: DomainResult) => setPurchaseTarget({ item, source: "search" })
+  const handleSuggestionPurchase = (item: DomainResult) => setPurchaseTarget({ item, source: "smart" })
+
+  // Invoked when the user confirms wallet payment inside the popup.
+  const handleConfirmWallet = () => {
+    const target = purchaseTarget
+    if (!target) return
+    const original =
+      target.source === "search"
+        ? lookups.find((entry) => entry.asciiDomain === target.item.ascii)
+        : suggestions.find((entry) => entry.asciiDomain === target.item.ascii)
+    if (original) void purchase(original, target.source)
   }
 
   async function searchDomain(domain = normalizedQuery) {
@@ -115,6 +125,7 @@ export function DomainMarketplace() {
       const idempotencyKey = crypto.randomUUID()
       await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
       toast.success(copy.orderCreated)
+      setPurchaseTarget(null)
       if (source === "search") {
         setLookups([])
         setHasSearched(false)
@@ -125,6 +136,7 @@ export function DomainMarketplace() {
       if (error instanceof ApiError && error.code === "INSUFFICIENT_FUNDS") {
         toast.error(copy.insufficient, { action: { label: copy.addFunds, onClick: () => { window.location.href = "/wallet" } } })
       } else if (error instanceof ApiError && error.code === "DOMAIN_UNAVAILABLE") {
+        setPurchaseTarget(null)
         setUnavailableDomain(lookup.asciiDomain)
         if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
         else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
@@ -234,6 +246,16 @@ export function DomainMarketplace() {
             </section>
           )}
       </div>
+
+      <DomainPurchaseDialog
+        domain={purchaseTarget?.item ?? null}
+        open={purchaseTarget !== null}
+        onOpenChange={(open) => { if (!open && busy !== "quote") setPurchaseTarget(null) }}
+        copy={copy}
+        money={money}
+        purchasing={busy === "quote"}
+        onPayWallet={handleConfirmWallet}
+      />
 
       <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
         <DialogContent size="sm" showCloseButton={false}>
