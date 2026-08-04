@@ -44,7 +44,7 @@ export default function DomainOrderDetailPage({ params }: { params: Promise<{ pu
     await Promise.all([mutate(key), mutate("/api/v1/orders")])
   }
 
-  async function act(action: "approve-extension" | "reject-extension", payload?: Record<string, unknown>) {
+  async function act(action: "extend" | "cancel", payload?: Record<string, unknown>) {
     if (!order) return
     setBusy(true)
     try {
@@ -146,8 +146,8 @@ export default function DomainOrderDetailPage({ params }: { params: Promise<{ pu
                     minutes={order.pendingExtensionMinutes}
                     refundAmountLabel={`${formatToman(order.amount)} ${c.toman ?? ""}`}
                     busy={busy}
-                    onApprove={() => void act("approve-extension")}
-                    onReject={(reasonCode, reason) => void act("reject-extension", { reasonCode, reason })}
+                    onApprove={() => void act("extend")}
+                    onReject={(reasonCode, reason) => void act("cancel", { reasonCode, reason })}
                   />
                 </div>
               ) : (
