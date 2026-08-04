@@ -25,6 +25,7 @@ import {
   type OrderDetail,
   type OrderListItem,
   type OrderUserRef,
+  type UserDomainOrderDetail,
 } from "@/lib/orders/shared"
 
 // --- Prisma include shapes ---------------------------------------------------
@@ -439,8 +440,8 @@ type DomainOrderRow = Prisma.DomainOrderGetPayload<Record<string, never>>
 
 /**
  * Map a DomainOrder into the unified OrderListItem shape so it can sit in the
- * Orders page DOMAIN tab. Domains keep their own detail flow, so `href` points
- * at the existing /domains page rather than the shop detail route.
+ * Orders page DOMAIN tab. Domains have their own detail/NS flow, served inside
+ * the orders section at /orders/domain/[publicId].
  */
 function domainToListItem(d: DomainOrderRow): OrderListItem {
   return {
@@ -459,7 +460,7 @@ function domainToListItem(d: DomainOrderRow): OrderListItem {
     progress: computeDomainProgress(d.status),
     dueAt: null,
     pendingExtensionMinutes: null,
-    href: "/domains",
+    href: `/orders/domain/${d.publicId}`,
   }
 }
 
@@ -471,6 +472,48 @@ export async function listDomainOrdersForUser(userId: string): Promise<OrderList
     take: 50,
   })
   return orders.map(domainToListItem)
+}
+
+/**
+ * Buyer-facing detail for a single domain order, scoped to its owner and
+ * addressed by publicId. Powers /orders/domain/[publicId] (NS entry + status +
+ * events) so domains are fully managed inside the unified "My Orders" section.
+ * Returns null when the order does not exist or is not owned by `userId`.
+ */
+export async function getDomainOrderForUser(
+  publicId: string,
+  userId: string,
+): Promise<UserDomainOrderDetail | null> {
+  const d = await prisma.domainOrder.findFirst({
+    where: { publicId, userId },
+    include: { events: { orderBy: { createdAt: "asc" } } },
+  })
+  if (!d) return null
+  return {
+    id: d.id,
+    publicId: d.publicId,
+    domain: d.unicodeDomain,
+    asciiDomain: d.asciiDomain,
+    tld: d.tld,
+    operation: d.operation,
+    status: d.status,
+    amount: Number(d.amountIrt),
+    createdAt: d.createdAt.toISOString(),
+    purchasedAt: d.purchasedAt?.toISOString() ?? null,
+    holdExpiresAt: d.holdExpiresAt?.toISOString() ?? null,
+    expiresAt: d.expiresAt?.toISOString() ?? null,
+    ns1: d.ns1,
+    ns2: d.ns2,
+    ns3: d.ns3,
+    ns4: d.ns4,
+    nameserversSubmittedAt: d.nameserversSubmittedAt?.toISOString() ?? null,
+    events: d.events.map((e) => ({
+      type: e.type,
+      message: e.message,
+      actorType: e.actorType,
+      createdAt: e.createdAt.toISOString(),
+    })),
+  }
 }
 
 // --- Admin domain serializers (unified console) ------------------------------
