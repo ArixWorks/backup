@@ -39,21 +39,58 @@ interface CarouselConfig {
   rotationMultiplier: number
   scaleReduction: number
   maxBlur: number
+  cardWidth: number
 }
 
-/** Responsive drag/fan physics — gentler fan on phones, wider spread on desktop. */
-function getConfig(width: number, reduced: boolean): CarouselConfig {
-  if (reduced) {
-    // Flatten the fan and disable tilt for reduced-motion users.
-    return { distanceDivisor: 200, velocityDivisor: 900, sensitivity: 240, xMultiplier: 150, yMultiplier: 0, rotationMultiplier: 0, scaleReduction: 0.05, maxBlur: 4 }
+/** Card widths (px) — kept in sync with the CARD_SHELL Tailwind classes. */
+const CARD_WIDTH_PHONE = 240 // w-[15rem]
+const CARD_WIDTH_WIDE = 288 // sm:w-[18rem]
+
+/**
+ * Responsive drag/fan physics. The horizontal offset is derived from the *actual*
+ * track width so the first side card always tucks under the center card and its
+ * outer edge stays fully inside the viewport (never clipped by overflow-hidden).
+ */
+function getConfig(trackWidth: number, reduced: boolean): CarouselConfig {
+  const w = trackWidth > 0 ? trackWidth : 360
+  const isPhone = w < 640
+  const isTablet = w >= 640 && w < 1024
+  const cardWidth = isPhone ? CARD_WIDTH_PHONE : CARD_WIDTH_WIDE
+  const scaleReduction = isPhone ? 0.13 : isTablet ? 0.11 : 0.1
+
+  // Widest offset that keeps the first side card's outer edge inside the track.
+  const firstSideHalf = (cardWidth * (1 - scaleReduction)) / 2
+  const fitX = w / 2 - firstSideHalf - 10
+  const baseX = isPhone ? 82 : isTablet ? 132 : 172
+  const xMultiplier = Math.max(34, Math.min(baseX, fitX))
+
+  return {
+    cardWidth,
+    scaleReduction,
+    xMultiplier,
+    yMultiplier: reduced ? 0 : isPhone ? 26 : 34,
+    rotationMultiplier: reduced ? 0 : isPhone ? 7 : 10,
+    maxBlur: isPhone ? 4 : 5,
+    distanceDivisor: isPhone ? 110 : isTablet ? 150 : 190,
+    velocityDivisor: isPhone ? 480 : isTablet ? 620 : 780,
+    sensitivity: isPhone ? 170 : isTablet ? 210 : 240,
   }
-  if (width < 640) {
-    return { distanceDivisor: 110, velocityDivisor: 480, sensitivity: 170, xMultiplier: 84, yMultiplier: 22, rotationMultiplier: 7, scaleReduction: 0.08, maxBlur: 4 }
-  }
-  if (width < 1024) {
-    return { distanceDivisor: 150, velocityDivisor: 620, sensitivity: 210, xMultiplier: 124, yMultiplier: 30, rotationMultiplier: 9, scaleReduction: 0.1, maxBlur: 5 }
-  }
-  return { distanceDivisor: 190, velocityDivisor: 780, sensitivity: 240, xMultiplier: 168, yMultiplier: 38, rotationMultiplier: 11, scaleReduction: 0.12, maxBlur: 5 }
+}
+
+/** Measures an element's content width and keeps it in sync via ResizeObserver. */
+function useMeasuredWidth() {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const [width, setWidth] = React.useState(0)
+  React.useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => setWidth(el.clientWidth)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, width] as const
 }
 
 type DomainCopy = (typeof DOMAIN_COPY)["fa"]
@@ -75,16 +112,9 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
   const reduced = useReducedMotion() ?? false
   const scrollProgress = useMotionValue(0)
   const startProgress = React.useRef(0)
-  const [windowWidth, setWindowWidth] = React.useState(0)
+  const [trackRef, trackWidth] = useMeasuredWidth()
   const [activeIndex, setActiveIndex] = React.useState(0)
   const total = items.length
-
-  React.useEffect(() => {
-    setWindowWidth(window.innerWidth)
-    const onResize = () => setWindowWidth(window.innerWidth)
-    window.addEventListener("resize", onResize)
-    return () => window.removeEventListener("resize", onResize)
-  }, [])
 
   // Reset to the first card whenever a fresh result set arrives.
   React.useEffect(() => {
@@ -92,7 +122,7 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
     setActiveIndex(0)
   }, [items, scrollProgress])
 
-  const config = React.useMemo(() => getConfig(windowWidth, reduced), [windowWidth, reduced])
+  const config = React.useMemo(() => getConfig(trackWidth, reduced), [trackWidth, reduced])
 
   useMotionValueEvent(scrollProgress, "change", (value) => {
     if (total === 0) return
@@ -131,9 +161,10 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
 
   // ---- Loading skeleton: same fan, neutral theme, a spinner in every card ----
   if (loading) {
+    // `isolate` contains the inner z-index scale so fixed nav / FAB stay on top.
     return (
-      <div className="flex w-full flex-col items-center gap-5 select-none">
-        <LoadingFan count={loadingCount} config={config} label={copy.searching} />
+      <div className="isolate flex w-full flex-col items-center gap-5 select-none">
+        <LoadingFan count={loadingCount} reduced={reduced} label={copy.searching} />
       </div>
     )
   }
@@ -147,8 +178,11 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
         : "bg-[radial-gradient(circle_at_center,color-mix(in_oklab,var(--primary)_30%,transparent),transparent_70%)]"
 
   return (
-    <div className="flex w-full flex-col items-center gap-5 select-none">
+    // `isolate` creates a local stacking context so the cards' inline z-index
+    // (up to 100) never paints above the fixed bottom nav (z-50) or support FAB (z-40).
+    <div className="isolate flex w-full flex-col items-center gap-5 select-none">
       <div
+        ref={trackRef}
         className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]"
         role="group"
         aria-roledescription="carousel"
@@ -230,7 +264,7 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
 }
 
 /** Shared fan card shell — geometry/animation identical for real and loading cards. */
-const CARD_SHELL = "pointer-events-none absolute h-[24rem] w-[16rem] overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-xl sm:h-[27rem] sm:w-[18rem]"
+const CARD_SHELL = "pointer-events-none absolute h-[24rem] w-[15rem] overflow-hidden rounded-[1.75rem] border shadow-2xl backdrop-blur-xl sm:h-[27rem] sm:w-[18rem]"
 
 interface CardProps {
   item: DomainResult
@@ -345,11 +379,13 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
 }
 
 /** Neutral fanned skeleton shown while suggestions are being generated. */
-function LoadingFan({ count, config, label }: { count: number; config: CarouselConfig; label: string }) {
+function LoadingFan({ count, reduced, label }: { count: number; reduced: boolean; label: string }) {
   // Center the fan on the middle card so it mirrors the real result layout.
   const progress = useMotionValue(Math.floor(count / 2))
+  const [trackRef, trackWidth] = useMeasuredWidth()
+  const config = React.useMemo(() => getConfig(trackWidth, reduced), [trackWidth, reduced])
   return (
-    <div className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]" role="status" aria-label={label} aria-live="polite">
+    <div ref={trackRef} className="relative flex h-[26rem] w-full items-center justify-center overflow-hidden sm:h-[30rem]" role="status" aria-label={label} aria-live="polite">
       <div aria-hidden className="pointer-events-none absolute h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_oklab,var(--primary)_28%,transparent),transparent_70%)] opacity-70 blur-3xl sm:h-96 sm:w-96" />
       {Array.from({ length: count }).map((_, index) => (
         <LoadingCard key={index} index={index} total={count} progress={progress} config={config} />
