@@ -57,6 +57,7 @@ export function CelebrationOverlay({
   image,
   onClose,
   actionHref,
+  actionLabel,
 }: {
   open: boolean
   kind: CelebrationKind
@@ -64,11 +65,13 @@ export function CelebrationOverlay({
   image?: string | null
   onClose: () => void
   actionHref?: string
+  actionLabel?: string
 }) {
   const { locale } = useI18n()
   const reduced = useReducedMotion()
   const language = locale === "fa" ? "fa" : "en"
-  const [title, description, action] = copy[language][kind]
+  const [title, description, defaultAction] = copy[language][kind]
+  const action = actionLabel ?? defaultAction
   const eyebrow = eyebrows[language][kind]
   const Icon = icons[kind]
 

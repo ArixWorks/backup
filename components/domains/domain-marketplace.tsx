@@ -10,6 +10,7 @@ import { LivingSurface } from "@/components/living-surface"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
 import { DomainResultsCarousel, type DomainResult, type DomainAvailability } from "@/components/domains/domain-results-carousel"
 import { DomainPurchaseDialog } from "@/components/domains/domain-purchase-dialog"
+import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,6 +53,9 @@ export function DomainMarketplace() {
   const [unavailableDomain, setUnavailableDomain] = useState<string | null>(null)
   // The domain awaiting checkout confirmation, opening the purchase popup.
   const [purchaseTarget, setPurchaseTarget] = useState<{ item: DomainResult; source: "search" | "smart" } | null>(null)
+  // Successful-purchase celebration overlay (same as the store flow), with a
+  // deep link to the newly created domain order detail page.
+  const [celebration, setCelebration] = useState<{ subject: string; href: string } | null>(null)
   const { data: tldResponse } = useSWR<{ data: { tlds: Tld[] } }>("/api/v1/domains/tlds", apiGet)
   const tlds = tldResponse?.data.tlds ?? []
 
@@ -123,9 +127,9 @@ export function DomainMarketplace() {
     try {
       const quote = unwrap<{ id: string }>(await apiPost("/api/v1/domains/quote", { domain: lookup.asciiDomain }))
       const idempotencyKey = crypto.randomUUID()
-      await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey })
-      toast.success(copy.orderCreated)
+      const order = unwrap<{ publicId: string }>(await apiPost("/api/v1/domains/purchase", { quoteId: quote.id, idempotencyKey }))
       setPurchaseTarget(null)
+      setCelebration({ subject: lookup.unicodeDomain, href: `/orders/domain/${order.publicId}` })
       if (source === "search") {
         setLookups([])
         setHasSearched(false)
@@ -255,6 +259,15 @@ export function DomainMarketplace() {
         money={money}
         purchasing={busy === "quote"}
         onPayWallet={handleConfirmWallet}
+      />
+
+      <CelebrationOverlay
+        open={celebration !== null}
+        kind="purchase"
+        subject={celebration?.subject}
+        actionHref={celebration?.href}
+        actionLabel={copy.viewOrderStatus}
+        onClose={() => setCelebration(null)}
       />
 
       <Dialog open={unavailableDomain !== null} onOpenChange={(open) => { if (!open) setUnavailableDomain(null) }}>
