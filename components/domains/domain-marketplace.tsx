@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { motion } from "motion/react"
 import useSWR from "swr"
-import { Globe2, Loader2, Search, ShieldCheck, Sparkles, XCircle } from "lucide-react"
+import { Globe2, Loader2, Search, Sparkles, XCircle } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { LivingSurface } from "@/components/living-surface"
@@ -177,15 +177,6 @@ export function DomainMarketplace() {
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 overflow-hidden px-4 py-8 md:px-6 md:py-14" dir={dir}>
-      <motion.header initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }} className="relative flex flex-col gap-5 pb-2">
-        <div aria-hidden className="pointer-events-none absolute -inset-x-20 -top-24 -z-10 h-64 opacity-50"><LivingSurface intensity="soft" lines={false} particles={false} blooms /></div>
-        <Badge variant="secondary" className="w-fit border border-primary/20 bg-primary/5 px-3 py-1.5"><ShieldCheck data-icon="inline-start" /> {copy.secure}</Badge>
-        <div className="flex max-w-4xl flex-col gap-4">
-          <h1 className="text-balance text-4xl font-black leading-tight tracking-tight md:text-6xl">{copy.titleBefore} <span className="text-primary">{copy.titleBrand}</span> {copy.titleAfter}</h1>
-          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground md:text-lg">{copy.subtitle}</p>
-        </div>
-      </motion.header>
-
       <div className="flex flex-col gap-6">
           <PremiumHeroCard intensity="normal" pointerMotion={false} className="overflow-hidden rounded-3xl !p-0 [transform:translateZ(0)]" aria-label={copy.discoverTab}>
             <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
