@@ -2718,15 +2718,66 @@ model DomainTld {
   active           Boolean  @default(true)
   supported        Boolean  @default(true)
   premiumEnabled   Boolean  @default(false)
+  // Sale price in Toman. Stays the single value every quote/order path reads, so
+  // adding USD below changes nothing downstream. Derived from sellUsdCents
+  // whenever the FX rate moves.
   basePriceIrt     BigInt
   renewalPriceIrt  BigInt?
   transferPriceIrt BigInt?
   displayOrder     Int      @default(0)
   provider         String   @default("cloudflare-rdap")
+  // USD is the source of truth: the provider quotes dollars, and Iranian Toman
+  // pricing has to follow the dollar rate rather than freeze at import time.
+  // Stored as integer cents so repeated discount math never accumulates the
+  // float drift that 11.7 * 0.5 style arithmetic would introduce.
+  costUsdCents     Int?
+  sellUsdCents     Int?
+  // Per-TLD discount override; null falls back to the global setting.
+  marginPercent    Int?
+  // Pre-discount Toman, kept only so the storefront can strike it through.
+  listPriceIrt     BigInt?
+  lastPriceSyncAt  DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   @@index([active, displayOrder])
+}
+
+enum DomainPriceSyncMode {
+  IMPORT
+  REFRESH
+}
+
+enum DomainPriceSyncStatus {
+  RUNNING
+  DONE
+  FAILED
+}
+
+// Durable cursor for the Railway price scrape. A full run needs ~12 socket
+// round trips and lands near the serverless request ceiling, so progress is
+// persisted and the client drives it one slice at a time instead of holding a
+// single long request open.
+model DomainPriceSyncJob {
+  id              String                @id @default(cuid())
+  mode            DomainPriceSyncMode
+  status          DomainPriceSyncStatus  @default(RUNNING)
+  probeQuery      String
+  maxUsdCents     Int
+  discountPercent Int
+  // Zone list captured by the discovery pass, so later slices never re-query.
+  discovered      Json                   @default("[]")
+  cursor          Int                    @default(0)
+  total           Int                    @default(0)
+  found           Int                    @default(0)
+  created         Int                    @default(0)
+  updated         Int                    @default(0)
+  skipped         Int                    @default(0)
+  lastError       String?
+  startedAt       DateTime               @default(now())
+  finishedAt      DateTime?
+
+  @@index([status, startedAt])
 }
 
 model DomainLookupCache {
