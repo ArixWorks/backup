@@ -73,14 +73,25 @@ export async function lookupDomainCatalog(input: string) {
   const raw = input.trim().toLowerCase()
   if (raw.includes(".")) {
     const result = await lookupDomain(raw)
-    return { exact: true, results: result.status === "AVAILABLE" ? [result] : [] }
+    // `results` stays filtered to AVAILABLE so a taken domain can never reach the
+    // purchase carousel, but the status is reported separately: without it the
+    // client only saw an empty list and could not tell "already registered" apart
+    // from "lookup failed", so every outcome collapsed into one generic message.
+    return {
+      exact: true,
+      status: result.status,
+      asciiDomain: result.asciiDomain,
+      results: result.status === "AVAILABLE" ? [result] : [],
+    }
   }
 
   const label = normalizeLabel(raw)
   const tlds = await listTlds()
   const supportedTlds = tlds.filter((tld) => tld.supported)
   const domains = supportedTlds.map((tld) => `${label}${tld.tld}`)
-  if (domains.length === 0) return { exact: false, results: [] }
+  // `status`/`asciiDomain` are exact-search-only, but they are always present so
+  // the response keeps one shape for the client to type against.
+  if (domains.length === 0) return { exact: false, status: null, asciiDomain: null, results: [] }
   const providerResults = await lookupManyWithProvider(domains)
   const settings = await getAllSettings()
   const ttlSec = Math.max(30, toNumber(settings[SETTING_KEYS.domainLookupTtlSec], 300))
@@ -118,7 +129,7 @@ export async function lookupDomainCatalog(input: string) {
     return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: row.status === "AVAILABLE" ? tld.basePriceIrt : null }
   }))
 
-  return { exact: false, results: results.filter((result) => result.status === "AVAILABLE") }
+  return { exact: false, status: null, asciiDomain: null, results: results.filter((result) => result.status === "AVAILABLE") }
 }
 
 function quoteSecret(settings: Record<string, string>) {

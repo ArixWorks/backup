@@ -10,11 +10,19 @@ import { cn } from "@/lib/utils"
 export type ExtensionState = "none" | "supported" | "unsupported"
 
 /**
+ * Outcome of an actual availability lookup for the domain currently in the box.
+ * `taken` and `unclear` both render the red treatment in place of the price, so
+ * an already-registered domain is answered inside the field rather than by a
+ * separate card below the fold.
+ */
+export type LookupVerdict = "taken" | "unclear"
+
+/**
  * What the field is currently showing. `checking` is the debounce window: the
  * spinner is live while the user is still typing and for a short settle period
  * after, so the price never flickers mid-word.
  */
-type Phase = "idle" | "checking" | "priced" | "invalid"
+type Phase = "idle" | "checking" | "priced" | "invalid" | "taken" | "taken"
 
 /** Radius of the pointer-tracked halo, in px. */
 const GLOW_RADIUS = 210
@@ -32,6 +40,10 @@ interface DomainSearchFieldProps {
   domain: string
   /** A lookup/generation request is in flight. */
   busy: boolean
+  /** Result of the completed lookup for `domain`, or null when none applies. */
+  verdict: LookupVerdict | null
+  /** Result of the completed lookup for `domain`, or null when none applies. */
+  verdict: LookupVerdict | null
   inputId?: string
   describedBy?: string
   labels: {
@@ -40,6 +52,8 @@ interface DomainSearchFieldProps {
     search: string
     checkingPrice: string
     unsupported: string
+    taken: string
+    unclear: string
   }
 }
 
@@ -56,6 +70,7 @@ export function DomainSearchField({
   priceLabel,
   domain,
   busy,
+  verdict,
   inputId = "domain-search-input",
   describedBy,
   labels,
@@ -87,6 +102,13 @@ export function DomainSearchField({
       setPhase("invalid")
       return
     }
+    // A completed lookup outranks the catalogue price: the extension is one we
+    // sell, but this specific name is gone, so showing its price would invite a
+    // purchase that cannot succeed.
+    if (verdict) {
+      setPhase("taken")
+      return
+    }
     if (extState !== "supported" || !priceLabel) {
       setPhase("idle")
       return
@@ -94,21 +116,21 @@ export function DomainSearchField({
     setPhase("checking")
     const timer = setTimeout(() => setPhase("priced"), SETTLE_MS)
     return () => clearTimeout(timer)
-  }, [extState, priceLabel, domain])
+  }, [extState, priceLabel, domain, verdict])
 
-  // One shake on entering the invalid state - not on every subsequent keystroke,
+  // Both red phases share one treatment: an unsold extension and an already-taken
+  // name are the same message to the user ("you can't buy this"), so they get the
+  // same shake, bloom, and border rather than two near-identical variants.
+  const alarmed = phase === "invalid" || phase === "taken"
+
+  // One shake on entering an alarmed state - not on every subsequent keystroke,
   // which would rattle the box while the user is still typing.
   useEffect(() => {
-    if (phase !== "invalid" || !animated || !scope.current) return
+    if (!alarmed || !animated || !scope.current) return
     void animateShake(scope.current, { x: [0, -9, 8, -6, 4, 0] }, { duration: 0.45, ease: "easeOut" })
-  }, [phase, animated, animateShake, scope])
+  }, [alarmed, animated, animateShake, scope])
 
-  const halo =
-    phase === "invalid"
-      ? "var(--destructive)"
-      : phase === "priced"
-        ? "var(--chart-2)"
-        : "var(--primary)"
+  const halo = alarmed ? "var(--destructive)" : phase === "priced" ? "var(--chart-2)" : "var(--primary)"
 
   function trackPointer(event: React.PointerEvent<HTMLDivElement>) {
     if (!animated || !shellRef.current) return
@@ -127,25 +149,25 @@ export function DomainSearchField({
         {/* Bloom sitting behind the pill. Blurred and non-interactive, it reads
             as the box itself glowing rather than as a visible ring. */}
         <AnimatePresence>
-          {(phase === "invalid" || phase === "priced" || focused) && animated ? (
+          {(alarmed || phase === "priced" || focused) && animated ? (
             <motion.div
-              key={phase === "invalid" ? "bloom-bad" : phase === "priced" ? "bloom-good" : "bloom-focus"}
+              key={alarmed ? "bloom-bad" : phase === "priced" ? "bloom-good" : "bloom-focus"}
               aria-hidden
               initial={{ opacity: 0, scale: 0.94 }}
               animate={
-                phase === "invalid"
+                alarmed
                   ? { opacity: [0.55, 0.28, 0.55], scale: 1 }
                   : { opacity: phase === "priced" ? 0.4 : 0.28, scale: 1 }
               }
               exit={{ opacity: 0, scale: 0.94 }}
               transition={
-                phase === "invalid"
+                alarmed
                   ? { opacity: { duration: 1.6, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }, scale: { duration: 0.3 } }
                   : { duration: 0.4, ease: "easeOut" }
               }
               className={cn(
                 "pointer-events-none absolute -inset-3 rounded-full blur-2xl",
-                phase === "invalid" ? "bg-destructive/50" : phase === "priced" ? "bg-chart-2/40" : "bg-primary/40",
+                alarmed ? "bg-destructive/50" : phase === "priced" ? "bg-chart-2/40" : "bg-primary/40",
               )}
             />
           ) : null}
@@ -161,7 +183,7 @@ export function DomainSearchField({
             if (animated) glowSize.set(GLOW_RADIUS)
           }}
           onPointerLeave={() => glowSize.set(0)}
-          className="group relative rounded-full p-px"
+          className="group relative w-full min-w-0 rounded-full p-px"
           style={{ ["--halo" as string]: halo }}
         >
           <motion.div aria-hidden className="absolute inset-0 rounded-full" style={{ background: glow }} />
@@ -172,7 +194,7 @@ export function DomainSearchField({
             aria-hidden
             className={cn(
               "absolute inset-0 rounded-full border transition-colors duration-300",
-              phase === "invalid"
+              alarmed
                 ? "border-destructive/70"
                 : phase === "priced"
                   ? "border-chart-2/60"
@@ -184,8 +206,8 @@ export function DomainSearchField({
 
           <div
             className={cn(
-              "relative flex h-16 items-center gap-1 rounded-full bg-card/80 pe-2 ps-2 shadow-inner backdrop-blur-xl transition-colors duration-300",
-              phase === "invalid" && "bg-destructive/[0.06]",
+              "relative flex h-16 min-w-0 items-center gap-1 rounded-full bg-card/80 pe-2 ps-2 shadow-inner backdrop-blur-xl transition-colors duration-300",
+              alarmed && "bg-destructive/[0.06]",
             )}
           >
             {/* Status slot. Morphs globe -> spinner -> price -> error, and sits
@@ -217,6 +239,21 @@ export function DomainSearchField({
                   >
                     <CheckCircle2 className="size-4 shrink-0" aria-hidden />
                     {priceLabel}
+                  </motion.span>
+                ) : phase === "taken" ? (
+                  // Occupies the price slot so the answer lands exactly where the
+                  // user was already looking for the cost.
+                  <motion.span
+                    key="taken"
+                    role="status"
+                    initial={{ opacity: 0, scale: 0.7, filter: "blur(4px)" }}
+                    animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 26 }}
+                    className="flex items-center gap-1.5 whitespace-nowrap px-2 text-sm font-bold text-destructive"
+                  >
+                    <XCircle className="size-4 shrink-0" aria-hidden />
+                    {verdict === "unclear" ? labels.unclear : labels.taken}
                   </motion.span>
                 ) : phase === "invalid" ? (
                   <motion.span
@@ -259,11 +296,17 @@ export function DomainSearchField({
               }}
               placeholder={labels.placeholder}
               aria-label={labels.aria}
-              aria-invalid={phase === "invalid"}
+              aria-invalid={alarmed}
               aria-describedby={describedBy}
               autoComplete="off"
               spellCheck={false}
-              className="h-12 min-w-0 flex-1 bg-transparent px-1 text-base text-foreground outline-none placeholder:text-muted-foreground/70"
+              /* `w-0 grow`, not just `min-w-0 flex-1`: a text input carries an
+                 intrinsic default width (~20 characters), and `min-width: 0` only
+                 lets it shrink during flex layout - it still floors the pill's
+                 min-content size, which propagated up and blew the hero's grid
+                 track past the viewport on phones. A definite 0 width contributes
+                 nothing intrinsically, and `grow` fills the real space back in. */
+              className="h-12 w-0 grow bg-transparent px-1 text-base text-foreground outline-none placeholder:text-muted-foreground/70"
             />
 
             <motion.button

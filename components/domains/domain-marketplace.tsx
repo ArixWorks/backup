@@ -46,6 +46,10 @@ export function DomainMarketplace() {
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  // Verdict for an exact lookup that returned nothing to buy, pinned to the domain
+  // it belongs to so an edit in the search box clears it instead of leaving a stale
+  // "already registered" label attached to a different name.
+  const [exactVerdict, setExactVerdict] = useState<{ domain: string; verdict: "taken" | "unclear" } | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
@@ -81,6 +85,10 @@ export function DomainMarketplace() {
   )
   const extState: "none" | "supported" | "unsupported" =
     !isFullDomain || !typedExtension || sellableTlds.length === 0 ? "none" : matchedTld ? "supported" : "unsupported"
+
+  // The verdict only applies while the box still holds the domain it was measured
+  // for, so typing a new name immediately drops the field back to its price state.
+  const activeVerdict = exactVerdict?.domain === normalizedQuery ? exactVerdict.verdict : null
 
   // Prefill the box when the user picked an extension on the /domains/tlds page.
   useEffect(() => {
@@ -158,11 +166,21 @@ export function DomainMarketplace() {
     setSearchError(null)
     setLookups([])
     setHasSearched(false)
+    setExactVerdict(null)
     setBusy("lookup")
     try {
-      const result = unwrap<{ exact: boolean; results: Lookup[] }>(await apiPost("/api/v1/domains/lookup", { domain }))
+      const result = unwrap<{ exact: boolean; status: Lookup["status"] | null; results: Lookup[] }>(
+        await apiPost("/api/v1/domains/lookup", { domain }),
+      )
       setLookups(result.results)
       setHasSearched(true)
+      // An exact search with no buyable result is answered in the search box itself.
+      // "Registered/reserved/premium" is a definitive no; anything else (an unknown
+      // or failed provider check) is only inconclusive, so the two are kept distinct.
+      if (result.exact && result.results.length === 0) {
+        const taken = result.status === "REGISTERED" || result.status === "RESERVED" || result.status === "PREMIUM"
+        setExactVerdict({ domain, verdict: taken ? "taken" : "unclear" })
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : copy.lookupFailed
       setSearchError(message)
@@ -194,7 +212,12 @@ export function DomainMarketplace() {
         setPurchaseTarget(null)
         setUnavailableDomain(lookup.asciiDomain)
         if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
-        else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
+        else {
+          setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
+          // Someone took it between the check and checkout. Mark it so the field
+          // reflects the new reality instead of still advertising its price.
+          setExactVerdict({ domain: lookup.asciiDomain, verdict: "taken" })
+        }
       } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION", "VALIDATION_ERROR"].includes(error.code)) {
         toast.error(copy.changed)
         if (source === "smart") await generateSuggestions()
@@ -216,6 +239,7 @@ export function DomainMarketplace() {
     setSearchError(null)
     setLookups([])
     setHasSearched(false)
+    setExactVerdict(null)
     setSuggestions([])
     setBusy("ai")
     try {
@@ -279,6 +303,7 @@ export function DomainMarketplace() {
                   priceLabel={matchedTld ? money(matchedTld.basePriceIrt) : null}
                   domain={normalizedQuery}
                   busy={busy === "lookup" || busy === "ai"}
+                  verdict={activeVerdict}
                   describedBy={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"}
                   labels={{
                     placeholder: copy.heroPlaceholder,
@@ -286,6 +311,8 @@ export function DomainMarketplace() {
                     search: busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.heroSearch,
                     checkingPrice: copy.priceChecking,
                     unsupported: copy.extUnsupported,
+                    taken: copy.alreadyTaken,
+                    unclear: copy.lookupUnclear,
                   }}
                 />
 
@@ -358,7 +385,9 @@ export function DomainMarketplace() {
               <DomainResultsCarousel items={lookupResults} copy={copy} money={money} onPurchase={handleLookupPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
             </section>
           )}
-          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
+          {/* Suppressed while the search field is already showing the verdict, so a
+              taken domain is reported once instead of twice. */}
+          {hasSearched && lookups.length === 0 && busy !== "lookup" && !activeVerdict && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
           {suggestionResults.length > 0 && (
             <section className="flex flex-col gap-4">
               <div className="flex flex-col items-center gap-2 text-center">
