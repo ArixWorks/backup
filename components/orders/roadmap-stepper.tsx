@@ -47,9 +47,14 @@ export function RoadmapStepper({ steps }: { steps: RoadmapStep[] }) {
       indicators={{
         completed: <Check className="size-4" />,
         error: <X className="size-4" />,
-        // The spinner is the whole point of an in-flight node: it tells the user
-        // work is still happening rather than stalled.
-        loading: <LoaderCircle className="size-4 animate-spin" />,
+        // The spinner is the whole point of an in-flight node, so it IS the
+        // node's ring: sized to fill the indicator (28px content box inside the
+        // size-8 circle) with a heavier stroke. At size-4 it sat concentric with
+        // the indicator's own static border in the same purple, and two rings of
+        // near-equal radius read as one static double ring - the rotation was
+        // running but invisible. The active node drops its border below so this
+        // arc is the only ring there.
+        loading: <LoaderCircle className="size-7 animate-spin" strokeWidth={2.5} aria-hidden="true" />,
       }}
     >
       <StepperNav aria-label={c.timeline} className="w-full gap-0">
@@ -76,7 +81,10 @@ export function RoadmapStepper({ steps }: { steps: RoadmapStep[] }) {
                   className={cn(
                     "size-8 border-2 border-border bg-muted text-muted-foreground transition-colors",
                     "data-[state=completed]:border-primary data-[state=completed]:bg-primary data-[state=completed]:text-primary-foreground",
-                    "data-[state=active]:border-primary data-[state=active]:bg-primary/15 data-[state=active]:text-primary",
+                    // Transparent border, not `border-0`: the 2px ring still
+                    // reserves its space so the circle keeps the exact same
+                    // 32px footprint as its neighbours and the rail stays aligned.
+                    "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:text-primary",
                     "data-[state=error]:border-destructive data-[state=error]:bg-destructive/15 data-[state=error]:text-destructive",
                   )}
                 />
