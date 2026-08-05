@@ -26,6 +26,8 @@ interface Lookup {
   tld: string
   status: "AVAILABLE" | "REGISTERED" | "UNSUPPORTED" | "UNKNOWN" | "LOOKUP_ERROR" | "ERROR" | "PREMIUM" | "RESERVED"
   priceIrt: string | null
+  /** Pre-discount reference price; null for TLDs that were never price-synced. */
+  listPriceIrt: string | null
   checkedAt: string
 }
 interface SmartSuggestion extends Lookup { domain: string; reason: string }
@@ -128,7 +130,7 @@ export function DomainMarketplace() {
     () =>
       lookups.map((lookup) => {
         const availability = toAvailability(lookup.status)
-        return { key: lookup.asciiDomain, ascii: lookup.asciiDomain, display: lookup.unicodeDomain, tld: lookup.tld, availability, price: lookup.priceIrt, description: describe(availability) }
+        return { key: lookup.asciiDomain, ascii: lookup.asciiDomain, display: lookup.unicodeDomain, tld: lookup.tld, availability, price: lookup.priceIrt, listPrice: lookup.listPriceIrt, description: describe(availability) }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [lookups, locale],
@@ -137,7 +139,7 @@ export function DomainMarketplace() {
     () =>
       suggestions.map((item) => {
         const availability = toAvailability(item.status)
-        return { key: item.asciiDomain, ascii: item.asciiDomain, display: item.domain, tld: item.tld, availability, price: item.priceIrt, description: item.reason || describe(availability) }
+        return { key: item.asciiDomain, ascii: item.asciiDomain, display: item.domain, tld: item.tld, availability, price: item.priceIrt, listPrice: item.listPriceIrt, description: item.reason || describe(availability) }
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestions, locale],
@@ -375,7 +377,7 @@ export function DomainMarketplace() {
                 <h2 className="text-balance text-xl font-bold">{copy.suggestionsTitle}</h2>
                 <p className="text-pretty text-sm text-muted-foreground">{copy.generating}</p>
               </div>
-              <DomainResultsCarousel loading loadingCount={7} items={[]} copy={copy} money={money} onPurchase={() => {}} purchasingKey={null} disabled />
+              <DomainResultsCarousel loading loadingCount={7} items={[]} copy={copy} money={money} num={num} onPurchase={() => {}} purchasingKey={null} disabled />
             </section>
           ) : null}
           {lookupResults.length > 0 && (
@@ -384,7 +386,7 @@ export function DomainMarketplace() {
                 <h2 className="text-balance text-xl font-bold">{copy.resultsTitle}</h2>
                 <p className="text-pretty text-sm text-muted-foreground">{copy.resultsHint}</p>
               </div>
-              <DomainResultsCarousel items={lookupResults} copy={copy} money={money} onPurchase={handleLookupPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
+              <DomainResultsCarousel items={lookupResults} copy={copy} money={money} num={num} onPurchase={handleLookupPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
             </section>
           )}
           {/* Suppressed while the search field is already showing the verdict, so a
@@ -400,7 +402,7 @@ export function DomainMarketplace() {
                   <Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge>
                 </div>
               </div>
-              <DomainResultsCarousel items={suggestionResults} copy={copy} money={money} onPurchase={handleSuggestionPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
+              <DomainResultsCarousel items={suggestionResults} copy={copy} money={money} num={num} onPurchase={handleSuggestionPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
             </section>
           )}
       </div>

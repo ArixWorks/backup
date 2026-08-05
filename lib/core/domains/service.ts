@@ -26,19 +26,33 @@ export async function listTlds() {
   return prisma.domainTld.findMany({ where: { active: true }, orderBy: { displayOrder: "asc" } })
 }
 
+/**
+ * Public price pair for a looked-up domain: the amount we actually charge plus
+ * the pre-discount reference price, so the storefront can strike the reference
+ * through. Both are null unless the domain is available, since a price on a
+ * taken domain would be meaningless. `listPriceIrt` stays null for TLDs that
+ * were never price-synced, which is what suppresses the discount badge.
+ */
+function publicPricing(tld: { basePriceIrt: bigint; listPriceIrt: bigint | null }, available: boolean) {
+  return {
+    priceIrt: available ? tld.basePriceIrt : null,
+    listPriceIrt: available ? tld.listPriceIrt : null,
+  }
+}
+
 export async function lookupDomain(input: string, force = false) {
   const normalized = normalizeDomain(input)
   await ensureDefaultTlds()
   const tld = await prisma.domainTld.findUnique({ where: { tld: normalized.tld } })
   if (!tld?.active || !tld.supported) {
-    return { ...normalized, status: "UNSUPPORTED" as const, checkedAt: new Date(), cached: false, priceIrt: null }
+    return { ...normalized, status: "UNSUPPORTED" as const, checkedAt: new Date(), cached: false, priceIrt: null, listPriceIrt: null }
   }
 
   const now = new Date()
   if (!force) {
     const cached = await prisma.domainLookupCache.findUnique({ where: { asciiDomain: normalized.asciiDomain } })
     if (cached && cached.expiresAt > now) {
-      return { ...normalized, status: cached.status, checkedAt: cached.checkedAt, cached: true, priceIrt: cached.status === "AVAILABLE" ? tld.basePriceIrt : null }
+      return { ...normalized, status: cached.status, checkedAt: cached.checkedAt, cached: true, ...publicPricing(tld, cached.status === "AVAILABLE") }
     }
   }
 
@@ -66,7 +80,7 @@ export async function lookupDomain(input: string, force = false) {
       meta: (result.meta ?? {}) as Prisma.InputJsonValue,
     },
   })
-  return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: row.status === "AVAILABLE" ? tld.basePriceIrt : null }
+  return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, ...publicPricing(tld, row.status === "AVAILABLE") }
 }
 
 export async function lookupDomainCatalog(input: string) {
@@ -126,7 +140,7 @@ export async function lookupDomainCatalog(input: string) {
         meta: (result.meta ?? {}) as Prisma.InputJsonValue,
       },
     })
-    return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, priceIrt: row.status === "AVAILABLE" ? tld.basePriceIrt : null }
+    return { ...normalized, status: row.status, checkedAt: row.checkedAt, cached: false, ...publicPricing(tld, row.status === "AVAILABLE") }
   }))
 
   return { exact: false, status: null, asciiDomain: null, results: results.filter((result) => result.status === "AVAILABLE") }

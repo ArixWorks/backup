@@ -57,10 +57,11 @@ export const POST = route(async (req: Request) => {
         asciiDomain: result.asciiDomain,
         status: result.status,
         priceIrt: result.priceIrt,
+        listPriceIrt: result.listPriceIrt,
         checkedAt: result.checkedAt,
       }
     } catch {
-      return { ...candidate, asciiDomain: candidate.domain, status: "ERROR" as const, priceIrt: null, checkedAt: new Date() }
+      return { ...candidate, asciiDomain: candidate.domain, status: "ERROR" as const, priceIrt: null, listPriceIrt: null, checkedAt: new Date() }
     }
   }))
 

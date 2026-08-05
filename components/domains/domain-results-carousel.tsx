@@ -48,6 +48,11 @@ export interface DomainResult {
   tld: string
   availability: DomainAvailability
   price: string | null
+  /**
+   * Pre-discount reference price. Null for TLDs that were never price-synced,
+   * which keeps the discount badge off legacy hand-priced extensions.
+   */
+  listPrice?: string | null
   description: string
 }
 
@@ -120,6 +125,8 @@ interface CarouselProps {
   items: DomainResult[]
   copy: DomainCopy
   money: (value: string | number) => string
+  /** Locale-aware integer formatter, used for the discount percentage. */
+  num: (value: number) => string
   onPurchase: (item: DomainResult) => void
   purchasingKey: string | null
   disabled: boolean
@@ -129,7 +136,7 @@ interface CarouselProps {
   loadingCount?: number
 }
 
-export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasingKey, disabled, loading = false, loadingCount = 7 }: CarouselProps) {
+export function DomainResultsCarousel({ items, copy, money, num, onPurchase, purchasingKey, disabled, loading = false, loadingCount = 7 }: CarouselProps) {
   const reduced = useReducedMotion() ?? false
   const scrollProgress = useMotionValue(0)
   const startProgress = React.useRef(0)
@@ -239,6 +246,7 @@ export function DomainResultsCarousel({ items, copy, money, onPurchase, purchasi
             isActive={index === activeIndex}
             copy={copy}
             money={money}
+            num={num}
             onPurchase={onPurchase}
             purchasing={purchasingKey === item.key}
             disabled={disabled}
@@ -296,6 +304,7 @@ interface CardProps {
   isActive: boolean
   copy: DomainCopy
   money: (value: string | number) => string
+  num: (value: number) => string
   onPurchase: (item: DomainResult) => void
   purchasing: boolean
   disabled: boolean
@@ -322,7 +331,7 @@ function useFanTransforms(progress: MotionValue<number>, index: number, total: n
   return { offset, x, y, rotate, scale, opacity, zIndex, contentBlur, contentOpacity }
 }
 
-function DomainCard({ item, index, total, progress, config, isActive, copy, money, onPurchase, purchasing, disabled }: CardProps) {
+function DomainCard({ item, index, total, progress, config, isActive, copy, money, num, onPurchase, purchasing, disabled }: CardProps) {
   const { x, y, rotate, scale, opacity, zIndex, contentBlur, contentOpacity } = useFanTransforms(progress, index, total, config)
 
   const available = item.availability === "available"
@@ -343,6 +352,13 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
   const currencyMatch = priceStr.match(/\s+([\u0600-\u06FFA-Za-z]+)$/)
   const priceValue = currencyMatch ? priceStr.slice(0, currencyMatch.index).trim() : priceStr
   const priceSuffix = currencyMatch ? currencyMatch[1] : ""
+
+  // Only advertise a saving when the reference price is genuinely higher, so a
+  // 0% or inverted pair can never render a nonsense "٪۰ تخفیف" badge.
+  const listNum = Number(item.listPrice ?? 0)
+  const priceNum = Number(item.price ?? 0)
+  const hasDiscount = available && listNum > priceNum && priceNum > 0
+  const discountPercent = hasDiscount ? Math.round(((listNum - priceNum) / listNum) * 100) : 0
 
   return (
     <motion.div style={{ x, y, rotate, scale, opacity, zIndex }} className={cn(CARD_SHELL, theme.ring)}>
@@ -379,9 +395,21 @@ function DomainCard({ item, index, total, progress, config, isActive, copy, mone
 
         <div className="flex shrink-0 flex-col gap-3">
           {available && item.price ? (
-            <div className="flex items-baseline justify-center gap-1.5">
-              <strong dir="ltr" className="text-2xl font-black text-foreground">{priceValue}</strong>
-              {priceSuffix ? <span className="text-xs font-medium text-muted-foreground">{priceSuffix}</span> : null}
+            <div className="flex flex-col items-center gap-1">
+              {hasDiscount ? (
+                <div className="flex items-center justify-center gap-2">
+                  <span dir="ltr" className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/60">
+                    {money(item.listPrice as string)}
+                  </span>
+                  <span className="rounded-full bg-destructive px-2 py-0.5 text-[0.6875rem] font-bold text-destructive-foreground">
+                    {copy.discountBadge.replace("{percent}", num(discountPercent))}
+                  </span>
+                </div>
+              ) : null}
+              <div className="flex items-baseline justify-center gap-1.5">
+                <strong dir="ltr" className="text-2xl font-black text-foreground">{priceValue}</strong>
+                {priceSuffix ? <span className="text-xs font-medium text-muted-foreground">{priceSuffix}</span> : null}
+              </div>
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground">{taken ? copy.alreadyRegistered : copy.retry}</p>
