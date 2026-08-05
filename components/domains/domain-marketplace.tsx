@@ -253,14 +253,22 @@ export function DomainMarketplace() {
             <div className="grid items-center gap-8 p-5 sm:p-8 lg:grid-cols-2 lg:gap-10 lg:p-12">
               {/* In RTL this column renders on the right, mirroring the design. */}
               <div className="order-2 flex flex-col gap-6 lg:order-1">
-                <div className="flex flex-col gap-3">
-                  <h2 className="flex flex-wrap items-center gap-x-2 text-balance text-3xl font-black leading-tight md:text-4xl">
-                    <Sparkles className="size-6 shrink-0 text-primary md:size-7" aria-hidden />
+                <div className="flex flex-col items-center gap-3 text-center">
+                  {/* Title is flanked by a matching icon on both sides and kept to a
+                      single line: `nowrap` + a smaller step below `sm` stops the
+                      Persian copy breaking across two lines on narrow phones.
+                      From `lg` the hero splits into two columns and the text column
+                      is narrower than the nowrap width, so wrapping is re-enabled
+                      there - otherwise the card's overflow-hidden clipped the end
+                      of the title instead of pushing the page wider. */}
+                  <h2 className="flex flex-nowrap items-center justify-center gap-x-1.5 whitespace-nowrap text-lg font-black leading-tight sm:gap-x-2 sm:text-2xl md:text-4xl lg:flex-wrap lg:whitespace-normal lg:text-2xl xl:text-3xl 2xl:text-4xl">
+                    <Sparkles className="size-5 shrink-0 text-primary md:size-7" aria-hidden />
                     <span>{copy.heroTitleBefore}</span>
                     <span className="text-primary">{copy.heroTitleAccent}</span>
                     <span>{copy.heroTitleAfter}</span>
+                    <Sparkles className="size-5 shrink-0 text-primary md:size-7" aria-hidden />
                   </h2>
-                  <p className="max-w-xl text-pretty leading-relaxed text-muted-foreground">{copy.heroSubtitle}</p>
+                  <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">{copy.heroSubtitle}</p>
                 </div>
 
                 <div className={`flex h-16 items-center gap-1 rounded-full border bg-card/50 px-2 shadow-inner backdrop-blur-md transition-colors ${extState === "supported" ? "border-chart-2/60" : extState === "unsupported" ? "border-destructive/60" : "border-primary/25"}`}>
