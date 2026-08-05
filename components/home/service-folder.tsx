@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ChevronLeft, Lock } from "lucide-react"
-import { useReducedMotion } from "motion/react"
+import { useMotionTier } from "@/components/motion-provider"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import { cn } from "@/lib/utils"
@@ -83,14 +83,35 @@ const ACCENTS: Record<Accent, { tint: string; ring: string; text: string; glow: 
   },
 }
 
+/**
+ * Shared timing for the whole opening gesture. A single long duration on a
+ * decelerating curve is what makes the folder read as unfolding rather than
+ * switching: every layer and every card runs the same curve, so the flap, the
+ * tab and the fan stay one motion instead of three.
+ *
+ * Curve and tempo come from the reference design. The old snappiness was not
+ * the curve's fault: the opacity fade ran at ~60% of the transform's duration,
+ * so a card hit full opacity a third of the way along its path and read as
+ * appearing and then sliding. Keeping the two in lockstep below is the fix.
+ */
+const EASE = "cubic-bezier(0.16,1,0.3,1)"
+const OPEN_MS = 780
+/** Closing is quicker than opening, so leaving the card never feels sticky. */
+const CLOSE_MS = 420
+/** Per-card offset, so the fan peels open one card at a time. */
+const STAGGER_MS = 90
+
 /** Fan geometry for a preview card: spread evenly around the folder centre. */
 function fanTransform(index: number, total: number, open: boolean) {
-  if (!open) return "translate3d(0,6px,0) rotate(0deg) scale(0.55)"
+  // Closed cards collapse to 40% at the folder mouth, behind the front flap.
+  // Starting small and travelling ~46px gives the reveal something to ease
+  // through; a nearly-full-size start would arrive before the eye tracks it.
+  if (!open) return "translate3d(0,8px,0) rotate(0deg) scale(0.4)"
   const middle = (total - 1) / 2
   const factor = total > 1 ? (index - middle) / Math.max(middle, 1) : 0
-  const rotate = factor * 20
-  const x = factor * 46
-  const y = -46 + Math.abs(factor) * 9
+  const rotate = factor * 23
+  const x = factor * 57
+  const y = -60 + Math.abs(factor) * 11
   return `translate3d(${x}px, ${y}px, 0) rotate(${rotate}deg) scale(1)`
 }
 
@@ -133,19 +154,41 @@ function PreviewCard({
       tabIndex={open ? 0 : -1}
       aria-hidden={!open}
       className={cn(
-        "absolute -left-[34px] -top-[46px] flex h-[86px] w-[68px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg outline-none",
-        "hoverable:hover:z-50 hoverable:hover:scale-[1.18] hoverable:hover:border-current focus-visible:ring-2 focus-visible:ring-ring",
+        "group/card absolute -left-[34px] -top-[46px] h-[86px] w-[68px] outline-none",
         a.text,
         open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
       )}
       style={{
         transform: fanTransform(index, total, open),
         zIndex: 20 + index,
+        // Opacity deliberately shares the transform's duration, curve AND
+        // delay. Fading faster than the card travels was what made the reveal
+        // feel abrupt: the card was fully opaque a third of the way through its
+        // path, so the eye read it as appearing and then sliding.
+        // Opening staggers outward from the first card and runs long; closing
+        // drops the stagger and runs short, so the fan gathers back up as one
+        // piece the moment the pointer leaves.
         transition: reduceMotion
           ? "opacity 150ms linear"
-          : `transform 620ms var(--ease-out-quint, cubic-bezier(0.16,1,0.3,1)) ${index * 55}ms, opacity 380ms ease ${index * 55}ms`,
+          : open
+            ? `transform ${OPEN_MS}ms ${EASE} ${index * STAGGER_MS}ms, opacity ${OPEN_MS}ms ${EASE} ${index * STAGGER_MS}ms`
+            : `transform ${CLOSE_MS}ms ${EASE}, opacity ${CLOSE_MS}ms ${EASE}`,
       }}
     >
+      {/*
+        Inner surface owns every visual and the hover lift. The hover transform
+        has to live on its own element: the fan transform above is an inline
+        style, which outranks any `hover:scale-*` utility on the same node, so a
+        combined element would silently never grow.
+      */}
+      <span
+        className={cn(
+          "relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg",
+          "transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "hoverable:group-hover/card:-translate-y-3 hoverable:group-hover/card:scale-115 hoverable:group-hover/card:border-current",
+          "group-focus-visible/card:ring-2 group-focus-visible/card:ring-ring",
+        )}
+      >
       {item.image ? (
         <Image src={item.image} alt={item.label} fill sizes="80px" className="object-cover" />
       ) : (
@@ -177,6 +220,7 @@ function PreviewCard({
           </span>
         ) : null}
       </span>
+      </span>
     </Link>
   )
 }
@@ -191,7 +235,13 @@ export function ServiceFolder({
   index: number
 }) {
   const { t, num } = useI18n()
-  const reduceMotion = !!useReducedMotion()
+  /**
+   * The site-wide motion tier, not the raw OS flag. This matters here: the
+   * provider lets someone explicitly choose Cinematic in settings and have that
+   * beat their OS "Reduce Motion" default, and reading the OS media query
+   * directly would silently ignore that opt-in and flatten the folder.
+   */
+  const reduceMotion = useMotionTier() === "minimal"
   const [open, setOpen] = useState(false)
   /**
    * `null` until measured. Anything that isn't a true hover device (phones,
@@ -236,15 +286,21 @@ export function ServiceFolder({
   )
 
   const a = ACCENTS[service.accent]
+  // Every folder layer shares one transition string so the flap, tab and sheen
+  // stay a single hinge movement, and all of them close at the faster rate.
+  const flapTransition = `transform ${isOpen ? OPEN_MS : CLOSE_MS}ms ${EASE}`
 
   return (
     <article
       ref={rootRef}
       className={cn(
-        "service-node group relative flex h-full min-h-64 flex-col items-center justify-end overflow-hidden rounded-[1.4rem] border border-border px-4 pb-4 pt-7 transition-[border-color,box-shadow,transform] duration-500",
+        "service-node group relative flex h-full min-h-64 flex-col items-center justify-end overflow-hidden rounded-[1.4rem] border border-border px-4 pb-4 pt-7",
+        // Shares the fan's curve and duration so the tile's own lift settles
+        // with the unfold instead of finishing first.
+        "transition-[border-color,box-shadow,transform] duration-[820ms] ease-[cubic-bezier(0.32,0.08,0.24,1)]",
         a.ring,
         a.glow,
-        "hoverable:hover:-translate-y-1",
+        "hoverable:hover:-translate-y-1 hoverable:hover:scale-[1.02]",
       )}
       style={{ perspective: "1000px" }}
       onMouseEnter={() => canHover && hasItems && setOpen(true)}
@@ -271,7 +327,7 @@ export function ServiceFolder({
           style={{
             transformOrigin: "bottom center",
             transform: isOpen && !reduceMotion ? "rotateX(-18deg) scaleY(1.04)" : "rotateX(0deg)",
-            transition: "transform 620ms cubic-bezier(0.16,1,0.3,1)",
+            transition: flapTransition,
           }}
         />
         {/* Tab */}
@@ -281,7 +337,7 @@ export function ServiceFolder({
             left: "calc(50% - 54px + 14px)",
             transformOrigin: "bottom center",
             transform: isOpen && !reduceMotion ? "rotateX(-28deg) translateY(-3px)" : "rotateX(0deg)",
-            transition: "transform 620ms cubic-bezier(0.16,1,0.3,1)",
+            transition: flapTransition,
           }}
         />
 
@@ -308,7 +364,7 @@ export function ServiceFolder({
           style={{
             transformOrigin: "bottom center",
             transform: isOpen && !reduceMotion ? "rotateX(34deg) translateY(10px)" : "rotateX(0deg)",
-            transition: "transform 620ms cubic-bezier(0.16,1,0.3,1)",
+            transition: flapTransition,
           }}
         />
         {/* Sheen on the flap, so the fold reads as a physical edge. */}
@@ -318,7 +374,7 @@ export function ServiceFolder({
             zIndex: 31,
             transformOrigin: "bottom center",
             transform: isOpen && !reduceMotion ? "rotateX(34deg) translateY(10px)" : "rotateX(0deg)",
-            transition: "transform 620ms cubic-bezier(0.16,1,0.3,1)",
+            transition: flapTransition,
           }}
         />
 
