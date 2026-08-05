@@ -69,7 +69,14 @@ export default function HomePage() {
             <span aria-hidden className="h-px min-w-10 flex-1 bg-[linear-gradient(90deg,transparent,color-mix(in_oklab,var(--primary)_35%,transparent),transparent)]" />
           </header>
 
-          <div className="grid gap-3 sm:grid-cols-2 web:xl:grid-cols-4">
+          {/*
+            Two columns from 480px up rather than Tailwind's 640px `sm`: the
+            fanned preview cards span ~190px and the card clips its overflow, so
+            the breakpoint is set by the fan's width, not by a device class. A
+            480px cell still leaves the fan room, while a single 595px-wide
+            column would waste most of its width on a 108px folder.
+          */}
+          <div className="grid gap-3 min-[480px]:grid-cols-2 web:xl:grid-cols-4">
             {services.map((service, index) => (
               <ServiceFolder key={service.href} service={service} items={previews[service.key]} index={index} />
             ))}

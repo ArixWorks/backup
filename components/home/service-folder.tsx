@@ -109,8 +109,20 @@ function PreviewCard({
   accent: Accent
   reduceMotion: boolean
 }) {
-  const { price } = useI18n()
+  const { priceCompact } = useI18n()
   const a = ACCENTS[accent]
+
+  // «۱٫۱ میلیون» rather than «۱٫۱۴۱ میلیون تومان» — one decimal is all this card
+  // has room for, and "تومان" is implied. USD locales already come back as a
+  // self-contained "$11.4" with an empty suffix, so they pass through unchanged.
+  const compactLabel = (amount: string) => {
+    const { value, suffix } = priceCompact(amount)
+    const magnitude = suffix.replace(/\s*تومان\s*$/, "").trim()
+    // `\d` is ASCII-only, so the digit class has to spell out Persian (U+06F0-9)
+    // and Arabic-Indic (U+0660-9) digits for «۱٫۱۴۱» to become «۱٫۱».
+    const short = value.replace(/([٫.][\d\u06F0-\u06F9\u0660-\u0669])[\d\u06F0-\u06F9\u0660-\u0669]+/, "$1")
+    return magnitude ? `${short} ${magnitude}` : short
+  }
 
   return (
     <Link
@@ -153,9 +165,15 @@ function PreviewCard({
             {item.label}
           </span>
         ) : null}
+        {/*
+          Compact, not the full price: a 68px card truncates
+          «۱٬۱۴۱٬۰۰۰ تومان» down to «۱٬۱۴۱…», which reads as a far smaller
+          number than it is. The magnitude word carries the scale instead, and
+          the unit is dropped because every price on the page is in Toman.
+        */}
         {item.priceIrt ? (
           <span dir="auto" className="truncate text-[8px] font-extrabold leading-3 text-current">
-            {price(item.priceIrt)}
+            {compactLabel(item.priceIrt)}
           </span>
         ) : null}
       </span>
