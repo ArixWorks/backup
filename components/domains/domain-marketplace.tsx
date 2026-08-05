@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { CheckCircle2, Globe2, Headphones, Loader2, Search, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
+import { Headphones, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
@@ -10,12 +10,12 @@ import { DomainResultsCarousel, type DomainResult, type DomainAvailability } fro
 import { DomainPurchaseDialog } from "@/components/domains/domain-purchase-dialog"
 import { GlobeStage } from "@/components/domains/hero/globe-stage"
 import { TldPicker } from "@/components/domains/hero/tld-picker"
+import { DomainSearchField } from "@/components/domains/hero/domain-search-field"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
 
@@ -46,6 +46,10 @@ export function DomainMarketplace() {
   const [query, setQuery] = useState("")
   const [lookups, setLookups] = useState<Lookup[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  // Verdict for an exact lookup that returned nothing to buy, pinned to the domain
+  // it belongs to so an edit in the search box clears it instead of leaving a stale
+  // "already registered" label attached to a different name.
+  const [exactVerdict, setExactVerdict] = useState<{ domain: string; verdict: "taken" | "unclear" } | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
@@ -81,6 +85,10 @@ export function DomainMarketplace() {
   )
   const extState: "none" | "supported" | "unsupported" =
     !isFullDomain || !typedExtension || sellableTlds.length === 0 ? "none" : matchedTld ? "supported" : "unsupported"
+
+  // The verdict only applies while the box still holds the domain it was measured
+  // for, so typing a new name immediately drops the field back to its price state.
+  const activeVerdict = exactVerdict?.domain === normalizedQuery ? exactVerdict.verdict : null
 
   // Prefill the box when the user picked an extension on the /domains/tlds page.
   useEffect(() => {
@@ -158,11 +166,21 @@ export function DomainMarketplace() {
     setSearchError(null)
     setLookups([])
     setHasSearched(false)
+    setExactVerdict(null)
     setBusy("lookup")
     try {
-      const result = unwrap<{ exact: boolean; results: Lookup[] }>(await apiPost("/api/v1/domains/lookup", { domain }))
+      const result = unwrap<{ exact: boolean; status: Lookup["status"] | null; results: Lookup[] }>(
+        await apiPost("/api/v1/domains/lookup", { domain }),
+      )
       setLookups(result.results)
       setHasSearched(true)
+      // An exact search with no buyable result is answered in the search box itself.
+      // "Registered/reserved/premium" is a definitive no; anything else (an unknown
+      // or failed provider check) is only inconclusive, so the two are kept distinct.
+      if (result.exact && result.results.length === 0) {
+        const taken = result.status === "REGISTERED" || result.status === "RESERVED" || result.status === "PREMIUM"
+        setExactVerdict({ domain, verdict: taken ? "taken" : "unclear" })
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : copy.lookupFailed
       setSearchError(message)
@@ -194,7 +212,12 @@ export function DomainMarketplace() {
         setPurchaseTarget(null)
         setUnavailableDomain(lookup.asciiDomain)
         if (source === "smart") setSuggestions((current) => current.map((item) => item.asciiDomain === lookup.asciiDomain ? { ...item, status: "REGISTERED" } : item))
-        else setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
+        else {
+          setLookups((current) => current.filter((item) => item.asciiDomain !== lookup.asciiDomain))
+          // Someone took it between the check and checkout. Mark it so the field
+          // reflects the new reality instead of still advertising its price.
+          setExactVerdict({ domain: lookup.asciiDomain, verdict: "taken" })
+        }
       } else if (error instanceof ApiError && ["CONFLICT", "VALIDATION", "VALIDATION_ERROR"].includes(error.code)) {
         toast.error(copy.changed)
         if (source === "smart") await generateSuggestions()
@@ -216,6 +239,7 @@ export function DomainMarketplace() {
     setSearchError(null)
     setLookups([])
     setHasSearched(false)
+    setExactVerdict(null)
     setSuggestions([])
     setBusy("ai")
     try {
@@ -271,37 +295,28 @@ export function DomainMarketplace() {
                   <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">{copy.heroSubtitle}</p>
                 </div>
 
-                <div className={`flex h-16 items-center gap-1 rounded-full border bg-card/50 px-2 shadow-inner backdrop-blur-md transition-colors ${extState === "supported" ? "border-chart-2/60" : extState === "unsupported" ? "border-destructive/60" : "border-primary/25"}`}>
-                  <Globe2 className="mx-2 size-5 shrink-0 text-muted-foreground" aria-hidden />
-                  <Input
-                    id="domain-search-input"
-                    dir="auto"
-                    value={query}
-                    onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }}
-                    onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }}
-                    placeholder={copy.heroPlaceholder}
-                    aria-label={copy.inputLabel}
-                    aria-invalid={extState === "unsupported" || Boolean(searchError)}
-                    aria-describedby={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"}
-                    className="h-12 min-w-0 flex-1 border-0 bg-transparent px-1 text-base shadow-none focus-visible:ring-0"
-                  />
-                  {extState === "supported" && matchedTld ? (
-                    <span dir="ltr" className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-sm font-bold text-chart-2 sm:flex">
-                      <CheckCircle2 className="size-4 shrink-0" aria-hidden />{money(matchedTld.basePriceIrt)}
-                    </span>
-                  ) : extState === "unsupported" ? (
-                    <XCircle className="mx-2 size-5 shrink-0 text-destructive" aria-hidden />
-                  ) : null}
-                  <Button
-                    className="size-12 shrink-0 rounded-full p-0 shadow-lg shadow-primary/20 transition-transform active:scale-95 sm:h-12 sm:w-auto sm:px-6"
-                    onClick={() => void discoverDomain()}
-                    disabled={busy !== null || extState === "unsupported"}
-                    aria-label={copy.heroSearch}
-                  >
-                    {busy === "lookup" || busy === "ai" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Search className="size-5" aria-hidden />}
-                    <span className="hidden sm:inline">{busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.heroSearch}</span>
-                  </Button>
-                </div>
+                <DomainSearchField
+                  value={query}
+                  onChange={(next) => { setQuery(next); if (searchError) setSearchError(null) }}
+                  onSubmit={() => void discoverDomain()}
+                  extState={extState}
+                  priceLabel={matchedTld ? money(matchedTld.basePriceIrt) : null}
+                  domain={normalizedQuery}
+                  busy={busy === "lookup" || busy === "ai"}
+                  verdict={activeVerdict}
+                  describedBy={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"}
+                  labels={{
+                    placeholder: copy.heroPlaceholder,
+                    aria: copy.inputLabel,
+                    search: busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.heroSearch,
+                    checkingPrice: copy.priceChecking,
+                    unsupported: copy.extUnsupported,
+                    taken: copy.alreadyTaken,
+                    unclear: copy.lookupUnclear,
+                    takenShort: copy.alreadyTakenShort,
+                    unclearShort: copy.lookupUnclearShort,
+                  }}
+                />
 
                 {extState === "unsupported" ? (
                   <p id="domain-search-error" role="alert" className="flex items-center gap-1.5 text-sm font-medium text-destructive"><XCircle className="size-4 shrink-0" aria-hidden />{copy.extUnsupported}</p>
@@ -372,7 +387,9 @@ export function DomainMarketplace() {
               <DomainResultsCarousel items={lookupResults} copy={copy} money={money} onPurchase={handleLookupPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
             </section>
           )}
-          {hasSearched && lookups.length === 0 && busy !== "lookup" && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
+          {/* Suppressed while the search field is already showing the verdict, so a
+              taken domain is reported once instead of twice. */}
+          {hasSearched && lookups.length === 0 && busy !== "lookup" && !activeVerdict && <Card><CardHeader><CardTitle>{copy.noResult}</CardTitle><CardDescription>{copy.noResultDescription}</CardDescription></CardHeader></Card>}
           {suggestionResults.length > 0 && (
             <section className="flex flex-col gap-4">
               <div className="flex flex-col items-center gap-2 text-center">
