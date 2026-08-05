@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db"
 import { audit } from "@/lib/core/audit"
 import { ConflictError, NotFoundError } from "@/lib/core/errors"
 import { completeDomainOrder, failDomainOrder, markDomainPurchased } from "@/lib/core/domains/service"
+import { derivePrice } from "@/lib/core/domains/pricing"
+import { getActiveUsdRate } from "@/lib/core/domains/price-sync-service"
 
 const tldPattern = /^\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 const tldSchema = z.string().trim().toLowerCase().transform((value) => value.startsWith(".") ? value : `.${value}`).pipe(z.string().regex(tldPattern, "پسوند معتبر نیست."))
@@ -39,14 +41,42 @@ const updateSchema = z.object({
   supported: z.boolean().optional(),
   basePriceIrt: priceSchema.optional(),
   displayOrder: z.coerce.number().int().min(0).max(10000).optional(),
+  // Registrar cost and discount are edited in dollars, since that's the
+  // currency the provider quotes and the currency the catalog is anchored to.
+  costUsd: z.coerce.number().min(0).max(100_000).optional(),
+  marginPercent: z.coerce.number().int().min(0).max(95).optional(),
 })
 
 export const PATCH = route(async (req: Request) => {
   const admin = await requireAdmin()
   const body = updateSchema.parse(await req.json())
-  const { id, ...data } = body
+  const { id, costUsd, marginPercent, ...rest } = body
+  const data: Prisma.DomainTldUpdateInput = { ...rest }
+
+  // Editing either dollar field re-derives the sale price and its Toman
+  // equivalent, so the three numbers can never drift out of sync. Done here
+  // rather than in the client so a hand-crafted request can't post a Toman
+  // price that contradicts the dollar cost.
+  if (costUsd !== undefined || marginPercent !== undefined) {
+    const current = await prisma.domainTld.findUnique({
+      where: { id },
+      select: { costUsdCents: true, marginPercent: true },
+    })
+    if (!current) throw new NotFoundError("پسوند پیدا نشد.")
+    const costCents = costUsd !== undefined ? Math.round(costUsd * 100) : (current.costUsdCents ?? 0)
+    if (costCents > 0) {
+      const derived = derivePrice(costCents, marginPercent ?? current.marginPercent ?? undefined, await getActiveUsdRate())
+      data.costUsdCents = derived.costUsdCents
+      data.sellUsdCents = derived.sellUsdCents
+      data.marginPercent = derived.marginPercent
+      data.listPriceIrt = derived.listPriceIrt
+      // Only auto-set Toman when the admin isn't overriding it in the same call.
+      if (rest.basePriceIrt === undefined) data.basePriceIrt = derived.basePriceIrt
+    }
+  }
+
   const updated = await prisma.domainTld.update({ where: { id }, data })
-  await audit({ actorId: admin.id, action: "domain.tld.update", entity: "DomainTld", entityId: id, meta: { ...data, basePriceIrt: data.basePriceIrt?.toString() } })
+  await audit({ actorId: admin.id, action: "domain.tld.update", entity: "DomainTld", entityId: id, meta: { ...rest, costUsd, marginPercent, basePriceIrt: rest.basePriceIrt?.toString() } })
   return updated
 })
 

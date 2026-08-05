@@ -12,8 +12,11 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DomainPriceSync } from "@/components/admin/domain-price-sync"
 
-interface Tld { id: string; tld: string; title: string; active: boolean; supported: boolean; basePriceIrt: string; displayOrder: number; updatedAt: string }
+interface Tld { id: string; tld: string; title: string; active: boolean; supported: boolean; basePriceIrt: string; displayOrder: number; updatedAt: string; costUsdCents: number | null; sellUsdCents: number | null; marginPercent: number | null; lastPriceSyncAt: string | null }
+/** Draft edits are keyed by TLD id; costUsd/marginPercent are sent in dollars. */
+type TldDraft = Partial<Tld> & { costUsd?: string; marginPercentDraft?: string }
 interface Order { id: string; publicId: string; asciiDomain: string; status: string; amountIrt: string; failureReason?: string | null; createdAt: string; purchasedAt?: string | null; expiresAt?: string | null; ns1?: string | null; ns2?: string | null; ns3?: string | null; ns4?: string | null }
 interface Totals { status: string; _count: { _all: number }; _sum: { amountIrt: string | null } }
 interface Data { tlds: Tld[]; orders: Order[]; totals: Totals[]; pagination: { page: number; pageSize: number; total: number; pages: number }; catalog: { total: number; active: number } }
@@ -21,6 +24,8 @@ interface ImportRow { tld: string; title: string; basePriceIrt: string; active: 
 
 const statusLabels: Record<string, string> = { PENDING_PURCHASE: "در صف خرید", PROCESSING: "در حال خرید", AWAITING_NAMESERVERS: "منتظر NS کاربر", AWAITING_NAMESERVER_SETUP: "آماده ثبت NS", COMPLETED: "تکمیل", FAILED: "ناموفق", EXPIRED: "منقضی", CANCELLED: "لغو" }
 const money = (value: string | null | undefined) => `${Number(value ?? 0).toLocaleString("fa-IR")} تومان`
+/** Integer cents -> "$5.85". Dollars are the catalog's source of truth. */
+const usd = (cents: number | null | undefined) => (cents == null ? "—" : `$${(cents / 100).toFixed(2)}`)
 
 function parseCsv(source: string): ImportRow[] {
   return source.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line, index) => {
@@ -39,7 +44,7 @@ export default function AdminDomainsPage() {
   const endpoint = `/api/v1/admin/domains?q=${encodeURIComponent(query)}&status=${status}&page=${page}&pageSize=25`
   const { data, isLoading, mutate } = useSWR<{ data: Data }>(endpoint, fetcher, { refreshInterval: 20_000 })
   const value = data?.data
-  const [drafts, setDrafts] = useState<Record<string, Partial<Tld>>>({})
+  const [drafts, setDrafts] = useState<Record<string, TldDraft>>({})
   const [selected, setSelected] = useState<string[]>([])
   const [saving, setSaving] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -49,12 +54,22 @@ export default function AdminDomainsPage() {
   const [preview, setPreview] = useState<ImportRow[]>([])
   const allSelected = useMemo(() => Boolean(value?.tlds.length) && value!.tlds.every((row) => selected.includes(row.id)), [selected, value])
 
-  function patchDraft(id: string, patch: Partial<Tld>) { setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } })) }
+  function patchDraft(id: string, patch: TldDraft) { setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } })) }
   async function refresh() { setSelected([]); await mutate() }
 
   async function save(tld: Tld) {
     setSaving(tld.id)
-    try { await apiPatch("/api/v1/admin/domains", { id: tld.id, ...drafts[tld.id] }); toast.success(`تغییرات ${tld.tld} ذخیره شد.`); setDrafts((current) => { const next = { ...current }; delete next[tld.id]; return next }); await refresh() }
+    try {
+      // Strip the display-only draft keys and forward the dollar edits under the
+      // names the API expects; the server re-derives Toman from them.
+      const { costUsd, marginPercentDraft, costUsdCents, sellUsdCents, marginPercent, lastPriceSyncAt, ...fields } = drafts[tld.id] ?? {}
+      await apiPatch("/api/v1/admin/domains", {
+        id: tld.id,
+        ...fields,
+        ...(costUsd !== undefined && costUsd !== "" ? { costUsd: Number(costUsd) } : {}),
+        ...(marginPercentDraft !== undefined && marginPercentDraft !== "" ? { marginPercent: Number(marginPercentDraft) } : {}),
+      })
+      toast.success(`تغییرات ${tld.tld} ذخیره شد.`); setDrafts((current) => { const next = { ...current }; delete next[tld.id]; return next }); await refresh() }
     catch (error) { toast.error(error instanceof Error ? error.message : "ذخیره انجام نشد.") } finally { setSaving(null) }
   }
 
@@ -97,7 +112,7 @@ export default function AdminDomainsPage() {
     <main className="flex flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div className="flex items-start gap-3"><div className="rounded-xl border border-primary/25 bg-primary/10 p-2.5"><Globe2 className="size-6 text-primary" /></div><div><h1 className="text-2xl font-bold text-balance">مرکز عملیات دامنه</h1><p className="mt-1 text-sm text-muted-foreground">مدیریت کاتالوگ فروش، قیمت ثبت و گردش سفارش‌ها</p></div></div>
-        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void refresh()}><RefreshCw data-icon="inline-start" />تازه‌سازی</Button><Button variant="outline" onClick={() => setCsvOpen(true)}><FileSpreadsheet data-icon="inline-start" />ورود CSV</Button><Button onClick={() => setCreateOpen(true)}><Plus data-icon="inline-start" />افزودن پسوند</Button></div>
+        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void refresh()}><RefreshCw data-icon="inline-start" />تازه‌سازی</Button><DomainPriceSync onFinished={() => void refresh()} /><Button variant="outline" onClick={() => setCsvOpen(true)}><FileSpreadsheet data-icon="inline-start" />ورود CSV</Button><Button onClick={() => setCreateOpen(true)}><Plus data-icon="inline-start" />افزودن پسوند</Button></div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="نمای کلی">
@@ -110,8 +125,8 @@ export default function AdminDomainsPage() {
       <Card>
         <CardHeader className="gap-4"><div><CardTitle>کاتالوگ پسوندها</CardTitle><CardDescription>پسوند، عنوان و قیمت ثبت را مدیریت کنید؛ حذف از کاتالوگ، سوابق مالی سفارش‌های قبلی را تغییر نمی‌دهد.</CardDescription></div><div className="flex flex-col gap-2 md:flex-row"><div className="relative flex-1"><Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1) }} placeholder="جست‌وجوی پسوند یا عنوان..." /></div><select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }} aria-label="فیلتر وضعیت"><option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="inactive">غیرفعال / آرشیو</option></select></div>{selected.length > 0 && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3"><span className="text-sm font-medium">{selected.length.toLocaleString("fa-IR")} انتخاب</span><Button size="sm" variant="outline" onClick={() => void bulkStatus(true)} disabled={saving !== null}>فعال‌سازی</Button><Button size="sm" variant="outline" onClick={() => void bulkStatus(false)} disabled={saving !== null}>غیرفعال‌سازی</Button><Button size="sm" variant="ghost" onClick={() => setSelected([])}>لغو انتخاب</Button></div>}</CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table><TableHeader><TableRow><TableHead><input type="checkbox" checked={allSelected} onChange={(event) => setSelected(event.target.checked ? (value?.tlds ?? []).map((row) => row.id) : [])} aria-label="انتخاب همه" /></TableHead><TableHead>پسوند</TableHead><TableHead>عنوان</TableHead><TableHead>وضعیت فروش</TableHead><TableHead>قیمت ثبت</TableHead><TableHead>ترتیب</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader>
-            <TableBody>{isLoading ? <TableRow><TableCell colSpan={7} className="h-36 text-center"><Loader2 className="mx-auto size-5 animate-spin text-primary" /></TableCell></TableRow> : (value?.tlds ?? []).length === 0 ? <TableRow><TableCell colSpan={7} className="h-36 text-center text-muted-foreground">پسوندی با این فیلتر پیدا نشد.</TableCell></TableRow> : (value?.tlds ?? []).map((tld) => { const draft = drafts[tld.id] ?? {}; const enabled = (draft.active ?? tld.active) && (draft.supported ?? tld.supported); return <TableRow key={tld.id}><TableCell><input type="checkbox" checked={selected.includes(tld.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, tld.id] : current.filter((id) => id !== tld.id))} aria-label={`انتخاب ${tld.tld}`} /></TableCell><TableCell><strong dir="ltr" className="text-base">{tld.tld}</strong></TableCell><TableCell><Input className="min-w-32" value={draft.title ?? tld.title} onChange={(event) => patchDraft(tld.id, { title: event.target.value })} /></TableCell><TableCell><div className="flex min-w-max items-center gap-2"><Switch checked={enabled} onCheckedChange={(active) => patchDraft(tld.id, { active, supported: active })} aria-label={`وضعیت ${tld.tld}`} /><Badge variant={enabled ? "default" : "secondary"}>{enabled ? "فعال" : "غیرفعال"}</Badge></div></TableCell><TableCell><Input dir="ltr" className="min-w-36 text-left" inputMode="numeric" value={draft.basePriceIrt ?? tld.basePriceIrt} onChange={(event) => patchDraft(tld.id, { basePriceIrt: event.target.value })} /></TableCell><TableCell><Input dir="ltr" className="w-20 text-left" inputMode="numeric" value={draft.displayOrder ?? tld.displayOrder} onChange={(event) => patchDraft(tld.id, { displayOrder: Number(event.target.value) })} /></TableCell><TableCell><div className="flex min-w-max gap-2"><Button size="sm" onClick={() => void save(tld)} disabled={!drafts[tld.id] || saving !== null}>{saving === tld.id ? <Loader2 className="animate-spin" /> : <Save />}<span className="sr-only">ذخیره {tld.tld}</span></Button><Button size="sm" variant="outline" onClick={() => void deleteTld(tld)} disabled={saving !== null}><Trash2 /><span className="sr-only">آرشیو {tld.tld}</span></Button></div></TableCell></TableRow> })}</TableBody>
+          <Table><TableHeader><TableRow><TableHead><input type="checkbox" checked={allSelected} onChange={(event) => setSelected(event.target.checked ? (value?.tlds ?? []).map((row) => row.id) : [])} aria-label="انتخاب همه" /></TableHead><TableHead>پسوند</TableHead><TableHead>عنوان</TableHead><TableHead>وضعیت فروش</TableHead><TableHead>قیمت اصلی ($)</TableHead><TableHead>تخفیف (٪)</TableHead><TableHead>قیمت فروش ($)</TableHead><TableHead>قیمت ثبت (تومان)</TableHead><TableHead>ترتیب</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader>
+            <TableBody>{isLoading ? <TableRow><TableCell colSpan={10} className="h-36 text-center"><Loader2 className="mx-auto size-5 animate-spin text-primary" /></TableCell></TableRow> : (value?.tlds ?? []).length === 0 ? <TableRow><TableCell colSpan={10} className="h-36 text-center text-muted-foreground">پسوندی با این فیلتر پیدا نشد.</TableCell></TableRow> : (value?.tlds ?? []).map((tld) => { const draft = drafts[tld.id] ?? {}; const enabled = (draft.active ?? tld.active) && (draft.supported ?? tld.supported); return <TableRow key={tld.id}><TableCell><input type="checkbox" checked={selected.includes(tld.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, tld.id] : current.filter((id) => id !== tld.id))} aria-label={`انتخاب ${tld.tld}`} /></TableCell><TableCell><strong dir="ltr" className="text-base">{tld.tld}</strong></TableCell><TableCell><Input className="min-w-32" value={draft.title ?? tld.title} onChange={(event) => patchDraft(tld.id, { title: event.target.value })} /></TableCell><TableCell><div className="flex min-w-max items-center gap-2"><Switch checked={enabled} onCheckedChange={(active) => patchDraft(tld.id, { active, supported: active })} aria-label={`وضعیت ${tld.tld}`} /><Badge variant={enabled ? "default" : "secondary"}>{enabled ? "فعال" : "غیرفعال"}</Badge></div></TableCell><TableCell><Input dir="ltr" className="w-24 text-left" inputMode="decimal" placeholder="11.70" value={draft.costUsd ?? (tld.costUsdCents == null ? "" : (tld.costUsdCents / 100).toFixed(2))} onChange={(event) => patchDraft(tld.id, { costUsd: event.target.value })} aria-label={`قیمت اصلی ${tld.tld} به دلار`} /></TableCell><TableCell><Input dir="ltr" className="w-16 text-left" inputMode="numeric" placeholder="50" value={draft.marginPercentDraft ?? (tld.marginPercent == null ? "" : String(tld.marginPercent))} onChange={(event) => patchDraft(tld.id, { marginPercentDraft: event.target.value })} aria-label={`درصد تخفیف ${tld.tld}`} /></TableCell><TableCell dir="ltr" className="text-left font-semibold tabular-nums">{usd(tld.sellUsdCents)}</TableCell><TableCell><Input dir="ltr" className="min-w-36 text-left" inputMode="numeric" value={draft.basePriceIrt ?? tld.basePriceIrt} onChange={(event) => patchDraft(tld.id, { basePriceIrt: event.target.value })} /></TableCell><TableCell><Input dir="ltr" className="w-20 text-left" inputMode="numeric" value={draft.displayOrder ?? tld.displayOrder} onChange={(event) => patchDraft(tld.id, { displayOrder: Number(event.target.value) })} /></TableCell><TableCell><div className="flex min-w-max gap-2"><Button size="sm" onClick={() => void save(tld)} disabled={!drafts[tld.id] || saving !== null}>{saving === tld.id ? <Loader2 className="animate-spin" /> : <Save />}<span className="sr-only">ذخیره {tld.tld}</span></Button><Button size="sm" variant="outline" onClick={() => void deleteTld(tld)} disabled={saving !== null}><Trash2 /><span className="sr-only">آرشیو {tld.tld}</span></Button></div></TableCell></TableRow> })}</TableBody>
           </Table>
           <div className="mt-4 flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">{(value?.pagination.total ?? 0).toLocaleString("fa-IR")} نتیجه · صفحه {(value?.pagination.page ?? 1).toLocaleString("fa-IR")} از {(value?.pagination.pages ?? 1).toLocaleString("fa-IR")}</p><div className="flex gap-2"><Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}><ChevronRight />قبلی</Button><Button size="sm" variant="outline" disabled={page >= (value?.pagination.pages ?? 1)} onClick={() => setPage((current) => current + 1)}>بعدی<ChevronLeft /></Button></div></div>
         </CardContent>

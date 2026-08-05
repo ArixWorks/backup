@@ -162,6 +162,18 @@ export async function applyWallexRates(
   // Refresh the display USD rate (Toman per 1 USD) used by formatPrice().
   await setUsdRate(usdToman).catch(() => {})
 
+  // Domain TLD prices are stored in USD cents, so a new dollar rate means the
+  // Toman figures the storefront charges are now stale. Re-derive them here,
+  // in lock-step with the rate, so the catalog never lags the market. Imported
+  // lazily to avoid a module cycle, and best-effort so an FX sync still
+  // succeeds if the recalculation fails.
+  try {
+    const { recalculateTomanPrices } = await import("./domains/price-sync-service")
+    await recalculateTomanPrices(usdToman)
+  } catch {
+    /* pricing recalc is best-effort; rates are already persisted above */
+  }
+
   return { usdToman, tonToman }
 }
 

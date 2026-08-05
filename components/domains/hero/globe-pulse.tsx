@@ -6,13 +6,36 @@ import { TldPill } from "./domain-badge"
 
 type Rgb = [number, number, number]
 
-/** Lat/lon anchors, spread across the map so the pills never crowd together. */
+/**
+ * Lat/lon anchors, spread across the map so the pills never crowd together.
+ *
+ * Ordered so the most popular extensions land on the most recognisable cities,
+ * and interleaved by continent rather than grouped: consecutive entries sit on
+ * opposite sides of the sphere, so the globe's rotation keeps roughly a third of
+ * the labels facing the camera at any moment instead of revealing them in one
+ * dense clump. Anything past this list simply gets no pill.
+ */
 const ANCHORS: [number, number][] = [
-  [51.51, -0.13], // London
+  [35.7, 51.42], // Tehran
   [40.71, -74.01], // New York
   [35.68, 139.65], // Tokyo
+  [51.51, -0.13], // London
   [-33.87, 151.21], // Sydney
+  [37.77, -122.42], // San Francisco
+  [1.35, 103.82], // Singapore
   [-23.55, -46.63], // Sao Paulo
+  [52.52, 13.4], // Berlin
+  [19.08, 72.88], // Mumbai
+  [-26.2, 28.05], // Johannesburg
+  [43.65, -79.38], // Toronto
+  [31.23, 121.47], // Shanghai
+  [48.86, 2.35], // Paris
+  [25.2, 55.27], // Dubai
+  [-34.6, -58.38], // Buenos Aires
+  [55.75, 37.62], // Moscow
+  [37.57, 126.98], // Seoul
+  [19.43, -99.13], // Mexico City
+  [41.9, 12.5], // Rome
 ]
 
 const RAD = Math.PI / 180
@@ -239,6 +262,9 @@ export default function GlobePulse({
         glowColor: colors.glow,
       })
 
+      // Pass 1: project every pill and note how much of it is facing us.
+      const placed: { x: number; y: number }[] = []
+      const frameSlots: { el: HTMLElement; x: number; y: number; t: number; focused: boolean }[] = []
       for (let i = 0; i < markers.length; i++) {
         const el = slotRefs.current[i]
         if (!el) continue
@@ -251,10 +277,32 @@ export default function GlobePulse({
         el.style.left = `${pr.x * 100}%`
         el.style.top = `${pr.y * 100}%`
         el.style.transform = `translate(-50%, -50%) scale(${(0.86 + 0.14 * t).toFixed(3)})`
-        el.style.opacity = (0.1 + 0.9 * t).toFixed(3)
-        el.style.filter = t > 0.97 ? "none" : `blur(${((1 - t) * 5).toFixed(2)}px)`
-        el.style.pointerEvents = t > 0.6 ? "auto" : "none"
         el.style.zIndex = `${10 + Math.round(t * 20)}`
+        frameSlots.push({ el, x: pr.x, y: pr.y, t, focused })
+      }
+
+      // Pass 2: with 20 anchors on one sphere, neighbours regularly project to
+      // nearly the same point and the pills visibly stack. Walk them
+      // front-to-back and drop any that would land on top of a closer one, so
+      // the label that wins is always the one nearest the camera. Thresholds are
+      // fractions of the globe box, so they hold at every viewport width.
+      frameSlots.sort((a, b) => b.t - a.t)
+      for (const slot of frameSlots) {
+        // A pill within ~13% of the left/right edge hangs outside the globe box
+        // and gets visibly sliced by the surrounding card's overflow clip. Its
+        // marker is nearly edge-on there, so hiding it costs nothing.
+        const offEdge = slot.x < 0.13 || slot.x > 0.87
+        const collides =
+          !slot.focused &&
+          (offEdge ||
+            placed.some((p) => Math.abs(p.x - slot.x) < 0.19 && Math.abs(p.y - slot.y) < 0.075))
+        const t = collides ? 0 : slot.t
+        if (!collides) placed.push({ x: slot.x, y: slot.y })
+        slot.el.style.opacity = collides ? "0" : (0.1 + 0.9 * t).toFixed(3)
+        slot.el.style.filter = t > 0.97 ? "none" : `blur(${((1 - t) * 5).toFixed(2)}px)`
+        // A hidden pill must not stay clickable, or it would swallow taps aimed
+        // at the visible label sitting on top of it.
+        slot.el.style.pointerEvents = !collides && t > 0.6 ? "auto" : "none"
       }
     }
 

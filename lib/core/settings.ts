@@ -132,6 +132,13 @@ export const SETTING_KEYS = {
   domainLookupLimitPerMinute: "domain.lookupLimitPerMinute",
   domainQuoteSecret: "domain.quoteSecret",
   domainProvider: "domain.provider",
+  // Discount applied to the registrar's USD cost to get our sale price, and the
+  // cost ceiling used when importing the TLD catalog. Persisted so the price
+  // sync dialog reopens with the values the admin last used.
+  domainPriceMarginPercent: "domain.priceMarginPercent",
+  domainPriceMaxUsd: "domain.priceMaxUsd",
+  domainPriceProbeQuery: "domain.priceProbeQuery",
+  domainPriceLastSyncAt: "domain.priceLastSyncAt",
 
   // --- Wallex live FX sync (api.wallex.ir/v1/markets) ---
   // Hourly job pulls the 24h high price for USDT (dollar) and GRAM (TON) in
@@ -267,6 +274,12 @@ const DEFAULTS: Record<string, string> = {
   [SETTING_KEYS.domainLookupLimitPerMinute]: "30",
   [SETTING_KEYS.domainQuoteSecret]: "",
   [SETTING_KEYS.domainProvider]: "cloudflare-rdap",
+  // 50% off the registrar cost, and only import TLDs costing under $20.
+  [SETTING_KEYS.domainPriceMarginPercent]: "50",
+  [SETTING_KEYS.domainPriceMaxUsd]: "20",
+  // Long nonsense label so nearly every zone comes back free and therefore priced.
+  [SETTING_KEYS.domainPriceProbeQuery]: "safoaghkgoasfgakas",
+  [SETTING_KEYS.domainPriceLastSyncAt]: "",
 
   // Wallex live FX: on by default, +2,000 Toman buffer per unit, hourly.
   [SETTING_KEYS.wallexEnabled]: "true",

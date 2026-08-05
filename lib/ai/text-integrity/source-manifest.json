@@ -3,5 +3,15 @@
     "path": "app/admin/orders/manage/[id]/page.tsx",
     "line": 418,
     "text": "<option value=\"\">بدون آموزش ��ختصاصی</option>"
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1043,
+    "text": "\"store.priceRange\": \"محدوده ��یمت\","
+  },
+  {
+    "path": "lib/i18n/messages.ts",
+    "line": 1738,
+    "text": "\"vip.totalSpend\": \"��جموع خرید\","
   }
 ]

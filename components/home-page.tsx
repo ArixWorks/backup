@@ -1,12 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronLeft, CircuitBoard, Gavel, Gift, Globe, Package, Plus, Server, Store, UserPlus } from "lucide-react"
-import { motion, useReducedMotion } from "motion/react"
+import useSWR from "swr"
+import { CircuitBoard, Gift, Package, Plus, UserPlus } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 import { Stagger, FadeItem, Pressable } from "@/components/motion"
 import { ProfileBalanceHero } from "@/components/profile-balance-hero"
+import { ServiceFolder, type ServiceFolderDef } from "@/components/home/service-folder"
+import { apiGet } from "@/lib/api-client"
+import type { HomePreviews } from "@/lib/home/service-previews"
 
 const quickActions: { href: string; label: MessageKey; icon: typeof Plus }[] = [
   { href: "/wallet", label: "home.topup", icon: Plus },
@@ -15,61 +18,31 @@ const quickActions: { href: string; label: MessageKey; icon: typeof Plus }[] = [
   { href: "/invite", label: "invite.title", icon: UserPlus },
 ]
 
-const services: { href: string; icon: typeof Gavel; title: MessageKey; desc: MessageKey; badge: MessageKey; code: string }[] = [
-  { href: "/flash", icon: Store, title: "svc.store", desc: "svc.storeDesc", badge: "badge.active", code: "MARKET" },
-  { href: "/auctions", icon: Gavel, title: "svc.auctions", desc: "svc.auctionsDesc", badge: "badge.active", code: "BID" },
-  { href: "/domains", icon: Globe, title: "svc.domains", desc: "svc.domainsDesc", badge: "badge.active", code: "DOMAIN" },
-  { href: "/vps", icon: Server, title: "svc.vps", desc: "svc.vpsDesc", badge: "badge.soon", code: "CLOUD" },
+/**
+ * The four home services, each rendered as a folder that opens to show real
+ * items. `key` maps the folder onto its bucket in the previews payload; VPS is
+ * locked because there is nothing to sell there yet.
+ */
+const services: (ServiceFolderDef & { key: keyof HomePreviews })[] = [
+  { key: "store", href: "/flash", title: "svc.store", desc: "svc.storeDesc", code: "MARKET", accent: "primary" },
+  { key: "auctions", href: "/auctions", title: "svc.auctions", desc: "svc.auctionsDesc", code: "BID", accent: "warning" },
+  { key: "domains", href: "/domains", title: "svc.domains", desc: "svc.domainsDesc", code: "DOMAIN", accent: "success" },
+  { key: "vps", href: "/vps", title: "svc.vps", desc: "svc.vpsDesc", code: "CLOUD", accent: "accent", locked: true },
 ]
 
-function ServiceCard({ service, index }: { service: (typeof services)[number]; index: number }) {
-  const { t } = useI18n()
-  const reduceMotion = useReducedMotion()
-  const Icon = service.icon
-
-  return (
-    <motion.article
-      initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: reduceMotion ? 0 : index * 0.07, type: "spring", stiffness: 220, damping: 24 }}
-      className="h-full"
-    >
-      <Link href={service.href} className="service-node group relative flex min-h-28 h-full items-center gap-3.5 overflow-hidden rounded-[1.4rem] border border-border px-4 py-4 outline-none transition-[border-color,transform,box-shadow] duration-300 focus-visible:ring-2 focus-visible:ring-ring hoverable:hover:-translate-y-1 hoverable:hover:border-primary/45 hoverable:hover:shadow-[0_18px_42px_-24px_color-mix(in_oklab,var(--primary)_70%,transparent)] sm:min-h-32 sm:px-5">
-        <span aria-hidden className="service-node__grid" />
-        <span aria-hidden className="service-node__orbit" />
-        <span aria-hidden className="service-node__beam" />
-
-        <motion.span
-          className="service-node__icon relative z-10 flex size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/30 bg-primary/[0.12] text-primary shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_10%,transparent)] sm:size-14"
-          whileHover={reduceMotion ? undefined : { rotate: index % 2 ? 6 : -6, scale: 1.08 }}
-          transition={{ type: "spring", stiffness: 340, damping: 18 }}
-        >
-          <Icon className="size-5.5 sm:size-6" strokeWidth={2} />
-          <span aria-hidden className="absolute -bottom-1 h-px w-7 bg-primary/80 blur-[1px]" />
-        </motion.span>
-
-        <span className="relative z-10 min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span dir="auto" className="text-pretty text-[15px] font-extrabold leading-6 text-foreground sm:text-base">{t(service.title)}</span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-success/25 bg-success/[0.09] px-2 py-0.5 text-[9px] font-bold text-success">
-              <span className="size-1.5 rounded-full bg-success shadow-[0_0_7px_color-mix(in_oklab,var(--success)_80%,transparent)]" />
-              {t(service.badge)}
-            </span>
-          </span>
-          <span dir="auto" className="mt-0.5 block text-pretty text-xs leading-5 text-muted-foreground sm:text-[13px]">{t(service.desc)}</span>
-          <span aria-hidden className="mt-2 hidden font-mono text-[8px] font-semibold tracking-[0.2em] text-primary/50 sm:block">NODE / {service.code}</span>
-        </span>
-
-        <span className="relative z-10 flex size-8 shrink-0 items-center justify-center rounded-xl border border-border bg-background/35 text-muted-foreground transition-[color,border-color,transform] duration-300 group-hover:text-primary group-hover:border-primary/30 group-hover:-translate-x-1 rtl:group-hover:translate-x-1">
-          <ChevronLeft className="size-4 rtl:rotate-180" />
-        </span>
-      </Link>
-    </motion.article>
-  )
-}
+const EMPTY: HomePreviews = { store: [], auctions: [], domains: [], vps: [] }
 
 export default function HomePage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+
+  // Locale is part of the key so switching language refetches localized titles.
+  // Folders render closed while this is in flight, then fill in — the layout
+  // never shifts because the folder graphic has a fixed height.
+  const { data } = useSWR<{ data: HomePreviews }>(`/api/v1/home/previews?locale=${locale}`, apiGet, {
+    revalidateOnFocus: false,
+  })
+  const previews = data?.data ?? EMPTY
+
   return (
     <Stagger className="flex flex-col gap-6">
       <FadeItem><ProfileBalanceHero /></FadeItem>
@@ -96,8 +69,17 @@ export default function HomePage() {
             <span aria-hidden className="h-px min-w-10 flex-1 bg-[linear-gradient(90deg,transparent,color-mix(in_oklab,var(--primary)_35%,transparent),transparent)]" />
           </header>
 
-          <div className="grid gap-3 sm:grid-cols-2 web:xl:grid-cols-4">
-            {services.map((service, index) => <ServiceCard key={service.href} service={service} index={index} />)}
+          {/*
+            Two columns from 480px up rather than Tailwind's 640px `sm`: the
+            fanned preview cards span ~190px and the card clips its overflow, so
+            the breakpoint is set by the fan's width, not by a device class. A
+            480px cell still leaves the fan room, while a single 595px-wide
+            column would waste most of its width on a 108px folder.
+          */}
+          <div className="grid gap-3 min-[480px]:grid-cols-2 web:xl:grid-cols-4">
+            {services.map((service, index) => (
+              <ServiceFolder key={service.href} service={service} items={previews[service.key]} index={index} />
+            ))}
           </div>
         </section>
       </FadeItem>

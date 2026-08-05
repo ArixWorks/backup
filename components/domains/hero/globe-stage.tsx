@@ -81,6 +81,9 @@ function StaticGlobe({
   onSelectTld: (tld: string) => void
   selectLabel: string
 }) {
+  // Deliberately 5, even though the animated globe now labels 20: this is a flat
+  // disc with no depth culling, so every pill is visible simultaneously and a
+  // larger count would collide into an unreadable ring.
   const items = tlds.slice(0, 5)
 
   return (

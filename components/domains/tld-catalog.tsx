@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
 
-interface Tld { id: string; tld: string; title: string; basePriceIrt: string; supported: boolean }
+interface Tld { id: string; tld: string; title: string; basePriceIrt: string; listPriceIrt: string | null; supported: boolean }
 
 type Sort = "priceAsc" | "priceDesc" | "name"
 
@@ -86,6 +86,12 @@ export function TldCatalog() {
               >
                 <span dir="ltr" className="font-mono text-lg font-bold text-foreground group-hover:text-primary">{item.tld}</span>
                 <span className="text-sm font-semibold text-primary">{money(item.basePriceIrt)}</span>
+                {/* Reference price, shown only when it is genuinely higher. */}
+                {Number(item.listPriceIrt ?? 0) > Number(item.basePriceIrt) ? (
+                  <span dir="ltr" className="text-xs font-medium text-muted-foreground line-through decoration-muted-foreground/60">
+                    {money(item.listPriceIrt as string)}
+                  </span>
+                ) : null}
               </Link>
             </li>
           ))}
