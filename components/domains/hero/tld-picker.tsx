@@ -88,23 +88,19 @@ export function TldPicker({
         <span className="text-sm font-bold">{labels.popular}</span>
       </div>
 
-      {/* Single row at every width: the chips scroll horizontally instead of
-          wrapping, so the "all extensions" trigger never drops to a second line
-          and leaves a gap under the rail on narrow screens. */}
+      {/* Single row at every width, spanning the full column: the chips divide
+          the row between them rather than clustering at one edge. */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* `w-0 grow max-w-fit`, not `flex-1 min-w-0`, for two separate reasons:
+        {/* `w-0 grow`, not `flex-1` or `max-w-fit`:
             - `w-0`: this row sits inside a grid column whose track is sized from
-              content, and with an auto basis the rail handed its full max-content
-              up to the track - blowing the hero column past the viewport on
-              narrow phones. A definite 0 width contributes nothing intrinsically,
-              so the track stays put and the chips scroll inside the rail.
-            - `max-w-fit`: `grow` alone made the rail eat all leftover width, and
-              because the content right-aligns under RTL that padded the rail's
-              left edge and stranded the trigger at the far edge of the row.
-              Capping at fit-content resolves the width to
-              min(available, content), so the trigger stays beside the chips when
-              they fit and the rail only scrolls once they don't. */}
-        <div className="no-scrollbar -mx-1 flex w-0 max-w-fit grow items-center gap-1.5 overflow-x-auto px-1 py-1 sm:gap-2">
+              content. With an auto basis the rail handed its full max-content up
+              to the track, blowing the hero column past the viewport on narrow
+              phones. A definite 0 width contributes nothing intrinsically, so the
+              track stays put while `grow` claims the real width back afterwards.
+            - no `max-w-fit`: capping at fit-content sized the rail to its chips
+              and left the remaining width as dead space at the far edge. Letting
+              it grow unbounded hands that space to the chips instead. */}
+        <div className="-mx-1 flex w-0 grow items-center gap-1.5 px-1 py-1 sm:gap-2">
           {popular.map((item, index) => {
             const active = selected === item.tld
             return (
@@ -114,7 +110,12 @@ export function TldPicker({
                 aria-pressed={active}
                 active={active}
                 glow={GLOWS[index % GLOWS.length]}
-                className="font-mono font-bold"
+                /* Equal share of the rail each: `basis-0 grow` divides the row
+                   between however many chips the admin has promoted, so 3 chips
+                   are simply wider than 5 rather than leaving a gap. `min-w-0`
+                   keeps their min-content out of the parent grid track, which is
+                   what let the row overflow a phone before. */
+                className="min-w-0 basis-0 grow font-mono font-bold"
               >
                 <span dir="ltr">{item.tld}</span>
                 {/* Hidden below `sm`: the tick widens the chip ~14px and tips the

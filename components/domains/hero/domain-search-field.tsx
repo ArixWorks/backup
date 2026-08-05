@@ -52,6 +52,10 @@ interface DomainSearchFieldProps {
     unsupported: string
     taken: string
     unclear: string
+    /** Abbreviations for narrow screens, where the full sentence would squeeze the
+        typed domain out of view. */
+    takenShort: string
+    unclearShort: string
   }
 }
 
@@ -210,7 +214,9 @@ export function DomainSearchField({
           >
             {/* Status slot. Morphs globe -> spinner -> price -> error, and sits
                 on the inline-end edge (right in RTL) as in the design. */}
-            <div className="relative flex h-10 min-w-8 shrink-0 items-center justify-center sm:min-w-10">
+            {/* Not `shrink-0`: the status is the one thing allowed to give way
+                (its text truncates) so the typed domain keeps its floor. */}
+            <div className="relative flex h-10 min-w-8 shrink items-center justify-center overflow-hidden sm:min-w-10">
               <AnimatePresence mode="wait" initial={false}>
                 {phase === "checking" ? (
                   <motion.span
@@ -252,10 +258,19 @@ export function DomainSearchField({
                     animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                     exit={{ opacity: 0, scale: 0.7 }}
                     transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                    className="flex items-center gap-1.5 whitespace-nowrap px-2 text-sm font-bold text-destructive"
+                    className="flex items-center gap-1 whitespace-nowrap px-1 text-xs font-bold text-destructive min-[420px]:gap-1.5 min-[420px]:px-2 min-[420px]:text-sm"
                   >
                     <XCircle className="size-4 shrink-0" aria-hidden />
-                    {verdict === "unclear" ? labels.unclear : labels.taken}
+                    {/* The full sentence needs ~160px, which crushed the input to
+                        30px on a 360px screen and hid the domain the message is
+                        about. Below `sm` it collapses to one word; the red border
+                        and X already carry the "unavailable" signal. */}
+                    {/* Switches at 420px, not the `sm` 640px default: the full
+                        sentence already fits comfortably well below `sm`, and
+                        gating on `sm` left tablets and the 595px preview reading
+                        the terse one-word version for no reason. */}
+                    <span className="min-[420px]:hidden">{verdict === "unclear" ? labels.unclearShort : labels.takenShort}</span>
+                    <span className="hidden min-[420px]:inline">{verdict === "unclear" ? labels.unclear : labels.taken}</span>
                   </motion.span>
                 ) : phase === "invalid" ? (
                   <motion.span
@@ -308,7 +323,10 @@ export function DomainSearchField({
                  min-content size, which propagated up and blew the hero's grid
                  track past the viewport on phones. A definite 0 width contributes
                  nothing intrinsically, and `grow` fills the real space back in. */
-              className="h-12 w-0 grow bg-transparent px-1 text-base text-foreground outline-none placeholder:text-muted-foreground/70"
+              /* `basis-32` floors the typed domain at ~8rem so a long status
+                 message (the "already registered" sentence) can never squeeze it
+                 down to a couple of characters - the status shrinks first. */
+              className="h-12 w-0 min-w-0 shrink grow basis-32 bg-transparent px-1 text-base text-foreground outline-none placeholder:text-muted-foreground/70"
             />
 
             <motion.button

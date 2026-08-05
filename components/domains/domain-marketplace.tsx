@@ -313,6 +313,8 @@ export function DomainMarketplace() {
                     unsupported: copy.extUnsupported,
                     taken: copy.alreadyTaken,
                     unclear: copy.lookupUnclear,
+                    takenShort: copy.alreadyTakenShort,
+                    unclearShort: copy.lookupUnclearShort,
                   }}
                 />
 
