@@ -135,12 +135,15 @@ export default function GlobePulse({
 
     function readTheme() {
       const primary = resolveToken(host!, "--primary", [0.55, 0.6, 0.95])
-      colors.marker = primary
-      // Continents read as a desaturated version of the theme's muted text, so
-      // the landmasses sit behind the primary-coloured markers rather than
-      // competing with them.
-      colors.base = resolveToken(host!, "--muted-foreground", [0.48, 0.5, 0.56]).map((c) => c * 0.66) as Rgb
-      colors.glow = primary.map((c) => c * 0.11) as Rgb
+      // Markers sit brighter than the landmass so the pinned TLDs stay legible.
+      colors.marker = primary.map((c) => Math.min(1, c * 1.25 + 0.1)) as Rgb
+      // baseColor wants to land around mid-grey luminance (cobe's reference uses
+      // a flat 0.5) - scaling the primary keeps that level while tinting the
+      // landmass violet. Too dark reads as an empty sphere, too bright washes out.
+      colors.base = primary.map((c) => Math.min(1, c * 0.85)) as Rgb
+      // Near-black atmosphere, as in the reference: a bright glow fogs the limb
+      // and eats the dot detail around the edge.
+      colors.glow = primary.map((c) => c * 0.09) as Rgb
     }
 
     function build() {
@@ -165,10 +168,13 @@ export default function GlobePulse({
         height: width,
         phi: phi.current,
         theta: theta.current,
+        // Full dark keeps a real terminator across the sphere, which is what
+        // gives it volume; lifting it flattens the globe into a disc.
         dark: 1,
-        diffuse: 1.35,
+        diffuse: 1.5,
         mapSamples: quality === "cinematic" ? 16000 : 9000,
-        mapBrightness: 6.2,
+        // Pairs with a mid-luminance baseColor to make the land dots crisp.
+        mapBrightness: 10,
         baseColor: colors.base,
         markerColor: colors.marker,
         glowColor: colors.glow,
