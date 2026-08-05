@@ -124,8 +124,10 @@ export function GlobeStage({
   const clipY = useSpring(useTransform(pointerY, (v) => v * 4), spring)
 
   // Circle mask: keeps the sphere, discards the square frame's corners.
+  // `closest-side` is required - a bare `circle` sizes to farthest-corner, which
+  // pushes the transparent stop outside the box and leaves the corners opaque.
   const circleMask =
-    "radial-gradient(circle at 50% 50%, #000 80%, rgba(0,0,0,0.55) 92%, transparent 100%)"
+    "radial-gradient(circle closest-side at 50% 50%, #000 78%, rgba(0,0,0,0.5) 92%, transparent 100%)"
 
   return (
     <div

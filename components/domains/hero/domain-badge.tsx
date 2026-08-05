@@ -75,6 +75,9 @@ export function DomainBadge({
         type="button"
         onClick={() => onSelect(spec.label)}
         aria-label={`${selectLabel} ${spec.label}`}
+        // Extensions are always Latin, so force LTR: under RTL the leading dot
+        // is treated as neutral and renders on the wrong side ("com." not ".com").
+        dir="ltr"
         className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-semibold backdrop-blur-sm transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:oklch(0.8_0.14_300)] ${ACCENT_CLASS[spec.accent]}`}
       >
         {spec.label}

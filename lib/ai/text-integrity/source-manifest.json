@@ -1,72 +1,7 @@
 [
   {
-    "path": "lib/i18n/messages.ts",
-    "line": 896,
-    "text": "\"soon.back\": \"بازگشت به داش��ورد\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1078,
-    "text": "\"coupon.userLimit\": \"شما ��بلاً از این کد استفاده کرده‌اید.\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1259,
-    "text": "\"wins.walletCredited\": \"مبلغ {amount} توم��ن به کیف پول شما واریز شد.\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1276,
-    "text": "\"invite.subtitle\": \"دوستانت را دعوت کن و در سه مرحله پاداش بگیر؛ ��ز عضویت تا هر خرید آن‌ها.\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1278,
-    "text": "\"invite.how\": \"چطور پاد��ش می‌گیرم؟\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1475,
-    "text": "\"menu.account\": \"امنیت و ورو��\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1502,
-    "text": "\"txn.PURCHASE\": \"کسر بابت خ��ید\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1590,
-    "text": "\"notifList.tabArchived\": \"��ایگانی\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1690,
-    "text": "\"missions.daily\": \"مأمور��ت‌های روزانه\","
-  },
-  {
-    "path": "lib/i18n/messages.ts",
-    "line": 1714,
-    "text": "\"refAct.emptyDesc\": \"لینک خود را به اشتراک بگذارید تا ای��جا دوستانتان را ببینید.\","
-  },
-  {
-    "path": "lib/telegram/handler.ts",
-    "line": 250,
-    "text": "body: \"لطفا جهت بررسی مشکل با ادم��ن در ارتباط باشید.\","
-  },
-  {
-    "path": "lib/telegram/handler.ts",
-    "line": 1249,
-    "text": "depositChoose: \"روش واریز را انتخاب کنید:\", depInstrTitle: \"راهنمای پرداخت\", depAmount: \"مبلغ\", depAddress: \"��قصد\","
-  },
-  {
-    "path": "lib/telegram/notify.ts",
-    "line": 451,
-    "text": "`🎉🏆 <b>تبریک! شما برنده شدید</b> ����🎉\\n\\n` +"
-  },
-  {
-    "path": "lib/telegram/notify.ts",
-    "line": 495,
-    "text": "`✅ واجد ��رایط: <b>${eligible}</b>\\n` +"
+    "path": "app/admin/orders/manage/[id]/page.tsx",
+    "line": 418,
+    "text": "<option value=\"\">بدون آموزش ��ختصاصی</option>"
   }
 ]
