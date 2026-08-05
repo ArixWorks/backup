@@ -109,7 +109,16 @@ export function GlobeStage({ caption, captionHint }: { caption: string; captionH
 
         <motion.div
           className="absolute inset-0 z-[2]"
-          style={{ x: animated ? clipX : 0, y: animated ? clipY : 0 }}
+          style={{
+            x: animated ? clipX : 0,
+            y: animated ? clipY : 0,
+            // Feather the frame edges so the clip dissolves into the card
+            // instead of showing a hard letterboxed rectangle.
+            maskImage:
+              "radial-gradient(ellipse 78% 72% at 50% 48%, #000 58%, rgba(0,0,0,0.55) 80%, transparent 100%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 78% 72% at 50% 48%, #000 58%, rgba(0,0,0,0.55) 80%, transparent 100%)",
+          }}
         >
           {/* Poster paints first and stays visible underneath until the clip is ready. */}
           <img
