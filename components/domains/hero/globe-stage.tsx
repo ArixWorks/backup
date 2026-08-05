@@ -96,12 +96,17 @@ function StaticGlobe({
       {items.map((tld, index) => {
         // Even ring, starting at the top.
         const angle = (index / items.length) * Math.PI * 2 - Math.PI / 2
+        // Offset via left/top, NOT a second translate(): percentages inside
+        // `translate` resolve against the pill's own ~60px box, so the ring
+        // collapsed into a single unreadable stack in the middle. left/top
+        // percentages resolve against the square container, which is what we want.
         return (
           <div
             key={tld}
-            className="absolute top-1/2 left-1/2"
+            className="absolute -translate-x-1/2 -translate-y-1/2"
             style={{
-              transform: `translate(-50%, -50%) translate(${(Math.cos(angle) * 42).toFixed(2)}%, ${(Math.sin(angle) * 42).toFixed(2)}%)`,
+              left: `${(50 + Math.cos(angle) * 38).toFixed(2)}%`,
+              top: `${(50 + Math.sin(angle) * 38).toFixed(2)}%`,
             }}
           >
             <TldPill tld={tld} selectLabel={selectLabel} onSelect={onSelectTld} pulse={false} />

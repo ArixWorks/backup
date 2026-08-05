@@ -137,10 +137,11 @@ export default function GlobePulse({
       const primary = resolveToken(host!, "--primary", [0.55, 0.6, 0.95])
       // Markers sit brighter than the landmass so the pinned TLDs stay legible.
       colors.marker = primary.map((c) => Math.min(1, c * 1.25 + 0.1)) as Rgb
-      // baseColor wants to land around mid-grey luminance (cobe's reference uses
-      // a flat 0.5) - scaling the primary keeps that level while tinting the
-      // landmass violet. Too dark reads as an empty sphere, too bright washes out.
-      colors.base = primary.map((c) => Math.min(1, c * 0.85)) as Rgb
+      // cobe's reference uses a flat mid-grey [0.5, 0.5, 0.5] here. Pulling the
+      // primary TOWARD 0.5 rather than scaling it keeps that mid luminance - so
+      // the land dots stay crisp - while still tinting the landmass violet.
+      // Plain scaling darkens the green channel and the globe goes muddy.
+      colors.base = primary.map((c) => 0.5 + (c - 0.5) * 0.55) as Rgb
       // Near-black atmosphere, as in the reference: a bright glow fogs the limb
       // and eats the dot detail around the edge.
       colors.glow = primary.map((c) => c * 0.09) as Rgb
@@ -159,7 +160,8 @@ export default function GlobePulse({
       canvas = document.createElement("canvas")
       // No touch-action here: the host element owns it, and `none` on the canvas
       // would block vertical page scrolling.
-      canvas.style.cssText = "width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease"
+      canvas.style.cssText =
+        "width:100%;height:100%;display:block;border-radius:50%;opacity:0;transition:opacity .9s ease"
       canvasHost!.append(canvas)
 
       globe = createGlobe(canvas, {
@@ -178,7 +180,9 @@ export default function GlobePulse({
         baseColor: colors.base,
         markerColor: colors.marker,
         glowColor: colors.glow,
-        opacity: 0.92,
+        // Slightly translucent, as in the reference: it lets the page background
+        // sit through the sphere so it reads as atmosphere rather than a decal.
+        opacity: 0.72,
         markerElevation: 0,
         markers: markers.map((m) => ({ location: m.location, size: 0.028 })),
       })
