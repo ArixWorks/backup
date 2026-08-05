@@ -1,40 +1,27 @@
 "use client"
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { motion, useMotionValue, useSpring, useTransform } from "motion/react"
-import { Globe2 } from "lucide-react"
+import dynamic from "next/dynamic"
 import { useMotionTier } from "@/components/motion-provider"
-import { DomainBadge, type BadgeSpec } from "@/components/domains/hero/domain-badge"
-import type { PointerRef } from "@/components/domains/hero/globe-canvas"
+import { TldPill } from "./domain-badge"
+
+/** cobe plus a WebGL context is fetched only when it will actually be used. */
+const GlobePulse = dynamic(() => import("./globe-pulse"), {
+  ssr: false,
+  loading: () => <div className="aspect-square w-full" aria-hidden="true" />,
+})
 
 /**
- * The interactive globe stage: five parallax depth layers that each respond to
- * the pointer at a different rate.
+ * The hero globe: a real dotted-map sphere the user can spin.
  *
- *   1 background bloom/stars  2 star dust  3 orbit rings  4 badges  5 globe
+ * Drag with a mouse or swipe to rotate; the gesture tracks 1:1 and carries
+ * momentum, and at rest the globe keeps a slow idle drift that pauses on hover
+ * so a moving pill can still be clicked. The extension pills are projected onto
+ * true marker coordinates, so they orbit with the sphere and fade as they pass
+ * behind it while staying real <button>s - crisp, translatable and focusable.
  *
- * Layers 2, 3 and 5 live inside the WebGL canvas; 1 and 4 are DOM so the badges
- * stay real, selectable, accessible buttons.
- *
- * The three.js bundle is code-split and only requested once the stage scrolls
- * into view and the resolved motion tier allows animation.
+ * Colours are read from the live theme tokens, so the globe restyles itself
+ * whenever the site theme changes rather than pinning one accent.
  */
-
-const GlobeCanvas = lazy(() => import("@/components/domains/hero/globe-canvas"))
-
-/**
- * Anchor slots tuned to the reference composition; none of them overlap.
- * Extensions are filled in from the live catalog so a badge can never offer a
- * TLD we do not actually sell.
- */
-const ANCHORS: Omit<BadgeSpec, "label">[] = [
-  { accent: "violet", top: 8, left: 50, depth: 0.85 },
-  { accent: "cyan", top: 29, left: 86, depth: 1 },
-  { accent: "indigo", top: 48, left: 12, depth: 0.7 },
-  { accent: "violet", top: 68, left: 83, depth: 0.55 },
-  { accent: "cyan", top: 82, left: 23, depth: 0.9 },
-]
-
 export function GlobeStage({
   tlds,
   onSelectTld,
@@ -51,112 +38,26 @@ export function GlobeStage({
   const tier = useMotionTier()
   const animated = tier !== "minimal"
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  // Imperative pointer channel for the WebGL frame loop - never React state.
-  const pointer = useRef<PointerRef>({ x: 0, y: 0 })
-  const pointerX = useMotionValue(0)
-  const pointerY = useMotionValue(0)
-  const [visible, setVisible] = useState(false)
-  const [fine, setFine] = useState(false)
-
-  useEffect(() => {
-    setFine(window.matchMedia("(pointer: fine)").matches)
-  }, [])
-
-  // Only pay for the WebGL chunk + context once the stage is actually on screen.
-  useEffect(() => {
-    const node = containerRef.current
-    if (!node) return
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true)
-      return
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true)
-          observer.disconnect()
-        }
-      },
-      { rootMargin: "200px" },
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-
-  const handleMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!fine || !animated) return
-      const rect = event.currentTarget.getBoundingClientRect()
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      const y = ((event.clientY - rect.top) / rect.height) * 2 - 1
-      pointer.current.x = Math.max(-1, Math.min(1, x))
-      pointer.current.y = Math.max(-1, Math.min(1, y))
-      pointerX.set(pointer.current.x)
-      pointerY.set(pointer.current.y)
-    },
-    [fine, animated, pointerX, pointerY],
-  )
-
-  // Pointer gone: everything eases back to its resting pose.
-  const handleLeave = useCallback(() => {
-    pointer.current.x = 0
-    pointer.current.y = 0
-    pointerX.set(0)
-    pointerY.set(0)
-  }, [pointerX, pointerY])
-
-  // Layer 1 - background bloom drifts least, reinforcing depth.
-  const bloomX = useSpring(useTransform(pointerX, (value) => value * -8), { stiffness: 60, damping: 20 })
-  const bloomY = useSpring(useTransform(pointerY, (value) => value * -6), { stiffness: 60, damping: 20 })
-
-  const quality = useMemo(() => (tier === "cinematic" ? "high" : "low"), [tier])
-
-  // Pair each anchor slot with a real sellable extension, dropping any spare slot.
-  const badges = useMemo<BadgeSpec[]>(
-    () => ANCHORS.slice(0, tlds.length).map((anchor, index) => ({ ...anchor, label: tlds[index] })),
-    [tlds],
-  )
-
   return (
-    <div
-      ref={containerRef}
-      onPointerMove={handleMove}
-      onPointerLeave={handleLeave}
-      className="relative flex w-full flex-col items-center gap-4"
-    >
-      <div className="relative mx-auto aspect-square w-full max-w-[22rem] sm:max-w-[26rem] lg:max-w-[30rem]">
-        {/* Layer 1: static bloom + faint star grid behind everything. */}
-        <motion.div
-          aria-hidden
-          className="absolute inset-0 z-[1]"
-          style={{ x: animated ? bloomX : 0, y: animated ? bloomY : 0 }}
-        >
-          <div className="absolute left-1/2 top-1/2 size-[78%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/25 blur-3xl" />
-          <div className="absolute left-[62%] top-[34%] size-[38%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-2/20 blur-3xl" />
-        </motion.div>
+    <div className="relative flex w-full flex-col items-center gap-4">
+      {/* Stays modest on phones so the search field is still above the fold,
+          then grows into the space the two-column desktop layout gives it. */}
+      <div className="relative mx-auto w-full max-w-[17rem] sm:max-w-[21rem] lg:max-w-[26rem]">
+        {/* Bloom behind the sphere so its glow has something to sit on. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute top-1/2 left-1/2 size-[62%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/15 blur-3xl" />
+        </div>
 
-        {/* Layers 2, 3, 5: star dust, orbit rings and the particle globe. */}
-        {animated && visible ? (
-          <Suspense fallback={<StaticGlobe />}>
-            <GlobeCanvas pointer={pointer} quality={quality} />
-          </Suspense>
-        ) : (
-          <StaticGlobe />
-        )}
-
-        {/* Layer 4: the real, clickable extension badges. */}
-        {badges.map((spec) => (
-          <DomainBadge
-            key={spec.label}
-            spec={spec}
-            pointerX={pointerX}
-            pointerY={pointerY}
-            interactive={animated}
-            onSelect={onSelectTld}
+        {animated ? (
+          <GlobePulse
+            tlds={tlds}
+            onSelectTld={onSelectTld}
             selectLabel={selectLabel}
+            quality={tier === "cinematic" ? "cinematic" : "balanced"}
           />
-        ))}
+        ) : (
+          <StaticGlobe tlds={tlds} onSelectTld={onSelectTld} selectLabel={selectLabel} />
+        )}
       </div>
 
       <div className="flex flex-col items-center gap-1 text-center">
@@ -168,17 +69,50 @@ export function GlobeStage({
 }
 
 /**
- * Zero-WebGL stand-in used while the canvas chunk streams in and as the
- * permanent visual for the minimal motion tier / reduced-motion users.
+ * Reduced-motion fallback: same silhouette and the same interactive pills, but
+ * a flat themed disc with no WebGL context, no download and no animation.
  */
-function StaticGlobe() {
+function StaticGlobe({
+  tlds,
+  onSelectTld,
+  selectLabel,
+}: {
+  tlds: string[]
+  onSelectTld: (tld: string) => void
+  selectLabel: string
+}) {
+  const items = tlds.slice(0, 5)
+
   return (
-    <div aria-hidden className="absolute inset-0 z-[2] flex items-center justify-center">
-      <div className="relative flex size-[62%] items-center justify-center rounded-full border border-primary/30 bg-[radial-gradient(circle_at_35%_30%,var(--color-primary)/0.45,transparent_70%)]">
-        <span className="absolute inset-0 rounded-full border border-dashed border-chart-2/25" />
-        <span className="absolute -inset-[18%] rounded-full border border-dashed border-primary/15" />
-        <Globe2 className="size-1/3 text-primary/80" />
-      </div>
+    <div className="relative aspect-square w-full">
+      <div
+        aria-hidden="true"
+        className="absolute inset-[14%] rounded-full border border-primary/20 shadow-2xl shadow-primary/10"
+        style={{
+          background:
+            "radial-gradient(circle at 34% 28%, color-mix(in oklab, var(--primary) 26%, transparent), transparent 58%), radial-gradient(circle at 50% 50%, var(--card), var(--background))",
+        }}
+      />
+      {items.map((tld, index) => {
+        // Even ring, starting at the top.
+        const angle = (index / items.length) * Math.PI * 2 - Math.PI / 2
+        // Offset via left/top, NOT a second translate(): percentages inside
+        // `translate` resolve against the pill's own ~60px box, so the ring
+        // collapsed into a single unreadable stack in the middle. left/top
+        // percentages resolve against the square container, which is what we want.
+        return (
+          <div
+            key={tld}
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+            style={{
+              left: `${(50 + Math.cos(angle) * 38).toFixed(2)}%`,
+              top: `${(50 + Math.sin(angle) * 38).toFixed(2)}%`,
+            }}
+          >
+            <TldPill tld={tld} selectLabel={selectLabel} onSelect={onSelectTld} pulse={false} />
+          </div>
+        )
+      })}
     </div>
   )
 }

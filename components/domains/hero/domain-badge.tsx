@@ -1,76 +1,47 @@
 "use client"
 
-import { memo } from "react"
-import { motion, useSpring, useTransform, type MotionValue } from "motion/react"
+import { forwardRef } from "react"
 
 /**
- * One floating extension badge orbiting the globe.
+ * A single domain-extension pill.
  *
- * Parallax is driven entirely by motion values handed down from the stage, so
- * pointer movement animates on the compositor without a single React render.
- * `depth` gives every badge its own apparent distance: nearer badges travel
- * further, which is what sells the 3D feel.
+ * Styling is driven entirely by theme tokens (`primary`, `card`, `ring`) so the
+ * pills always match the globe and whichever site theme is active, rather than
+ * hardcoding an accent that clashes when the theme changes.
+ *
+ * Rendered as a real <button> so the orbiting labels stay keyboard reachable
+ * and screen-reader friendly - the globe canvas itself is decorative.
  */
-
-export type BadgeAccent = "violet" | "cyan" | "indigo"
-
-export interface BadgeSpec {
-  label: string
-  accent: BadgeAccent
-  /** Anchor inside the square stage, in percent. */
-  top: number
-  left: number
-  /** 0.4 (far) .. 1 (near) - scales parallax travel. */
-  depth: number
-}
-
-const ACCENT: Record<BadgeAccent, string> = {
-  violet: "border-primary/60 bg-primary/10 text-primary shadow-[0_0_18px_-4px_var(--color-primary)]",
-  cyan: "border-chart-2/60 bg-chart-2/10 text-chart-2 shadow-[0_0_18px_-4px_var(--color-chart-2)]",
-  indigo: "border-chart-3/60 bg-chart-3/10 text-chart-3 shadow-[0_0_18px_-4px_var(--color-chart-3)]",
-}
-
-const SPRING = { stiffness: 110, damping: 20, mass: 0.4 } as const
-
-export const DomainBadge = memo(function DomainBadge({
-  spec,
-  pointerX,
-  pointerY,
-  interactive,
-  onSelect,
-  selectLabel,
-}: {
-  spec: BadgeSpec
-  pointerX: MotionValue<number>
-  pointerY: MotionValue<number>
-  interactive: boolean
-  onSelect: (tld: string) => void
-  selectLabel: string
-}) {
-  // Travel budget is deliberately small (max ~20px) so badges drift without
-  // ever colliding with each other or the globe.
-  const x = useSpring(useTransform(pointerX, (value) => value * spec.depth * 20), SPRING)
-  const y = useSpring(useTransform(pointerY, (value) => value * spec.depth * 15), SPRING)
-  const rotate = useSpring(useTransform(pointerX, (value) => value * spec.depth * 4), SPRING)
-  const scale = useSpring(useTransform(pointerY, (value) => 1 + Math.abs(value) * spec.depth * 0.03), SPRING)
-
+export const TldPill = forwardRef<
+  HTMLButtonElement,
+  {
+    tld: string
+    selectLabel: string
+    onSelect: (tld: string) => void
+    /** The pulse ring is decorative, so it is dropped on the minimal tier. */
+    pulse?: boolean
+    className?: string
+  }
+>(function TldPill({ tld, selectLabel, onSelect, pulse = true, className = "" }, ref) {
   return (
-    <motion.div
-      className="absolute z-[4] -translate-x-1/2 -translate-y-1/2"
-      style={{ top: `${spec.top}%`, left: `${spec.left}%`, x, y, rotate, scale }}
+    <button
+      ref={ref}
+      type="button"
+      onClick={() => onSelect(tld)}
+      aria-label={`${selectLabel} ${tld}`}
+      // Extensions are always Latin. Under RTL the leading dot is a neutral
+      // character and flips to the wrong side (".com" renders as "com."), so
+      // the pill is pinned to LTR regardless of page direction.
+      dir="ltr"
+      className={`inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-card/80 px-2.5 py-1 font-mono text-xs font-semibold tracking-tight text-foreground shadow-lg shadow-primary/10 backdrop-blur-md transition-colors duration-200 hover:border-primary/60 hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${className}`}
     >
-      <motion.button
-        type="button"
-        onClick={() => onSelect(spec.label)}
-        aria-label={`${selectLabel} ${spec.label}`}
-        className={`flex cursor-pointer items-center rounded-xl border px-3 py-1.5 font-mono text-sm font-bold backdrop-blur-md transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:text-base ${ACCENT[spec.accent]}`}
-        animate={interactive ? { y: [0, -6, 0] } : undefined}
-        transition={{ duration: 4.2 + spec.depth * 2, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-        whileHover={{ scale: 1.08, y: -6 }}
-        whileTap={{ scale: 0.96 }}
-      >
-        <span dir="ltr">{spec.label}</span>
-      </motion.button>
-    </motion.div>
+      <span className="relative flex size-2 shrink-0 items-center justify-center">
+        {pulse ? (
+          <span className="absolute inset-0 animate-ping rounded-full bg-primary/60" aria-hidden="true" />
+        ) : null}
+        <span className="relative size-1.5 rounded-full bg-primary" aria-hidden="true" />
+      </span>
+      {tld}
+    </button>
   )
 })
