@@ -117,19 +117,31 @@ export function computeShopRoadmap(input: {
     complete
   const processingActive = status === "PROCESSING" || status === "AWAITING_EXTENSION_APPROVAL"
 
+  // On a terminal failure exactly ONE node turns red: the furthest node the
+  // order actually reached. Everything past it stays `upcoming`, since painting
+  // later nodes red showed their success copy under a failure icon.
+  const failedKey: StepKey | null = cancelled ? (inputDone ? "processing" : "input") : null
+
   const steps: RoadmapStep[] = [
     { key: "payment", state: "done" },
     {
       key: "input",
-      state: inputDone ? "done" : status === "AWAITING_CUSTOMER_INPUT" ? "active" : "upcoming",
+      state:
+        failedKey === "input"
+          ? "cancelled"
+          : inputDone
+            ? "done"
+            : status === "AWAITING_CUSTOMER_INPUT"
+              ? "active"
+              : "upcoming",
     },
     {
       key: "processing",
-      state: complete ? "done" : processingActive ? "active" : cancelled && inputDone ? "cancelled" : "upcoming",
+      state: failedKey === "processing" ? "cancelled" : complete ? "done" : processingActive ? "active" : "upcoming",
     },
     {
       key: "complete",
-      state: complete ? "done" : cancelled ? "cancelled" : "upcoming",
+      state: complete ? "done" : "upcoming",
     },
   ]
 
@@ -165,7 +177,10 @@ export function computeDomainProgress(status: string): number {
  *   1) پرداخت انجام شد (funds frozen — always done once an order exists)
  *   2) خرید توسط مدیر (admin registers the domain)
  *   3) دامنه فعال شد (COMPLETED)
- * Terminal failure/expiry/cancel marks the registration node as `cancelled`.
+ * Terminal failure/expiry/cancel marks ONLY the node the order stopped on as
+ * `cancelled`; later nodes stay `upcoming` because they were never reached.
+ * Marking them cancelled too used to render "دامنه با موفقیت ثبت شد" under a red
+ * failure icon — the copy and the icon contradicted each other.
  * Pure + deterministic (same result on server + client).
  */
 export function computeDomainRoadmap(status: string): RoadmapStep[] {
@@ -179,7 +194,7 @@ export function computeDomainRoadmap(status: string): RoadmapStep[] {
     },
     {
       key: "domain_done",
-      state: complete ? "done" : cancelled ? "cancelled" : "upcoming",
+      state: complete ? "done" : "upcoming",
     },
   ]
 }
