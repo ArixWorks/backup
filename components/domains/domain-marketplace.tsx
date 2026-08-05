@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { CheckCircle2, Globe2, Headphones, Loader2, Search, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
+import { Headphones, ShieldCheck, Sparkles, XCircle, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { ApiError, apiGet, apiPost } from "@/lib/api-client"
 import { PremiumHeroCard } from "@/components/premium-hero-card"
@@ -10,12 +10,12 @@ import { DomainResultsCarousel, type DomainResult, type DomainAvailability } fro
 import { DomainPurchaseDialog } from "@/components/domains/domain-purchase-dialog"
 import { GlobeStage } from "@/components/domains/hero/globe-stage"
 import { TldPicker } from "@/components/domains/hero/tld-picker"
+import { DomainSearchField } from "@/components/domains/hero/domain-search-field"
 import { CelebrationOverlay } from "@/components/celebration-overlay"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { useI18n } from "@/components/i18n-provider"
 import { DOMAIN_COPY } from "@/lib/i18n/domain-copy"
 
@@ -271,37 +271,23 @@ export function DomainMarketplace() {
                   <p className="max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">{copy.heroSubtitle}</p>
                 </div>
 
-                <div className={`flex h-16 items-center gap-1 rounded-full border bg-card/50 px-2 shadow-inner backdrop-blur-md transition-colors ${extState === "supported" ? "border-chart-2/60" : extState === "unsupported" ? "border-destructive/60" : "border-primary/25"}`}>
-                  <Globe2 className="mx-2 size-5 shrink-0 text-muted-foreground" aria-hidden />
-                  <Input
-                    id="domain-search-input"
-                    dir="auto"
-                    value={query}
-                    onChange={(event) => { setQuery(event.target.value); if (searchError) setSearchError(null) }}
-                    onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) void discoverDomain() }}
-                    placeholder={copy.heroPlaceholder}
-                    aria-label={copy.inputLabel}
-                    aria-invalid={extState === "unsupported" || Boolean(searchError)}
-                    aria-describedby={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"}
-                    className="h-12 min-w-0 flex-1 border-0 bg-transparent px-1 text-base shadow-none focus-visible:ring-0"
-                  />
-                  {extState === "supported" && matchedTld ? (
-                    <span dir="ltr" className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap px-2 text-sm font-bold text-chart-2 sm:flex">
-                      <CheckCircle2 className="size-4 shrink-0" aria-hidden />{money(matchedTld.basePriceIrt)}
-                    </span>
-                  ) : extState === "unsupported" ? (
-                    <XCircle className="mx-2 size-5 shrink-0 text-destructive" aria-hidden />
-                  ) : null}
-                  <Button
-                    className="size-12 shrink-0 rounded-full p-0 shadow-lg shadow-primary/20 transition-transform active:scale-95 sm:h-12 sm:w-auto sm:px-6"
-                    onClick={() => void discoverDomain()}
-                    disabled={busy !== null || extState === "unsupported"}
-                    aria-label={copy.heroSearch}
-                  >
-                    {busy === "lookup" || busy === "ai" ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Search className="size-5" aria-hidden />}
-                    <span className="hidden sm:inline">{busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.heroSearch}</span>
-                  </Button>
-                </div>
+                <DomainSearchField
+                  value={query}
+                  onChange={(next) => { setQuery(next); if (searchError) setSearchError(null) }}
+                  onSubmit={() => void discoverDomain()}
+                  extState={extState}
+                  priceLabel={matchedTld ? money(matchedTld.basePriceIrt) : null}
+                  domain={normalizedQuery}
+                  busy={busy === "lookup" || busy === "ai"}
+                  describedBy={extState === "unsupported" || searchError ? "domain-search-error" : "domain-search-hint"}
+                  labels={{
+                    placeholder: copy.heroPlaceholder,
+                    aria: copy.inputLabel,
+                    search: busy === "lookup" ? copy.searching : busy === "ai" ? copy.generating : copy.heroSearch,
+                    checkingPrice: copy.priceChecking,
+                    unsupported: copy.extUnsupported,
+                  }}
+                />
 
                 {extState === "unsupported" ? (
                   <p id="domain-search-error" role="alert" className="flex items-center gap-1.5 text-sm font-medium text-destructive"><XCircle className="size-4 shrink-0" aria-hidden />{copy.extUnsupported}</p>
