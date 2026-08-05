@@ -1,19 +1,12 @@
 "use client"
 
-import { motion, useReducedMotion, useTransform, type MotionValue } from "motion/react"
+import { motion } from "motion/react"
+import type { BadgeProjection } from "./globe-scene"
 
 export type BadgeAccent = "violet" | "cyan" | "indigo"
 
-export type BadgeSpec = {
-  label: string
-  accent: BadgeAccent
-  /** Vertical anchor as a percentage of the stage height. */
-  top: number
-  /** Horizontal anchor as a percentage of the stage width. */
-  left: number
-  /** 0 = far away (subtle drift), 1 = closest to the viewer (strongest drift). */
-  depth: number
-}
+/** Accent order the pills cycle through as they orbit. */
+export const BADGE_ACCENTS: BadgeAccent[] = ["violet", "cyan", "indigo", "violet", "cyan"]
 
 const ACCENT_CLASS: Record<BadgeAccent, string> = {
   violet:
@@ -24,64 +17,68 @@ const ACCENT_CLASS: Record<BadgeAccent, string> = {
 }
 
 /**
- * A floating extension pill anchored around the globe. Each badge translates on
- * its own `depth` so the cluster reads as real parallax rather than a flat
- * overlay, and it stays a real button for keyboard and screen-reader users.
+ * The extension pill itself. Shared by the orbiting 3D badges and the static
+ * reduced-motion fallback so both paths stay visually identical.
  */
-export function DomainBadge({
-  spec,
-  pointerX,
-  pointerY,
+export function TldPill({
+  label,
+  accent,
   onSelect,
   selectLabel,
 }: {
-  spec: BadgeSpec
-  pointerX: MotionValue<number>
-  pointerY: MotionValue<number>
+  label: string
+  accent: BadgeAccent
   onSelect: (tld: string) => void
   selectLabel: string
 }) {
-  const reduceMotion = useReducedMotion()
-  const travel = 26 * spec.depth
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(label)}
+      aria-label={`${selectLabel} ${label}`}
+      // Extensions are always Latin, so force LTR: under RTL the leading dot is
+      // neutral and renders on the wrong side ("com." instead of ".com").
+      dir="ltr"
+      className={`pointer-events-auto rounded-xl border px-3 py-1.5 font-mono text-sm font-semibold backdrop-blur-sm transition-transform duration-200 hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:oklch(0.8_0.14_300)] ${ACCENT_CLASS[accent]}`}
+    >
+      {label}
+    </button>
+  )
+}
 
-  const x = useTransform(pointerX, [-1, 1], [-travel, travel])
-  const y = useTransform(pointerY, [-1, 1], [-travel * 0.7, travel * 0.7])
-  const rotate = useTransform(pointerX, [-1, 1], [-5 * spec.depth, 5 * spec.depth])
-
+/**
+ * A pill pinned to a fixed point in the globe's 3D space.
+ *
+ * Position, scale, stacking order and opacity all come from motion values the
+ * WebGL frame loop writes directly, so the pill genuinely orbits with the
+ * sphere and dims as it swings behind it - without re-rendering React.
+ */
+export function DomainBadge({
+  label,
+  accent,
+  projection,
+  onSelect,
+  selectLabel,
+}: {
+  label: string
+  accent: BadgeAccent
+  projection: BadgeProjection
+  onSelect: (tld: string) => void
+  selectLabel: string
+}) {
   return (
     <motion.div
-      className="absolute -translate-x-1/2 -translate-y-1/2"
-      style={{
-        top: `${spec.top}%`,
-        left: `${spec.left}%`,
-        x: reduceMotion ? 0 : x,
-        y: reduceMotion ? 0 : y,
-        rotate: reduceMotion ? 0 : rotate,
-        scale: 0.86 + spec.depth * 0.24,
-        zIndex: Math.round(spec.depth * 10),
-      }}
-      animate={reduceMotion ? undefined : { translateY: [0, -6, 0] }}
-      transition={
-        reduceMotion
-          ? undefined
-          : {
-              duration: 5 + spec.depth * 2.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }
-      }
+      // Only the pill should take pointer events - the container behind it is
+      // the drag surface, so this wrapper must stay transparent to them.
+      className="pointer-events-none absolute left-1/2 top-1/2"
+      style={{ x: projection.x, y: projection.y, zIndex: projection.depth }}
     >
-      <button
-        type="button"
-        onClick={() => onSelect(spec.label)}
-        aria-label={`${selectLabel} ${spec.label}`}
-        // Extensions are always Latin, so force LTR: under RTL the leading dot
-        // is treated as neutral and renders on the wrong side ("com." not ".com").
-        dir="ltr"
-        className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-semibold backdrop-blur-sm transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:oklch(0.8_0.14_300)] ${ACCENT_CLASS[spec.accent]}`}
+      <motion.div
+        className="-translate-x-1/2 -translate-y-1/2"
+        style={{ scale: projection.scale, opacity: projection.opacity }}
       >
-        {spec.label}
-      </button>
+        <TldPill label={label} accent={accent} onSelect={onSelect} selectLabel={selectLabel} />
+      </motion.div>
     </motion.div>
   )
 }

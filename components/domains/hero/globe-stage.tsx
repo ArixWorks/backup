@@ -1,40 +1,39 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { motion, useMotionValue, useSpring, useTransform } from "motion/react"
+import dynamic from "next/dynamic"
+import { motionValue } from "motion/react"
 import { useMotionTier } from "@/components/motion-provider"
-import { DomainBadge, type BadgeSpec } from "./domain-badge"
+import { BADGE_ACCENTS, DomainBadge, TldPill } from "./domain-badge"
+// Type-only: erased at build time, so three.js never reaches the main bundle.
+import type { BadgeProjection, DragState } from "./globe-scene"
 
-const POSTER = "/domains/globe-poster.webp"
-const CLIP = "/domains/globe-loop.mp4"
+/** The WebGL scene (and all of three.js) is fetched only when it is needed. */
+const GlobeScene = dynamic(() => import("./globe-scene"), { ssr: false })
 
-/**
- * Anchor slots for the extension pills, tuned to the reference composition.
- * Every slot sits outside the globe's circle so a badge never covers the sphere,
- * and the extensions themselves come from the live catalog so a badge can only
- * ever offer a TLD we actually sell.
- */
-const ANCHORS: Omit<BadgeSpec, "label">[] = [
-  { accent: "violet", top: 6, left: 42, depth: 0.85 },
-  { accent: "cyan", top: 24, left: 88, depth: 1 },
-  { accent: "indigo", top: 55, left: 7, depth: 0.7 },
-  { accent: "violet", top: 74, left: 90, depth: 0.55 },
-  { accent: "cyan", top: 92, left: 38, depth: 0.9 },
-]
+/** Anchor slots available in 3D; we use as many as we have sellable TLDs. */
+const MAX_BADGES = 5
+
+/** Past this much travel a pointer gesture counts as a drag, not a click. */
+const DRAG_SLOP = 8
 
 /**
- * The hero globe: a pre-rendered cinematic loop of the rotating digital sphere,
- * cropped to the globe itself and circle-masked so it dissolves into the card.
- * The extension pills are real HTML buttons layered around it rather than baked
- * pixels, so the labels stay crisp, translatable, clickable and accessible.
+ * The hero globe: a real-time WebGL sphere the user can spin.
  *
- * Load strategy, in order of what the user sees:
- *   1. the 16 KB WebP poster paints immediately (no JS required),
- *   2. the 160 KB clip is only requested once the stage scrolls into view, and
- *   3. it cross-fades in on `canplay`, so there is never a flash of black.
+ * The sphere is a shader-driven point shell with a fresnel-lit core and three
+ * counter-rotating orbit rings. Drag with a mouse or swipe horizontally to
+ * rotate it - the gesture carries real momentum and coasts to a stop, and at
+ * rest the globe keeps a slow idle drift and leans toward the cursor.
  *
- * On the `minimal` motion tier and for reduced-motion users the clip is never
- * downloaded at all - the poster is the final visual.
+ * The extension pills are pinned to true 3D anchors: the frame loop projects
+ * each one to screen space, so they orbit with the sphere and dim as they swing
+ * behind it, while staying real <button>s that are crisp, translatable and
+ * focusable. Vertical touch scrolling is preserved (`touch-action: pan-y`), so
+ * the globe never traps the page inside the Telegram Mini App.
+ *
+ * Cost control: the scene is dynamically imported and only mounted once the
+ * stage scrolls into view. On the `minimal` motion tier (and for reduced-motion
+ * users) it is never downloaded at all - they get a static CSS sphere instead.
  */
 export function GlobeStage({
   tlds,
@@ -53,25 +52,38 @@ export function GlobeStage({
   const animated = tier !== "minimal"
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
   const [inView, setInView] = useState(false)
   const [ready, setReady] = useState(false)
-  const [fine, setFine] = useState(false)
 
-  const pointerX = useMotionValue(0)
-  const pointerY = useMotionValue(0)
+  const visible = useMemo(() => tlds.slice(0, MAX_BADGES), [tlds])
 
-  // Pair each anchor slot with a real sellable extension, dropping spare slots.
-  const badges = useMemo<BadgeSpec[]>(
-    () => ANCHORS.slice(0, tlds.length).map((anchor, index) => ({ ...anchor, label: tlds[index] })),
-    [tlds],
+  // One stable set of motion values per anchor. `motionValue()` is the
+  // non-hook factory, so the count can be fixed without conditional hooks.
+  const projections = useMemo<BadgeProjection[]>(
+    () =>
+      Array.from({ length: MAX_BADGES }, () => ({
+        x: motionValue(0),
+        y: motionValue(0),
+        scale: motionValue(0.9),
+        opacity: motionValue(0),
+        depth: motionValue(10),
+      })),
+    [],
   )
 
-  useEffect(() => {
-    setFine(window.matchMedia("(pointer: fine)").matches)
-  }, [])
+  // Live gesture state, read by the WebGL frame loop.
+  const drag = useRef<DragState>({
+    dragging: false,
+    dx: 0,
+    dy: 0,
+    hx: 0,
+    hy: 0,
+    hovering: false,
+  })
+  const last = useRef({ x: 0, y: 0 })
+  const travelled = useRef(0)
 
-  // Defer the download until the stage is close to the viewport.
+  // Defer the three.js chunk until the stage is near the viewport.
   useEffect(() => {
     if (!animated) return
     const node = containerRef.current
@@ -93,113 +105,160 @@ export function GlobeStage({
     return () => observer.disconnect()
   }, [animated])
 
-  // Autoplay can still be refused (data saver, low power mode); the poster stays.
+  // A drag that ends on top of a pill must not also trigger its click. The
+  // guard runs in the capture phase so it beats the button's own handler.
   useEffect(() => {
-    if (!inView) return
-    const video = videoRef.current
-    if (!video) return
-    void video.play().catch(() => undefined)
-  }, [inView])
+    const node = containerRef.current
+    if (!node) return
+    const guard = (event: MouseEvent) => {
+      if (travelled.current > DRAG_SLOP) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    }
+    node.addEventListener("click", guard, true)
+    return () => node.removeEventListener("click", guard, true)
+  }, [])
 
-  const handleMove = useCallback(
+  const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!fine || !animated) return
-      const rect = event.currentTarget.getBoundingClientRect()
-      pointerX.set(Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1)))
-      pointerY.set(Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1)))
+      if (!animated || !inView) return
+      drag.current.dragging = true
+      drag.current.hovering = true
+      last.current = { x: event.clientX, y: event.clientY }
+      travelled.current = 0
+      // Capture so the gesture keeps tracking outside the element.
+      event.currentTarget.setPointerCapture?.(event.pointerId)
     },
-    [fine, animated, pointerX, pointerY],
+    [animated, inView],
   )
 
-  const handleLeave = useCallback(() => {
-    pointerX.set(0)
-    pointerY.set(0)
-  }, [pointerX, pointerY])
+  const onPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!animated) return
+      const state = drag.current
+      if (state.dragging) {
+        const dx = event.clientX - last.current.x
+        const dy = event.clientY - last.current.y
+        state.dx += dx
+        state.dy += dy
+        travelled.current += Math.abs(dx) + Math.abs(dy)
+        last.current = { x: event.clientX, y: event.clientY }
+        return
+      }
+      // Idle hover lean, normalized to -1..1 across the stage.
+      const rect = event.currentTarget.getBoundingClientRect()
+      state.hovering = true
+      state.hx = Math.max(-1, Math.min(1, ((event.clientX - rect.left) / rect.width) * 2 - 1))
+      state.hy = Math.max(-1, Math.min(1, ((event.clientY - rect.top) / rect.height) * 2 - 1))
+    },
+    [animated],
+  )
 
-  const spring = { stiffness: 60, damping: 20 }
-  // The bloom drifts further than the clip, so the two planes separate slightly.
-  const bloomX = useSpring(useTransform(pointerX, (v) => v * -14), spring)
-  const bloomY = useSpring(useTransform(pointerY, (v) => v * -10), spring)
-  const clipX = useSpring(useTransform(pointerX, (v) => v * 6), spring)
-  const clipY = useSpring(useTransform(pointerY, (v) => v * 4), spring)
+  const endDrag = useCallback((event?: React.PointerEvent<HTMLDivElement>) => {
+    drag.current.dragging = false
+    if (event) event.currentTarget.releasePointerCapture?.(event.pointerId)
+  }, [])
 
-  // Circle mask: keeps the sphere, discards the square frame's corners.
-  // `closest-side` is required - a bare `circle` sizes to farthest-corner, which
-  // pushes the transparent stop outside the box and leaves the corners opaque.
-  const circleMask =
-    "radial-gradient(circle closest-side at 50% 50%, #000 78%, rgba(0,0,0,0.5) 92%, transparent 100%)"
+  const onPointerLeave = useCallback(() => {
+    drag.current.dragging = false
+    drag.current.hovering = false
+    drag.current.hx = 0
+    drag.current.hy = 0
+  }, [])
 
   return (
-    <div
-      ref={containerRef}
-      onPointerMove={handleMove}
-      onPointerLeave={handleLeave}
-      className="relative flex w-full flex-col items-center gap-4"
-    >
-      <div className="relative mx-auto aspect-square w-full max-w-[30rem]">
-        {/* Bloom behind the clip; the loop is on near-black so this reads as glow. */}
-        <motion.div
-          aria-hidden
-          className="absolute inset-0 z-[1]"
-          style={{ x: animated ? bloomX : 0, y: animated ? bloomY : 0 }}
-        >
-          <div className="absolute left-1/2 top-1/2 size-[62%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/25 blur-3xl" />
-          <div className="absolute left-[62%] top-[34%] size-[30%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-2/20 blur-3xl" />
-        </motion.div>
+    <div className="relative flex w-full flex-col items-center gap-4">
+      <div
+        ref={containerRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onPointerLeave={onPointerLeave}
+        // pan-y keeps vertical page scrolling working on touch: a horizontal
+        // swipe spins the globe, a vertical one still scrolls the page.
+        style={{ touchAction: "pan-y" }}
+        className={`relative mx-auto aspect-square w-full max-w-[30rem] select-none ${
+          animated ? "cursor-grab active:cursor-grabbing" : ""
+        }`}
+      >
+        {/* Bloom behind the sphere so the additive glow has something to sit on. */}
+        <div aria-hidden className="absolute inset-0 z-0">
+          <div className="absolute left-1/2 top-1/2 size-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl" />
+        </div>
 
-        {/* The sphere sits inside the stage so the pills have room to orbit it. */}
-        <motion.div
-          aria-hidden
-          className="absolute inset-[13%] z-[2]"
-          style={{ x: animated ? clipX : 0, y: animated ? clipY : 0 }}
-        >
-          {/* Poster paints first and stays visible underneath until the clip is ready. */}
-          <img
-            src={POSTER}
-            alt=""
-            width={448}
-            height={448}
-            // The mask must sit on the media itself; masking only the wrapper
-            // leaves the child painting its own square edges on top.
-            style={{ maskImage: circleMask, WebkitMaskImage: circleMask }}
-            className="absolute inset-0 size-full object-cover"
-          />
-          {animated ? (
-            <video
-              ref={videoRef}
-              muted
-              loop
-              playsInline
-              preload="none"
-              poster={POSTER}
-              disablePictureInPicture
-              src={inView ? CLIP : undefined}
-              onCanPlay={() => setReady(true)}
-              style={{ maskImage: circleMask, WebkitMaskImage: circleMask }}
-              className={`absolute inset-0 size-full object-cover transition-opacity duration-700 ${ready ? "opacity-100" : "opacity-0"}`}
+        {animated && inView ? (
+          <div
+            className={`absolute inset-0 z-[1] transition-opacity duration-1000 ${
+              ready ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <GlobeScene
+              quality={tier === "cinematic" ? "high" : "low"}
+              drag={drag}
+              projections={projections}
+              onReady={() => setReady(true)}
             />
-          ) : null}
-        </motion.div>
+          </div>
+        ) : null}
 
-        {/* Real, translatable, clickable extension pills orbiting the sphere. */}
-        <div className="absolute inset-0 z-[3]">
-          {badges.map((spec) => (
-            <DomainBadge
-              key={spec.label}
-              spec={spec}
-              pointerX={pointerX}
-              pointerY={pointerY}
+        {!animated ? <StaticSphere /> : null}
+
+        {/* Pills orbit in 3D on the animated path. */}
+        {animated ? (
+          <div className="absolute inset-0 z-[2]">
+            {visible.map((label, index) => (
+              <DomainBadge
+                key={label}
+                label={label}
+                accent={BADGE_ACCENTS[index] ?? "violet"}
+                projection={projections[index]}
+                onSelect={onSelectTld}
+                selectLabel={selectLabel}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Reduced motion gets an honest static row instead of faked depth. */}
+      {!animated ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {visible.map((label, index) => (
+            <TldPill
+              key={label}
+              label={label}
+              accent={BADGE_ACCENTS[index] ?? "violet"}
               onSelect={onSelectTld}
               selectLabel={selectLabel}
             />
           ))}
         </div>
-      </div>
+      ) : null}
 
       <div className="flex flex-col items-center gap-1 text-center">
         <strong className="text-balance text-base font-bold md:text-lg">{caption}</strong>
         <span className="text-pretty text-xs text-muted-foreground md:text-sm">{captionHint}</span>
       </div>
+    </div>
+  )
+}
+
+/** Zero-JS sphere for the minimal tier: no WebGL, no video, no download. */
+function StaticSphere() {
+  return (
+    <div aria-hidden className="absolute inset-[14%] z-[1]">
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 34% 28%, oklch(0.72 0.19 305 / 0.55), oklch(0.45 0.16 285 / 0.35) 42%, oklch(0.22 0.07 275 / 0.6) 72%, transparent 78%)",
+          boxShadow: "inset 0 0 60px -10px oklch(0.78 0.13 195 / 0.5)",
+        }}
+      />
+      <div className="absolute inset-0 rounded-full border border-[color:oklch(0.78_0.13_195_/_0.3)]" />
+      <div className="absolute left-1/2 top-1/2 h-[36%] w-[112%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-[color:oklch(0.72_0.19_305_/_0.28)]" />
     </div>
   )
 }
