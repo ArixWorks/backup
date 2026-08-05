@@ -4,6 +4,7 @@ import { useDeferredValue, useMemo, useState } from "react"
 import Link from "next/link"
 import { Check, ChevronDown, Flame, Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { GlowingButton } from "@/components/ui/glowing-button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
@@ -15,6 +16,16 @@ export interface PickerTld {
 
 /** How many rows we put in the DOM at once. The rest arrive as the user scrolls. */
 const PAGE = 40
+
+/**
+ * Edge-glow colour per popular chip, cycled by position.
+ *
+ * Deliberately the chart tokens rather than literal hexes: this app ships
+ * several palettes, and tokens keep the chips in step with whichever one is
+ * active. `--chart-5` is left out because it is a near-grey and reads as a dead
+ * chip next to the others.
+ */
+const GLOWS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"]
 
 /**
  * Popular extension chips plus a lazily-populated "all extensions" dropdown.
@@ -73,33 +84,41 @@ export function TldPicker({
         <span className="text-sm font-bold">{labels.popular}</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {popular.map((item) => {
-          const active = selected === item.tld
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelect(item.tld)}
-              aria-pressed={active}
-              className={`flex h-10 cursor-pointer items-center gap-1.5 rounded-full border px-4 font-mono text-sm font-bold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-                active
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card/60 text-foreground hover:border-primary/40 hover:bg-primary/5"
-              }`}
-            >
-              <span dir="ltr">{item.tld}</span>
-              {active ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
-            </button>
-          )
-        })}
+      {/* Single row at every width: the chips scroll horizontally instead of
+          wrapping, so the "all extensions" trigger never drops to a second line
+          and leaves a gap under the rail on narrow screens. */}
+      <div className="flex items-center gap-2">
+        {/* `w-0 grow`, not `flex-1 min-w-0`: this row sits inside a grid column
+            whose track is sized from content, and with an auto basis the rail
+            still handed its full max-content up to the track - blowing the whole
+            hero column past the viewport on narrow phones. A definite 0 width
+            contributes nothing intrinsically, so the track stays put and the
+            chips scroll inside the rail instead. */}
+        <div className="no-scrollbar -mx-1 flex w-0 grow items-center gap-2 overflow-x-auto px-1 py-1">
+          {popular.map((item, index) => {
+            const active = selected === item.tld
+            return (
+              <GlowingButton
+                key={item.id}
+                onClick={() => onSelect(item.tld)}
+                aria-pressed={active}
+                active={active}
+                glow={GLOWS[index % GLOWS.length]}
+                className="font-mono font-bold"
+              >
+                <span dir="ltr">{item.tld}</span>
+                {active ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
+              </GlowingButton>
+            )
+          })}
+        </div>
 
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger
             render={
               <Button
                 variant="outline"
-                className="h-10 rounded-full px-4"
+                className="h-10 shrink-0 rounded-md px-3"
                 aria-label={labels.all}
               />
             }
