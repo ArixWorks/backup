@@ -53,9 +53,14 @@ export async function getActiveUsdRate(): Promise<number> {
   return Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_USD_RATE
 }
 
-/** Human-friendly default title for a freshly imported TLD. */
+/**
+ * Human-friendly default title for a freshly imported TLD. Deliberately not
+ * ".actor", which would just repeat the neighbouring TLD column in the admin
+ * table; admins can replace it with a Persian label, and an existing title is
+ * never overwritten by a later sync.
+ */
 function titleForZone(zone: string): string {
-  return `.${zone}`
+  return zone.charAt(0).toUpperCase() + zone.slice(1)
 }
 
 function toProgress(job: {
