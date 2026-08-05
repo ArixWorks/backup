@@ -854,6 +854,8 @@ export type MessageKey =
   | "nav.profile"
   | "home.dashboard"
   | "home.servicesTitle"
+  | "home.serviceItems"
+  | "home.serviceTapHint"
   | "home.recentTitle"
   | "home.recentEmpty"
   | "home.promoTitle"
@@ -895,6 +897,8 @@ type Catalog = Record<MessageKey, string>
     "nav.profile": "پروفایل",
     "home.dashboard": "داشبورد",
     "home.servicesTitle": "خدمات",
+    "home.serviceItems": "{count} مورد",
+    "home.serviceTapHint": "برای دیدن بزنید",
     "home.recentTitle": "فعالیت اخیر",
     "home.recentEmpty": "هنوز فعالیتی ثبت نشده است",
     "home.promoTitle": "پیشنهاد ویژه",
@@ -1036,7 +1040,7 @@ type Catalog = Record<MessageKey, string>
     "store.gridView": "نمایش شبکه‌ای",
     "store.listView": "نمایش فهرستی",
     "store.filters": "فیلترها",
-    "store.priceRange": "محدوده قیمت",
+    "store.priceRange": "محدوده ��یمت",
     "store.inStockOnly": "فقط موجودها",
     "store.instantOnly": "فقط تحویل آنی",
     "store.applyFilters": "نمایش نتایج",
@@ -1731,7 +1735,7 @@ type Catalog = Record<MessageKey, string>
   "tgLogin.domainNotice": "دامنه‌ی این سایت هنوز در BotFather ثبت نشده است. لطفاً پایین‌تر با ایمیل وارد شوید.",
   "vip.loginStreak": "روز متوالی",
   "vip.usablePoints": "امتیاز قابل استفاده",
-  "vip.totalSpend": "مجموع خرید",
+  "vip.totalSpend": "��جموع خرید",
   "vip.progressTo": "پیشرفت تا سطح {tier}",
   "vip.pointsProgress": "امتیاز",
   "vip.spendProgress": "خرید",
@@ -1780,6 +1784,8 @@ type Catalog = Record<MessageKey, string>
     "nav.profile": "Profile",
     "home.dashboard": "Dashboard",
     "home.servicesTitle": "Services",
+    "home.serviceItems": "{count} items",
+    "home.serviceTapHint": "Tap to peek",
     "home.recentTitle": "Recent activity",
     "home.recentEmpty": "No activity yet",
     "home.promoTitle": "Special offer",
@@ -2665,10 +2671,12 @@ type Catalog = Record<MessageKey, string>
     "nav.profile": "Профиль",
     "home.dashboard": "Панель",
     "home.servicesTitle": "Сервисы",
+    "home.serviceItems": "{count} шт.",
+    "home.serviceTapHint": "Нажмите, чтобы открыть",
     "home.recentTitle": "Недавняя активность",
     "home.recentEmpty": "Пока нет активности",
     "home.promoTitle": "Спецпредложение",
-    "home.promoBody": "Пополните кошелёк и получите эксклюзивные скидки",
+    "home.promoBody": "Попол��ите кошелёк и получите эксклюзивные скидки",
     "home.promoCta": "Смотреть",
     "home.accountStatus": "Статус аккаунта",
     "svc.store": "Магазин",
@@ -3551,6 +3559,8 @@ type Catalog = Record<MessageKey, string>
     "nav.profile": "Profile",
     "home.dashboard": "Dashboard",
     "home.servicesTitle": "Services",
+    "home.serviceItems": "{count} items",
+    "home.serviceTapHint": "Dekhne ke liye tap karein",
     "home.recentTitle": "Recent activity",
     "home.recentEmpty": "Abhi koi activity nahi",
     "home.promoTitle": "Special offer",
