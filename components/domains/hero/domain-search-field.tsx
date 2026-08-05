@@ -22,7 +22,7 @@ export type LookupVerdict = "taken" | "unclear"
  * spinner is live while the user is still typing and for a short settle period
  * after, so the price never flickers mid-word.
  */
-type Phase = "idle" | "checking" | "priced" | "invalid" | "taken" | "taken"
+type Phase = "idle" | "checking" | "priced" | "invalid" | "taken"
 
 /** Radius of the pointer-tracked halo, in px. */
 const GLOW_RADIUS = 210
@@ -40,8 +40,6 @@ interface DomainSearchFieldProps {
   domain: string
   /** A lookup/generation request is in flight. */
   busy: boolean
-  /** Result of the completed lookup for `domain`, or null when none applies. */
-  verdict: LookupVerdict | null
   /** Result of the completed lookup for `domain`, or null when none applies. */
   verdict: LookupVerdict | null
   inputId?: string
@@ -212,7 +210,7 @@ export function DomainSearchField({
           >
             {/* Status slot. Morphs globe -> spinner -> price -> error, and sits
                 on the inline-end edge (right in RTL) as in the design. */}
-            <div className="relative flex h-10 min-w-10 shrink-0 items-center justify-center">
+            <div className="relative flex h-10 min-w-8 shrink-0 items-center justify-center sm:min-w-10">
               <AnimatePresence mode="wait" initial={false}>
                 {phase === "checking" ? (
                   <motion.span
@@ -235,9 +233,13 @@ export function DomainSearchField({
                     animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                     exit={{ opacity: 0, scale: 0.7 }}
                     transition={{ type: "spring", stiffness: 420, damping: 26 }}
-                    className="flex items-center gap-1.5 whitespace-nowrap px-2 text-sm font-bold text-chart-2"
+                    className="flex items-center gap-1 whitespace-nowrap px-1 text-xs font-bold text-chart-2 sm:gap-1.5 sm:px-2 sm:text-sm"
                   >
-                    <CheckCircle2 className="size-4 shrink-0" aria-hidden />
+                    {/* The tick is redundant below `sm` - the teal border and the
+                        price itself already say "available" - and dropping it gives
+                        the squeezed input ~24px back so the typed domain stays
+                        readable instead of being cut mid-word on a 360px screen. */}
+                    <CheckCircle2 className="hidden size-4 shrink-0 sm:block" aria-hidden />
                     {priceLabel}
                   </motion.span>
                 ) : phase === "taken" ? (
