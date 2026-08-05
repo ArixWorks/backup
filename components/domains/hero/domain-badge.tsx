@@ -8,12 +8,14 @@ export type BadgeAccent = "violet" | "cyan" | "indigo"
 /** Accent order the pills cycle through as they orbit. */
 export const BADGE_ACCENTS: BadgeAccent[] = ["violet", "cyan", "indigo", "violet", "cyan"]
 
+// Backgrounds sit near-opaque on purpose: these pills pass in front of a lit
+// particle sphere, and a translucent fill lets it bleed through as muddy noise.
 const ACCENT_CLASS: Record<BadgeAccent, string> = {
   violet:
-    "border-[color:oklch(0.72_0.19_305_/_0.55)] bg-[color:oklch(0.28_0.09_300_/_0.55)] text-[color:oklch(0.9_0.09_305)] shadow-[0_0_18px_-2px_oklch(0.7_0.2_305_/_0.55)]",
-  cyan: "border-[color:oklch(0.78_0.13_195_/_0.55)] bg-[color:oklch(0.26_0.06_205_/_0.55)] text-[color:oklch(0.92_0.08_195)] shadow-[0_0_18px_-2px_oklch(0.75_0.14_195_/_0.5)]",
+    "border-[color:oklch(0.72_0.19_305_/_0.7)] bg-[color:oklch(0.19_0.07_300_/_0.88)] text-[color:oklch(0.92_0.09_305)] shadow-[0_0_18px_-2px_oklch(0.7_0.2_305_/_0.55)]",
+  cyan: "border-[color:oklch(0.78_0.13_195_/_0.7)] bg-[color:oklch(0.18_0.05_205_/_0.88)] text-[color:oklch(0.93_0.08_195)] shadow-[0_0_18px_-2px_oklch(0.75_0.14_195_/_0.5)]",
   indigo:
-    "border-[color:oklch(0.7_0.16_270_/_0.55)] bg-[color:oklch(0.26_0.08_272_/_0.55)] text-[color:oklch(0.9_0.08_272)] shadow-[0_0_18px_-2px_oklch(0.68_0.18_270_/_0.5)]",
+    "border-[color:oklch(0.7_0.16_270_/_0.7)] bg-[color:oklch(0.18_0.06_272_/_0.88)] text-[color:oklch(0.92_0.08_272)] shadow-[0_0_18px_-2px_oklch(0.68_0.18_270_/_0.5)]",
 }
 
 /**
@@ -74,7 +76,10 @@ export function DomainBadge({
       style={{ x: projection.x, y: projection.y, zIndex: projection.depth }}
     >
       <motion.div
-        className="-translate-x-1/2 -translate-y-1/2"
+        // `!opacity-100` overrides the inline depth fade whenever focus lands
+        // inside. Without it a keyboard user tabbing to a pill on the far side
+        // gets a focus ring at ~6% opacity, which fails WCAG 2.4.7.
+        className="-translate-x-1/2 -translate-y-1/2 focus-within:!opacity-100"
         style={{ scale: projection.scale, opacity: projection.opacity }}
       >
         <TldPill label={label} accent={accent} onSelect={onSelect} selectLabel={selectLabel} />

@@ -421,7 +421,9 @@ function GlobeRig({
       p.y.set(-scratch.y * half.h)
       const t = (facing + 1) / 2
       p.scale.set(0.74 + t * 0.36)
-      p.opacity.set(0.4 + t * 0.6)
+      // Fade hard on the far side. A high floor leaves the pill fighting the
+      // lit sphere behind it and just reads as muddy text, not depth.
+      p.opacity.set(0.06 + Math.pow(t, 1.7) * 0.94)
       p.depth.set(Math.round(t * 20))
     }
   })
