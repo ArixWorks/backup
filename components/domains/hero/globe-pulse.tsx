@@ -262,6 +262,9 @@ export default function GlobePulse({
         glowColor: colors.glow,
       })
 
+      // Pass 1: project every pill and note how much of it is facing us.
+      const placed: { x: number; y: number }[] = []
+      const frameSlots: { el: HTMLElement; x: number; y: number; t: number; focused: boolean }[] = []
       for (let i = 0; i < markers.length; i++) {
         const el = slotRefs.current[i]
         if (!el) continue
@@ -274,10 +277,32 @@ export default function GlobePulse({
         el.style.left = `${pr.x * 100}%`
         el.style.top = `${pr.y * 100}%`
         el.style.transform = `translate(-50%, -50%) scale(${(0.86 + 0.14 * t).toFixed(3)})`
-        el.style.opacity = (0.1 + 0.9 * t).toFixed(3)
-        el.style.filter = t > 0.97 ? "none" : `blur(${((1 - t) * 5).toFixed(2)}px)`
-        el.style.pointerEvents = t > 0.6 ? "auto" : "none"
         el.style.zIndex = `${10 + Math.round(t * 20)}`
+        frameSlots.push({ el, x: pr.x, y: pr.y, t, focused })
+      }
+
+      // Pass 2: with 20 anchors on one sphere, neighbours regularly project to
+      // nearly the same point and the pills visibly stack. Walk them
+      // front-to-back and drop any that would land on top of a closer one, so
+      // the label that wins is always the one nearest the camera. Thresholds are
+      // fractions of the globe box, so they hold at every viewport width.
+      frameSlots.sort((a, b) => b.t - a.t)
+      for (const slot of frameSlots) {
+        // A pill within ~13% of the left/right edge hangs outside the globe box
+        // and gets visibly sliced by the surrounding card's overflow clip. Its
+        // marker is nearly edge-on there, so hiding it costs nothing.
+        const offEdge = slot.x < 0.13 || slot.x > 0.87
+        const collides =
+          !slot.focused &&
+          (offEdge ||
+            placed.some((p) => Math.abs(p.x - slot.x) < 0.19 && Math.abs(p.y - slot.y) < 0.075))
+        const t = collides ? 0 : slot.t
+        if (!collides) placed.push({ x: slot.x, y: slot.y })
+        slot.el.style.opacity = collides ? "0" : (0.1 + 0.9 * t).toFixed(3)
+        slot.el.style.filter = t > 0.97 ? "none" : `blur(${((1 - t) * 5).toFixed(2)}px)`
+        // A hidden pill must not stay clickable, or it would swallow taps aimed
+        // at the visible label sitting on top of it.
+        slot.el.style.pointerEvents = !collides && t > 0.6 ? "auto" : "none"
       }
     }
 
