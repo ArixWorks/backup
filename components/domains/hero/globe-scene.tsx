@@ -44,6 +44,10 @@ const ANCHOR_ANGLES: Array<[number, number]> = [
 
 const ANCHOR_RADIUS = 1.78
 
+/** Half the footprint of a pill, so a projected anchor never overhangs the card. */
+const PILL_GUTTER_X = 52
+const PILL_GUTTER_Y = 26
+
 const VIOLET = new THREE.Color("#8b5cf6")
 const CYAN = new THREE.Color("#22d3ee")
 const INDIGO = new THREE.Color("#6366f1")
@@ -93,9 +97,11 @@ const PARTICLE_FRAG = /* glsl */ `
     float alpha = smoothstep(0.5, 0.05, d);
 
     // Iridescence: latitude drives the base hue, view angle shifts it.
-    float t = clamp(vLat * 0.75 + (1.0 - vFacing) * 0.45, 0.0, 1.0);
-    vec3 col = mix(uColorA, uColorB, t);
-    col = mix(col, uColorC, smoothstep(0.55, 1.0, 1.0 - vFacing) * 0.5);
+    // Weighted so violet carries the body and cyan only catches the upper
+    // latitudes - an even mix flattens the whole sphere into one blue tone.
+    float t = clamp(vLat * 0.62 - 0.14 + (1.0 - vFacing) * 0.2, 0.0, 1.0);
+    vec3 col = mix(uColorA, uColorB, t * t);
+    col = mix(col, uColorC, smoothstep(0.6, 1.0, 1.0 - vFacing) * 0.35);
 
     // Points on the far hemisphere read dimmer, which is what sells the volume.
     float depth = smoothstep(-0.45, 1.0, vFacing);
@@ -142,14 +148,20 @@ function ParticleShell({ count }: { count: number }) {
     const phases = new Float32Array(count)
     const golden = Math.PI * (3 - Math.sqrt(5))
     for (let i = 0; i < count; i++) {
-      const y = 1 - (i / Math.max(count - 1, 1)) * 2
-      const r = Math.sqrt(Math.max(1 - y * y, 0))
-      const theta = golden * i
-      positions[i * 3] = Math.cos(theta) * r
-      positions[i * 3 + 1] = y
-      positions[i * 3 + 2] = Math.sin(theta) * r
+      // Jitter the lattice. A pure Fibonacci sphere is *too* even: the regular
+      // spiral beats against the pixel grid and reads as a golf ball, so nudge
+      // each point off its ideal slot to break the moire.
+      const y = 1 - (i / Math.max(count - 1, 1)) * 2 + (Math.random() - 0.5) * 0.012
+      const yc = Math.max(-1, Math.min(1, y))
+      const r = Math.sqrt(Math.max(1 - yc * yc, 0))
+      const theta = golden * i + (Math.random() - 0.5) * 0.5
+      // Slight radial scatter so the shell has a little thickness.
+      const rad = 1 + (Math.random() - 0.5) * 0.03
+      positions[i * 3] = Math.cos(theta) * r * rad
+      positions[i * 3 + 1] = yc * rad
+      positions[i * 3 + 2] = Math.sin(theta) * r * rad
       // A few brighter points break up the uniformity of a perfect lattice.
-      scales[i] = 0.55 + Math.random() * (Math.random() > 0.94 ? 1.5 : 0.6)
+      scales[i] = 0.42 + Math.random() * (Math.random() > 0.93 ? 1.7 : 0.72)
       phases[i] = Math.random()
     }
     return { positions, scales, phases }
@@ -197,8 +209,10 @@ function GlowCore() {
   const uniforms = useMemo(
     () => ({
       uColor: { value: VIOLET.clone() },
-      uPower: { value: 2.6 },
-      uIntensity: { value: 0.85 },
+      // Higher power pushes the falloff out to the silhouette, so this reads as
+      // a rim light around a sphere rather than a filled-in ball of colour.
+      uPower: { value: 4.2 },
+      uIntensity: { value: 0.62 },
     }),
     [],
   )
@@ -221,12 +235,14 @@ function GlowCore() {
 function Wireframe() {
   return (
     <mesh scale={1.001}>
-      <sphereGeometry args={[1, 22, 14]} />
+      {/* Denser segments read as a fine graticule; a low count looks like a
+          crude blocky quad grid once additive blending stacks it. */}
+      <sphereGeometry args={[1, 44, 28]} />
       <meshBasicMaterial
         color={INDIGO}
         wireframe
         transparent
-        opacity={0.13}
+        opacity={0.07}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />
@@ -352,19 +368,27 @@ function GlobeRig({
     const state = drag.current
     if (!group.current || !state) return
 
-    // Drag converts pointer travel straight into angular velocity.
+    // Drag converts pointer travel straight into angular velocity, in rad/sec.
     if (state.dragging) {
-      vel.current.y += state.dx * 0.0045
-      vel.current.x += state.dy * 0.0035
+      vel.current.y += state.dx * 0.085
+      vel.current.x += state.dy * 0.065
       state.dx = 0
       state.dy = 0
+      // Clamp so a violent flick spins fast but stays readable instead of
+      // blurring into a strobe.
+      vel.current.y = Math.max(-7, Math.min(7, vel.current.y))
+      vel.current.x = Math.max(-5, Math.min(5, vel.current.x))
     }
 
     // Integrate, then bleed off momentum so a flick coasts to a stop.
-    rot.current.y += vel.current.y + delta * 0.16
-    rot.current.x += vel.current.x
-    vel.current.y *= 0.94
-    vel.current.x *= 0.94
+    rot.current.y += (vel.current.y + 0.16) * delta
+    rot.current.x += vel.current.x * delta
+    // Damp per SECOND, not per frame: a fixed 0.94 factor makes the spin coast
+    // far longer on a low-frame-rate device, since fewer frames means fewer
+    // multiplications. This keeps the feel identical at 30fps and 120fps.
+    const damp = Math.pow(0.0025, delta)
+    vel.current.y *= damp
+    vel.current.x *= damp
     // Keep the poles from flipping over.
     rot.current.x = Math.max(-0.62, Math.min(0.62, rot.current.x))
 
@@ -378,7 +402,13 @@ function GlobeRig({
     group.current.rotation.y = rot.current.y + lean.current.y
 
     // Project the anchors so the DOM pills orbit in true 3D.
-    const half = { w: size.width / 2, h: size.height / 2 }
+    // Reserve a gutter for the pill's own footprint: projecting onto the full
+    // half-width puts an anchor's CENTRE on the edge, so the pill hangs outside
+    // the card and gets clipped.
+    const half = {
+      w: Math.max(0, size.width / 2 - PILL_GUTTER_X),
+      h: Math.max(0, size.height / 2 - PILL_GUTTER_Y),
+    }
     for (let i = 0; i < projections.length; i++) {
       const anchor = anchors[i]
       if (!anchor) continue

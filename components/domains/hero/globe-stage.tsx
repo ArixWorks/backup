@@ -179,7 +179,9 @@ export function GlobeStage({
         // pan-y keeps vertical page scrolling working on touch: a horizontal
         // swipe spins the globe, a vertical one still scrolls the page.
         style={{ touchAction: "pan-y" }}
-        className={`relative mx-auto aspect-square w-full max-w-[30rem] select-none ${
+        // Stays modest on phones so the search field is still above the fold,
+        // then grows into the space the two-column desktop layout gives it.
+        className={`relative mx-auto aspect-square w-full max-w-[17rem] select-none sm:max-w-[21rem] lg:max-w-[27rem] ${
           animated ? "cursor-grab active:cursor-grabbing" : ""
         }`}
       >
