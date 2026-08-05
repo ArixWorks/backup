@@ -329,12 +329,9 @@ export function DomainMarketplace() {
                 </div>
               </div>
 
-              {/* Real-time WebGL globe: renders on the left in RTL, above on mobile. */}
+              {/* Cinematic globe loop: renders on the left in RTL, above on mobile. */}
               <div className="order-1 lg:order-2">
                 <GlobeStage
-                  tlds={sellableTlds.slice(0, 5).map((item) => item.tld)}
-                  onSelectTld={applyExtension}
-                  selectLabel={copy.badgeSelect}
                   caption={copy.heroTldCount.replace("{count}", num(Math.max(sellableTlds.length, 200)))}
                   captionHint={copy.heroTldCountHint}
                 />
