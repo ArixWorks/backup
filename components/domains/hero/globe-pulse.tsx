@@ -98,14 +98,24 @@ export default function GlobePulse({
   const drag = useRef({ active: false, x: 0, y: 0, moved: 0 })
   const hovering = useRef(false)
 
+  // Key on the TLDs' CONTENT, not the array identity. Callsites commonly build
+  // this prop inline (`.slice().map()`), which yields a fresh array on every
+  // parent render - and the parent re-renders on each search-box keystroke.
+  // Keying on the reference would therefore invalidate `markers` constantly and
+  // re-run the globe effect below, tearing down and rebuilding the WebGL context
+  // mid-typing. Safe to join on "," because a TLD never contains one.
+  const markerKey = tlds.slice(0, ANCHORS.length).join(",")
   const markers = useMemo(
     () =>
-      tlds.slice(0, ANCHORS.length).map((tld, i) => ({
-        tld,
-        location: ANCHORS[i],
-        vec: latLonToVec3(ANCHORS[i]),
-      })),
-    [tlds],
+      markerKey
+        .split(",")
+        .filter(Boolean)
+        .map((tld, i) => ({
+          tld,
+          location: ANCHORS[i],
+          vec: latLonToVec3(ANCHORS[i]),
+        })),
+    [markerKey],
   )
 
   // A drag that ends on a pill must not also select it.

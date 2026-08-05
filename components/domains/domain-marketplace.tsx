@@ -63,6 +63,10 @@ export function DomainMarketplace() {
 
   // Only extensions that are both active and marked as sellable count as supported.
   const sellableTlds = useMemo(() => tlds.filter((item) => item.supported), [tlds])
+  // Stable identity for the globe hero: this component re-renders on every
+  // search-box keystroke, and an inline .slice().map() would hand the globe a
+  // brand-new array each time.
+  const heroTlds = useMemo(() => sellableTlds.slice(0, 5).map((item) => item.tld), [sellableTlds])
 
   // Live, pre-search validation of the extension the user typed. We only judge
   // once the query looks like a full "label.ext" domain; bare keywords stay neutral.
@@ -332,7 +336,7 @@ export function DomainMarketplace() {
               {/* Cinematic globe loop: renders on the left in RTL, above on mobile. */}
               <div className="order-1 lg:order-2">
                 <GlobeStage
-                  tlds={sellableTlds.slice(0, 5).map((item) => item.tld)}
+                  tlds={heroTlds}
                   onSelectTld={applyExtension}
                   selectLabel={copy.badgeSelect}
                   caption={copy.heroTldCount.replace("{count}", num(Math.max(sellableTlds.length, 200)))}
