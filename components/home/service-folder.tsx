@@ -89,24 +89,31 @@ const ACCENTS: Record<Accent, { tint: string; ring: string; text: string; glow: 
  * switching: every layer and every card runs the same curve, so the flap, the
  * tab and the fan stay one motion instead of three.
  *
- * Curve and tempo come from the reference design. The old snappiness was not
- * the curve's fault: the opacity fade ran at ~60% of the transform's duration,
- * so a card hit full opacity a third of the way along its path and read as
- * appearing and then sliding. Keeping the two in lockstep below is the fix.
+ * Deliberately NOT the reference's `cubic-bezier(0.16,1,0.3,1)`. That curve
+ * front-loads ~80% of the travel into its first quarter, so even at 780ms the
+ * cards appeared to arrive at once and then spent the rest of the duration
+ * invisibly creeping the last few pixels — which is exactly the "opens
+ * instantly" feel being fixed here. This curve eases in before it decelerates,
+ * spreading the movement across the full duration so the unfold is readable.
  */
-const EASE = "cubic-bezier(0.16,1,0.3,1)"
-const OPEN_MS = 780
-/** Closing is quicker than opening, so leaving the card never feels sticky. */
+const EASE = "cubic-bezier(0.32,0.08,0.24,1)"
+const OPEN_MS = 820
+/** Closing is quicker than opening, so leaving a folder never feels sticky. */
 const CLOSE_MS = 420
 /** Per-card offset, so the fan peels open one card at a time. */
-const STAGGER_MS = 90
+const STAGGER_MS = 110
 
 /** Fan geometry for a preview card: spread evenly around the folder centre. */
-function fanTransform(index: number, total: number, open: boolean) {
+function fanTransform(index: number, total: number, open: boolean, reduceMotion: boolean) {
   // Closed cards collapse to 40% at the folder mouth, behind the front flap.
   // Starting small and travelling ~46px gives the reveal something to ease
   // through; a nearly-full-size start would arrive before the eye tracks it.
-  if (!open) return "translate3d(0,8px,0) rotate(0deg) scale(0.4)"
+  //
+  // `reduceMotion` pins them to the open geometry in both states. Only opacity
+  // is transitioned in that mode, so a collapsed closed position would have the
+  // cards teleport across the fan the instant they became visible — more
+  // jarring than the animation someone opted out of.
+  if (!open && !reduceMotion) return "translate3d(0,8px,0) rotate(0deg) scale(0.4)"
   const middle = (total - 1) / 2
   const factor = total > 1 ? (index - middle) / Math.max(middle, 1) : 0
   const rotate = factor * 23
@@ -159,7 +166,7 @@ function PreviewCard({
         open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0",
       )}
       style={{
-        transform: fanTransform(index, total, open),
+        transform: fanTransform(index, total, open, reduceMotion),
         zIndex: 20 + index,
         // Opacity deliberately shares the transform's duration, curve AND
         // delay. Fading faster than the card travels was what made the reveal
@@ -184,7 +191,10 @@ function PreviewCard({
       <span
         className={cn(
           "relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg",
-          "transition-[transform,box-shadow,border-color] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          // Shorter than the unfold on purpose: this is the pointer-follow lift,
+          // which should feel immediate, but it shares the unfold's curve so the
+          // two motions look like they belong to the same object.
+          "transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.32,0.08,0.24,1)]",
           "hoverable:group-hover/card:-translate-y-3 hoverable:group-hover/card:scale-115 hoverable:group-hover/card:border-current",
           "group-focus-visible/card:ring-2 group-focus-visible/card:ring-ring",
         )}
