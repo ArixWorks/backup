@@ -23,7 +23,14 @@ async function ensureDefaultTlds() {
 
 export async function listTlds() {
   await ensureDefaultTlds()
-  return prisma.domainTld.findMany({ where: { active: true }, orderBy: { displayOrder: "asc" } })
+  // `tld` breaks ties explicitly. Ordering by `displayOrder` alone left the ~280
+  // sync-imported rows (which all share one value) in whatever order Postgres
+  // happened to return, surfacing `.zone`/`.zip`/`.yachts` as the leading
+  // "popular" extensions. The admin still owns the primary ordering.
+  return prisma.domainTld.findMany({
+    where: { active: true },
+    orderBy: [{ displayOrder: "asc" }, { tld: "asc" }],
+  })
 }
 
 /**

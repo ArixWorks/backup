@@ -6,6 +6,7 @@ import { getBotConfig } from "@/lib/telegram/settings"
 import { DEFAULT_USD_RATE } from "@/lib/i18n/currency"
 import { SETTING_KEYS, getSetting, setSettings, toNumber } from "@/lib/core/settings"
 import { derivePrice, normalizeMarginPercent, DEFAULT_MARGIN_PERCENT, DEFAULT_MAX_USD } from "./pricing"
+import { displayOrderFor } from "./popular-tlds"
 import { discoverZones, fetchZonePrices, type DiscoveredZone } from "./price-sync"
 
 /**
@@ -266,6 +267,11 @@ export async function stepPriceSyncJob(jobId: string, actorId?: string | null): 
           // schema and everything that joins on this column.
           tld: `.${zone.zone}`,
           title: titleForZone(zone.zone),
+          // Rank on creation so well-known extensions lead the catalog. Without
+          // this every imported row defaulted to 0 and the "popular" chips were
+          // decided by the database's tie order. Set only here, never on update,
+          // so an admin's manual reordering survives later syncs.
+          displayOrder: displayOrderFor(`.${zone.zone}`),
           basePriceIrt: derived.basePriceIrt,
           listPriceIrt: derived.listPriceIrt,
           costUsdCents: derived.costUsdCents,

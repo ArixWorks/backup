@@ -72,7 +72,9 @@ export function DomainMarketplace() {
   // Stable identity for the globe hero: this component re-renders on every
   // search-box keystroke, and an inline .slice().map() would hand the globe a
   // brand-new array each time.
-  const heroTlds = useMemo(() => sellableTlds.slice(0, 5).map((item) => item.tld), [sellableTlds])
+  // 20 popular extensions across the globe. The globe trims to however many
+  // lat/lon anchors it defines, so this can never over-feed it.
+  const heroTlds = useMemo(() => sellableTlds.slice(0, 20).map((item) => item.tld), [sellableTlds])
 
   // Live, pre-search validation of the extension the user typed. We only judge
   // once the query looks like a full "label.ext" domain; bare keywords stay neutral.

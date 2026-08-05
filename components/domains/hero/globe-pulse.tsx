@@ -6,13 +6,36 @@ import { TldPill } from "./domain-badge"
 
 type Rgb = [number, number, number]
 
-/** Lat/lon anchors, spread across the map so the pills never crowd together. */
+/**
+ * Lat/lon anchors, spread across the map so the pills never crowd together.
+ *
+ * Ordered so the most popular extensions land on the most recognisable cities,
+ * and interleaved by continent rather than grouped: consecutive entries sit on
+ * opposite sides of the sphere, so the globe's rotation keeps roughly a third of
+ * the labels facing the camera at any moment instead of revealing them in one
+ * dense clump. Anything past this list simply gets no pill.
+ */
 const ANCHORS: [number, number][] = [
-  [51.51, -0.13], // London
+  [35.7, 51.42], // Tehran
   [40.71, -74.01], // New York
   [35.68, 139.65], // Tokyo
+  [51.51, -0.13], // London
   [-33.87, 151.21], // Sydney
+  [37.77, -122.42], // San Francisco
+  [1.35, 103.82], // Singapore
   [-23.55, -46.63], // Sao Paulo
+  [52.52, 13.4], // Berlin
+  [19.08, 72.88], // Mumbai
+  [-26.2, 28.05], // Johannesburg
+  [43.65, -79.38], // Toronto
+  [31.23, 121.47], // Shanghai
+  [48.86, 2.35], // Paris
+  [25.2, 55.27], // Dubai
+  [-34.6, -58.38], // Buenos Aires
+  [55.75, 37.62], // Moscow
+  [37.57, 126.98], // Seoul
+  [19.43, -99.13], // Mexico City
+  [41.9, 12.5], // Rome
 ]
 
 const RAD = Math.PI / 180
