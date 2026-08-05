@@ -22,10 +22,14 @@ const PAGE = 40
  *
  * Deliberately the chart tokens rather than literal hexes: this app ships
  * several palettes, and tokens keep the chips in step with whichever one is
- * active. `--chart-5` is left out because it is a near-grey and reads as a dead
- * chip next to the others.
+ * active.
+ *
+ * Only 1-3 are safe here. `--chart-4` resolves to exactly the same colour as
+ * `--destructive`, so using it painted the app's error red onto an ordinary
+ * selectable chip; `--chart-5` is a near-grey that reads as a dead chip beside
+ * the others. Three cycling colours also matches the source design.
  */
-const GLOWS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"]
+const GLOWS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"]
 
 /**
  * Popular extension chips plus a lazily-populated "all extensions" dropdown.
@@ -87,14 +91,20 @@ export function TldPicker({
       {/* Single row at every width: the chips scroll horizontally instead of
           wrapping, so the "all extensions" trigger never drops to a second line
           and leaves a gap under the rail on narrow screens. */}
-      <div className="flex items-center gap-2">
-        {/* `w-0 grow`, not `flex-1 min-w-0`: this row sits inside a grid column
-            whose track is sized from content, and with an auto basis the rail
-            still handed its full max-content up to the track - blowing the whole
-            hero column past the viewport on narrow phones. A definite 0 width
-            contributes nothing intrinsically, so the track stays put and the
-            chips scroll inside the rail instead. */}
-        <div className="no-scrollbar -mx-1 flex w-0 grow items-center gap-2 overflow-x-auto px-1 py-1">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* `w-0 grow max-w-fit`, not `flex-1 min-w-0`, for two separate reasons:
+            - `w-0`: this row sits inside a grid column whose track is sized from
+              content, and with an auto basis the rail handed its full max-content
+              up to the track - blowing the hero column past the viewport on
+              narrow phones. A definite 0 width contributes nothing intrinsically,
+              so the track stays put and the chips scroll inside the rail.
+            - `max-w-fit`: `grow` alone made the rail eat all leftover width, and
+              because the content right-aligns under RTL that padded the rail's
+              left edge and stranded the trigger at the far edge of the row.
+              Capping at fit-content resolves the width to
+              min(available, content), so the trigger stays beside the chips when
+              they fit and the rail only scrolls once they don't. */}
+        <div className="no-scrollbar -mx-1 flex w-0 max-w-fit grow items-center gap-1.5 overflow-x-auto px-1 py-1 sm:gap-2">
           {popular.map((item, index) => {
             const active = selected === item.tld
             return (
@@ -107,7 +117,11 @@ export function TldPicker({
                 className="font-mono font-bold"
               >
                 <span dir="ltr">{item.tld}</span>
-                {active ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
+                {/* Hidden below `sm`: the tick widens the chip ~14px and tips the
+                    row back into overflow on a 360px phone. Selection is still
+                    conveyed there by aria-pressed, the pinned glow bar, and the
+                    chosen TLD appearing in the search field. */}
+                {active ? <Check className="hidden size-3.5 shrink-0 sm:block" aria-hidden /> : null}
               </GlowingButton>
             )
           })}
@@ -118,13 +132,14 @@ export function TldPicker({
             render={
               <Button
                 variant="outline"
-                className="h-10 shrink-0 rounded-md px-3"
+                className="h-10 shrink-0 rounded-md px-2 sm:px-3"
                 aria-label={labels.all}
               />
             }
           >
             <Plus className="size-4" aria-hidden />
-            <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+            {/* Affordance only - dropped below `sm` to buy the chips ~20px. */}
+            <ChevronDown className="hidden size-3.5 opacity-60 sm:block" aria-hidden />
           </PopoverTrigger>
           <PopoverContent className="w-[min(20rem,calc(100vw-2rem))] p-0" align="start">
             <div className="flex flex-col gap-2 border-b border-border p-3">

@@ -40,7 +40,9 @@ export function GlowingButton({
         } as CSSProperties
       }
       className={cn(
-        "relative isolate flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-md border border-r-0 bg-gradient-to-t px-4 text-sm transition-colors duration-200",
+        // Tighter padding/type below `sm` so a row of these still fits a 360px
+        // phone without the rail having to scroll.
+        "relative isolate flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1.5 overflow-hidden whitespace-nowrap rounded-md border border-r-0 bg-gradient-to-t px-2 text-xs transition-colors duration-200 sm:px-4 sm:text-sm",
         "from-background to-muted text-foreground",
         "focus-visible:ring-2 focus-visible:ring-[var(--glow)] focus-visible:outline-none",
         // Colour wash bleeding in from the glow edge, plus a hairline top sheen.
