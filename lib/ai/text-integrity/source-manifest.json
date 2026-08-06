@@ -5,6 +5,11 @@
     "text": "<option value=\"\">بدون آموزش ��ختصاصی</option>"
   },
   {
+    "path": "lib/core/domains/service.ts",
+    "line": 463,
+    "text": "create: { orderId: order.id, operation: order.operation, type: \"NAMESERVERS_CONFIGURED\", fromStatus: order.status, toStatus: \"COMPLETED\", actorType: \"ADMIN\", actorId: adminId, message: \"NSها ثبت و سفارش با موفقیت تک��یل شد.\", idempotencyKey: `${order.id}:nameservers-configured` },"
+  },
+  {
     "path": "lib/i18n/messages.ts",
     "line": 1043,
     "text": "\"store.priceRange\": \"محدوده ��یمت\","
