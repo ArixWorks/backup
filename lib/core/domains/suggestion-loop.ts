@@ -116,39 +116,6 @@ async function generateLabels(opts: {
 }
 
 /**
- * Picks the cards to show, favouring distinct brand ideas over the same word
- * repeated across extensions.
- *
- * A verified run often yields `vexelith.com`, `.net` and `.org`, which would fill
- * three of the visible slots with one idea while other free names never surface.
- * This takes each label's best extension first — ordered by the caller's own
- * extension preference, so `.com` leads — then uses the leftovers only to top up
- * a short list.
- */
-function selectDiverse(entries: VerifiedSuggestion[], extensions: string[], limit: number) {
-  const rank = new Map(extensions.map((extension, index) => [extension, index]))
-  const extensionOf = (domain: string) => domain.slice(domain.indexOf("."))
-  const labelOf = (domain: string) => domain.slice(0, domain.indexOf("."))
-  const byPreference = [...entries].sort(
-    (a, b) => (rank.get(extensionOf(a.domain)) ?? 99) - (rank.get(extensionOf(b.domain)) ?? 99),
-  )
-
-  const picked: VerifiedSuggestion[] = []
-  const leftovers: VerifiedSuggestion[] = []
-  const usedLabels = new Set<string>()
-  for (const entry of byPreference) {
-    const label = labelOf(entry.domain)
-    if (usedLabels.has(label)) {
-      leftovers.push(entry)
-      continue
-    }
-    usedLabels.add(label)
-    picked.push(entry)
-  }
-  return [...picked, ...leftovers].slice(0, limit)
-}
-
-/**
  * Generates brand labels and returns only names verified free against the
  * registrar, retrying with fresh words until `TARGET_AVAILABLE` is reached.
  *
