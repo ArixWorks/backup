@@ -1,11 +1,17 @@
 import "server-only"
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
-import type { Prisma } from "@prisma/client"
+import type { DomainAvailabilityStatus, Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { ConflictError, DomainUnavailableError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { getAllSettings, SETTING_KEYS, toNumber } from "@/lib/core/settings"
 import { captureFrozenPurchase, freeze, unfreeze } from "@/lib/core/wallet"
-import { lookupManyWithProvider, lookupWithProvider, registerWithProvider } from "./provider"
+import {
+  type AvailabilityResult,
+  lookupManyWithProvider,
+  lookupWithProvider,
+  MAX_BATCH_SIZE,
+  registerWithProvider,
+} from "./provider"
 import { normalizeDomain, normalizeLabel } from "./validation"
 
 const DEFAULT_TLDS = [
@@ -47,6 +53,41 @@ function publicPricing(tld: { basePriceIrt: bigint; listPriceIrt: bigint | null 
   }
 }
 
+/**
+ * How far above a TLD's standard cost a domain may be priced before we refuse to
+ * treat it as a normal registration. Registry prices within one TLD are uniform,
+ * so a small band only absorbs provider/FX jitter.
+ */
+const PREMIUM_COST_TOLERANCE = 1.25
+
+/**
+ * Second, independent premium check.
+ *
+ * The parser already maps Railway's `premium` flag to `PREMIUM`, but trusting a
+ * single upstream boolean is what allowed hostiva.com — a $30,925.80 aftermarket
+ * listing — to be sold at the flat .com price of 1,141,000 IRT. Comparing the
+ * provider's per-domain cost against the TLD's synced cost catches the same
+ * class of mistake even if that flag is renamed or dropped.
+ *
+ * Only applies to TLDs that have been price-synced; the seeded defaults carry no
+ * `costUsdCents`, and there the flag remains the only signal.
+ */
+function guardPremiumCost(
+  result: AvailabilityResult,
+  tld: { costUsdCents: number | null },
+): AvailabilityResult {
+  if (result.status !== "AVAILABLE" || !tld.costUsdCents || tld.costUsdCents <= 0) return result
+  const cents = (result.meta as { providerPriceUsdCents?: unknown } | undefined)?.providerPriceUsdCents
+  if (typeof cents !== "number" || !Number.isFinite(cents)) return result
+  if (cents <= tld.costUsdCents * PREMIUM_COST_TOLERANCE) return result
+  return {
+    ...result,
+    status: "PREMIUM",
+    providerCode: "PREMIUM_COST",
+    meta: { ...(result.meta ?? {}), tldCostUsdCents: tld.costUsdCents },
+  }
+}
+
 export async function lookupDomain(input: string, force = false) {
   const normalized = normalizeDomain(input)
   await ensureDefaultTlds()
@@ -65,7 +106,7 @@ export async function lookupDomain(input: string, force = false) {
 
   const settings = await getAllSettings()
   const ttlSec = Math.max(30, toNumber(settings[SETTING_KEYS.domainLookupTtlSec], 300))
-  const result = await lookupWithProvider(normalized.asciiDomain)
+  const result = guardPremiumCost(await lookupWithProvider(normalized.asciiDomain), tld)
   const row = await prisma.domainLookupCache.upsert({
     where: { asciiDomain: normalized.asciiDomain },
     create: {
@@ -121,11 +162,11 @@ export async function lookupDomainCatalog(input: string) {
   const results = await Promise.all(supportedTlds.map(async (tld, index) => {
     const asciiDomain = domains[index]
     const normalized = normalizeDomain(asciiDomain)
-    const result = providerResults.get(asciiDomain) ?? {
+    const result = guardPremiumCost(providerResults.get(asciiDomain) ?? {
       status: "LOOKUP_ERROR" as const,
       provider: "railway-domains",
       providerCode: "MISSING_RESULT",
-    }
+    }, tld)
     const transient = result.status === "LOOKUP_ERROR" || result.status === "UNKNOWN"
     const row = await prisma.domainLookupCache.upsert({
       where: { asciiDomain },
@@ -153,6 +194,138 @@ export async function lookupDomainCatalog(input: string) {
   return { exact: false, status: null, asciiDomain: null, results: results.filter((result) => result.status === "AVAILABLE") }
 }
 
+/**
+ * Availability for an arbitrary, mixed-TLD list of domains in as few provider
+ * round-trips as possible.
+ *
+ * `lookupDomain` opens one socket per name, which is fine for a single exact
+ * search but far too slow to verify dozens of AI suggestions across several
+ * retry rounds. This batches to the provider's limit, reuses the shared cache,
+ * and runs the same premium guard, so verdicts are identical to `lookupDomain`.
+ *
+ * Malformed names are skipped rather than thrown: AI-generated labels are
+ * untrusted input, and one bad suggestion must not fail the whole batch.
+ */
+export async function lookupDomainsBatch(inputs: readonly string[]) {
+  await ensureDefaultTlds()
+  type Entry = ReturnType<typeof buildEntry>
+  const buildEntry = (
+    normalized: ReturnType<typeof normalizeDomain>,
+    status: DomainAvailabilityStatus | "UNSUPPORTED",
+    checkedAt: Date,
+    cached: boolean,
+    pricing: { priceIrt: bigint | null; listPriceIrt: bigint | null },
+  ) => ({ ...normalized, status, checkedAt, cached, ...pricing })
+
+  const out = new Map<string, Entry>()
+  const noPrice = { priceIrt: null, listPriceIrt: null }
+
+  const normalized: ReturnType<typeof normalizeDomain>[] = []
+  const seen = new Set<string>()
+  for (const input of inputs) {
+    let candidate: ReturnType<typeof normalizeDomain>
+    try {
+      candidate = normalizeDomain(input)
+    } catch {
+      continue
+    }
+    if (seen.has(candidate.asciiDomain)) continue
+    seen.add(candidate.asciiDomain)
+    normalized.push(candidate)
+  }
+  if (normalized.length === 0) return out
+
+  const tldRows = await prisma.domainTld.findMany({
+    where: { tld: { in: [...new Set(normalized.map((item) => item.tld))] } },
+  })
+  const tldByName = new Map(tldRows.map((row) => [row.tld, row]))
+
+  const pending: { normalized: (typeof normalized)[number]; tld: (typeof tldRows)[number] }[] = []
+  for (const item of normalized) {
+    const tld = tldByName.get(item.tld)
+    if (!tld?.active || !tld.supported) {
+      out.set(item.asciiDomain, buildEntry(item, "UNSUPPORTED", new Date(), false, noPrice))
+      continue
+    }
+    pending.push({ normalized: item, tld })
+  }
+  if (pending.length === 0) return out
+
+  const now = new Date()
+  const cachedRows = await prisma.domainLookupCache.findMany({
+    where: { asciiDomain: { in: pending.map((item) => item.normalized.asciiDomain) }, expiresAt: { gt: now } },
+  })
+  const cacheByDomain = new Map(cachedRows.map((row) => [row.asciiDomain, row]))
+
+  const toProbe: typeof pending = []
+  for (const item of pending) {
+    const hit = cacheByDomain.get(item.normalized.asciiDomain)
+    if (!hit) {
+      toProbe.push(item)
+      continue
+    }
+    out.set(
+      item.normalized.asciiDomain,
+      buildEntry(item.normalized, hit.status, hit.checkedAt, true, publicPricing(item.tld, hit.status === "AVAILABLE")),
+    )
+  }
+  if (toProbe.length === 0) return out
+
+  const settings = await getAllSettings()
+  const ttlSec = Math.max(30, toNumber(settings[SETTING_KEYS.domainLookupTtlSec], 300))
+
+  const chunks: (typeof toProbe)[] = []
+  for (let index = 0; index < toProbe.length; index += MAX_BATCH_SIZE) {
+    chunks.push(toProbe.slice(index, index + MAX_BATCH_SIZE))
+  }
+  const chunkResults = await Promise.all(
+    chunks.map((chunk) => lookupManyWithProvider(chunk.map((item) => item.normalized.asciiDomain))),
+  )
+  const providerResults = new Map<string, AvailabilityResult>()
+  for (const chunk of chunkResults) for (const [domain, result] of chunk) providerResults.set(domain, result)
+
+  await Promise.all(
+    toProbe.map(async ({ normalized: item, tld }) => {
+      const result = guardPremiumCost(
+        providerResults.get(item.asciiDomain) ?? {
+          status: "LOOKUP_ERROR" as const,
+          provider: "railway-domains",
+          providerCode: "MISSING_RESULT",
+        },
+        tld,
+      )
+      const transient = result.status === "LOOKUP_ERROR" || result.status === "UNKNOWN"
+      const expiresAt = new Date(now.getTime() + (transient ? 30 : ttlSec) * 1000)
+      const row = await prisma.domainLookupCache.upsert({
+        where: { asciiDomain: item.asciiDomain },
+        create: {
+          asciiDomain: item.asciiDomain,
+          unicodeDomain: item.unicodeDomain,
+          status: result.status,
+          provider: result.provider,
+          providerCode: result.providerCode,
+          expiresAt,
+          meta: (result.meta ?? {}) as Prisma.InputJsonValue,
+        },
+        update: {
+          status: result.status,
+          provider: result.provider,
+          providerCode: result.providerCode,
+          checkedAt: now,
+          expiresAt,
+          meta: (result.meta ?? {}) as Prisma.InputJsonValue,
+        },
+      })
+      out.set(
+        item.asciiDomain,
+        buildEntry(item, row.status, row.checkedAt, false, publicPricing(tld, row.status === "AVAILABLE")),
+      )
+    }),
+  )
+
+  return out
+}
+
 function quoteSecret(settings: Record<string, string>) {
   const value = settings[SETTING_KEYS.domainQuoteSecret] || process.env.DOMAIN_QUOTE_SECRET || process.env.AUTH_SECRET
   if (!value) throw new ValidationError("کلید امنیتی صدور پیش‌فاکتور دامنه تنظیم نشده است.")
@@ -166,6 +339,12 @@ function signQuote(payload: string, secret: string) {
 export async function createDomainQuote(userId: string, input: string) {
   const lookup = await lookupDomain(input, true)
   if (lookup.status !== "AVAILABLE" || lookup.priceIrt === null) {
+    // Premium/aftermarket domains are technically "for sale" but not at our flat
+    // per-TLD price, so they need their own message: the generic wording made a
+    // resale listing look like an ordinary taken domain.
+    if (lookup.status === "PREMIUM") {
+      throw new ConflictError("این دامنه یک دامنه ویژه (Premium) است و با قیمت استاندارد قابل ثبت نیست.")
+    }
     throw new ConflictError("این دامنه در حال حاضر قابل ثبت نیست.")
   }
   const settings = await getAllSettings()
@@ -419,7 +598,7 @@ export async function completeDomainOrder(orderId: string, adminId: string) {
     await tx.ownedDomain.update({ where: { orderId: order.id }, data: { ns1: order.ns1, ns2: order.ns2, ns3: order.ns3, ns4: order.ns4 } })
     await tx.domainOrderEvent.upsert({
       where: { idempotencyKey: `${order.id}:nameservers-configured` },
-      create: { orderId: order.id, operation: order.operation, type: "NAMESERVERS_CONFIGURED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "NSها ثبت و سفارش با موفقیت تکمیل شد.", idempotencyKey: `${order.id}:nameservers-configured` },
+      create: { orderId: order.id, operation: order.operation, type: "NAMESERVERS_CONFIGURED", fromStatus: order.status, toStatus: "COMPLETED", actorType: "ADMIN", actorId: adminId, message: "NSها ثبت و سفارش با موفقیت تک��یل شد.", idempotencyKey: `${order.id}:nameservers-configured` },
       update: {},
     })
     const purchaseDate = order.purchasedAt.toLocaleDateString("fa-IR")
