@@ -14,6 +14,20 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "qa user missing" }, { status: 404 })
 
   const url = new URL(req.url)
+  const prompt = url.searchParams.get("prompt")
+  if (prompt) {
+    const { generateVerifiedSuggestions } = await import("@/lib/core/domains/suggestion-loop")
+    const started = Date.now()
+    const result = await generateVerifiedSuggestions({ prompt, userId: user.id })
+    return NextResponse.json({
+      ms: Date.now() - started,
+      rounds: result.rounds,
+      availableCount: result.availableCount,
+      exhausted: result.exhausted,
+      cards: result.suggestions.map((s) => `${s.status} ${s.domain}`),
+    })
+  }
+
   const domains = (url.searchParams.get("domains") ?? "").split(",").filter(Boolean)
   if (domains.length) {
     const results = await lookupDomainsBatch(domains)
@@ -21,5 +35,7 @@ export async function GET(req: Request) {
       batch: [...results.values()].map((r) => ({ d: r.asciiDomain, s: r.status, cached: r.cached })),
     })
   }
+  const { createSession } = await import("@/lib/auth/session")
+  await createSession(user.id)
   return NextResponse.json({ ok: true, userId: user.id })
 }
