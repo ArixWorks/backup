@@ -35,7 +35,8 @@ export async function GET(req: Request) {
       batch: [...results.values()].map((r) => ({ d: r.asciiDomain, s: r.status, cached: r.cached })),
     })
   }
-  const { createSession } = await import("@/lib/auth/session")
-  await createSession(user.id)
-  return NextResponse.json({ ok: true, userId: user.id })
+  // The real cookie is sameSite=none + secure, which a browser refuses to keep
+  // over plain http, so hand the signed token back and let the test set it.
+  const { signSession, SESSION_COOKIE } = await import("@/lib/auth/session")
+  return NextResponse.json({ ok: true, cookie: SESSION_COOKIE, token: signSession(user.id, 0) })
 }
