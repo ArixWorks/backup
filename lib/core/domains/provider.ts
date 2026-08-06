@@ -14,7 +14,12 @@ const PROVIDER = "railway-domains"
 const RAILWAY_SOCKET_URL = "wss://backboard.railway.com/domain-search"
 const LOOKUP_TIMEOUT_MS = 8_000
 const MAX_MESSAGE_BYTES = 256_000
-const MAX_BATCH_SIZE = 50
+/**
+ * Largest number of domains one socket round-trip accepts. Exported so callers
+ * that assemble their own batches chunk to the same limit instead of silently
+ * tripping the `INVALID_BATCH` guard below.
+ */
+export const MAX_BATCH_SIZE = 50
 
 function unavailable(providerCode: string): AvailabilityResult {
   return { status: "LOOKUP_ERROR", provider: PROVIDER, providerCode }

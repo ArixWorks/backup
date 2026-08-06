@@ -1,11 +1,17 @@
 import "server-only"
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto"
-import type { Prisma } from "@prisma/client"
+import type { DomainAvailabilityStatus, Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db"
 import { ConflictError, DomainUnavailableError, NotFoundError, ValidationError } from "@/lib/core/errors"
 import { getAllSettings, SETTING_KEYS, toNumber } from "@/lib/core/settings"
 import { captureFrozenPurchase, freeze, unfreeze } from "@/lib/core/wallet"
-import { type AvailabilityResult, lookupManyWithProvider, lookupWithProvider, registerWithProvider } from "./provider"
+import {
+  type AvailabilityResult,
+  lookupManyWithProvider,
+  lookupWithProvider,
+  MAX_BATCH_SIZE,
+  registerWithProvider,
+} from "./provider"
 import { normalizeDomain, normalizeLabel } from "./validation"
 
 const DEFAULT_TLDS = [
@@ -186,6 +192,138 @@ export async function lookupDomainCatalog(input: string) {
   }))
 
   return { exact: false, status: null, asciiDomain: null, results: results.filter((result) => result.status === "AVAILABLE") }
+}
+
+/**
+ * Availability for an arbitrary, mixed-TLD list of domains in as few provider
+ * round-trips as possible.
+ *
+ * `lookupDomain` opens one socket per name, which is fine for a single exact
+ * search but far too slow to verify dozens of AI suggestions across several
+ * retry rounds. This batches to the provider's limit, reuses the shared cache,
+ * and runs the same premium guard, so verdicts are identical to `lookupDomain`.
+ *
+ * Malformed names are skipped rather than thrown: AI-generated labels are
+ * untrusted input, and one bad suggestion must not fail the whole batch.
+ */
+export async function lookupDomainsBatch(inputs: readonly string[]) {
+  await ensureDefaultTlds()
+  type Entry = ReturnType<typeof buildEntry>
+  const buildEntry = (
+    normalized: ReturnType<typeof normalizeDomain>,
+    status: DomainAvailabilityStatus | "UNSUPPORTED",
+    checkedAt: Date,
+    cached: boolean,
+    pricing: { priceIrt: bigint | null; listPriceIrt: bigint | null },
+  ) => ({ ...normalized, status, checkedAt, cached, ...pricing })
+
+  const out = new Map<string, Entry>()
+  const noPrice = { priceIrt: null, listPriceIrt: null }
+
+  const normalized: ReturnType<typeof normalizeDomain>[] = []
+  const seen = new Set<string>()
+  for (const input of inputs) {
+    let candidate: ReturnType<typeof normalizeDomain>
+    try {
+      candidate = normalizeDomain(input)
+    } catch {
+      continue
+    }
+    if (seen.has(candidate.asciiDomain)) continue
+    seen.add(candidate.asciiDomain)
+    normalized.push(candidate)
+  }
+  if (normalized.length === 0) return out
+
+  const tldRows = await prisma.domainTld.findMany({
+    where: { tld: { in: [...new Set(normalized.map((item) => item.tld))] } },
+  })
+  const tldByName = new Map(tldRows.map((row) => [row.tld, row]))
+
+  const pending: { normalized: (typeof normalized)[number]; tld: (typeof tldRows)[number] }[] = []
+  for (const item of normalized) {
+    const tld = tldByName.get(item.tld)
+    if (!tld?.active || !tld.supported) {
+      out.set(item.asciiDomain, buildEntry(item, "UNSUPPORTED", new Date(), false, noPrice))
+      continue
+    }
+    pending.push({ normalized: item, tld })
+  }
+  if (pending.length === 0) return out
+
+  const now = new Date()
+  const cachedRows = await prisma.domainLookupCache.findMany({
+    where: { asciiDomain: { in: pending.map((item) => item.normalized.asciiDomain) }, expiresAt: { gt: now } },
+  })
+  const cacheByDomain = new Map(cachedRows.map((row) => [row.asciiDomain, row]))
+
+  const toProbe: typeof pending = []
+  for (const item of pending) {
+    const hit = cacheByDomain.get(item.normalized.asciiDomain)
+    if (!hit) {
+      toProbe.push(item)
+      continue
+    }
+    out.set(
+      item.normalized.asciiDomain,
+      buildEntry(item.normalized, hit.status, hit.checkedAt, true, publicPricing(item.tld, hit.status === "AVAILABLE")),
+    )
+  }
+  if (toProbe.length === 0) return out
+
+  const settings = await getAllSettings()
+  const ttlSec = Math.max(30, toNumber(settings[SETTING_KEYS.domainLookupTtlSec], 300))
+
+  const chunks: (typeof toProbe)[] = []
+  for (let index = 0; index < toProbe.length; index += MAX_BATCH_SIZE) {
+    chunks.push(toProbe.slice(index, index + MAX_BATCH_SIZE))
+  }
+  const chunkResults = await Promise.all(
+    chunks.map((chunk) => lookupManyWithProvider(chunk.map((item) => item.normalized.asciiDomain))),
+  )
+  const providerResults = new Map<string, AvailabilityResult>()
+  for (const chunk of chunkResults) for (const [domain, result] of chunk) providerResults.set(domain, result)
+
+  await Promise.all(
+    toProbe.map(async ({ normalized: item, tld }) => {
+      const result = guardPremiumCost(
+        providerResults.get(item.asciiDomain) ?? {
+          status: "LOOKUP_ERROR" as const,
+          provider: "railway-domains",
+          providerCode: "MISSING_RESULT",
+        },
+        tld,
+      )
+      const transient = result.status === "LOOKUP_ERROR" || result.status === "UNKNOWN"
+      const expiresAt = new Date(now.getTime() + (transient ? 30 : ttlSec) * 1000)
+      const row = await prisma.domainLookupCache.upsert({
+        where: { asciiDomain: item.asciiDomain },
+        create: {
+          asciiDomain: item.asciiDomain,
+          unicodeDomain: item.unicodeDomain,
+          status: result.status,
+          provider: result.provider,
+          providerCode: result.providerCode,
+          expiresAt,
+          meta: (result.meta ?? {}) as Prisma.InputJsonValue,
+        },
+        update: {
+          status: result.status,
+          provider: result.provider,
+          providerCode: result.providerCode,
+          checkedAt: now,
+          expiresAt,
+          meta: (result.meta ?? {}) as Prisma.InputJsonValue,
+        },
+      })
+      out.set(
+        item.asciiDomain,
+        buildEntry(item, row.status, row.checkedAt, false, publicPricing(tld, row.status === "AVAILABLE")),
+      )
+    }),
+  )
+
+  return out
 }
 
 function quoteSecret(settings: Record<string, string>) {

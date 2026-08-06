@@ -55,6 +55,9 @@ export function DomainMarketplace() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const [busy, setBusy] = useState<"lookup" | "quote" | "ai" | null>(null)
   const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
+  // Set when the generate-and-verify loop could not reach its free-name target, so
+  // the few taken cards shown as filler are explained rather than looking like a bug.
+  const [suggestionsExhausted, setSuggestionsExhausted] = useState(false)
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null)
   const [unavailableDomain, setUnavailableDomain] = useState<string | null>(null)
   // The domain awaiting checkout confirmation, opening the purchase popup.
@@ -245,12 +248,14 @@ export function DomainMarketplace() {
     setHasSearched(false)
     setExactVerdict(null)
     setSuggestions([])
+    setSuggestionsExhausted(false)
     setBusy("ai")
     try {
-      const result = unwrap<{ suggestions: SmartSuggestion[] }>(
+      const result = unwrap<{ suggestions: SmartSuggestion[]; exhausted: boolean }>(
         await apiPost("/api/v1/domains/suggestions", { prompt }),
       )
       setSuggestions(result.suggestions)
+      setSuggestionsExhausted(result.exhausted)
     } catch (error) {
       const message = error instanceof Error ? error.message : copy.suggestionsFailed
       setSearchError(message)
@@ -398,10 +403,17 @@ export function DomainMarketplace() {
             <section className="flex flex-col gap-4">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-balance text-xl font-bold">{copy.suggestionsTitle}</h2>
-                <p className="text-pretty text-sm text-muted-foreground">{copy.suggestionsDescription}</p>
+                <p className="text-pretty text-sm text-muted-foreground">
+                  {suggestionsExhausted ? copy.suggestionsExhausted : copy.suggestionsDescription}
+                </p>
                 <div className="flex flex-wrap justify-center gap-2">
                   <Badge className="bg-chart-2 text-background">{suggestions.filter((item) => item.status === "AVAILABLE").length.toLocaleString(locale)} {copy.available}</Badge>
-                  <Badge variant="destructive">{suggestions.filter((item) => item.status === "REGISTERED").length.toLocaleString(locale)} {copy.taken}</Badge>
+                  {/* Counts every non-available bucket, not just REGISTERED: a
+                      PREMIUM or RESERVED card is equally unbuyable, and counting
+                      only one status made the two badges disagree with the deck. */}
+                  {suggestions.some((item) => item.status !== "AVAILABLE") && (
+                    <Badge variant="destructive">{suggestions.filter((item) => item.status !== "AVAILABLE").length.toLocaleString(locale)} {copy.taken}</Badge>
+                  )}
                 </div>
               </div>
               <DomainResultsCarousel items={suggestionResults} copy={copy} money={money} num={num} onPurchase={handleSuggestionPurchase} purchasingKey={purchasingDomain} disabled={busy === "quote"} />
