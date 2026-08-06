@@ -12,6 +12,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { DomainBackup } from "@/components/admin/domain-backup"
 import { DomainPriceSync } from "@/components/admin/domain-price-sync"
 
 interface Tld { id: string; tld: string; title: string; active: boolean; supported: boolean; basePriceIrt: string; displayOrder: number; updatedAt: string; costUsdCents: number | null; sellUsdCents: number | null; marginPercent: number | null; lastPriceSyncAt: string | null }
@@ -112,7 +113,7 @@ export default function AdminDomainsPage() {
     <main className="flex flex-col gap-6">
       <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div className="flex items-start gap-3"><div className="rounded-xl border border-primary/25 bg-primary/10 p-2.5"><Globe2 className="size-6 text-primary" /></div><div><h1 className="text-2xl font-bold text-balance">مرکز عملیات دامنه</h1><p className="mt-1 text-sm text-muted-foreground">مدیریت کاتالوگ فروش، قیمت ثبت و گردش سفارش‌ها</p></div></div>
-        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void refresh()}><RefreshCw data-icon="inline-start" />تازه‌سازی</Button><DomainPriceSync onFinished={() => void refresh()} /><Button variant="outline" onClick={() => setCsvOpen(true)}><FileSpreadsheet data-icon="inline-start" />ورود CSV</Button><Button onClick={() => setCreateOpen(true)}><Plus data-icon="inline-start" />افزودن پسوند</Button></div>
+        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void refresh()}><RefreshCw data-icon="inline-start" />تازه‌سازی</Button><DomainPriceSync onFinished={() => void refresh()} /><DomainBackup onRestored={() => void refresh()} /><Button variant="outline" onClick={() => setCsvOpen(true)}><FileSpreadsheet data-icon="inline-start" />ورود CSV</Button><Button onClick={() => setCreateOpen(true)}><Plus data-icon="inline-start" />افزودن پسوند</Button></div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="نمای کلی">

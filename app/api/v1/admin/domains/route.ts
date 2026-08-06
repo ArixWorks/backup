@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db"
 import { audit } from "@/lib/core/audit"
 import { ConflictError, NotFoundError } from "@/lib/core/errors"
 import { completeDomainOrder, failDomainOrder, markDomainPurchased } from "@/lib/core/domains/service"
+import { backupRowSchema } from "@/lib/core/domains/backup"
 import { derivePrice } from "@/lib/core/domains/pricing"
 import { getActiveUsdRate } from "@/lib/core/domains/price-sync-service"
 
@@ -82,6 +83,13 @@ export const PATCH = route(async (req: Request) => {
 
 const createSchema = z.object({ action: z.literal("createTld"), tld: tldSchema, title: z.string().trim().min(1).max(80), basePriceIrt: priceSchema, active: z.boolean().default(true), displayOrder: z.coerce.number().int().min(0).max(10000).default(0) })
 const importSchema = z.object({ action: z.literal("importTlds"), rows: z.array(z.object({ tld: tldSchema, title: z.string().trim().min(1).max(80), basePriceIrt: priceSchema, active: z.boolean().default(true) })).min(1).max(500) })
+/**
+ * Restore from a backup file. Unlike `importTlds` (create-only, so it rejects the
+ * whole file if a single TLD already exists) this upserts, which is what a backup
+ * has to do: the catalog it is restored into normally still holds those rows.
+ * Never deletes, because historical orders reference the catalog.
+ */
+const restoreSchema = z.object({ action: z.literal("restoreTlds"), rows: z.array(backupRowSchema).min(1).max(2000) })
 const bulkSchema = z.object({ action: z.literal("bulkStatus"), ids: z.array(dbId).min(1).max(500), active: z.boolean() })
 const archiveSchema = z.object({ action: z.literal("archiveTld"), id: dbId })
 const deleteSchema = z.object({ action: z.literal("deleteTld"), id: dbId })
@@ -91,7 +99,7 @@ const orderActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("fail"), orderId: z.string(), reason: z.string().trim().min(3).max(500) }),
   z.object({ action: z.literal("unavailable"), orderId: z.string() }),
 ])
-const actionSchema = z.union([createSchema, importSchema, bulkSchema, archiveSchema, deleteSchema, orderActionSchema])
+const actionSchema = z.union([createSchema, importSchema, restoreSchema, bulkSchema, archiveSchema, deleteSchema, orderActionSchema])
 
 export const POST = route(async (req: Request) => {
   const admin = await requireAdmin()
@@ -113,6 +121,25 @@ export const POST = route(async (req: Request) => {
     const result = await prisma.$transaction(body.rows.map((row, index) => prisma.domainTld.create({ data: { ...row, supported: row.active, displayOrder: index, provider: "railway-domains" } })))
     await audit({ actorId: admin.id, action: "domain.tld.import", entity: "DomainTld", meta: { count: result.length, tlds: result.map((row) => row.tld) } })
     return { imported: result.length }
+  }
+
+  if (body.action === "restoreTlds") {
+    const incoming = body.rows.map((row) => row.tld)
+    const existing = await prisma.domainTld.findMany({ where: { tld: { in: incoming } }, select: { tld: true } })
+    const existingTlds = new Set(existing.map((row) => row.tld))
+
+    // One transaction so a mid-file failure cannot leave the catalog holding
+    // half of one backup and half of another.
+    await prisma.$transaction(
+      body.rows.map(({ tld, ...fields }) =>
+        prisma.domainTld.upsert({ where: { tld }, create: { tld, ...fields }, update: fields }),
+      ),
+    )
+
+    const updated = existingTlds.size
+    const created = incoming.length - updated
+    await audit({ actorId: admin.id, action: "domain.tld.restore", entity: "DomainTld", meta: { total: incoming.length, created, updated } })
+    return { created, updated, total: incoming.length }
   }
 
   if (body.action === "bulkStatus") {
