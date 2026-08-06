@@ -30,6 +30,38 @@ test("marks only explicitly priced purchasable domains as available", () => {
   assert.equal(result?.has("subio.dev"), false)
 })
 
+test("marks premium aftermarket listings as PREMIUM, not available", () => {
+  // Verbatim frame Railway returned for hostiva.com, which was sold to a customer
+  // for the flat .com price while actually being a $30,925.80 resale listing.
+  const result = parseRailwayDomainMessage({
+    type: "domains",
+    domains: {
+      "hostiva.com": {
+        domain: "hostiva.com",
+        zone: "com",
+        purchasable: true,
+        purchasePrice: 30925.8,
+        renewalPrice: 14.5,
+        premium: true,
+        allowedYears: [1, 2, 3],
+      },
+    },
+  }, new Set(["hostiva.com"]))
+
+  assert.equal(result?.get("hostiva.com")?.status, "PREMIUM")
+  assert.equal(result?.get("hostiva.com")?.providerCode, "PREMIUM")
+})
+
+test("reports provider cost so callers can sanity-check the sale price", () => {
+  const result = parseRailwayDomainMessage({
+    type: "domains",
+    domains: { "subio.io": { domain: "subio.io", zone: "io", purchasable: true, purchasePrice: 53 } },
+  }, requested)
+
+  assert.equal(result?.get("subio.io")?.status, "AVAILABLE")
+  assert.equal(result?.get("subio.io")?.meta.providerPriceUsdCents, 5300)
+})
+
 test("ignores unrequested and conflicting domain records", () => {
   const result = parseRailwayDomainMessage({
     type: "domains",

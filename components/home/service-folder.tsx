@@ -259,6 +259,16 @@ export function ServiceFolder({
    */
   const [canHover, setCanHover] = useState<boolean | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  /**
+   * Whether the folder was already open when the current tap *started*.
+   *
+   * Reading `open` directly in the click handler is not safe: tapping a link
+   * focuses it on `pointerdown`, and focus-to-open would flip `open` to true
+   * before `click` ever fires — so the "already open, let it navigate" branch
+   * would win on the very first tap and the reveal would never be seen. This
+   * ref is sampled before any of that can happen.
+   */
+  const openAtTapStartRef = useRef(false)
 
   useEffect(() => {
     const mq = window.matchMedia("(hover: hover) and (pointer: fine)")
@@ -288,11 +298,11 @@ export function ServiceFolder({
    */
   const onOverlayClick = useCallback(
     (e: React.MouseEvent) => {
-      if (canHover !== false || !hasItems || open) return
+      if (canHover !== false || !hasItems || openAtTapStartRef.current) return
       e.preventDefault()
       setOpen(true)
     },
-    [canHover, hasItems, open],
+    [canHover, hasItems],
   )
 
   const a = ACCENTS[service.accent]
@@ -322,8 +332,17 @@ export function ServiceFolder({
       {/* Whole-card link. Sits under the preview cards so both stay clickable. */}
       <Link
         href={service.href}
+        // Sampled before focus can run, so the click handler below sees the
+        // state as it was when the user started this tap.
+        onPointerDown={() => {
+          openAtTapStartRef.current = open
+        }}
         onClick={onOverlayClick}
-        onFocus={() => hasItems && setOpen(true)}
+        // Focus opens the folder for keyboard users only. On touch, focus lands
+        // on pointerdown as part of the tap itself, so letting it open here
+        // would make the first tap satisfy the "already open" branch and jump
+        // straight to the service page.
+        onFocus={() => canHover !== false && hasItems && setOpen(true)}
         onBlur={() => canHover !== false && setOpen(false)}
         aria-label={t(service.title)}
         className="absolute inset-0 z-10 rounded-[1.4rem] outline-none focus-visible:ring-2 focus-visible:ring-ring"

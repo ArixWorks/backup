@@ -5,6 +5,12 @@ export interface RailwayDomainInfo {
   zone?: string
   purchasable?: boolean
   purchasePrice?: number
+  /**
+   * Railway sets this for aftermarket/registry-premium listings. Such a domain
+   * is `purchasable: true` while being someone else's property offered for
+   * resale, so it must never be treated as a normal free registration.
+   */
+  premium?: boolean
 }
 
 export interface ParsedRailwayResult {
@@ -37,10 +43,28 @@ export function parseRailwayDomainMessage(
 
     if (info.purchasable) {
       if (typeof info.purchasePrice !== "number" || !Number.isFinite(info.purchasePrice) || info.purchasePrice <= 0) continue
+      const zone = typeof info.zone === "string" ? info.zone : undefined
+      // Provider cost travels with the result so the caller can compare it
+      // against the TLD's standard synced cost. Without it, a premium listing is
+      // indistinguishable from a normal registration once the flag is dropped.
+      const providerPriceUsdCents = Math.round(info.purchasePrice * 100)
+
+      // An aftermarket listing is `purchasable` but is not a registration we can
+      // fulfil at the flat per-TLD price: hostiva.com came back as purchasable
+      // at $30,925.80 and was sold for the standard .com price of 1,141,000 IRT.
+      if (info.premium === true) {
+        results.set(domain, {
+          status: "PREMIUM",
+          providerCode: "PREMIUM",
+          meta: { zone, providerPriceUsdCents, premium: true },
+        })
+        continue
+      }
+
       results.set(domain, {
         status: "AVAILABLE",
         providerCode: "PURCHASABLE",
-        meta: { zone: typeof info.zone === "string" ? info.zone : undefined, hasProviderPrice: true },
+        meta: { zone, hasProviderPrice: true, providerPriceUsdCents },
       })
     } else {
       results.set(domain, {
