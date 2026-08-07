@@ -3,11 +3,9 @@ import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { ValidationError } from "@/lib/core/errors"
 import { rateLimitBy } from "@/lib/api/rate-limit"
+import { sanitizeUpload } from "@/lib/upload/validate"
 
 export const dynamic = "force-dynamic"
-
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-const MAX_BYTES = 6 * 1024 * 1024 // 6 MB
 
 /**
  * Folders that hold sensitive user documents (identity cards, payment
@@ -50,12 +48,15 @@ export const POST = route(async (req: Request) => {
   const form = await req.formData()
   const file = form.get("file")
   if (!(file instanceof File)) throw new ValidationError("فایلی ارسال نشده است")
-  if (!ALLOWED.includes(file.type)) throw new ValidationError("فقط تصویر (JPG/PNG/WebP) یا PDF مجاز است")
-  if (file.size > MAX_BYTES) throw new ValidationError("حجم فایل نباید بیشتر از ۶ مگابایت باشد")
+
+  // Verify the real content (magic bytes), re-encode images to strip any
+  // appended payload, and reject anything that is not a genuine image or PDF.
+  // The client-declared MIME type and extension are never trusted.
+  const safe = await sanitizeUpload(file, ["IMAGE", "PDF"])
 
   const folder = (form.get("folder") as string | null) || "uploads"
   const safeFolder = folder.replace(/[^a-z0-9/_-]/gi, "")
-  const ext = file.type === "application/pdf" ? "pdf" : file.type.split("/")[1] || "bin"
+  const ext = safe.ext
   const isPrivate = PRIVATE_FOLDERS.has(safeFolder.split("/")[0])
 
   // The user id prefix in the filename is what the download proxy uses to
@@ -69,19 +70,19 @@ export const POST = route(async (req: Request) => {
   const wantPrivate = isPrivate && storeSupportsPrivate !== false
   let blob
   try {
-    blob = await put(key, file, {
+    blob = await put(key, safe.buffer, {
       access: wantPrivate ? "private" : "public",
       addRandomSuffix: true,
-      contentType: file.type,
+      contentType: safe.mimeType,
     })
     if (wantPrivate) storeSupportsPrivate = true
   } catch (err) {
     if (wantPrivate && isPublicStoreError(err)) {
       storeSupportsPrivate = false
-      blob = await put(key, file, {
+      blob = await put(key, safe.buffer, {
         access: "public",
         addRandomSuffix: true,
-        contentType: file.type,
+        contentType: safe.mimeType,
       })
     } else {
       throw err
@@ -92,5 +93,5 @@ export const POST = route(async (req: Request) => {
   // (possibly public) Blob URL is never handed to the client; public imagery
   // is returned directly.
   const url = isPrivate ? `/api/v1/files/${blob.pathname}` : blob.url
-  return { url, contentType: file.type }
+  return { url, contentType: safe.mimeType }
 })

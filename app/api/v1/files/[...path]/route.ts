@@ -55,10 +55,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
     }
     if (!result || !result.stream) return new Response("Not found", { status: 404 })
 
+    const contentType = result.blob.contentType || "application/octet-stream"
     const headers = new Headers()
-    if (result.blob.contentType) headers.set("Content-Type", result.blob.contentType)
+    headers.set("Content-Type", contentType)
     headers.set("Cache-Control", "private, no-store")
-    headers.set("Content-Disposition", "inline")
+    // Images render inline (thumbnails / lightbox). Everything else — PDF, text,
+    // unknown — is forced to download so the browser never executes or renders
+    // it in a same-origin context. nosniff stops content-type guessing.
+    const isImage = contentType.startsWith("image/")
+    headers.set("Content-Disposition", isImage ? "inline" : "attachment")
     headers.set("X-Content-Type-Options", "nosniff")
 
     return new Response(result.stream, { status: 200, headers })
