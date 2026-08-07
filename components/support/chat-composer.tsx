@@ -173,11 +173,13 @@ export function ChatComposer({
             <Paperclip className="h-4.5 w-4.5" />
           </Button>
           <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" aria-label="ایموجی">
-                <Smile className="h-4.5 w-4.5" />
-              </Button>
-            </PopoverTrigger>
+            <PopoverTrigger
+              render={
+                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" aria-label="ایموجی">
+                  <Smile className="h-4.5 w-4.5" />
+                </Button>
+              }
+            />
             <PopoverContent className="w-64 p-2" side="top" align="start">
               <div className="grid grid-cols-7 gap-1">
                 {EMOJIS.map((e) => (

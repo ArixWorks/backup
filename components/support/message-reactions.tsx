@@ -68,15 +68,17 @@ export function MessageReactions({
       })}
 
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background/60 text-muted-foreground transition-colors hover:bg-accent"
-            aria-label="افزودن واکنش"
-          >
-            <SmilePlus className="h-3.5 w-3.5" />
-          </button>
-        </PopoverTrigger>
+        <PopoverTrigger
+          render={
+            <button
+              type="button"
+              className="flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background/60 text-muted-foreground transition-colors hover:bg-accent"
+              aria-label="افزودن واکنش"
+            >
+              <SmilePlus className="h-3.5 w-3.5" />
+            </button>
+          }
+        />
         <PopoverContent className="flex w-auto gap-1 p-1.5" align={align} side="top">
           {ORDER.map((t) => (
             <button

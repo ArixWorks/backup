@@ -1,40 +1,35 @@
 "use client"
 
-import { use, useRef, useState } from "react"
+import { use, useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { toast } from "sonner"
-import {
-  ArrowRight,
-  Loader2,
-  Send,
-  Paperclip,
-  X,
-  CheckCircle2,
-  Headset,
-  User as UserIcon,
-} from "lucide-react"
-import { fetcher, apiPost, apiDelete, ApiError } from "@/lib/api-client"
+import { ArrowRight, MoreVertical, CheckCircle2 } from "lucide-react"
+import { fetcher, apiGet, apiPost, apiDelete } from "@/lib/api-client"
+import type { UploadedAttachment } from "@/lib/upload-client"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { uploadFile } from "@/lib/upload-client"
-import { formatDateTime } from "@/lib/format"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { SUPPORT_STATUS_TONE } from "@/lib/support-meta"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
+import { ChatThreadLive } from "@/components/support/chat-thread"
+import type { TicketStatus, TicketCategory } from "@/components/support/types"
 
-type SupportStatus = "OPEN" | "ANSWERED" | "PENDING" | "CLOSED"
-type SupportCategory = "GENERAL" | "PAYMENT" | "ORDER" | "REFUND" | "TECHNICAL"
-
-const SUPPORT_STATUS_KEY: Record<SupportStatus, MessageKey> = {
+const SUPPORT_STATUS_KEY: Record<TicketStatus, MessageKey> = {
   OPEN: "supportStatus.OPEN",
+  IN_PROGRESS: "supportStatus.IN_PROGRESS",
   ANSWERED: "supportStatus.ANSWERED",
   PENDING: "supportStatus.PENDING",
   CLOSED: "supportStatus.CLOSED",
 }
 
-const SUPPORT_CAT_KEY: Record<SupportCategory, MessageKey> = {
+const SUPPORT_CAT_KEY: Record<TicketCategory, MessageKey> = {
   GENERAL: "supportCat.GENERAL",
   PAYMENT: "supportCat.PAYMENT",
   ORDER: "supportCat.ORDER",
@@ -42,69 +37,36 @@ const SUPPORT_CAT_KEY: Record<SupportCategory, MessageKey> = {
   TECHNICAL: "supportCat.TECHNICAL",
 }
 
-type Message = {
-  id: string
-  body: string
-  fromStaff: boolean
-  attachmentUrl: string | null
-  createdAt: string
-}
-
-type Ticket = {
-  id: string
-  publicId: string
-  subject: string
-  category: SupportCategory
-  status: SupportStatus
-  messages: Message[]
-}
-
 export default function TicketThreadPage({ params }: { params: Promise<{ publicId: string }> }) {
   const { t, errorMessage } = useI18n()
   const { publicId } = use(params)
-  const { data, isLoading, mutate } = useSWR<{ data: Ticket }>(
+
+  // Header ticket meta (subject/status/category). The thread body polls itself.
+  const { data, isLoading, mutate } = useSWR<{ data: { subject: string; status: TicketStatus; category: TicketCategory } }>(
     `/api/v1/support/${publicId}`,
     fetcher,
-    { refreshInterval: 8000 },
+    { refreshInterval: 15000 },
   )
-
-  const [reply, setReply] = useState("")
-  const [file, setFile] = useState<File | null>(null)
-  const [busy, setBusy] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
+  // Current user id for reaction ownership + bubble alignment.
+  const { data: session } = useSWR<{ user?: { id: string } }>("/api/v1/auth/session", apiGet)
+  const myUserId = session?.user?.id ?? ""
 
   const ticket = data?.data
   const closed = ticket?.status === "CLOSED"
-
-  async function send() {
-    if (reply.trim().length < 1) return
-    setBusy(true)
-    try {
-      let attachmentUrl: string | undefined
-      if (file) attachmentUrl = await uploadFile(file, "tickets")
-      await apiPost(`/api/v1/support/${publicId}`, { message: reply, attachmentUrl })
-      setReply("")
-      setFile(null)
-      await mutate()
-    } catch (err) {
-      toast.error(errorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function closeTicket() {
     try {
       await apiDelete(`/api/v1/support/${publicId}`)
       toast.success(t("ticket.closedToast"))
       await mutate()
-    } catch {
-      toast.error(t("ticket.errClose"))
+    } catch (err) {
+      toast.error(errorMessage(err))
     }
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-[calc(100dvh-8rem)] flex-col gap-3">
+      {/* Header */}
       <div className="flex items-center gap-2">
         <Link
           href="/support"
@@ -113,115 +75,59 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
         >
           <ArrowRight className="h-4 w-4" />
         </Link>
-        <h1 dir="auto" className="min-w-0 flex-1 truncate text-lg font-extrabold">
-          {ticket?.subject ?? t("ticket.fallbackTitle")}
-        </h1>
+        <div className="min-w-0 flex-1">
+          <h1 dir="auto" className="truncate text-base font-extrabold leading-tight">
+            {ticket?.subject ?? t("ticket.fallbackTitle")}
+          </h1>
+          {ticket && (
+            <p className="text-xs text-muted-foreground">
+              {t("ticket.category")} {t(SUPPORT_CAT_KEY[ticket.category])}
+            </p>
+          )}
+        </div>
         {ticket && (
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${SUPPORT_STATUS_TONE[ticket.status]}`}>
             {t(SUPPORT_STATUS_KEY[ticket.status])}
           </span>
         )}
+        {ticket && !closed && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={t("ticket.actions")}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={closeTicket}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {t("ticket.closeTicket")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      {isLoading || !ticket ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-2xl" />
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="text-xs text-muted-foreground">
-            {t("ticket.category")} {t(SUPPORT_CAT_KEY[ticket.category])}
-          </div>
-
-          <ul className="space-y-3">
-            {ticket.messages.map((m) => (
-              <li key={m.id} className={`flex gap-2 ${m.fromStaff ? "" : "flex-row-reverse"}`}>
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    m.fromStaff ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {m.fromStaff ? <Headset className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
-                </span>
-                <div
-                  className={`max-w-[80%] rounded-2xl border px-3 py-2 ${
-                    m.fromStaff
-                      ? "border-primary/20 bg-primary/5"
-                      : "border-border bg-card"
-                  }`}
-                >
-                  <p dir="auto" className="whitespace-pre-wrap text-sm leading-relaxed text-pretty">{m.body}</p>
-                  {m.attachmentUrl && (
-                    <a
-                      href={m.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-xs text-primary underline"
-                    >
-                      <Paperclip className="h-3 w-3" />
-                      {t("ticket.viewAttachment")}
-                    </a>
-                  )}
-                  <span className="mt-1 block text-[10px] text-muted-foreground">
-                    {formatDateTime(m.createdAt)}
-                  </span>
-                </div>
-              </li>
+      {/* Thread */}
+      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card">
+        {isLoading || !ticket || !myUserId ? (
+          <div className="space-y-3 p-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
             ))}
-          </ul>
-
-          {closed ? (
-            <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4" />
-              {t("ticket.closedNotice")}
-            </div>
-          ) : (
-            <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
-              <Textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                rows={3}
-                aria-label={t("ticket.replyPlaceholder")}
-                placeholder={t("ticket.replyPlaceholder")}
-              />
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}>
-                    <Paperclip className="h-4 w-4" />
-                    {t("ticket.attach")}
-                  </Button>
-                  {file && (
-                    <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                      <span className="max-w-28 truncate">{file.name}</span>
-                      <button type="button" onClick={() => setFile(null)} aria-label={t("ticket.removeAttach")}>
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={closeTicket}>
-                    {t("ticket.closeTicket")}
-                  </Button>
-                  <Button onClick={send} disabled={busy} size="sm" className="gap-1.5">
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    {t("ticket.send")}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+          </div>
+        ) : (
+          <ChatThreadLive
+            threadUrl={`/api/v1/support/${publicId}`}
+            myUserId={myUserId}
+            role="user"
+            onSend={async (message: string, attachments: UploadedAttachment[]) => {
+              await apiPost(`/api/v1/support/${publicId}`, { message, attachments })
+            }}
+          />
+        )}
+      </div>
     </div>
   )
 }
