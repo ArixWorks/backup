@@ -47,9 +47,10 @@ export default function TicketThreadPage({ params }: { params: Promise<{ publicI
     fetcher,
     { refreshInterval: 15000 },
   )
-  // Current user id for reaction ownership + bubble alignment.
-  const { data: session } = useSWR<{ user?: { id: string } }>("/api/v1/auth/session", apiGet)
-  const myUserId = session?.user?.id ?? ""
+  // Current user id for reaction ownership + bubble alignment. apiGet returns
+  // the raw `{ ok, data }` envelope, so the user record is under `.data`.
+  const { data: session } = useSWR<{ data?: { id: string } }>("/api/v1/auth/session", apiGet)
+  const myUserId = session?.data?.id ?? ""
 
   const ticket = data?.data
   const closed = ticket?.status === "CLOSED"

@@ -1,16 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import useSWR from "swr"
-import { toast } from "sonner"
-import { LifeBuoy, Send, Loader2, ArrowRight, Paperclip } from "lucide-react"
-import { fetcher, apiPost, ApiError } from "@/lib/api-client"
+import { LifeBuoy, ArrowRight, Search, X } from "lucide-react"
+import { fetcher, apiGet } from "@/lib/api-client"
+import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { formatDateTime } from "@/lib/format"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
 import { SUPPORT_STATUS_META, SUPPORT_CATEGORY_LABELS } from "@/lib/support-meta"
-import { AiAssistPanel } from "@/components/admin/support/ai-assist-panel"
-import { EnhancedTextarea } from "@/components/rich-content"
+import { ChatThreadLive } from "@/components/support/chat-thread"
+import { AdminReplyComposer } from "@/components/admin/support/admin-reply-composer"
+import { STATUS_META, CATEGORY_LABELS } from "@/components/support/types"
+import type { TicketStatus, TicketCategory } from "@/components/support/types"
 
 type TicketRow = {
   publicId: string
@@ -21,29 +23,43 @@ type TicketRow = {
   messageCount: number
   user: { displayName: string; alias: string }
 }
-type Message = {
-  id: string
-  fromStaff: boolean
-  body: string
-  attachmentUrl: string | null
-  createdAt: string
-}
-type TicketDetail = TicketRow & { messages: Message[] }
 
-const filters = [
+const statusFilters = [
   { key: "", label: "همه" },
   { key: "OPEN", label: "باز" },
+  { key: "IN_PROGRESS", label: "در حال بررسی" },
   { key: "PENDING", label: "در انتظار پاسخ" },
   { key: "ANSWERED", label: "پاسخ‌داده‌شده" },
   { key: "CLOSED", label: "بسته" },
 ] as const
 
+const categoryFilters = [
+  { key: "", label: "همه دسته‌ها" },
+  { key: "GENERAL", label: "عمومی" },
+  { key: "PAYMENT", label: "پرداخت" },
+  { key: "ORDER", label: "سفارش" },
+  { key: "REFUND", label: "بازگشت وجه" },
+  { key: "TECHNICAL", label: "فنی" },
+] as const
+
 export default function AdminSupportPage() {
   const [status, setStatus] = useState<string>("")
+  const [category, setCategory] = useState<string>("")
+  const [q, setQ] = useState("")
+  const debouncedQ = useDebouncedValue(q, 350)
   const [selected, setSelected] = useState<string | null>(null)
 
+  const query = useMemo(() => {
+    const sp = new URLSearchParams()
+    if (status) sp.set("status", status)
+    if (category) sp.set("category", category)
+    if (debouncedQ.trim()) sp.set("q", debouncedQ.trim())
+    const s = sp.toString()
+    return s ? `?${s}` : ""
+  }, [status, category, debouncedQ])
+
   const { data, isLoading, mutate } = useSWR<{ data: TicketRow[] }>(
-    `/api/v1/admin/support${status ? `?status=${status}` : ""}`,
+    `/api/v1/admin/support${query}`,
     fetcher,
     { refreshInterval: 12000 },
   )
@@ -68,8 +84,30 @@ export default function AdminSupportPage() {
         <h1 className="text-2xl font-extrabold">تیکت‌های پشتیبانی</h1>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="جستجو در موضوع، نام کاربر یا متن پیام…"
+          className="pr-9"
+          aria-label="جستجوی تیکت"
+        />
+        {q && (
+          <button
+            onClick={() => setQ("")}
+            aria-label="پاک‌کردن جستجو"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Status filter */}
       <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1 text-sm">
-        {filters.map((f) => (
+        {statusFilters.map((f) => (
           <button
             key={f.key}
             onClick={() => setStatus(f.key)}
@@ -77,6 +115,23 @@ export default function AdminSupportPage() {
               status === f.key
                 ? "bg-primary text-primary-foreground font-semibold"
                 : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Category filter */}
+      <div className="flex flex-wrap gap-1.5 text-xs">
+        {categoryFilters.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setCategory(f.key)}
+            className={`rounded-full border px-3 py-1 transition-colors ${
+              category === f.key
+                ? "border-primary/50 bg-primary/10 text-foreground font-semibold"
+                : "border-border text-muted-foreground hover:text-foreground"
             }`}
           >
             {f.label}
@@ -92,7 +147,7 @@ export default function AdminSupportPage() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          تیکتی وجود ندارد.
+          {debouncedQ ? "تیکتی با این جستجو یافت نشد." : "تیکتی وجود ندارد."}
         </div>
       ) : (
         <ul className="space-y-2.5">
@@ -132,118 +187,62 @@ export default function AdminSupportPage() {
 }
 
 function AdminTicketThread({ publicId, onBack }: { publicId: string; onBack: () => void }) {
-  const { data, isLoading, mutate } = useSWR<{ data: TicketDetail }>(
+  const { data: session } = useSWR<{ data?: { id: string } }>("/api/v1/auth/session", apiGet)
+  const myUserId = session?.data?.id ?? ""
+
+  const { data } = useSWR<{ data: { subject: string; status: TicketStatus; category: TicketCategory; user: { displayName: string; alias: string } } }>(
     `/api/v1/admin/support/${publicId}`,
     fetcher,
-    { refreshInterval: 12000 },
+    { refreshInterval: 15000 },
   )
-  const [body, setBody] = useState("")
-  const [sending, setSending] = useState(false)
   const ticket = data?.data
 
-  async function reply(close?: boolean) {
-    if (!body.trim()) return toast.error("متن پاسخ را وارد کنید")
-    setSending(true)
-    try {
-      await apiPost(`/api/v1/admin/support/${publicId}`, { message: body.trim(), close })
-      setBody("")
-      toast.success(close ? "پاسخ ارسال و تیکت بسته شد" : "پاسخ ارسال شد")
-      await mutate()
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "خطا در ارسال پاسخ")
-    } finally {
-      setSending(false)
-    }
-  }
-
   return (
-    <div className="space-y-4">
-      <button
-        onClick={onBack}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowRight className="h-4 w-4" />
-        بازگشت به فهرست تیکت‌ها
-      </button>
-
-      {isLoading || !ticket ? (
-        <Skeleton className="h-24 w-full rounded-2xl" />
-      ) : (
-        <>
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="text-balance text-lg font-extrabold">{ticket.subject}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {ticket.user.displayName} ({ticket.user.alias}) · {SUPPORT_CATEGORY_LABELS[ticket.category]}
-                </p>
-              </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${SUPPORT_STATUS_META[ticket.status].className}`}>
-                {SUPPORT_STATUS_META[ticket.status].label}
-              </span>
-            </div>
-          </div>
-
-          <ul className="space-y-3">
-            {ticket.messages.map((m) => (
-              <li key={m.id} className={`flex ${m.fromStaff ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl border p-3 ${
-                    m.fromStaff ? "border-primary/30 bg-primary/10" : "border-border bg-card"
-                  }`}
-                >
-                  <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <span className="font-bold">{m.fromStaff ? "پشتیبانی" : "کاربر"}</span>
-                    <span>{formatDateTime(m.createdAt)}</span>
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
-                  {m.attachmentUrl && (
-                    <a
-                      href={m.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                    >
-                      <Paperclip className="h-3 w-3" />
-                      مشاهده پیوست
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {ticket.status === "CLOSED" ? (
-            <div className="rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-              این تیکت بسته شده است.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <AiAssistPanel publicId={publicId} onUseDraft={setBody} />
-              <div className="space-y-2 rounded-2xl border border-border bg-card p-3">
-              <EnhancedTextarea
-                value={body}
-                onChange={setBody}
-                placeholder="پاسخ پشتیبانی…"
-                minRows={3}
-                maxRows={12}
-                showCount={false}
-                aria-label="پاسخ پشتیبانی"
-              />
-              <div className="flex items-center justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => reply(true)} disabled={sending}>
-                  ارسال و بستن
-                </Button>
-                <Button onClick={() => reply(false)} disabled={sending} className="gap-1.5">
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  ارسال پاسخ
-                </Button>
-              </div>
-              </div>
-            </div>
+    <div className="flex h-[calc(100dvh-8rem)] flex-col gap-3">
+      <div className="flex items-start gap-2">
+        <button
+          onClick={onBack}
+          aria-label="بازگشت به فهرست تیکت‌ها"
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowRight className="h-4 w-4" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-extrabold leading-tight">
+            {ticket?.subject ?? "در حال بارگذاری…"}
+          </h2>
+          {ticket && (
+            <p className="text-xs text-muted-foreground">
+              {ticket.user.displayName} ({ticket.user.alias}) · {CATEGORY_LABELS[ticket.category]}
+            </p>
           )}
-        </>
-      )}
+        </div>
+        {ticket && (
+          <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold ${STATUS_META[ticket.status].className}`}>
+            {STATUS_META[ticket.status].label}
+          </span>
+        )}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card">
+        {!ticket || !myUserId ? (
+          <div className="space-y-3 p-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+            ))}
+          </div>
+        ) : (
+          <ChatThreadLive
+            threadUrl={`/api/v1/admin/support/${publicId}`}
+            myUserId={myUserId}
+            role="admin"
+            closed={ticket.status === "CLOSED"}
+            renderComposer={(onDone) => (
+              <AdminReplyComposer publicId={publicId} status={ticket.status} onDone={onDone} />
+            )}
+          />
+        )}
+      </div>
     </div>
   )
 }

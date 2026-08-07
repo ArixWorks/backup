@@ -32,11 +32,20 @@ export interface ChatThreadProps {
   closed?: boolean
   /** Called after any mutation so the parent can refetch the thread. */
   onRefresh: () => void
-  /** Sends a message (+ attachments) — supplied by each page's own endpoint. */
-  onSend: (message: string, attachments: UploadedAttachment[]) => Promise<void>
+  /**
+   * Sends a message (+ attachments) — supplied by each page's own endpoint.
+   * Required unless a custom `renderComposer` is supplied.
+   */
+  onSend?: (message: string, attachments: UploadedAttachment[]) => Promise<void>
+  /**
+   * Optional custom composer (e.g. the admin rich TipTap editor + status
+   * controls). When provided it replaces the default plain ChatComposer. It
+   * receives `onDone` to trigger an immediate refetch after a successful send.
+   */
+  renderComposer?: (onDone: () => void) => React.ReactNode
 }
 
-export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefresh, onSend }: ChatThreadProps) {
+export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefresh, onSend, renderComposer }: ChatThreadProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   // Track which message ids we've already rendered so the typing effect only
@@ -159,9 +168,18 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
         <div className="border-t border-border px-4 py-3 text-center text-sm text-muted-foreground">
           این گفتگو بسته شده است.
         </div>
+      ) : renderComposer ? (
+        <div className="border-t border-border px-3 py-3">{renderComposer(onRefresh)}</div>
       ) : (
         <div className="px-3 pb-3">
-          <ChatComposer onSend={onSend} />
+          <ChatComposer
+            onSend={async (message, attachments) => {
+              await onSend?.(message, attachments)
+              // Refetch immediately so the sent message appears without waiting
+              // for the next poll interval.
+              onRefresh()
+            }}
+          />
         </div>
       )}
     </div>
