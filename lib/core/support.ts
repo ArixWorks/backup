@@ -3,9 +3,61 @@ import { secureSlug } from "@/lib/id"
 import { NotFoundError, ValidationError } from "./errors"
 import { audit } from "./audit"
 import { enqueueTranslations } from "@/lib/i18n/content-translation"
+import { sanitizeRichHtml } from "@/lib/rich-content/sanitize"
 
 export const SUPPORT_CATEGORIES = ["GENERAL", "PAYMENT", "ORDER", "REFUND", "TECHNICAL"] as const
 export type SupportCategoryValue = (typeof SUPPORT_CATEGORIES)[number]
+
+export const SUPPORT_STATUSES = ["OPEN", "IN_PROGRESS", "ANSWERED", "PENDING", "CLOSED"] as const
+export type SupportStatusValue = (typeof SUPPORT_STATUSES)[number]
+
+export const REACTION_TYPES = ["THANKS", "HEART", "LIKE", "DISLIKE"] as const
+export type ReactionTypeValue = (typeof REACTION_TYPES)[number]
+
+/**
+ * A sanitized, server-trusted attachment descriptor. These are produced ONLY by
+ * the upload route after magic-byte verification and (for images) sharp
+ * re-encoding — never assembled from client-declared values — so persisting
+ * them here is safe.
+ */
+export interface AttachmentInput {
+  url: string
+  kind: "IMAGE" | "PDF" | "TEXT"
+  name: string
+  mimeType: string
+  size: number
+  width?: number
+  height?: number
+}
+
+/** Shared thread projection: every message carries its attachments + reactions. */
+const messageInclude = {
+  orderBy: { createdAt: "asc" as const },
+  include: {
+    attachments: { orderBy: { createdAt: "asc" as const } },
+    reactions: { select: { id: true, type: true, userId: true } },
+  },
+}
+
+/** Cap the number of attachments accepted on a single message. */
+const MAX_ATTACHMENTS = 5
+
+/** Build the Prisma nested-create payload for a message's attachments. */
+function attachmentCreate(attachments?: AttachmentInput[]) {
+  const list = (attachments ?? []).slice(0, MAX_ATTACHMENTS)
+  if (list.length === 0) return undefined
+  return {
+    create: list.map((a) => ({
+      kind: a.kind,
+      url: a.url,
+      name: a.name.slice(0, 200),
+      mimeType: a.mimeType,
+      size: a.size,
+      width: a.width ?? null,
+      height: a.height ?? null,
+    })),
+  }
+}
 
 /**
  * Canonical subject used for a banned user's "contact support / appeal" thread.
@@ -35,15 +87,17 @@ export interface CreateTicketInput {
   subject: string
   category?: string
   message: string
-  attachmentUrl?: string
+  attachments?: AttachmentInput[]
 }
 
 /** User opens a new support ticket with an initial message. */
 export async function createTicket(input: CreateTicketInput) {
   const subject = input.subject.trim()
   const message = input.message.trim()
+  const hasAttachments = (input.attachments?.length ?? 0) > 0
   if (subject.length < 3) throw new ValidationError("موضوع تیکت باید حداقل ۳ نویسه باشد")
-  if (message.length < 5) throw new ValidationError("متن پیام بسیار کوتاه است")
+  // Allow a short/empty body when the user is sending attachments only.
+  if (message.length < 5 && !hasAttachments) throw new ValidationError("متن پیام بسیار کوتاه است")
 
   const ticket = await prisma.supportTicket.create({
     data: {
@@ -58,11 +112,11 @@ export async function createTicket(input: CreateTicketInput) {
           authorId: input.userId,
           fromStaff: false,
           body: message,
-          attachmentUrl: input.attachmentUrl,
+          attachments: attachmentCreate(input.attachments),
         },
       },
     },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
+    include: { messages: messageInclude },
   })
   await audit({ actorId: input.userId, action: "ticket.create", entity: "ticket", entityId: ticket.id })
   await Promise.all([
@@ -86,7 +140,7 @@ export async function listTickets(userId: string) {
 export async function getTicket(userId: string, publicId: string) {
   const ticket = await prisma.supportTicket.findUnique({
     where: { publicId },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
+    include: { messages: messageInclude },
   })
   if (!ticket || ticket.userId !== userId) throw new NotFoundError("تیکت یافت نشد")
   return ticket
@@ -96,7 +150,7 @@ export interface ReplyInput {
   userId: string
   publicId: string
   message: string
-  attachmentUrl?: string
+  attachments?: AttachmentInput[]
 }
 
 /** User posts a reply to one of their tickets. */
@@ -106,7 +160,8 @@ export async function replyToTicket(input: ReplyInput) {
   if (ticket.status === "CLOSED") throw new ValidationError("این تیکت بسته شده است و امکان ارسال پیام نیست")
 
   const body = input.message.trim()
-  if (body.length < 1) throw new ValidationError("متن پیام خالی است")
+  const hasAttachments = (input.attachments?.length ?? 0) > 0
+  if (body.length < 1 && !hasAttachments) throw new ValidationError("متن پیام خالی است")
 
   const message = await prisma.ticketMessage.create({
     data: {
@@ -114,14 +169,15 @@ export async function replyToTicket(input: ReplyInput) {
       authorId: input.userId,
       fromStaff: false,
       body,
-      attachmentUrl: input.attachmentUrl,
+      attachments: attachmentCreate(input.attachments),
     },
+    include: { attachments: { orderBy: { createdAt: "asc" } }, reactions: { select: { id: true, type: true, userId: true } } },
   })
   await prisma.supportTicket.update({
     where: { id: ticket.id },
     data: { status: "PENDING", lastReplyAt: new Date() },
   })
-  await enqueueTranslations({ entityType: "ticket-message", entityId: message.id, sourceData: { body } })
+  if (body) await enqueueTranslations({ entityType: "ticket-message", entityId: message.id, sourceData: { body } })
   return message
 }
 
@@ -134,10 +190,35 @@ export async function closeTicket(userId: string, publicId: string) {
 
 // --- Staff (admin) actions ---------------------------------------------------
 
-/** All tickets across users, optionally filtered by status. */
-export async function listTicketsAdmin(status?: string) {
+export interface AdminTicketFilter {
+  status?: string
+  category?: string
+  /** Free-text search across subject and message bodies. */
+  q?: string
+}
+
+/** All tickets across users, filtered by status/category and a text query. */
+export async function listTicketsAdmin(filter?: AdminTicketFilter | string) {
+  // Back-compat: a bare string is treated as a status filter.
+  const f: AdminTicketFilter = typeof filter === "string" ? { status: filter } : (filter ?? {})
+  const status = f.status && (SUPPORT_STATUSES as readonly string[]).includes(f.status) ? f.status : undefined
+  const category = f.category && (SUPPORT_CATEGORIES as readonly string[]).includes(f.category) ? f.category : undefined
+  const q = f.q?.trim()
+
+  const where: Record<string, unknown> = {}
+  if (status) where.status = status
+  if (category) where.category = category
+  if (q) {
+    where.OR = [
+      { subject: { contains: q, mode: "insensitive" } },
+      { publicId: { contains: q, mode: "insensitive" } },
+      { messages: { some: { body: { contains: q, mode: "insensitive" } } } },
+      { user: { is: { displayName: { contains: q, mode: "insensitive" } } } },
+    ]
+  }
+
   const tickets = await prisma.supportTicket.findMany({
-    where: status ? { status: status as never } : undefined,
+    where,
     orderBy: { lastReplyAt: "desc" },
     take: 200,
     include: {
@@ -153,7 +234,7 @@ export async function getTicketAdmin(publicId: string) {
   const ticket = await prisma.supportTicket.findUnique({
     where: { publicId },
     include: {
-      messages: { orderBy: { createdAt: "asc" } },
+      messages: messageInclude,
       user: { select: { displayName: true, alias: true } },
     },
   })
@@ -166,13 +247,21 @@ export async function staffReply(input: {
   staffId: string
   publicId: string
   message: string
-  attachmentUrl?: string
+  /** Optional rich HTML from the admin editor; sanitized here before storage. */
+  html?: string
+  attachments?: AttachmentInput[]
   close?: boolean
 }) {
   const ticket = await prisma.supportTicket.findUnique({ where: { publicId: input.publicId } })
   if (!ticket) throw new NotFoundError("تیکت یافت نشد")
   const body = input.message.trim()
-  if (body.length < 1) throw new ValidationError("متن پیام خالی است")
+  const hasAttachments = (input.attachments?.length ?? 0) > 0
+  if (body.length < 1 && !hasAttachments) throw new ValidationError("متن پیام خالی است")
+
+  // Sanitize any rich HTML defensively at the trust boundary. Store null when
+  // it carries no formatting beyond the plain text (keeps rendering simple).
+  const cleanHtml = input.html ? sanitizeRichHtml(input.html) : null
+  const bodyHtml = cleanHtml && cleanHtml.replace(/<[^>]*>/g, "").trim() ? cleanHtml : null
 
   const message = await prisma.ticketMessage.create({
     data: {
@@ -180,31 +269,134 @@ export async function staffReply(input: {
       authorId: input.staffId,
       fromStaff: true,
       body,
-      attachmentUrl: input.attachmentUrl,
+      bodyHtml,
+      attachments: attachmentCreate(input.attachments),
     },
+    include: { attachments: { orderBy: { createdAt: "asc" } }, reactions: { select: { id: true, type: true, userId: true } } },
   })
   await prisma.supportTicket.update({
     where: { id: ticket.id },
     data: { status: input.close ? "CLOSED" : "ANSWERED", lastReplyAt: new Date() },
   })
   await audit({ actorId: input.staffId, action: "ticket.reply", entity: "ticket", entityId: ticket.id })
-  await enqueueTranslations({ entityType: "ticket-message", entityId: message.id, sourceData: { body } })
+  if (body) await enqueueTranslations({ entityType: "ticket-message", entityId: message.id, sourceData: { body } })
   // Email the ticket owner that support replied (best-effort).
   const { sendSupportReplyEmail } = await import("@/lib/email")
   await sendSupportReplyEmail({
     userId: ticket.userId,
     ticketId: ticket.publicId,
     subject: ticket.subject,
-    message: body,
+    message: body || "پیام جدید پشتیبانی (پیوست)",
   })
   // Push the reply into the owner's Telegram chat so the conversation is truly
   // two-way in the bot (critical for banned users, who can't use the dashboard).
   const { notifySupportReply } = await import("@/lib/telegram/notify")
   await notifySupportReply(ticket.userId, {
     subject: ticket.subject,
-    body,
+    body: body || "پیام جدید پشتیبانی (پیوست)",
     isBanAppeal: ticket.subject === BAN_APPEAL_SUBJECT,
     closed: Boolean(input.close),
   })
   return message
+}
+
+// --- Reactions ---------------------------------------------------------------
+
+/**
+ * Toggle an emoji reaction on a message. Either party (ticket owner or admin)
+ * may react on any message in a thread they can access. One reaction per user
+ * per message: reacting with the same type removes it, a different type
+ * replaces it. Returns the message's full reaction list after the change.
+ */
+export async function setReaction(input: {
+  userId: string
+  isAdmin: boolean
+  messageId: string
+  type: ReactionTypeValue
+}) {
+  if (!(REACTION_TYPES as readonly string[]).includes(input.type)) {
+    throw new ValidationError("نوع واکنش نامعتبر است")
+  }
+  const message = await prisma.ticketMessage.findUnique({
+    where: { id: input.messageId },
+    select: { id: true, ticket: { select: { userId: true } } },
+  })
+  if (!message) throw new NotFoundError("پیام یافت نشد")
+  // Authorization: admins can react anywhere; users only within their own thread.
+  if (!input.isAdmin && message.ticket.userId !== input.userId) {
+    throw new NotFoundError("پیام یافت نشد")
+  }
+
+  const existing = await prisma.supportReaction.findUnique({
+    where: { messageId_userId: { messageId: input.messageId, userId: input.userId } },
+  })
+  if (existing && existing.type === input.type) {
+    await prisma.supportReaction.delete({ where: { id: existing.id } })
+  } else if (existing) {
+    await prisma.supportReaction.update({ where: { id: existing.id }, data: { type: input.type } })
+  } else {
+    await prisma.supportReaction.create({
+      data: { messageId: input.messageId, userId: input.userId, type: input.type },
+    })
+  }
+  return prisma.supportReaction.findMany({
+    where: { messageId: input.messageId },
+    select: { id: true, type: true, userId: true },
+  })
+}
+
+// --- Read receipts -----------------------------------------------------------
+
+/**
+ * Mark every staff message in a thread as read by the owner. Called
+ * automatically when the user opens/polls their ticket, giving admins a
+ * two-tick "seen" signal. Scoped to the thread owner.
+ */
+export async function markThreadReadByUser(userId: string, publicId: string) {
+  const ticket = await prisma.supportTicket.findUnique({ where: { publicId }, select: { id: true, userId: true } })
+  if (!ticket || ticket.userId !== userId) throw new NotFoundError("تیکت یافت نشد")
+  const res = await prisma.ticketMessage.updateMany({
+    where: { ticketId: ticket.id, fromStaff: true, readAt: null },
+    data: { readAt: new Date() },
+  })
+  return { updated: res.count }
+}
+
+/**
+ * Admin manually marks a single user message as read (a deliberate two-tick
+ * receipt — the reference explicitly does NOT want this to be automatic for
+ * staff, so the admin controls when the user sees it was read).
+ */
+export async function markMessageReadByStaff(messageId: string) {
+  const message = await prisma.ticketMessage.findUnique({ where: { id: messageId }, select: { id: true, fromStaff: true } })
+  if (!message) throw new NotFoundError("پیام یافت نشد")
+  // Only user-authored messages carry a staff-set read receipt.
+  if (message.fromStaff) throw new ValidationError("فقط پیام کاربر قابل علامت‌گذاری است")
+  return prisma.ticketMessage.update({ where: { id: messageId }, data: { readAt: new Date() } })
+}
+
+// --- Admin status / category -------------------------------------------------
+
+/** Admin sets a ticket's workflow status (e.g. mark it IN_PROGRESS). */
+export async function setTicketStatus(input: { staffId: string; publicId: string; status: SupportStatusValue }) {
+  if (!(SUPPORT_STATUSES as readonly string[]).includes(input.status)) {
+    throw new ValidationError("وضعیت نامعتبر است")
+  }
+  const ticket = await prisma.supportTicket.findUnique({ where: { publicId: input.publicId }, select: { id: true } })
+  if (!ticket) throw new NotFoundError("تیکت یافت نشد")
+  const updated = await prisma.supportTicket.update({ where: { id: ticket.id }, data: { status: input.status } })
+  await audit({ actorId: input.staffId, action: "ticket.status", entity: "ticket", entityId: ticket.id, meta: { status: input.status } })
+  return updated
+}
+
+/** Admin re-categorizes a ticket. */
+export async function setTicketCategory(input: { staffId: string; publicId: string; category: SupportCategoryValue }) {
+  const ticket = await prisma.supportTicket.findUnique({ where: { publicId: input.publicId }, select: { id: true } })
+  if (!ticket) throw new NotFoundError("تیکت یافت نشد")
+  const updated = await prisma.supportTicket.update({
+    where: { id: ticket.id },
+    data: { category: normalizeCategory(input.category) },
+  })
+  await audit({ actorId: input.staffId, action: "ticket.category", entity: "ticket", entityId: ticket.id, meta: { category: input.category } })
+  return updated
 }

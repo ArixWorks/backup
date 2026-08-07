@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { uploadedFileUrl } from "@/lib/api/file-url"
+import { attachmentsSchema, toAttachmentInputs } from "@/lib/api/attachment-schema"
 import { route } from "@/lib/api/handler"
 import { requireUser } from "@/lib/auth/session"
 import { createTicket, listTickets, SUPPORT_CATEGORIES } from "@/lib/core/support"
@@ -11,7 +11,7 @@ const schema = z.object({
   subject: z.string(),
   category: z.enum(SUPPORT_CATEGORIES).optional(),
   message: z.string(),
-  attachmentUrl: uploadedFileUrl.optional(),
+  attachments: attachmentsSchema,
 })
 
 export const GET = route(async () => {
@@ -29,6 +29,6 @@ export const POST = route(async (req: Request) => {
     subject: body.subject,
     category: body.category,
     message: body.message,
-    attachmentUrl: body.attachmentUrl,
+    attachments: toAttachmentInputs(body.attachments),
   })
 })

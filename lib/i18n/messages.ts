@@ -438,6 +438,7 @@ export type MessageKey =
   | "supportStatus.OPEN"
   | "supportStatus.ANSWERED"
   | "supportStatus.PENDING"
+  | "supportStatus.IN_PROGRESS"
   | "supportStatus.CLOSED"
   | "supportCat.GENERAL"
   | "supportCat.PAYMENT"
@@ -486,6 +487,7 @@ export type MessageKey =
   | "ticket.closedToast"
   | "ticket.errClose"
   | "ticket.back"
+  | "ticket.actions"
   | "ticket.fallbackTitle"
   | "ticket.category"
   | "ticket.viewAttachment"
@@ -1365,6 +1367,7 @@ type Catalog = Record<MessageKey, string>
   "supportStatus.OPEN": "باز",
   "supportStatus.ANSWERED": "پاسخ داده شد",
   "supportStatus.PENDING": "در انتظار پاسخ",
+  "supportStatus.IN_PROGRESS": "در حال بررسی",
   "supportStatus.CLOSED": "بسته شده",
   "supportCat.GENERAL": "عمومی",
   "supportCat.PAYMENT": "پرداخت و کیف پول",
@@ -1413,6 +1416,7 @@ type Catalog = Record<MessageKey, string>
   "ticket.closedToast": "تیکت بسته شد",
   "ticket.errClose": "خطا در بستن تیکت",
   "ticket.back": "بازگشت",
+  "ticket.actions": "عملیات",
   "ticket.fallbackTitle": "تیکت",
   "ticket.category": "دسته‌بندی:",
   "ticket.viewAttachment": "مشاهده پیوست",
@@ -2261,6 +2265,7 @@ type Catalog = Record<MessageKey, string>
   "supportStatus.OPEN": "Open",
   "supportStatus.ANSWERED": "Answered",
   "supportStatus.PENDING": "Awaiting reply",
+  "supportStatus.IN_PROGRESS": "In progress",
   "supportStatus.CLOSED": "Closed",
   "supportCat.GENERAL": "General",
   "supportCat.PAYMENT": "Payment & wallet",
@@ -2309,6 +2314,7 @@ type Catalog = Record<MessageKey, string>
   "ticket.closedToast": "Ticket closed",
   "ticket.errClose": "Failed to close ticket",
   "ticket.back": "Back",
+  "ticket.actions": "Actions",
   "ticket.fallbackTitle": "Ticket",
   "ticket.category": "Category:",
   "ticket.viewAttachment": "View attachment",
@@ -3148,6 +3154,7 @@ type Catalog = Record<MessageKey, string>
   "supportStatus.OPEN": "Открыто",
   "supportStatus.ANSWERED": "Отвечено",
   "supportStatus.PENDING": "Ожидает ответа",
+  "supportStatus.IN_PROGRESS": "В работе",
   "supportStatus.CLOSED": "Закрыто",
   "supportCat.GENERAL": "Общее",
   "supportCat.PAYMENT": "Оплата и кошелёк",
@@ -3196,6 +3203,7 @@ type Catalog = Record<MessageKey, string>
   "ticket.closedToast": "Обращение закрыто",
   "ticket.errClose": "Не удалось закрыть обращение",
   "ticket.back": "Назад",
+  "ticket.actions": "Действия",
   "ticket.fallbackTitle": "Обращение",
   "ticket.category": "Категория:",
   "ticket.viewAttachment": "Посмотреть вложение",
@@ -4036,6 +4044,7 @@ type Catalog = Record<MessageKey, string>
   "supportStatus.OPEN": "Open",
   "supportStatus.ANSWERED": "Answered",
   "supportStatus.PENDING": "Jawaab ka intezaar",
+  "supportStatus.IN_PROGRESS": "Zer-e ghaur",
   "supportStatus.CLOSED": "Closed",
   "supportCat.GENERAL": "General",
   "supportCat.PAYMENT": "Payment aur wallet",
@@ -4084,6 +4093,7 @@ type Catalog = Record<MessageKey, string>
   "ticket.closedToast": "Ticket band kar diya gaya",
   "ticket.errClose": "Ticket band karne mein samasya",
   "ticket.back": "Wapas",
+  "ticket.actions": "Amal",
   "ticket.fallbackTitle": "Ticket",
   "ticket.category": "Category:",
   "ticket.viewAttachment": "Attachment dekhein",

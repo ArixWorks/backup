@@ -15,8 +15,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { apiPost, ApiError } from "@/lib/api-client"
-import { uploadFile } from "@/lib/upload-client"
+import { apiPost } from "@/lib/api-client"
+import { uploadAttachment, type UploadedAttachment } from "@/lib/upload-client"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 
@@ -34,7 +34,7 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
   const [subject, setSubject] = useState("")
   const [category, setCategory] = useState("GENERAL")
   const [message, setMessage] = useState("")
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const categoryId = useId()
@@ -45,7 +45,7 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
     setSubject("")
     setCategory("GENERAL")
     setMessage("")
-    setFile(null)
+    setFiles([])
   }
 
   async function submit() {
@@ -53,9 +53,13 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
     if (message.trim().length < 5) return toast.error(t("newTicket.errMessage"))
     setBusy(true)
     try {
-      let attachmentUrl: string | undefined
-      if (file) attachmentUrl = await uploadFile(file, "tickets")
-      await apiPost("/api/v1/support", { subject, category, message, attachmentUrl })
+      // Upload each attachment; the server verifies content and returns a
+      // trusted descriptor we forward to the ticket create endpoint.
+      const attachments: UploadedAttachment[] = []
+      for (const f of files.slice(0, 5)) {
+        attachments.push(await uploadAttachment(f, "tickets", ["IMAGE", "PDF", "TEXT"]))
+      }
+      await apiPost("/api/v1/support", { subject, category, message, attachments })
       toast.success(t("newTicket.success"))
       reset()
       setOpen(false)
@@ -121,25 +125,48 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2">
             <input
               ref={fileRef}
               type="file"
-              accept="image/*,application/pdf"
+              multiple
+              accept="image/png,image/jpeg,image/webp,application/pdf,text/plain,.txt"
               className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                const picked = Array.from(e.target.files ?? [])
+                setFiles((prev) => [...prev, ...picked].slice(0, 5))
+                e.target.value = ""
+              }}
             />
-            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => fileRef.current?.click()}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit gap-2"
+              disabled={files.length >= 5}
+              onClick={() => fileRef.current?.click()}
+            >
               <Paperclip className="h-4 w-4" />
               {t("newTicket.attachOptional")}
             </Button>
-            {file && (
-              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                <span className="truncate">{file.name}</span>
-                <button type="button" onClick={() => setFile(null)} aria-label={t("ticket.removeAttach")}>
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </span>
+            {files.length > 0 && (
+              <ul className="flex flex-wrap gap-1.5">
+                {files.map((f, i) => (
+                  <li
+                    key={`${f.name}-${i}`}
+                    className="flex min-w-0 items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-1 text-xs text-muted-foreground"
+                  >
+                    <span className="max-w-32 truncate">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      aria-label={t("ticket.removeAttach")}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </DialogBody>

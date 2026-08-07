@@ -229,9 +229,23 @@ enum RefundStatus {
 // User-facing support ticket lifecycle.
 enum SupportStatus {
   OPEN // newly created / awaiting first staff reply
+  IN_PROGRESS // staff is actively investigating
   ANSWERED // staff has replied, awaiting user
   PENDING // user replied, awaiting staff
   CLOSED // resolved / archived
+}
+
+enum TicketReactionType {
+  THANKS // 🙏
+  HEART // ❤️
+  LIKE // 👍
+  DISLIKE // 👎
+}
+
+enum SupportAttachmentKind {
+  IMAGE
+  PDF
+  TEXT
 }
 
 enum SupportCategory {
@@ -335,6 +349,7 @@ model User {
   withdrawals         WithdrawalRequest[]
   refunds             RefundRequest[]
   tickets             SupportTicket[]
+  supportReactions    SupportReaction[]
   reviews             Review[]
   redemptions         CouponRedemption[]
   notifications       Notification[]
@@ -1637,17 +1652,58 @@ model SupportTicket {
 }
 
 model TicketMessage {
-  id            String        @id @default(cuid())
-  ticketId      String
-  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   // Null author = system message. fromStaff distinguishes user vs support.
-  authorId      String?
-  fromStaff     Boolean       @default(false)
-  body          String
+  authorId  String?
+  fromStaff Boolean       @default(false)
+  // System event marker (e.g. status change) rendered as a centered notice.
+  isSystem  Boolean       @default(false)
+  // Plain-text body — always populated, used for search and as a safe fallback.
+  body      String
+  // Sanitized HTML for staff rich replies. Null for plain user/system messages.
+  bodyHtml  String?
+  // Legacy single-attachment column, superseded by the attachments relation.
   attachmentUrl String?
-  createdAt     DateTime      @default(now())
+  // When the recipient marked this message as read (two-tick receipt).
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  attachments SupportAttachment[]
+  reactions   SupportReaction[]
 
   @@index([ticketId, createdAt])
+}
+
+model SupportAttachment {
+  id        String                @id @default(cuid())
+  messageId String
+  message   TicketMessage         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  kind      SupportAttachmentKind
+  url       String // blob url
+  name      String // sanitized original filename
+  mimeType  String
+  size      Int // bytes
+  width     Int? // images only
+  height    Int? // images only
+  createdAt DateTime              @default(now())
+
+  @@index([messageId])
+}
+
+model SupportReaction {
+  id        String             @id @default(cuid())
+  messageId String
+  message   TicketMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TicketReactionType
+  createdAt DateTime           @default(now())
+
+  // One reaction per user per message — placing a new one replaces the old.
+  @@unique([messageId, userId])
+  @@index([messageId])
 }
 
 // ---------------------------------------------------------------------------
