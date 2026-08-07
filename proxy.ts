@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { isAllowedRequestOrigin } from "@/lib/api/origin"
 
 /**
  * Edge proxy (formerly middleware) — global CSRF defense for the API.
@@ -25,8 +26,7 @@ const CSRF_EXEMPT_PREFIXES = ["/api/telegram/", "/api/v1/cron/"]
 // In production we require a strict Origin===Host match. Outside production
 // (v0 preview, Vercel preview deployments, local dev) the app is rendered
 // inside an editor iframe whose Origin legitimately differs from the request
-// Host, so we additionally trust these platform preview origin suffixes.
-const PREVIEW_ORIGIN_SUFFIXES = [".vusercontent.net", ".v0.app", ".v0.dev", ".vercel.app"]
+// Host, so platform preview origins are additionally trusted there.
 const IS_PRODUCTION = process.env.VERCEL_ENV === "production"
 
 function isExempt(pathname: string): boolean {
@@ -34,21 +34,10 @@ function isExempt(pathname: string): boolean {
 }
 
 function isSameOrigin(sourceHost: string, req: NextRequest): boolean {
-  // Behind a proxy the browser-facing host arrives as `x-forwarded-host` while
-  // `host` may be an internal address — accept a match against either.
-  const candidates = [req.headers.get("host"), req.headers.get("x-forwarded-host")]
+  const selfHosts = [req.headers.get("host"), req.headers.get("x-forwarded-host")]
     .filter(Boolean)
     .flatMap((h) => h!.split(",").map((s) => s.trim()))
-  if (candidates.includes(sourceHost)) return true
-
-  // Trust platform preview origins only outside production.
-  if (!IS_PRODUCTION && PREVIEW_ORIGIN_SUFFIXES.some((suffix) => sourceHost.endsWith(suffix))) {
-    return true
-  }
-  if (!IS_PRODUCTION && (sourceHost === "localhost" || sourceHost.startsWith("localhost:"))) {
-    return true
-  }
-  return false
+  return isAllowedRequestOrigin(sourceHost, selfHosts, IS_PRODUCTION)
 }
 
 export function proxy(req: NextRequest): NextResponse {
