@@ -46,6 +46,7 @@ export interface ChatThreadProps {
 }
 
 export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefresh, onSend, renderComposer }: ChatThreadProps) {
+  console.log("[v0] ChatThread role:", role, "msgCount:", messages.length, "sample fromStaff:", messages.map((m) => m.fromStaff))
   const scrollerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   // Track which message ids we've already rendered so the typing effect only

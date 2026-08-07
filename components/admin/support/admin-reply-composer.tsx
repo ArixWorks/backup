@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, Send, CheckCircle2 } from "lucide-react"
+import { Loader2, Send, CheckCircle2, PenLine, ChevronDown } from "lucide-react"
 import { apiPost, apiPatch, ApiError } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import {
@@ -47,6 +47,9 @@ export function AdminReplyComposer({ publicId, status, onDone }: AdminReplyCompo
   const [html, setHtml] = useState("")
   const [sending, setSending] = useState(false)
   const [statusSaving, setStatusSaving] = useState(false)
+  // Collapsed by default so the message thread stays the primary area; the full
+  // rich editor + AI assistant expand on demand.
+  const [expanded, setExpanded] = useState(false)
 
   async function changeStatus(next: TicketStatus) {
     if (next === status) return
@@ -72,6 +75,7 @@ export function AdminReplyComposer({ publicId, status, onDone }: AdminReplyCompo
     try {
       await apiPost(`/api/v1/admin/support/${publicId}`, { message: plain, html, close })
       setHtml("")
+      setExpanded(false)
       toast.success(close ? "پاسخ ارسال و تیکت بسته شد" : "پاسخ ارسال شد")
       onDone()
     } catch (err) {
@@ -81,8 +85,59 @@ export function AdminReplyComposer({ publicId, status, onDone }: AdminReplyCompo
     }
   }
 
+  // Shared status selector used in both collapsed and expanded states.
+  const statusSelect = (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">وضعیت</span>
+      <Select value={status} onValueChange={(v) => changeStatus(v as TicketStatus)} disabled={statusSaving}>
+        <SelectTrigger size="sm" className="w-36">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {ASSIGNABLE_STATUSES.map((s) => (
+            <SelectItem key={s} value={s}>
+              {STATUS_META[s].label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+
+  if (!expanded) {
+    // Compact bar: a reply trigger plus a quick status control, leaving the
+    // message thread as the dominant area of the screen.
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="flex flex-1 items-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 text-right text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          <PenLine className="h-4 w-4 shrink-0" />
+          نوشتن پاسخ…
+        </button>
+        {statusSelect}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        {statusSelect}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setExpanded(false)}
+          className="gap-1 text-muted-foreground"
+          aria-label="جمع‌کردن ویرایشگر"
+        >
+          <ChevronDown className="h-4 w-4" />
+          جمع‌کردن
+        </Button>
+      </div>
+
       <AiAssistPanel publicId={publicId} onUseDraft={setHtml} />
 
       <div className="rounded-2xl border border-border bg-card p-3">
@@ -90,36 +145,17 @@ export function AdminReplyComposer({ publicId, status, onDone }: AdminReplyCompo
           value={html}
           onChange={setHtml}
           placeholder="پاسخ پشتیبانی… برای دستورات «/» را بزنید"
-          draftKey={`support-reply:${publicId}`}
         />
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">وضعیت</span>
-            <Select value={status} onValueChange={(v) => changeStatus(v as TicketStatus)} disabled={statusSaving}>
-              <SelectTrigger size="sm" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ASSIGNABLE_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STATUS_META[s].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => send(true)} disabled={sending} className="gap-1.5">
-              <CheckCircle2 className="h-4 w-4" />
-              ارسال و بستن
-            </Button>
-            <Button size="sm" onClick={() => send(false)} disabled={sending} className="gap-1.5">
-              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              ارسال پاسخ
-            </Button>
-          </div>
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => send(true)} disabled={sending} className="gap-1.5">
+            <CheckCircle2 className="h-4 w-4" />
+            ارسال و بستن
+          </Button>
+          <Button size="sm" onClick={() => send(false)} disabled={sending} className="gap-1.5">
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            ارسال پاسخ
+          </Button>
         </div>
       </div>
     </div>
