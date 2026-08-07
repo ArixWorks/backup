@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { FileText, FileType, Download, X } from "lucide-react"
 
 export type TicketAttachment = {
@@ -29,6 +29,17 @@ function formatSize(bytes: number): string {
  */
 export function AttachmentPreview({ attachments }: { attachments: TicketAttachment[] }) {
   const [lightbox, setLightbox] = useState<TicketAttachment | null>(null)
+
+  // Close the lightbox on Escape for keyboard accessibility.
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(null)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [lightbox])
+
   if (!attachments || attachments.length === 0) return null
 
   return (
@@ -89,14 +100,27 @@ export function AttachmentPreview({ attachments }: { attachments: TicketAttachme
           role="dialog"
           aria-modal="true"
         >
-          <button
-            type="button"
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-            onClick={() => setLightbox(null)}
-            aria-label="بستن"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {/* Toolbar pinned to the top of the image: download + close. */}
+          <div className="absolute right-4 top-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <a
+              href={lightbox.url}
+              download={lightbox.name}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              aria-label={`دانلود ${lightbox.name}`}
+            >
+              <Download className="h-5 w-5" />
+            </a>
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+              onClick={() => setLightbox(null)}
+              aria-label="بستن"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={lightbox.url || "/placeholder.svg"}
@@ -105,6 +129,14 @@ export function AttachmentPreview({ attachments }: { attachments: TicketAttachme
             crossOrigin="anonymous"
             onClick={(e) => e.stopPropagation()}
           />
+          {/* File name caption below the toolbar for context. */}
+          <span
+            dir="auto"
+            className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-black/40 px-3 py-1.5 text-xs text-white/90"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {lightbox.name}
+          </span>
         </div>
       )}
     </>
