@@ -1,4 +1,5 @@
 import { ForbiddenError } from "@/lib/core/errors"
+import { isAllowedRequestOrigin } from "@/lib/api/origin"
 
 /**
  * Lightweight CSRF defense for state-changing requests. We require the request
@@ -18,10 +19,20 @@ export function assertSameOrigin(req: Request): void {
   // SameSite policy still applies.
   if (!source) return
 
+  let sourceHost: string
   try {
-    const url = new URL(source)
-    if (url.host !== host) throw new ForbiddenError("درخواست از مبدأ نامعتبر")
+    sourceHost = new URL(source).host
   } catch {
+    throw new ForbiddenError("درخواست از مبدأ نامعتبر")
+  }
+
+  // Same rule as the edge proxy, so a request is not accepted globally and then
+  // rejected here (which previously broke these routes in the editor preview,
+  // whose Origin is legitimately not our Host).
+  const selfHosts = [host, req.headers.get("x-forwarded-host")]
+    .filter(Boolean)
+    .flatMap((h) => h!.split(",").map((s) => s.trim()))
+  if (!isAllowedRequestOrigin(sourceHost, selfHosts, process.env.VERCEL_ENV === "production")) {
     throw new ForbiddenError("درخواست از مبدأ نامعتبر")
   }
 }
