@@ -49,10 +49,21 @@ export const POST = route(async (req: Request) => {
   const file = form.get("file")
   if (!(file instanceof File)) throw new ValidationError("فایلی ارسال نشده است")
 
+  // Which families this upload is allowed to be. Ticket attachments opt into
+  // TEXT via `accept=image,pdf,text`; other flows (KYC, receipts) keep the
+  // stricter image+pdf default. Values are validated, never trusted blindly.
+  const acceptRaw = (form.get("accept") as string | null) || "image,pdf"
+  const KIND_MAP: Record<string, "IMAGE" | "PDF" | "TEXT"> = { image: "IMAGE", pdf: "PDF", text: "TEXT" }
+  const accept = acceptRaw
+    .split(",")
+    .map((s) => KIND_MAP[s.trim().toLowerCase()])
+    .filter((k): k is "IMAGE" | "PDF" | "TEXT" => Boolean(k))
+  const allowed: ("IMAGE" | "PDF" | "TEXT")[] = accept.length ? accept : ["IMAGE", "PDF"]
+
   // Verify the real content (magic bytes), re-encode images to strip any
-  // appended payload, and reject anything that is not a genuine image or PDF.
-  // The client-declared MIME type and extension are never trusted.
-  const safe = await sanitizeUpload(file, ["IMAGE", "PDF"])
+  // appended payload, and reject anything that is not among the allowed
+  // families. The client-declared MIME type and extension are never trusted.
+  const safe = await sanitizeUpload(file, allowed)
 
   const folder = (form.get("folder") as string | null) || "uploads"
   const safeFolder = folder.replace(/[^a-z0-9/_-]/gi, "")
@@ -93,5 +104,24 @@ export const POST = route(async (req: Request) => {
   // (possibly public) Blob URL is never handed to the client; public imagery
   // is returned directly.
   const url = isPrivate ? `/api/v1/files/${blob.pathname}` : blob.url
-  return { url, contentType: safe.mimeType }
+
+  // Derive a safe display name from the original, keeping only the base name
+  // and the server-verified extension (never the client-declared one).
+  const rawName = typeof file.name === "string" ? file.name : "file"
+  const baseName = rawName.replace(/^.*[\\/]/, "").replace(/\.[^.]*$/, "").slice(0, 120) || "file"
+  const name = `${baseName}.${safe.ext}`
+
+  return {
+    url,
+    contentType: safe.mimeType,
+    // Full, server-verified descriptor. Callers persisting a ticket attachment
+    // forward this to the ticket route, which re-derives kind from mimeType so
+    // nothing here is taken on trust.
+    kind: safe.kind,
+    name,
+    mimeType: safe.mimeType,
+    size: safe.buffer.length,
+    width: safe.width ?? null,
+    height: safe.height ?? null,
+  }
 })

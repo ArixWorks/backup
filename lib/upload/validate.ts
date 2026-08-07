@@ -83,7 +83,7 @@ function looksLikeUtf8Text(buf: Buffer): boolean {
 const PDF_DANGER = [/\/JavaScript/i, /\/JS\b/i, /\/Launch/i, /\/OpenAction/i, /\/AA\b/i, /\/EmbeddedFile/i, /\/RichMedia/i]
 
 async function sanitizeImage(buf: Buffer): Promise<SafeAttachment> {
-  let meta: sharp.Metadata
+  let meta: Awaited<ReturnType<ReturnType<typeof sharp>["metadata"]>>
   try {
     meta = await sharp(buf, { limitInputPixels: MAX_IMAGE_PIXELS, failOn: "error" }).metadata()
   } catch {

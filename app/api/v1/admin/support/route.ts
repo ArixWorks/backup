@@ -6,6 +6,10 @@ export const dynamic = "force-dynamic"
 
 export const GET = route(async (req: Request) => {
   await requireAdmin()
-  const status = new URL(req.url).searchParams.get("status") || undefined
-  return listTicketsAdmin(status)
+  const sp = new URL(req.url).searchParams
+  return listTicketsAdmin({
+    status: sp.get("status") || undefined,
+    category: sp.get("category") || undefined,
+    q: sp.get("q") || undefined,
+  })
 })
