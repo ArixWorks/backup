@@ -66,7 +66,19 @@ export function ImageUpload({
       fd.append("file", new File([blob], `crop-${Date.now()}.webp`, { type: "image/webp" }))
       fd.append("folder", folder)
       const res = await fetch("/api/v1/uploads", { method: "POST", body: fd, credentials: "include" })
-      const json = await res.json()
+      // Parse defensively: an oversized body or proxy/5xx page returns HTML,
+      // which would otherwise crash with "Unexpected token '<'".
+      const raw = await res.text()
+      let json: any = {}
+      try {
+        json = raw ? JSON.parse(raw) : {}
+      } catch {
+        throw new ApiError(
+          res.status === 413 ? "فایل بیش از حد بزرگ است" : "پاسخ نامعتبر از سرور هنگام آپلود",
+          "UPLOAD_INVALID_RESPONSE",
+          res.status || 0,
+        )
+      }
       if (!res.ok)
         throw new ApiError(json?.error?.message || "خطا در آپلود", json?.error?.code || "UPLOAD_FAILED", res.status)
       onChange((json.url ?? json.data?.url) as string)

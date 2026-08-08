@@ -6,13 +6,12 @@ import { Loader2, Send, Paperclip, X, Smile, ImageIcon, FileText } from "lucide-
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { uploadAttachment, type UploadedAttachment } from "@/lib/upload-client"
+import { uploadAttachment, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_LABEL, type UploadedAttachment } from "@/lib/upload-client"
 
 // A compact, dependency-free emoji set for inserting into the message text.
 const EMOJIS = ["🙏","❤️","👍","👎","😊","🎉","🔥","😍","😮","😢","😂","🙌","✅","⭐","💯","👏","🤝","💬","📎","⚡"]
 
 const MAX_FILES = 5
-const MAX_BYTES = 6 * 1024 * 1024
 // Accept only image, pdf and text — enforced again server-side by magic bytes.
 const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,text/plain,.jpg,.jpeg,.png,.webp,.pdf,.txt"
 
@@ -46,8 +45,8 @@ export function ChatComposer({
         toast.error(`حداکثر ${MAX_FILES} فایل مجاز است`)
         break
       }
-      if (f.size > MAX_BYTES) {
-        toast.error(`«${f.name}» بیشتر از ۶ مگابایت است`)
+      if (f.size > MAX_ATTACHMENT_BYTES) {
+        toast.error(`«${f.name}» بیشتر از ${MAX_ATTACHMENT_LABEL} است`)
         continue
       }
       next.push(f)

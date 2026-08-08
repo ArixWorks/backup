@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { apiPost } from "@/lib/api-client"
-import { uploadAttachment, type UploadedAttachment } from "@/lib/upload-client"
+import { uploadAttachment, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_LABEL, type UploadedAttachment } from "@/lib/upload-client"
 import { useI18n } from "@/components/i18n-provider"
 import type { MessageKey } from "@/lib/i18n/messages"
 
@@ -134,7 +134,15 @@ export function NewTicketDialog({ onCreated }: { onCreated: () => void }) {
               className="hidden"
               onChange={(e) => {
                 const picked = Array.from(e.target.files ?? [])
-                setFiles((prev) => [...prev, ...picked].slice(0, 5))
+                const ok: File[] = []
+                for (const f of picked) {
+                  if (f.size > MAX_ATTACHMENT_BYTES) {
+                    toast.error(`«${f.name}» بیشتر از ${MAX_ATTACHMENT_LABEL} است`)
+                    continue
+                  }
+                  ok.push(f)
+                }
+                setFiles((prev) => [...prev, ...ok].slice(0, 5))
                 e.target.value = ""
               }}
             />
