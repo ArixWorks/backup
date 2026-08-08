@@ -202,13 +202,11 @@ function PreviewCard({
       {item.image ? (
         <Image src={item.image} alt={item.label} fill sizes="80px" className="object-cover" />
       ) : (
-        // Domains have no artwork, so the extension itself is the visual. The
-        // folder's front flap (z-30) covers roughly the card's lower half, so
-        // the geometric centre lands behind the flap. We keep `justify-center`
-        // but reserve the covered height with a bottom padding, which shifts the
-        // effective centre up into the strip that stays visible — so the
-        // extension + price are balanced from top and bottom within that strip.
-        <span className={cn("flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 pb-11 text-center", a.tint)}>
+        // Domains have no artwork, so the extension itself is the visual. In the
+        // fanned-open state the whole card sits above the folder pocket, so the
+        // extension + price stack is centred on both axes — balanced from top
+        // and bottom across the full card height.
+        <span className={cn("flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-center", a.tint)}>
           <span dir="ltr" className="truncate font-mono text-[13px] font-black tracking-tight text-foreground">
             {item.label}
           </span>
