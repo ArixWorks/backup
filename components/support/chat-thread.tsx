@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { Check, CheckCheck } from "lucide-react"
+import { Check, CheckCheck, Headset } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiGet, apiPost } from "@/lib/api-client"
 import { formatDateTime, formatRelative } from "@/lib/format"
@@ -104,7 +104,11 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
                 <AvatarFallback
                   className={cn("text-[10px]", m.fromStaff ? "bg-violet-500/20 text-violet-200" : "bg-sky-500/20 text-sky-200")}
                 >
-                  {m.fromStaff ? "PS" : "You"}
+                  {m.fromStaff ? (
+                    <Headset className="h-4 w-4" aria-label="پشتیبانی" />
+                  ) : (
+                    "You"
+                  )}
                 </AvatarFallback>
               </Avatar>
 
