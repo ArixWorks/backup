@@ -45,10 +45,14 @@ export async function listMedia(params: {
   if (params.kind) sp.set("kind", params.kind)
   if (params.sort) sp.set("sort", params.sort)
   if (params.cursor) sp.set("cursor", params.cursor)
-  const res = await apiGet<{ items: MediaAssetDTO[]; nextCursor: string | null }>(
+  // API envelope is { ok, data: { items, nextCursor } }. apiGet returns the raw
+  // JSON, so unwrap `data` here and always hand back a real array — otherwise a
+  // missing/empty payload leaves `items` undefined and the picker crashes on
+  // `items.length`.
+  const res = await apiGet<{ data?: { items?: MediaAssetDTO[]; nextCursor?: string | null } }>(
     `/api/v1/admin/media?${sp.toString()}`,
   )
-  return res
+  return { items: res.data?.items ?? [], nextCursor: res.data?.nextCursor ?? null }
 }
 
 /** Upload a file into the Media Library. Extra image metadata is optional. */
@@ -74,8 +78,10 @@ export async function uploadMedia(
 export async function searchLinks(q: string, type?: string): Promise<LinkHit[]> {
   const sp = new URLSearchParams({ q })
   if (type) sp.set("type", type)
-  const res = await apiGet<{ items: LinkHit[] }>(`/api/v1/admin/link-search?${sp.toString()}`)
-  return res.items
+  const res = await apiGet<{ data?: { items?: LinkHit[] }; items?: LinkHit[] }>(
+    `/api/v1/admin/link-search?${sp.toString()}`,
+  )
+  return res.data?.items ?? res.items ?? []
 }
 
 /** Run an AI inline action on an HTML fragment; returns rewritten HTML. */
@@ -93,8 +99,10 @@ export async function runInline(action: InlineAction, html: string, targetLocale
 export async function listSnippets(q?: string): Promise<SnippetDTO[]> {
   const sp = new URLSearchParams()
   if (q) sp.set("q", q)
-  const res = await apiGet<{ items: SnippetDTO[] }>(`/api/v1/admin/snippets?${sp.toString()}`)
-  return res.items
+  const res = await apiGet<{ data?: { items?: SnippetDTO[] }; items?: SnippetDTO[] }>(
+    `/api/v1/admin/snippets?${sp.toString()}`,
+  )
+  return res.data?.items ?? res.items ?? []
 }
 
 export async function saveSnippet(name: string, html: string, category?: string): Promise<SnippetDTO> {

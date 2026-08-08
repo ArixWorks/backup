@@ -202,34 +202,47 @@ function PreviewCard({
       {item.image ? (
         <Image src={item.image} alt={item.label} fill sizes="80px" className="object-cover" />
       ) : (
-        // Domains have no artwork, so the extension itself is the visual.
-        <span className={cn("flex h-full w-full items-center justify-center px-1", a.tint)}>
+        // Domains have no artwork, so the extension itself is the visual. In the
+        // fanned-open state the whole card sits above the folder pocket, so the
+        // extension + price stack is centred on both axes — balanced from top
+        // and bottom across the full card height.
+        <span className={cn("flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-center", a.tint)}>
           <span dir="ltr" className="truncate font-mono text-[13px] font-black tracking-tight text-foreground">
             {item.label}
           </span>
+          {item.priceIrt ? (
+            <span dir="auto" className="max-w-full truncate text-center text-[8px] font-extrabold leading-3 text-current">
+              {compactLabel(item.priceIrt)}
+            </span>
+          ) : null}
         </span>
       )}
 
       <span aria-hidden className="absolute inset-0 bg-[linear-gradient(to_top,color-mix(in_oklab,var(--background)_92%,transparent),transparent_62%)]" />
 
-      <span className="absolute inset-x-1 bottom-1 flex flex-col gap-px">
-        {item.image ? (
-          <span dir="auto" className="truncate text-[8px] font-bold leading-3 text-foreground">
+      {/*
+        Bottom caption for artwork cards only. Domains render their price in the
+        centre (above), so this block is skipped for them to avoid a duplicate.
+        Everything is centred so the price sits in the middle, not a corner.
+      */}
+      {item.image ? (
+        <span className="absolute inset-x-1 bottom-1 flex flex-col items-center gap-px text-center">
+          <span dir="auto" className="max-w-full truncate text-[8px] font-bold leading-3 text-foreground">
             {item.label}
           </span>
-        ) : null}
-        {/*
-          Compact, not the full price: a 68px card truncates
-          «۱٬۱۴۱٬۰۰۰ تومان» down to «۱٬۱۴۱…», which reads as a far smaller
-          number than it is. The magnitude word carries the scale instead, and
-          the unit is dropped because every price on the page is in Toman.
-        */}
-        {item.priceIrt ? (
-          <span dir="auto" className="truncate text-[8px] font-extrabold leading-3 text-current">
-            {compactLabel(item.priceIrt)}
-          </span>
-        ) : null}
-      </span>
+          {/*
+            Compact, not the full price: a 68px card truncates
+            «۱٬۱۴۱٬۰۰۰ تومان» down to «۱٬۱۴۱…», which reads as a far smaller
+            number than it is. The magnitude word carries the scale instead, and
+            the unit is dropped because every price on the page is in Toman.
+          */}
+          {item.priceIrt ? (
+            <span dir="auto" className="max-w-full truncate text-[8px] font-extrabold leading-3 text-current">
+              {compactLabel(item.priceIrt)}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
       </span>
     </Link>
   )

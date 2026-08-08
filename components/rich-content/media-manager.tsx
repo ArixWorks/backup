@@ -61,9 +61,12 @@ export function MediaManager({
     setLoading(true)
     try {
       const res = await listMedia({ q, kind: kind || undefined, sort: "recent" })
-      setItems(res.items)
+      // Defensive: never let a non-array reach state — the grid renders
+      // `items.length` and would otherwise crash the whole editor frame.
+      setItems(Array.isArray(res.items) ? res.items : [])
     } catch (err) {
       console.log("[v0] media list failed:", err)
+      setItems([])
     } finally {
       setLoading(false)
     }
