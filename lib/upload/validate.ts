@@ -56,6 +56,12 @@ function sniffKind(buf: Buffer): SafeAttachmentKind | null {
   if (startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "IMAGE"
   // WebP: "RIFF" .... "WEBP"
   if (startsWith(buf, [0x52, 0x49, 0x46, 0x46]) && startsWith(buf, [0x57, 0x45, 0x42, 0x50], 8)) return "IMAGE"
+  // HEIF/HEIC (iPhone photos): an ISO-BMFF box whose type is "ftyp" at offset 4
+  // with a HEIF-family major brand. sharp decodes these via libheif.
+  if (startsWith(buf, [0x66, 0x74, 0x79, 0x70], 4)) {
+    const brand = buf.toString("latin1", 8, 12)
+    if (["heic", "heix", "hevc", "heim", "heis", "hevm", "hevs", "mif1", "msf1", "heif"].includes(brand)) return "IMAGE"
+  }
   // PDF: %PDF- (may be preceded by a small BOM/whitespace in the wild, but we
   // require it at the very start for safety).
   if (startsWith(buf, [0x25, 0x50, 0x44, 0x46, 0x2d])) return "PDF"
@@ -92,7 +98,8 @@ async function sanitizeImage(buf: Buffer): Promise<SafeAttachment> {
     throw new ValidationError("فایل تصویری معتبر نیست")
   }
   const format = meta.format
-  if (!format || !["jpeg", "png", "webp"].includes(format)) {
+  // "heif" covers iPhone HEIC/HEIF; it is transcoded to JPEG below.
+  if (!format || !["jpeg", "png", "webp", "heif"].includes(format)) {
     throw new ValidationError("فقط تصویر JPG، PNG یا WebP مجاز است")
   }
   if ((meta.width ?? 0) * (meta.height ?? 0) > MAX_IMAGE_PIXELS) {

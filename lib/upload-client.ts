@@ -1,19 +1,26 @@
 import { ApiError } from "@/lib/api-client"
+import { compressImage } from "@/lib/upload/compress-image"
 
 export type UploadKind = "IMAGE" | "PDF" | "TEXT"
 
 /**
- * Maximum attachment size accepted by the upload route.
- *
- * Vercel Functions reject any request whose body exceeds ~4.5 MB *before* the
- * route handler runs, responding with an HTML error page (not JSON). A file
- * between 4.5 MB and the old 6 MB cap therefore produced the cryptic
- * "Unexpected token '<'" crash in production. We cap at 4 MB to stay safely
- * under that platform limit (multipart overhead is negligible), and the server
- * validator enforces the same ceiling as the final gate.
+ * Largest file a user may *select*. Images this large are re-encoded and
+ * shrunk in the browser before upload (see `MAX_TRANSPORT_BYTES`), so a 10 MB
+ * phone photo is accepted and transported as a much smaller JPEG.
  */
-export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024 // 4 MB
-export const MAX_ATTACHMENT_LABEL = "۴ مگابایت"
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024 // 10 MB
+export const MAX_ATTACHMENT_LABEL = "۱۰ مگابایت"
+
+/**
+ * Largest body we will actually send over the wire. Vercel Functions reject
+ * any request whose body exceeds ~4.5 MB *before* the route handler runs,
+ * responding with an HTML error page (not JSON) — the classic
+ * "Unexpected token '<'" crash. Images are compressed under this ceiling
+ * client-side; non-image files (PDF/text) can't be compressed, so anything
+ * still over the limit is rejected here with a clear message instead.
+ */
+export const MAX_TRANSPORT_BYTES = 4 * 1024 * 1024 // 4 MB
+const MAX_TRANSPORT_LABEL = "۴ مگابایت"
 
 /** Full, server-verified attachment descriptor returned by the upload route. */
 export interface UploadedAttachment {
@@ -38,8 +45,7 @@ export async function uploadAttachment(
   folder = "uploads",
   accept: UploadKind[] = ["IMAGE", "PDF"],
 ): Promise<UploadedAttachment> {
-  // Guard the size on the client before spending a round-trip. Files over the
-  // platform body limit would otherwise be rejected with an HTML page.
+  // Guard the selection size first so we never waste work on absurd files.
   if (file.size > MAX_ATTACHMENT_BYTES) {
     throw new ApiError(
       `«${file.name}» بیش از حد بزرگ است. حداکثر حجم مجاز ${MAX_ATTACHMENT_LABEL} است.`,
@@ -48,8 +54,23 @@ export async function uploadAttachment(
     )
   }
 
+  // Shrink/normalise images in the browser (also converts HEIC → JPEG) so the
+  // transported body stays under the platform limit. Non-images pass through.
+  const prepared = await compressImage(file)
+
+  // Final transport gate: images are now small, but an oversized PDF/text file
+  // can't be compressed — reject it clearly rather than let the platform return
+  // an opaque HTML error page mid-upload.
+  if (prepared.size > MAX_TRANSPORT_BYTES) {
+    throw new ApiError(
+      `«${file.name}» بیش از حد بزرگ است. حداکثر حجم مجاز برای این نوع فایل ${MAX_TRANSPORT_LABEL} است.`,
+      "FILE_TOO_LARGE",
+      413,
+    )
+  }
+
   const form = new FormData()
-  form.append("file", file)
+  form.append("file", prepared)
   form.append("folder", folder)
   form.append("accept", accept.map((k) => k.toLowerCase()).join(","))
   const res = await fetch("/api/v1/uploads", {
