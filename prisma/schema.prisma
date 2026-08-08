@@ -3147,3 +3147,243 @@ model BotKV {
 
   @@index([expiresAt])
 }
+
+// ============================================================================
+// VPS Marketplace (manual fulfillment) — mirrors the Domain reseller pattern:
+// an admin-managed catalog (VpsOffer), a signed price lock (VpsQuote), a wallet
+// -freezing order with an append-only event log (VpsOrder / VpsOrderEvent), the
+// delivered service decoupled from the order (VpsInstance), and repeatable
+// post-delivery requests (VpsServiceRequest). All money movement reuses the
+// existing wallet freeze/capture/release engine; nothing here re-implements it.
+// ============================================================================
+
+enum VpsOfferStockStatus {
+  AVAILABLE
+  LIMITED
+  ON_REQUEST
+  TEMPORARILY_UNAVAILABLE
+  DISABLED
+}
+
+enum VpsOrderStatus {
+  PENDING_PURCHASE
+  PROCESSING
+  // Admin has provisioned upstream and is entering delivery details; capture
+  // happens only on the transition INTO COMPLETED, never here.
+  READY_FOR_DELIVERY
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum VpsInstanceStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  CANCELLED
+}
+
+enum VpsServiceRequestType {
+  PASSWORD_CHANGE
+  REINSTALL_OS
+  IP_CHANGE
+  UPGRADE
+  DOWNGRADE
+  EXTEND
+  CANCEL
+  MIGRATION
+  OTHER
+}
+
+enum VpsServiceRequestStatus {
+  OPEN
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+/// Admin-managed VPS plan shown in the storefront. Sale price is a single Toman
+/// value every quote/order path reads. Provider cost/label fields are strictly
+/// internal (admin serializers only) and never leak into public DTOs.
+model VpsOffer {
+  id            String              @id @default(cuid())
+  name          String
+  slug          String              @unique
+  location      String
+  // Specs
+  cpu           String
+  ram           String
+  storage       String
+  storageType   String              @default("NVMe")
+  bandwidth     String
+  ipv4          Int                 @default(1)
+  ipv6          Boolean             @default(false)
+  portSpeed     String?
+  os            String[]            @default([])
+  durationDays  Int                 @default(30)
+  // Public price (Toman). Single source of truth for every quote/order.
+  priceIrt      BigInt
+  listPriceIrt  BigInt?
+  currency      String              @default("IRT")
+  // Content
+  description   String              @default("") // semantic HTML (rich content)
+  features      Json                @default("[]")
+  coverImage    String?
+  gallery       String[]            @default([])
+  stockStatus   VpsOfferStockStatus @default(ON_REQUEST)
+  estimatedDeliveryText String?
+  active        Boolean             @default(true)
+  sortOrder     Int                 @default(0)
+  // SEO
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String[]           @default([])
+  ogImageUrl     String?
+  // Internal-only economics (admin serializers ONLY; never public).
+  providerCostCents  Int?
+  providerCurrency   String?
+  providerLabel      String?
+  backupProviderLabel String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  orders        VpsOrder[]
+  instances     VpsInstance[]
+
+  @@index([active, sortOrder])
+  @@index([stockStatus, active])
+}
+
+/// Signed, short-lived price lock. The signatureHash (HMAC over the price
+/// snapshot with AUTH_SECRET) is verified server-side at order time so the
+/// client can never dictate the amount.
+model VpsQuote {
+  id            String    @id @default(cuid())
+  userId        String
+  offerId       String
+  amountIrt     BigInt
+  priceSnapshot Json
+  signatureHash String    @unique
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([offerId, expiresAt])
+}
+
+model VpsOrder {
+  id                   String         @id @default(cuid())
+  publicId             String         @unique
+  userId               String
+  offerId              String
+  offer                VpsOffer       @relation(fields: [offerId], references: [id])
+  status               VpsOrderStatus @default(PENDING_PURCHASE)
+  amountIrt            BigInt
+  currency             String         @default("IRT")
+  quoteId              String         @unique
+  walletRef            String         @unique
+  idempotencyKey       String         @unique
+  priceSnapshot        Json
+  // Cost snapshot captured at delivery for profit reporting (admin-only).
+  providerCostSnapshot Json           @default("{}")
+  providerSelectedLabel String?
+  holdExpiresAt        DateTime
+  processingLeaseUntil DateTime?
+  version              Int            @default(0)
+  failureReason        String?
+  expiryReason         String?
+  // Renewal linkage: a renewal is a NEW order pointing at the instance it
+  // extends (kept in meta so ledger/audit stay clean).
+  parentInstanceId     String?
+  purchasedAt          DateTime?
+  completedAt          DateTime?
+  failedAt             DateTime?
+  expiredAt            DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  events               VpsOrderEvent[]
+  instance             VpsInstance?
+
+  @@index([userId, createdAt])
+  @@index([status, holdExpiresAt])
+  @@index([status, createdAt])
+}
+
+/// Append-only timeline + audit for a VPS order (mirrors DomainOrderEvent).
+model VpsOrderEvent {
+  id             String          @id @default(cuid())
+  orderId        String
+  order          VpsOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type           String
+  fromStatus     VpsOrderStatus?
+  toStatus       VpsOrderStatus?
+  actorType      String
+  actorId        String?
+  reasonCode     String?
+  message        String
+  meta           Json            @default("{}")
+  idempotencyKey String          @unique
+  createdAt      DateTime        @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+/// A delivered VPS, decoupled from its order. Credentials (root password / SSH
+/// secret) are stored ONLY as an AES-256-GCM blob in encryptedCredentials and
+/// decrypted server-side for the owner alone.
+model VpsInstance {
+  id                   String            @id @default(cuid())
+  userId               String
+  orderId              String            @unique
+  order                VpsOrder          @relation(fields: [orderId], references: [id])
+  offerId              String
+  offer                VpsOffer          @relation(fields: [offerId], references: [id])
+  ipAddress            String?
+  ipv6Address          String?
+  hostname             String?
+  username             String?
+  sshPort              Int?
+  controlPanelUrl      String?
+  os                   String?
+  location             String?
+  // AES-256-GCM ciphertext (root password / SSH key). NEVER plaintext at rest.
+  encryptedCredentials String?
+  status               VpsInstanceStatus @default(ACTIVE)
+  startedAt            DateTime          @default(now())
+  expiresAt            DateTime?
+  // Which expiry reminders have already fired (avoids duplicate sends).
+  reminderState        Json              @default("{}")
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  serviceRequests      VpsServiceRequest[]
+
+  @@index([userId, status])
+  @@index([status, expiresAt])
+}
+
+/// Repeatable post-delivery request (password change, reinstall, IP change,
+/// upgrade, cancel, ...). Fulfilled manually by an admin.
+model VpsServiceRequest {
+  id             String                  @id @default(cuid())
+  publicId       String                  @unique
+  vpsInstanceId  String
+  vpsInstance    VpsInstance             @relation(fields: [vpsInstanceId], references: [id], onDelete: Cascade)
+  userId         String
+  type           VpsServiceRequestType
+  status         VpsServiceRequestStatus @default(OPEN)
+  description    String?
+  metadata       Json                    @default("{}")
+  adminNote      String?
+  resolution     String?
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([vpsInstanceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}

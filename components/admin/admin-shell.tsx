@@ -32,6 +32,7 @@ import {
   CircleHelp,
   Globe2,
   Server,
+  HardDrive,
   SearchCheck,
   ShieldAlert,
   ShieldCheck,
@@ -61,7 +62,7 @@ type NavItem = {
   label: string
   icon: typeof LayoutDashboard
   exact?: boolean
-  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions" | "settings" | "nsRequests"
+  badge?: "deposits" | "withdrawals" | "deliveries" | "refunds" | "tickets" | "ops" | "questions" | "settings" | "nsRequests" | "vps"
 }
 
 type NavGroup = { title: string; items: NavItem[] }
@@ -88,6 +89,8 @@ const navGroups: NavGroup[] = [
       { href: "/admin/giveaways", label: "قرعه‌کشی‌ها", icon: Gift },
       { href: "/admin/domains", label: "دامنه‌ها", icon: Globe2, exact: true },
       { href: "/admin/domains/nameservers", label: "درخواست‌های NS", icon: Server, badge: "nsRequests" },
+      { href: "/admin/vps", label: "سرورهای مجازی", icon: HardDrive, exact: true, badge: "vps" },
+      { href: "/admin/vps/offers", label: "پلن‌های VPS", icon: Server },
     ],
   },
   {
@@ -206,6 +209,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   )
   const pendingNsRequests = Array.isArray(nsData?.data) ? nsData.data.length : 0
 
+  const { data: vpsData } = useSWR<{ data: { actionable: number } }>(
+    isAdmin ? "/api/v1/admin/vps/overview" : null,
+    fetcher,
+    { refreshInterval: 15000 },
+  )
+  const vpsActionable = vpsData?.data?.actionable ?? 0
+
   const activeItem =
     [...items].sort((a, b) => b.href.length - a.href.length).find((i) => (i.exact ? pathname === i.href : pathname.startsWith(i.href))) ?? items[0]
 
@@ -215,6 +225,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     if (key === "questions") return pendingQuestions
     if (key === "settings") return pendingTwoFa
     if (key === "nsRequests") return pendingNsRequests
+    if (key === "vps") return vpsActionable
     if (!stats) return 0
     if (key === "deposits") return stats.pendingDeposits
     if (key === "withdrawals") return stats.pendingWithdrawals
@@ -227,7 +238,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const totalAlerts = useMemo(
     () => items.reduce((n, it) => n + badgeCount(it.badge), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [stats, firingAlerts, pendingQuestions, pendingTwoFa, pendingNsRequests],
+    [stats, firingAlerts, pendingQuestions, pendingTwoFa, pendingNsRequests, vpsActionable],
   )
 
   const searchResults = useMemo(() => {
