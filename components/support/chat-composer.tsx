@@ -144,7 +144,7 @@ export function ChatComposer({
         rows={2}
         aria-label={placeholder}
         placeholder={placeholder}
-        className="resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+        className="resize-none border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:ring-0"
       />
 
       <input
