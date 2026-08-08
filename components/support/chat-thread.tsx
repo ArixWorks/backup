@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { Check, CheckCheck, Headset } from "lucide-react"
+import { Check, CheckCheck, Headset, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiGet, apiPost } from "@/lib/api-client"
 import { formatDateTime, formatRelative } from "@/lib/format"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useSession } from "@/hooks/use-session"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { AttachmentPreview } from "./attachment-preview"
 import { MessageReactions } from "./message-reactions"
@@ -45,7 +46,16 @@ export interface ChatThreadProps {
   renderComposer?: (onDone: () => void) => React.ReactNode
 }
 
+/** First-letter(s) fallback shown when the avatar image is missing. */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "؟"
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase()
+}
+
 export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefresh, onSend, renderComposer }: ChatThreadProps) {
+  // The current viewer's profile, used to show their own avatar on self messages.
+  const { user: viewer } = useSession()
   const scrollerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   // Track which message ids we've already rendered so the typing effect only
@@ -101,6 +111,14 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
           return (
             <div key={m.id} className={cn("flex gap-2", self ? "flex-row-reverse" : "flex-row")}>
               <Avatar className="h-8 w-8 shrink-0">
+                {/* Show the viewer's own profile photo on their self messages. */}
+                {self && !m.fromStaff && viewer?.photoUrl && (
+                  <AvatarImage
+                    src={viewer.photoUrl || "/placeholder.svg"}
+                    alt={viewer.displayName}
+                    className="object-cover"
+                  />
+                )}
                 <AvatarFallback
                   className={cn(
                     "text-[10px]",
@@ -109,9 +127,14 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
                   )}
                 >
                   {m.fromStaff ? (
+                    // Support/admin messages: dedicated headset icon.
                     <Headset className="h-4 w-4" aria-label="پشتیبانی" />
+                  ) : self && viewer ? (
+                    // Viewer's own message with no photo: their initials.
+                    initials(viewer.displayName)
                   ) : (
-                    "You"
+                    // The other party's user message (e.g. admin viewing the customer).
+                    <User className="h-4 w-4" aria-label="کاربر" />
                   )}
                 </AvatarFallback>
               </Avatar>
