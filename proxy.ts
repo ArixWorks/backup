@@ -18,6 +18,12 @@ import { isAllowedRequestOrigin } from "@/lib/api/origin"
  * defense in depth, not a replacement.
  */
 
+// TEMPORARY: master switch for the same-origin CSRF enforcement below.
+// Turned OFF on request to unblock sign-in while a production Origin/Host
+// mismatch is investigated. Flip back to `true` (or delete this constant and
+// its guard) to restore full CSRF protection.
+const CSRF_ENFORCEMENT_ENABLED = false
+
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"])
 
 // Path prefixes that are exempt from the same-origin requirement.
@@ -43,7 +49,7 @@ function isSameOrigin(sourceHost: string, req: NextRequest): boolean {
 export function proxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl
 
-  if (!MUTATING.has(req.method) || isExempt(pathname)) {
+  if (!CSRF_ENFORCEMENT_ENABLED || !MUTATING.has(req.method) || isExempt(pathname)) {
     return NextResponse.next()
   }
 
