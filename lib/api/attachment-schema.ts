@@ -13,7 +13,7 @@ export const attachmentSchema = z.object({
   kind: z.enum(["IMAGE", "PDF", "TEXT"]),
   name: z.string().min(1).max(200),
   mimeType: z.string().min(1).max(120),
-  size: z.number().int().nonnegative().max(6 * 1024 * 1024),
+  size: z.number().int().nonnegative().max(4 * 1024 * 1024),
   width: z.number().int().positive().max(100_000).nullish(),
   height: z.number().int().positive().max(100_000).nullish(),
 })

@@ -74,6 +74,6 @@ test("rejects a kind that is not allowed on the surface", async () => {
 })
 
 test("rejects files over the size limit", async () => {
-  const big = Buffer.alloc(7 * 1024 * 1024, 0x41)
-  await assert.rejects(() => sanitizeUpload(toFile(big, "big.txt", "text/plain"), ["IMAGE", "PDF", "TEXT"]), /۶ مگابایت/)
+  const big = Buffer.alloc(5 * 1024 * 1024, 0x41)
+  await assert.rejects(() => sanitizeUpload(toFile(big, "big.txt", "text/plain"), ["IMAGE", "PDF", "TEXT"]), /۴ مگابایت/)
 })

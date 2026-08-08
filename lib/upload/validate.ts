@@ -36,7 +36,9 @@ export interface SafeAttachment {
   height?: number
 }
 
-export const MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024 // 6 MB
+// 4 MB — kept safely under Vercel's ~4.5 MB request-body limit so large
+// uploads fail with a clear validation error rather than a platform HTML page.
+export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024 // 4 MB
 /** Reject images larger than this decoded size (decompression-bomb guard). */
 const MAX_IMAGE_PIXELS = 40_000_000 // 40 MP (~ 7746 x 5164)
 
@@ -135,7 +137,7 @@ export async function sanitizeUpload(
   allowed: SafeAttachmentKind[] = ["IMAGE", "PDF", "TEXT"],
 ): Promise<SafeAttachment> {
   if (file.size === 0) throw new ValidationError("فایل خالی است")
-  if (file.size > MAX_ATTACHMENT_BYTES) throw new ValidationError("حجم فایل نباید بیشتر از ۶ مگابایت باشد")
+  if (file.size > MAX_ATTACHMENT_BYTES) throw new ValidationError("حجم فایل نباید بیشتر از ۴ مگابایت باشد")
 
   const buf = Buffer.from(await file.arrayBuffer())
   const kind = sniffKind(buf)
