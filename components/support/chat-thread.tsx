@@ -102,7 +102,11 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
             <div key={m.id} className={cn("flex gap-2", self ? "flex-row-reverse" : "flex-row")}>
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarFallback
-                  className={cn("text-[10px]", m.fromStaff ? "bg-violet-500/20 text-violet-200" : "bg-sky-500/20 text-sky-200")}
+                  className={cn(
+                    "text-[10px]",
+                    // Theme-aware: support = active accent, user = neutral. Both recolor per admin theme.
+                    m.fromStaff ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground",
+                  )}
                 >
                   {m.fromStaff ? (
                     <Headset className="h-4 w-4" aria-label="پشتیبانی" />
@@ -117,7 +121,7 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
                   className={cn(
                     "relative rounded-2xl px-4 py-2.5 shadow-sm",
                     // Distinct colors per side so the two parties are unmistakable.
-                    self ? "rounded-br-md bg-violet-600 text-white" : "rounded-bl-md bg-muted text-foreground",
+                    self ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md bg-muted text-foreground",
                   )}
                 >
                   <MessageBody body={m.body} html={m.bodyHtml} animate={animateId === m.id} />
@@ -136,7 +140,7 @@ export function ChatThread({ threadUrl, myUserId, role, messages, closed, onRefr
                   {/* Read receipt: two ticks when read, one when delivered. */}
                   {showReadTick &&
                     (m.readAt ? (
-                      <CheckCheck className="h-3.5 w-3.5 text-sky-300" aria-label="خوانده شد" />
+                      <CheckCheck className="h-3.5 w-3.5 text-primary" aria-label="خوانده شد" />
                     ) : (
                       <Check className="h-3.5 w-3.5 text-muted-foreground" aria-label="ارسال شد" />
                     ))}
